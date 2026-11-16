@@ -9,6 +9,7 @@ namespace Pspsps.Integration.Test;
 public sealed class GameHubTests
 {
     private static readonly TimeSpan Wait = TimeSpan.FromSeconds(10);
+    private static readonly string[] WorldIds = ["tabby", "calico", "siamese"];
     private static GameFactory Game => PostgresFixture.Game;
 
     [Test]
@@ -62,7 +63,7 @@ public sealed class GameHubTests
 
         var worlds = await hub.InvokeAsync<List<WorldSummary>>("GetWorlds");
 
-        Assert.That(worlds.Select(w => w.Id), Is.EqualTo(new[] { "tabby", "calico", "siamese" }));
+        Assert.That(worlds.Select(w => w.Id), Is.EqualTo(WorldIds));
         Assert.That(worlds.Single(w => w.Id == "siamese").Population, Is.EqualTo(1));
     }
 
