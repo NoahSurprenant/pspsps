@@ -30,7 +30,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
-      - uses: sigstore/cosign-installer@v4
+      - uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
         with:
           cosign-release: v3.1.4
       - uses: docker/setup-buildx-action@v4
@@ -86,7 +86,7 @@ jobs:
           fi
       - uses: azure/setup-helm@v5
         if: steps.changed.outputs.publish == 'true'
-      - uses: sigstore/cosign-installer@v4
+      - uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
         if: steps.changed.outputs.publish == 'true'
         with:
           cosign-release: v3.1.4
