@@ -4,9 +4,10 @@ metadata:
   name: {{ include "pspsps.fullname" . }}
   labels:
     {{- include "pspsps.labels" . | nindent 4 }}
+    app.kubernetes.io/component: server
 spec:
   selector:
-    {{- include "pspsps.selectorLabels" . | nindent 4 }}
+    {{- include "pspsps.selectorLabels" (dict "root" . "component" "server") | nindent 4 }}
   ports:
     - name: http
       port: 80

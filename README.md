@@ -38,3 +38,10 @@ guest play always works.
 dotnet test Pspsps.slnx        # the integration tests start PostgreSQL with Testcontainers (Docker)
 cd client && npm run lint && npm test
 ```
+
+## Deploying
+
+Every push to master publishes a signed image (`ghcr.io/noahsurprenant/pspsps:master`) and, when the chart changed, a
+signed Helm chart (`oci://ghcr.io/noahsurprenant/charts/pspsps`). The chart runs the server and PostgreSQL by
+default; `cluster.enabled` makes it several server pods joined through Redis. Its `values.yaml` documents every
+setting, including the Secret it reads.

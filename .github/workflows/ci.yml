@@ -52,7 +52,11 @@ jobs:
       - uses: actions/checkout@v7
       - uses: azure/setup-helm@v5
       - run: helm lint charts/pspsps
-      - run: helm template pspsps charts/pspsps --set ingress.enabled=true --set ingress.host=pspsps.example > /dev/null
+      - run: helm template pspsps charts/pspsps > /dev/null
+      - run: >-
+          helm template pspsps charts/pspsps --set cluster.enabled=true --set cluster.kubeApi.cidr=10.0.0.1/32
+          --set ingressRoute.enabled=true --set ingressRoute.host=pspsps.example
+          --set ingress.enabled=true --set ingress.host=pspsps.example > /dev/null
 
   docker:
     name: Image builds

@@ -1,39 +1,122 @@
-name: Publish image
+name: Publish
+
+# On master: the image (ghcr.io/noahsurprenant/pspsps, :master and :sha-<commit>) and, when it changed, the Helm
+# chart (oci://ghcr.io/noahsurprenant/charts/pspsps, version <Chart.yaml major.minor>.<run number>). Both are signed
+# keyless with cosign (Sigstore), as this workflow on master.
 
 on:
   push:
     branches: [master]
+  workflow_dispatch:
 
 permissions:
   contents: read
   packages: write
+  id-token: write
 
 concurrency:
   group: publish
   cancel-in-progress: false
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE: ghcr.io/noahsurprenant/pspsps
+  CHART: charts/pspsps
+  CHART_REPO: oci://ghcr.io/noahsurprenant/charts
+
 jobs:
-  publish:
+  image:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
+      - uses: sigstore/cosign-installer@v4
+        with:
+          cosign-release: v3.1.4
       - uses: docker/setup-buildx-action@v4
       - uses: docker/login-action@v4
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ghcr.io/${{ github.repository_owner }}/pspsps
+          images: ${{ env.IMAGE }}
           tags: |
             type=raw,value=master
             type=sha,format=long
-      - uses: docker/build-push-action@v7
+      - id: build
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+      - name: Sign
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+          IDENTITY: ^https://github\.com/${{ github.repository }}/\.github/workflows/publish\.yml@refs/heads/master$
+        run: |
+          set -euo pipefail
+          cosign sign --yes "$IMAGE@$DIGEST"
+          cosign verify "$IMAGE@$DIGEST" --certificate-identity-regexp "$IDENTITY" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com > /dev/null
+          echo "Published and signed $IMAGE@$DIGEST." >> "$GITHUB_STEP_SUMMARY"
+
+  chart:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Did the chart change?
+        id: changed
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = push ] && git cat-file -e "$BEFORE^{commit}" 2>/dev/null \
+             && git diff --quiet "$BEFORE" HEAD -- "$CHART"; then
+            echo "The chart didn't change: nothing to publish."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: azure/setup-helm@v5
+        if: steps.changed.outputs.publish == 'true'
+      - uses: sigstore/cosign-installer@v4
+        if: steps.changed.outputs.publish == 'true'
+        with:
+          cosign-release: v3.1.4
+      - uses: docker/login-action@v4
+        if: steps.changed.outputs.publish == 'true'
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish and sign
+        if: steps.changed.outputs.publish == 'true'
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IDENTITY: ^https://github\.com/${{ github.repository }}/\.github/workflows/publish\.yml@refs/heads/master$
+        run: |
+          set -euo pipefail
+          echo "$TOKEN" | helm registry login "$REGISTRY" -u "${{ github.actor }}" --password-stdin
+          base=$(sed -n 's/^version: *//p' "$CHART/Chart.yaml")
+          version="${base%.*}.${{ github.run_number }}"
+          # A re-run of this run would reuse its number: never overwrite a published version.
+          if helm show chart "$CHART_REPO/pspsps" --version "$version" >/dev/null 2>&1; then
+            echo "pspsps $version is already published; not overwriting it."
+            exit 0
+          fi
+          helm package "$CHART" --version "$version" -d dist
+          helm push "dist/pspsps-$version.tgz" "$CHART_REPO" 2>&1 | tee push.txt
+          digest=$(sed -n 's/^Digest: *//p' push.txt)
+          test -n "$digest"
+          ref="${CHART_REPO#oci://}/pspsps@$digest"
+          cosign sign --yes "$ref"
+          cosign verify "$ref" --certificate-identity-regexp "$IDENTITY" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com > /dev/null
+          echo "Published and signed $CHART_REPO/pspsps:$version ($digest)." >> "$GITHUB_STEP_SUMMARY"

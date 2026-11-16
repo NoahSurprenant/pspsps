@@ -1,18 +1,25 @@
-# Pods are Orleans silos and SignalR servers at once: add replicas to scale. Above one replica, Redis is required
-# (connection string ConnectionStrings__Redis in the secret below).
-replicaCount: 1
+# One pod by default: the server is a single Orleans silo, with no Redis. cluster.enabled makes it a cluster of
+# cluster.replicas pods (Orleans silos joined through Redis, SignalR's backplane on the same Redis).
+cluster:
+  enabled: false
+  replicas: 2
+  # Orleans' Kubernetes hosting reads the pods through the API server; the NetworkPolicy lets the server reach it.
+  # The API server's address as the pods see it (an ipBlock: Services aren't matched by NetworkPolicies).
+  kubeApi:
+    cidr: ""
+    port: 6443
 
 image:
   repository: ghcr.io/noahsurprenant/pspsps
+  # A tag, or tag@digest to pin it (master@sha256:...).
   tag: master
-  # Set a digest to pin the image; it wins over the tag.
-  digest: ""
   pullPolicy: IfNotPresent
 
-# A Secret holding the server's settings as environment variables:
-#   ConnectionStrings__Pspsps                  PostgreSQL (required)
-#   ConnectionStrings__Redis                   Redis, with persistence on (required above one replica)
-#   Authentication__Discord__ClientId/ClientSecret, Authentication__Google__ClientId/ClientSecret (optional)
+# The Secret with the server's settings, as environment variable names:
+#   POSTGRES_PASSWORD   the database password (letters and digits: it goes into a connection string)
+#   Authentication__Discord__ClientId, Authentication__Discord__ClientSecret     (optional)
+#   Authentication__Google__ClientId, Authentication__Google__ClientSecret       (optional)
+# With postgres.enabled false, ConnectionStrings__Pspsps instead of POSTGRES_PASSWORD.
 existingSecret: pspsps
 
 # Orleans IDs, as pod labels. Keep clusterId fixed so rolling updates join the running cluster.
@@ -22,6 +29,16 @@ orleans:
 
 extraEnv: []
 
+server:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 768Mi
+
+# A plain Kubernetes Ingress...
 ingress:
   enabled: false
   className: ""
@@ -29,13 +46,61 @@ ingress:
   annotations: {}
   tls: []
 
-resources:
-  requests:
-    cpu: 100m
-    memory: 256Mi
-  limits:
-    cpu: "1"
-    memory: 768Mi
+# ...or a Traefik IngressRoute.
+ingressRoute:
+  enabled: false
+  host: ""
+  entryPoints: [websecure]
+  middlewares: []
+  annotations: {}
+
+postgres:
+  enabled: true
+  image:
+    repository: docker.io/library/postgres
+    tag: "18-alpine"
+    pullPolicy: IfNotPresent
+  database: pspsps
+  username: pspsps
+  persistence:
+    size: 5Gi
+    storageClass: ""
+    annotations: {}
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi
+
+# Used only with cluster.enabled: Orleans' membership table and the SignalR backplane. Orleans needs it durable, so
+# it writes an append-only file to its volume.
+redis:
+  image:
+    repository: docker.io/library/redis
+    tag: "8-alpine"
+    pullPolicy: IfNotPresent
+  persistence:
+    size: 1Gi
+    storageClass: ""
+    annotations: {}
+  resources:
+    requests:
+      cpu: 20m
+      memory: 32Mi
+    limits:
+      cpu: 500m
+      memory: 128Mi
+
+networkPolicy:
+  enabled: true
+  # Who may reach the server's HTTP port (the ingress controller). Empty: anyone.
+  serverFrom: []
+  dns:
+    to:
+      - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+        podSelector: { matchLabels: { k8s-app: kube-dns } }
 
 podSecurityContext:
   runAsNonRoot: true

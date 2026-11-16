@@ -1,46 +1,69 @@
+{{- $fullname := include "pspsps.fullname" . -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "pspsps.fullname" . }}
+  name: {{ $fullname }}
   labels:
     {{- include "pspsps.labels" . | nindent 4 }}
+    app.kubernetes.io/component: server
 spec:
-  replicas: {{ .Values.replicaCount }}
+  replicas: {{ if .Values.cluster.enabled }}{{ .Values.cluster.replicas }}{{ else }}1{{ end }}
+  {{- if .Values.cluster.enabled }}
   # One new pod at a time, never fewer than asked for: rooms move off a pod as it stops.
   strategy:
     type: RollingUpdate
     rollingUpdate:
       maxUnavailable: 0
       maxSurge: 1
+  {{- else }}
+  # A single silo with no shared membership table: two at once would each think they own every room.
+  strategy:
+    type: Recreate
+  {{- end }}
   selector:
     matchLabels:
-      {{- include "pspsps.selectorLabels" . | nindent 6 }}
+      {{- include "pspsps.selectorLabels" (dict "root" . "component" "server") | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "pspsps.selectorLabels" . | nindent 8 }}
+        {{- include "pspsps.selectorLabels" (dict "root" . "component" "server") | nindent 8 }}
         orleans/serviceId: {{ .Values.orleans.serviceId | quote }}
         orleans/clusterId: {{ .Values.orleans.clusterId | quote }}
     spec:
-      serviceAccountName: {{ include "pspsps.fullname" . }}
+      serviceAccountName: {{ $fullname }}
+      automountServiceAccountToken: {{ .Values.cluster.enabled }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       terminationGracePeriodSeconds: 60
       containers:
         - name: server
-          image: {{ include "pspsps.image" . }}
+          image: {{ include "pspsps.imageRef" .Values.image }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
               containerPort: 8080
+            {{- if .Values.cluster.enabled }}
             - name: silo
               containerPort: 11111
             - name: gateway
               containerPort: 30000
+            {{- end }}
           envFrom:
             - secretRef:
                 name: {{ .Values.existingSecret }}
           env:
+            {{- if .Values.postgres.enabled }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.existingSecret }}
+                  key: POSTGRES_PASSWORD
+            - name: ConnectionStrings__Pspsps
+              value: "Host={{ include "pspsps.postgresHost" . }};Database={{ .Values.postgres.database }};Username={{ .Values.postgres.username }};Password=$(POSTGRES_PASSWORD)"
+            {{- end }}
+            {{- if .Values.cluster.enabled }}
+            - name: ConnectionStrings__Redis
+              value: "{{ include "pspsps.redisHost" . }}:6379"
             - name: ORLEANS_SERVICE_ID
               valueFrom:
                 fieldRef:
@@ -61,6 +84,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
+            {{- end }}
             - name: DOTNET_SHUTDOWNTIMEOUTSECONDS
               value: "45"
             {{- with .Values.extraEnv }}
@@ -71,7 +95,7 @@ spec:
               path: /healthz
               port: http
             periodSeconds: 2
-            failureThreshold: 60
+            failureThreshold: 90
           livenessProbe:
             httpGet:
               path: /healthz
@@ -83,7 +107,7 @@ spec:
               port: http
             periodSeconds: 5
           resources:
-            {{- toYaml .Values.resources | nindent 12 }}
+            {{- toYaml .Values.server.resources | nindent 12 }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           volumeMounts:

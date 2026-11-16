@@ -6,21 +6,28 @@
 {{- end -}}
 {{- end -}}
 
-{{- define "pspsps.selectorLabels" -}}
+{{- define "pspsps.labels" -}}
 app.kubernetes.io/name: {{ .Chart.Name }}
 app.kubernetes.io/instance: {{ .Release.Name }}
-{{- end -}}
-
-{{- define "pspsps.labels" -}}
-{{ include "pspsps.selectorLabels" . }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version }}
 {{- end -}}
 
-{{- define "pspsps.image" -}}
-{{- if .Values.image.digest -}}
-{{ .Values.image.repository }}@{{ .Values.image.digest }}
-{{- else -}}
-{{ .Values.image.repository }}:{{ .Values.image.tag }}
+{{- /* Selector labels of one component: server, postgres or redis. */ -}}
+{{- define "pspsps.selectorLabels" -}}
+app.kubernetes.io/name: {{ .root.Chart.Name }}
+app.kubernetes.io/instance: {{ .root.Release.Name }}
+app.kubernetes.io/component: {{ .component }}
 {{- end -}}
+
+{{- define "pspsps.postgresHost" -}}
+{{ include "pspsps.fullname" . }}-postgres
+{{- end -}}
+
+{{- define "pspsps.redisHost" -}}
+{{ include "pspsps.fullname" . }}-redis
+{{- end -}}
+
+{{- define "pspsps.imageRef" -}}
+{{ .repository }}:{{ .tag }}
 {{- end -}}
