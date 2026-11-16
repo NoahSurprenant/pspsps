@@ -1,0 +1,136 @@
+:root {
+  --ink: #2a2230;
+  --paper: #fffaf2;
+  --accent: #f0a04b;
+  font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+  color: var(--ink);
+}
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #bfe3f2;
+}
+
+#game {
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+
+#ui {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+#ui > * {
+  pointer-events: auto;
+}
+
+.panel {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-width: 18rem;
+  padding: 1.5rem 2rem;
+  background: var(--paper);
+  border: 3px solid var(--ink);
+  border-radius: 1.25rem;
+  box-shadow: 0 6px 0 var(--ink);
+  text-align: center;
+}
+
+.panel h1 {
+  margin: 0;
+  font-size: 2.2rem;
+}
+
+.panel p {
+  margin: 0 0 0.4rem;
+}
+
+button {
+  font: inherit;
+  font-weight: bold;
+  padding: 0.55rem 1rem;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: white;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+button.primary {
+  background: var(--accent);
+}
+
+button.quiet {
+  border-color: transparent;
+  background: transparent;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.error {
+  color: #b3261e;
+}
+
+.room-bar {
+  position: absolute;
+  top: 0.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem 0.4rem 1rem;
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+}
+
+.chat-bar {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.5rem;
+  width: min(36rem, calc(100% - 2rem));
+}
+
+.chat {
+  flex: 1;
+  font: inherit;
+  padding: 0.55rem 1rem;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+}
+
+.toast {
+  position: absolute;
+  bottom: 4.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.5rem 1rem;
+  background: var(--ink);
+  color: white;
+  border-radius: 999px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+
+.toast.visible {
+  opacity: 1;
+}

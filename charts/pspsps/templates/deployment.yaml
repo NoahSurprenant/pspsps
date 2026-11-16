@@ -1,0 +1,130 @@
+{{- $fullname := include "pspsps.fullname" . -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullname }}
+  labels:
+    {{- include "pspsps.labels" . | nindent 4 }}
+    app.kubernetes.io/component: server
+spec:
+  replicas: {{ if .Values.cluster.enabled }}{{ .Values.cluster.replicas }}{{ else }}1{{ end }}
+  {{- if .Values.cluster.enabled }}
+  # One new pod at a time, never fewer than asked for: rooms move off a pod as it stops.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  {{- else }}
+  # A single silo with no shared membership table: two at once would each think they own every room.
+  strategy:
+    type: Recreate
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "pspsps.selectorLabels" (dict "root" . "component" "server") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "pspsps.selectorLabels" (dict "root" . "component" "server") | nindent 8 }}
+        orleans/serviceId: {{ .Values.orleans.serviceId | quote }}
+        orleans/clusterId: {{ .Values.orleans.clusterId | quote }}
+    spec:
+      serviceAccountName: {{ $fullname }}
+      automountServiceAccountToken: {{ .Values.cluster.enabled }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: server
+          image: {{ include "pspsps.imageRef" .Values.image }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+            {{- if .Values.cluster.enabled }}
+            - name: silo
+              containerPort: 11111
+            - name: gateway
+              containerPort: 30000
+            {{- end }}
+          envFrom:
+            - secretRef:
+                name: {{ .Values.existingSecret }}
+          env:
+            {{- if .Values.postgres.enabled }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.existingSecret }}
+                  key: POSTGRES_PASSWORD
+            - name: ConnectionStrings__Pspsps
+              value: "Host={{ include "pspsps.postgresHost" . }};Database={{ .Values.postgres.database }};Username={{ .Values.postgres.username }};Password=$(POSTGRES_PASSWORD)"
+            {{- end }}
+            {{- if .Values.cluster.enabled }}
+            - name: ConnectionStrings__Redis
+              value: "{{ include "pspsps.redisHost" . }}:6379"
+            - name: ORLEANS_SERVICE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['orleans/serviceId']
+            - name: ORLEANS_CLUSTER_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['orleans/clusterId']
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            {{- end }}
+            - name: DOTNET_SHUTDOWNTIMEOUTSECONDS
+              value: "45"
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 2
+            failureThreshold: 90
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.server.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

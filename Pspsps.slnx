@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Pspsps.Domain/Pspsps.Domain.csproj" />
+    <Project Path="src/Pspsps.Application/Pspsps.Application.csproj" />
+    <Project Path="src/Pspsps.Infrastructure/Pspsps.Infrastructure.csproj" />
+    <Project Path="src/Pspsps.Server/Pspsps.Server.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Pspsps.Domain.Test/Pspsps.Domain.Test.csproj" />
+    <Project Path="tests/Pspsps.Architecture.Test/Pspsps.Architecture.Test.csproj" />
+    <Project Path="tests/Pspsps.Integration.Test/Pspsps.Integration.Test.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <ItemGroup>
+    <ProjectReference Include="../Pspsps.Infrastructure/Pspsps.Infrastructure.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Orleans.Sdk" />
+    <PackageReference Include="Microsoft.Orleans.Server" />
+    <PackageReference Include="Microsoft.Orleans.Clustering.Redis" />
+    <PackageReference Include="Microsoft.Orleans.Hosting.Kubernetes" />
+    <PackageReference Include="AspNet.Security.OAuth.Discord" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Pspsps.Integration.Test" />
+  </ItemGroup>
+</Project>

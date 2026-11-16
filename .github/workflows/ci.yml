@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  dotnet:
+    name: .NET build and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - run: dotnet restore Pspsps.slnx
+      - run: dotnet build Pspsps.slnx --no-restore -c Release
+      # The integration tests start PostgreSQL with Testcontainers on the runner's Docker.
+      - run: dotnet test Pspsps.slnx --no-build -c Release
+
+  client:
+    name: Client lint, tests and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
+  helm:
+    name: Helm chart
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: azure/setup-helm@v5
+      - run: helm lint charts/pspsps
+      - run: helm template pspsps charts/pspsps > /dev/null
+      - run: >-
+          helm template pspsps charts/pspsps --set cluster.enabled=true --set cluster.kubeApi.cidr=10.0.0.1/32
+          --set ingressRoute.enabled=true --set ingressRoute.host=pspsps.example
+          --set ingress.enabled=true --set ingress.host=pspsps.example > /dev/null
+
+  docker:
+    name: Image builds
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker build -t pspsps:ci .

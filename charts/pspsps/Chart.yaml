@@ -1,0 +1,6 @@
+apiVersion: v2
+name: pspsps
+description: The pspsps game server (ASP.NET Core + Orleans), serving the client too.
+type: application
+version: 0.1.0
+appVersion: "master"

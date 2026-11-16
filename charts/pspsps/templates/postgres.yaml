@@ -1,0 +1,132 @@
+{{- $p := .Values.postgres -}}
+{{- if $p.enabled }}
+{{- $name := include "pspsps.postgresHost" . -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "pspsps.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+  annotations:
+    # Up before the server, which migrates the database as it starts.
+    argocd.argoproj.io/sync-wave: "-1"
+    {{- with $p.persistence.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: {{ $p.persistence.size }}
+  {{- with $p.persistence.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "pspsps.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  selector:
+    {{- include "pspsps.selectorLabels" (dict "root" . "component" "postgres") | nindent 4 }}
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "pspsps.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  replicas: 1
+  # Stop the old server before starting the new one: two must never share one data folder.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "pspsps.selectorLabels" (dict "root" . "component" "postgres") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "pspsps.selectorLabels" (dict "root" . "component" "postgres") | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        # The alpine image's postgres user.
+        runAsUser: 70
+        runAsGroup: 70
+        fsGroup: 70
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: postgres
+          image: {{ include "pspsps.imageRef" $p.image }}
+          imagePullPolicy: {{ $p.image.pullPolicy }}
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            # Read only when the data folder is first created.
+            - name: POSTGRES_DB
+              value: {{ $p.database | quote }}
+            - name: POSTGRES_USER
+              value: {{ $p.username | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.existingSecret }}
+                  key: POSTGRES_PASSWORD
+          # Over TCP, so the first start's initdb (a server on the socket only) doesn't count as ready.
+          startupProbe:
+            exec:
+              command: ["pg_isready", "-q", "-h", "127.0.0.1", "-p", "5432"]
+            periodSeconds: 2
+            failureThreshold: 60
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-q", "-h", "127.0.0.1", "-p", "5432"]
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-q", "-h", "127.0.0.1", "-p", "5432"]
+            periodSeconds: 5
+          resources:
+            {{- toYaml $p.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql
+            # The socket and the lock file.
+            - name: run
+              mountPath: /var/run/postgresql
+            - name: tmp
+              mountPath: /tmp
+            # The container runtime's default /dev/shm is 64Mi.
+            - name: shm
+              mountPath: /dev/shm
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ $name }}
+        - name: run
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+        - name: shm
+          emptyDir:
+            medium: Memory
+{{- end }}

@@ -1,0 +1,100 @@
+{{- $r := .Values.redis -}}
+{{- if .Values.cluster.enabled }}
+{{- $name := include "pspsps.redisHost" . -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "pspsps.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+    {{- with $r.persistence.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: {{ $r.persistence.size }}
+  {{- with $r.persistence.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "pspsps.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  selector:
+    {{- include "pspsps.selectorLabels" (dict "root" . "component" "redis") | nindent 4 }}
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: redis
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "pspsps.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "pspsps.selectorLabels" (dict "root" . "component" "redis") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "pspsps.selectorLabels" (dict "root" . "component" "redis") | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        # The alpine image's redis user.
+        runAsUser: 999
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: redis
+          image: {{ include "pspsps.imageRef" $r.image }}
+          imagePullPolicy: {{ $r.image.pullPolicy }}
+          # Orleans' membership table must survive a restart: an append-only file, synced every second.
+          args: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec", "--dir", "/data"]
+          ports:
+            - name: redis
+              containerPort: 6379
+          livenessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            periodSeconds: 5
+          resources:
+            {{- toYaml $r.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ $name }}
+{{- end }}
