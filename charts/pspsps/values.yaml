@@ -1,0 +1,53 @@
+# Pods are Orleans silos and SignalR servers at once: add replicas to scale. Above one replica, Redis is required
+# (connection string ConnectionStrings__Redis in the secret below).
+replicaCount: 1
+
+image:
+  repository: ghcr.io/noahsurprenant/pspsps
+  tag: master
+  # Set a digest to pin the image; it wins over the tag.
+  digest: ""
+  pullPolicy: IfNotPresent
+
+# A Secret holding the server's settings as environment variables:
+#   ConnectionStrings__Pspsps                  PostgreSQL (required)
+#   ConnectionStrings__Redis                   Redis, with persistence on (required above one replica)
+#   Authentication__Discord__ClientId/ClientSecret, Authentication__Google__ClientId/ClientSecret (optional)
+existingSecret: pspsps
+
+# Orleans IDs, as pod labels. Keep clusterId fixed so rolling updates join the running cluster.
+orleans:
+  serviceId: pspsps
+  clusterId: pspsps
+
+extraEnv: []
+
+ingress:
+  enabled: false
+  className: ""
+  host: ""
+  annotations: {}
+  tls: []
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 768Mi
+
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: [ALL]
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

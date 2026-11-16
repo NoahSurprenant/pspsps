@@ -1,0 +1,93 @@
+import type { Player, RoomSnapshot, WorldSummary } from "./types";
+
+/** The HTML laid over the canvas: sign-in, the world list, the room bar and the chat box. */
+export class Overlay {
+  constructor(private readonly root: HTMLElement) {}
+
+  showSignIn(providers: string[], signIn: (provider: string) => void, guest: () => void, error?: string): void {
+    this.root.replaceChildren(
+      panel(
+        el("h1", { text: "pspsps" }),
+        el("p", { text: "A town full of cats. Come hang out." }),
+        ...providers.map((provider) => button(`Sign in with ${provider}`, () => signIn(provider), "primary")),
+        button("Play as a guest", guest),
+        ...(error ? [el("p", { text: error, className: "error" })] : []),
+      ),
+    );
+  }
+
+  showWorlds(player: Player, worlds: WorldSummary[], enter: (worldId: string) => void, signOut: () => void): void {
+    this.root.replaceChildren(
+      panel(
+        el("h1", { text: `Hi, ${player.displayName}!` }),
+        el("p", { text: "Pick a world." }),
+        ...worlds.map((world) => {
+          const full = world.population >= world.capacity;
+          const pick = button(`${world.name} · ${world.population}/${world.capacity}`, () => enter(world.id), "world");
+          pick.disabled = full;
+          return pick;
+        }),
+        button("Sign out", signOut, "quiet"),
+      ),
+    );
+  }
+
+  showRoom(room: RoomSnapshot, goTo: (roomId: string) => void, say: (text: string) => void, leave: () => void): void {
+    const input = el("input", { className: "chat" });
+    input.maxLength = 120;
+    input.placeholder = "Say something…";
+    const form = el("form", { className: "chat-bar" }, input, button("Send", () => {}, "primary"));
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const text = input.value.trim();
+      if (text) {
+        say(text);
+        input.value = "";
+      }
+    });
+
+    this.root.replaceChildren(
+      el("div", { className: "room-bar" },
+        el("strong", { text: room.roomName }),
+        ...room.rooms.map((link) => button(link.name, () => goTo(link.id))),
+        button("Worlds", leave, "quiet"),
+      ),
+      form,
+      el("div", { className: "toast", id: "toast" }),
+    );
+  }
+
+  toast(message: string): void {
+    const toast = this.root.querySelector<HTMLElement>("#toast");
+    if (!toast) {
+      return;
+    }
+    toast.textContent = message;
+    toast.classList.add("visible");
+    window.setTimeout(() => toast.classList.remove("visible"), 4000);
+  }
+}
+
+function el<K extends keyof HTMLElementTagNameMap>(
+  tag: K, options: { text?: string; className?: string; id?: string } = {}, ...children: Node[]
+): HTMLElementTagNameMap[K] {
+  const element = document.createElement(tag);
+  if (options.text) element.textContent = options.text;
+  if (options.className) element.className = options.className;
+  if (options.id) element.id = options.id;
+  element.append(...children);
+  return element;
+}
+
+function panel(...children: Node[]): HTMLElement {
+  return el("div", { className: "panel" }, ...children);
+}
+
+function button(text: string, onClick: () => void, className = ""): HTMLButtonElement {
+  const element = el("button", { text, className });
+  element.type = className === "primary" && text === "Send" ? "submit" : "button";
+  if (element.type === "button") {
+    element.addEventListener("click", onClick);
+  }
+  return element;
+}

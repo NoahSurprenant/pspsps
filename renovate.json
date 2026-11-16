@@ -1,0 +1,21 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", "helpers:pinGitHubActionDigests", "docker:pinDigests"],
+  "packageRules": [
+    {
+      "description": "Orleans ships its packages together.",
+      "matchPackageNames": ["Microsoft.Orleans.**"],
+      "groupName": "Orleans"
+    },
+    {
+      "description": "Babylon.js ships its packages together.",
+      "matchPackageNames": ["@babylonjs/**"],
+      "groupName": "Babylon.js"
+    },
+    {
+      "description": "Stay on .NET 10 (LTS) until the Npgsql EF Core provider supports the next one.",
+      "matchPackageNames": ["Microsoft.AspNetCore.**", "Microsoft.EntityFrameworkCore**", "Microsoft.Extensions.**"],
+      "allowedVersions": "<11"
+    }
+  ]
+}
