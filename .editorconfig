@@ -15,3 +15,7 @@ dotnet_sort_system_directives_first = true
 # Generated EF Core migrations
 [src/Pspsps.Infrastructure/Migrations/**.cs]
 generated_code = true
+
+# Test names read as sentences: Method_DoesWhat.
+[tests/**.cs]
+dotnet_diagnostic.CA1707.severity = none

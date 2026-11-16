@@ -6,7 +6,7 @@ public interface IWorldGrain : IGrainWithStringKey
     /// <summary>Counts one more connection of the player; false when the world is full and the player isn't in it yet.</summary>
     Task<bool> TryEnter(Guid playerId);
 
-    Task Exit(Guid playerId);
+    Task Leave(Guid playerId);
 
     Task<int> GetPopulation();
 }

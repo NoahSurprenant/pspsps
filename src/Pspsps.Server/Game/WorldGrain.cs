@@ -34,7 +34,7 @@ internal sealed class WorldGrain : Grain, IWorldGrain
         return Task.FromResult(true);
     }
 
-    public Task Exit(Guid playerId)
+    public Task Leave(Guid playerId)
     {
         if (_connections.TryGetValue(playerId, out var count))
         {

@@ -101,7 +101,7 @@ public sealed class GameHub(IGrainFactory grains, IPlayerService players) : Hub<
         if (Context.Items[WorldItem] is string worldId)
         {
             Context.Items.Remove(WorldItem);
-            await grains.GetGrain<IWorldGrain>(worldId).Exit(PlayerId);
+            await grains.GetGrain<IWorldGrain>(worldId).Leave(PlayerId);
         }
     }
 
