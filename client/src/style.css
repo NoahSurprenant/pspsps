@@ -142,6 +142,8 @@ button:disabled {
 
 .chat {
   flex: 1;
+  /* A text box keeps its default width in a row unless told it may shrink: on a folded phone that pushed Send off. */
+  min-width: 0;
   font: inherit;
   padding: 0.55rem 1rem;
   min-height: 2.75rem;
