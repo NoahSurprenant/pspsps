@@ -42,7 +42,7 @@ backup_args() { # backup_args <keep> [password]
   echo --network host --user 70:70 --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges \
     -v "$root/charts/pspsps/files/backup.sh:/scripts/backup.sh:ro" -v "${BACKUP_VOLUME:-$backups}:/backups" \
     -e "PGHOST=${PG_HOST:-localhost}" -e "PGPORT=${PG_PORT:-5432}" -e PGUSER="$user" -e PGDATABASE="$db" \
-    -e "PGPASSWORD=${2:-$PGPASSWORD}" \
+    -e "PGPASSWORD=${2:-$PGPASSWORD}" -e "PGSSLMODE=${PG_SSLMODE:-prefer}" \
     -e BACKUP_DIR=/backups -e "BACKUP_KEEP=$1" -e BACKUP_STALE_SECONDS=3600 \
     -e "BACKUP_CONNECT_SECONDS=${CONNECT_SECONDS-30}"
 }
@@ -176,7 +176,10 @@ sudo iptables -D INPUT -p tcp --dport "$blackhole" -j DROP
 
 echo "== Settings that can't make a connection fail at once"
 start=$(date +%s)
-if out="$(PG_PORT=not-a-port CONNECT_SECONDS=30 backup 2 2>&1)"; then fail "a run with PGPORT=not-a-port succeeded"; fi
+# An sslmode libpq doesn't know: pg_isready makes no attempt (exit 3).
+if out="$(PG_SSLMODE=not-a-mode CONNECT_SECONDS=30 backup 2 2>&1)"; then
+  fail "a run with PGSSLMODE=not-a-mode succeeded"
+fi
 took=$(( $(date +%s) - start ))
 echo "$out"
 [ "$took" -le 5 ] || fail "a run with bad connection settings waited ${took}s"
