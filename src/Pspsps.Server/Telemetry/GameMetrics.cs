@@ -15,6 +15,7 @@ public sealed class GameMetrics
     private readonly UpDownCounter<long> _worldConnections;
     private readonly UpDownCounter<long> _activeRooms;
     private readonly Counter<long> _chatLines;
+    private readonly Counter<long> _emotes;
     private readonly Histogram<double> _hubCallDuration;
 
     public GameMetrics(IMeterFactory meters)
@@ -25,6 +26,7 @@ public sealed class GameMetrics
         _activeRooms = meter.CreateUpDownCounter<long>("pspsps.rooms.active", "{room}",
             "Rooms with at least one cat, hosted on this pod.");
         _chatLines = meter.CreateCounter<long>("pspsps.chat.lines", "{line}", "Chat lines said, by world.");
+        _emotes = meter.CreateCounter<long>("pspsps.emotes", "{emote}", "Emotes done, by world and emote.");
         _hubCallDuration = meter.CreateHistogram<double>("pspsps.hub.call.duration", "s",
             "How long hub method calls take, by method and outcome.",
             advice: new InstrumentAdvice<double> { HistogramBucketBoundaries = [0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5] });
@@ -39,6 +41,9 @@ public sealed class GameMetrics
     public void RoomDeactivated() => _activeRooms.Add(-1);
 
     public void Said(string worldId) => _chatLines.Add(1, new KeyValuePair<string, object?>("world", worldId));
+
+    public void Emoted(string worldId, string emote) =>
+        _emotes.Add(1, new KeyValuePair<string, object?>("world", worldId), new KeyValuePair<string, object?>("emote", emote));
 
     public void HubCall(string method, string outcome, TimeSpan duration) =>
         _hubCallDuration.Record(duration.TotalSeconds,

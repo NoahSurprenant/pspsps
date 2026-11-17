@@ -1,6 +1,7 @@
 import { Engine } from "@babylonjs/core";
 import { addressNote, linkUrl } from "./link";
 import { GameConnection, fetchMe, fetchProviders, messageOf, playAsGuest, signOut } from "./net";
+import { PendingEvents } from "./pending";
 import { Room } from "./room";
 import { RoomScene } from "./scene";
 import { Overlay, type Note } from "./ui";
@@ -12,6 +13,8 @@ window.addEventListener("resize", () => engine.resize());
 const scene = new RoomScene(engine);
 
 let room: Room | undefined;
+// Room events that arrive while the next room loads, for it once its snapshot shows.
+const loading = new PendingEvents<(room: Room) => void>();
 
 // Read-only: the end-to-end tests (e2e/) read the room here, since the cats and chat are drawn on a canvas.
 declare global {
@@ -22,30 +25,30 @@ declare global {
 window.pspsps = { room: () => room };
 
 const connection = new GameConnection({
-  catJoined: (cat) => {
-    if (room) {
-      room.join(cat);
-      scene.place(cat);
-    }
-  },
-  catLeft: (playerId) => {
-    if (room) {
-      room.leave(playerId);
-      scene.remove(playerId);
-    }
-  },
-  catMoved: (playerId, x, z) => {
-    if (room?.move(playerId, x, z)) {
+  catJoined: (cat) => onRoom((here) => {
+    here.join(cat);
+    scene.place(cat);
+  }),
+  catLeft: (playerId) => onRoom((here) => {
+    here.leave(playerId);
+    scene.remove(playerId);
+  }),
+  catMoved: (playerId, x, z) => onRoom((here) => {
+    if (here.move(playerId, x, z)) {
       scene.walk(playerId, x, z);
     }
-  },
-  chatSaid: (line) => {
-    if (room) {
-      room.say(line);
+  }),
+  chatSaid: (line) => onRoom((here) => {
+    if (here.say(line)) {
       scene.speak(line.playerId, line.text);
     }
-  },
+  }),
+  catEmoted: (emote) => onRoom((here) => {
+    here.emote(emote);
+    scene.emote(emote.playerId, emote.emote);
+  }),
   replaced: () => {
+    loading.cancel();
     room = undefined;
     overlay.showReplaced(() => window.location.reload());
   },
@@ -58,40 +61,64 @@ const connection = new GameConnection({
   },
 });
 
+/** Applies a room event to the room showing, or holds it for the one loading. */
+function onRoom(apply: (room: Room) => void): void {
+  if (!loading.hold(apply) && room) {
+    apply(room);
+  }
+}
+
 scene.onFloorClicked((x, z) => {
   if (room) {
     connection.move(x, z).catch((error: unknown) => overlay.toast(messageOf(error)));
   }
 });
 
-function show(snapshot: RoomSnapshot): void {
-  room = new Room(snapshot);
+function show(snapshot: RoomSnapshot): Room {
+  const shown = new Room(snapshot);
+  room = shown;
   scene.show(snapshot);
   overlay.showRoom(
     snapshot,
     (roomId) => void goTo(roomId),
     (text) => connection.say(text).catch((error: unknown) => overlay.toast(messageOf(error))),
+    // Between rooms (room undefined while the next one loads) an emote would only be refused.
+    (emote) => {
+      if (room) {
+        connection.emote(emote).catch((error: unknown) => overlay.toast(messageOf(error)));
+      }
+    },
     () => window.location.reload(),
   );
+  return shown;
 }
 
 async function enter(worldId: string): Promise<void> {
-  // The server announces our own join (and anything else in the new room) before the snapshot arrives; the snapshot
-  // already has it all, so nothing is applied to the old room meanwhile.
-  room = undefined;
-  try {
-    show(await connection.enterWorld(worldId));
-  } catch (error) {
-    overlay.toast(messageOf(error));
-  }
+  await load(() => connection.enterWorld(worldId));
 }
 
 async function goTo(roomId: string): Promise<void> {
+  await load(() => connection.goToRoom(roomId));
+}
+
+/**
+ * Leaves the room showing and loads the next. The server sends the new room's events (our own join among them) from
+ * just before it takes the snapshot, so they are held until the snapshot shows and then replayed onto it, in order;
+ * the room's updates are idempotent, so those already in the snapshot change nothing.
+ */
+async function load(request: () => Promise<RoomSnapshot>): Promise<void> {
   room = undefined;
+  loading.start();
+  let shown: Room;
   try {
-    show(await connection.goToRoom(roomId));
+    shown = show(await request());
   } catch (error) {
+    loading.cancel();
     overlay.toast(messageOf(error));
+    return;
+  }
+  for (const apply of loading.finish()) {
+    apply(shown);
   }
 }
 

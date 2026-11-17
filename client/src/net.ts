@@ -1,11 +1,12 @@
 import { HubConnectionBuilder, HubConnectionState, LogLevel, type HubConnection } from "@microsoft/signalr";
-import type { CatView, ChatView, Player, RoomSnapshot, WorldSummary } from "./types";
+import type { CatView, ChatView, Emote, EmoteView, Player, RoomSnapshot, WorldSummary } from "./types";
 
 export interface GameEvents {
   catJoined(cat: CatView): void;
   catLeft(playerId: string): void;
   catMoved(playerId: string, x: number, z: number): void;
   chatSaid(line: ChatView): void;
+  catEmoted(emote: EmoteView): void;
   /** The connection came back after a drop; the server forgot where we were, so the game re-enters. */
   reconnected(): void;
   /** The player opened the game in another tab, which plays now; this one has stopped. */
@@ -54,6 +55,7 @@ export class GameConnection {
     this.hub.on("CatLeft", (playerId: string) => events.catLeft(playerId));
     this.hub.on("CatMoved", (playerId: string, x: number, z: number) => events.catMoved(playerId, x, z));
     this.hub.on("ChatSaid", (line: ChatView) => events.chatSaid(line));
+    this.hub.on("CatEmoted", (emote: EmoteView) => events.catEmoted(emote));
     this.hub.onreconnected(() => events.reconnected());
     this.hub.on("SessionReplaced", () => {
       void this.hub.stop().then(() => events.replaced());
@@ -84,6 +86,10 @@ export class GameConnection {
 
   say(text: string): Promise<void> {
     return this.hub.invoke("Say", text);
+  }
+
+  emote(emote: Emote): Promise<void> {
+    return this.hub.invoke("Emote", emote);
   }
 }
 

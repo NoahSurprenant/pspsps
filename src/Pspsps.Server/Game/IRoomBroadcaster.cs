@@ -10,4 +10,6 @@ public interface IRoomBroadcaster
     Task CatMoved(string roomKey, Guid playerId, double x, double z);
 
     Task ChatSaid(string roomKey, ChatView line);
+
+    Task CatEmoted(string roomKey, EmoteView emote);
 }
