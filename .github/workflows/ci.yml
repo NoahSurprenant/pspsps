@@ -89,7 +89,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     outputs:
-      screenshots: ${{ format('- [Sign-in]({0})\n- [World list]({1})\n- [Town Square]({2})', steps.sheet_sign_in.outputs.artifact-url, steps.sheet_worlds.outputs.artifact-url, steps.sheet_town_square.outputs.artifact-url) }}
+      # Empty unless the contact sheets were uploaded, so a run without them leaves the PR's last links alone.
+      screenshots: ${{ steps.sheet_town_square.outputs.artifact-url && format('- [Sign-in]({0})\n- [World list]({1})\n- [Town Square]({2})', steps.sheet_sign_in.outputs.artifact-url, steps.sheet_worlds.outputs.artifact-url, steps.sheet_town_square.outputs.artifact-url) || '' }}
     # The shipped image, run against PostgreSQL, driven by Chromium (software WebGL).
     services:
       postgres:
@@ -147,6 +148,14 @@ jobs:
             done
           done
           exit $failed
+      # The reports, kept with the run rather than at public links: a signed-in run's settings carry the guest's cookie.
+      - name: Upload the Lighthouse reports
+        if: ${{ !cancelled() && hashFiles('e2e/lighthouse/**') != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: lighthouse
+          path: e2e/lighthouse
+          retention-days: 30
       # Each screen's sizes side by side, even when a test failed (the pictures may show why), uploaded unzipped so
       # each opens in the browser; the screenshots job links them on the PR.
       - name: Make the screenshot contact sheets
@@ -192,7 +201,7 @@ jobs:
   screenshots:
     name: Screenshots comment
     needs: e2e
-    if: ${{ !cancelled() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && needs.e2e.outputs.screenshots != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:

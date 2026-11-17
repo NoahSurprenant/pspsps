@@ -26,7 +26,7 @@ module.exports = {
         "categories:seo": ["error", { minScore: 1 }],
       },
     },
-    // Public links to each report, kept for a week (the repository is public).
-    upload: { target: "temporary-public-storage" },
+    // Kept as files, which CI uploads with the run: not at public links, as a signed-in run's settings carry the cookie.
+    upload: { target: "filesystem", outputDir: `lighthouse/${desktop ? "desktop" : "mobile"}-${cookie ? "signed-in" : "signed-out"}` },
   },
 };
