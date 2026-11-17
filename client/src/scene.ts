@@ -174,6 +174,9 @@ export class RoomScene {
     this.scene.dispose();
     this.scene = new Scene(this.engine);
     this.gui = AdvancedDynamicTexture.CreateFullscreenUI("ui", true, this.scene);
+    // Its names and bubbles take no focus: left on, it took Tab for itself whenever the canvas had the focus (after a tap
+    // on the room), and the keyboard could no longer reach the page's buttons.
+    this.gui.disableTabNavigation = true;
     const scene = this.scene;
     this.model = this.loadModel(scene)
       .then((model) => {
@@ -479,6 +482,9 @@ export class RoomScene {
     if (!camera) {
       return undefined;
     }
+    // Worked out now: the camera keeps them from its last render, and a room just shown has had none.
+    camera.getViewMatrix();
+    camera.getProjectionMatrix();
     const width = this.engine.getRenderWidth();
     const height = this.engine.getRenderHeight();
     const point = Vector3.Project(

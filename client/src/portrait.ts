@@ -58,10 +58,12 @@ export class Portraits {
   private async take(outfit: Outfit): Promise<string> {
     // Virtual: not one of the engine's scenes, so nothing else (the render loop, the room) ever sees it.
     const scene = new Scene(this.engine, { virtual: true });
+    // Never tapped: it takes no pointer or keys from the canvas.
+    scene.detachControl();
     try {
       scene.clearColor = new Color4(0, 0, 0, 0);
       // Level with the cat's face, a little above, and back far enough for a top hat's crown and its paws.
-      const camera = new ArcRotateCamera("portrait", -Math.PI / 2, 1.38, 2.7, new Vector3(0, 0.62, 0), scene);
+      const camera = new ArcRotateCamera("portrait", -Math.PI / 2, 1.38, 3.1, new Vector3(0, 0.6, 0), scene);
       camera.fov = 0.62;
       const model = await this.loadModel(scene);
       const root = new TransformNode("sitter", scene);

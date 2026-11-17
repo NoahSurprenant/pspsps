@@ -1,5 +1,5 @@
 import type { Browser, BrowserContext, Page } from "@playwright/test";
-import { clickCat, enterWorld, expect, goHome, goThroughDoor, hubGuest, openCatalogue, portrait, tapFloor } from "./game";
+import { clickCat, enterWorld, expect, goHome, goThroughDoor, hubGuest, openCatalogue, portraitShown, tapFloor } from "./game";
 
 // The game's screens and the browsers they are seen in, shared by the layout and accessibility specs.
 
@@ -61,7 +61,7 @@ export const SCREENS: Screen[] = [
         await expect(page.getByRole("dialog", { name: felix.name })).toBeVisible();
         await expect(page.getByRole("button", { name: "Add friend" })).toBeVisible();
         // With its picture, taken.
-        await portrait(page);
+        await portraitShown(page);
       } catch (error) {
         await felix.hub.stop();
         throw error;
@@ -133,7 +133,7 @@ export const SCREENS: Screen[] = [
       const card = page.getByRole("dialog", { name });
       await expect(card).toBeVisible();
       await expect(card.getByText("Your fur now")).toBeVisible();
-      await portrait(page);
+      await portraitShown(page);
     },
   },
   {

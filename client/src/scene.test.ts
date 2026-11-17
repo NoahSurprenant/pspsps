@@ -121,6 +121,28 @@ describe("RoomScene", () => {
     expect(meshes.filter((mesh) => mesh.name.startsWith("anchor-")).every((anchor) => !anchor.isPickable)).toBe(true);
   });
 
+  // A room just shown, before its first frame, already says where things are drawn: the end-to-end tests tap a spot as
+  // soon as the room shows (the camera's matrices were only worked out by a render).
+  it("says where a spot is drawn before the room's first frame", () => {
+    const view = new RoomScene(new NullEngine(), () => new Promise<AssetContainer>(() => {}));
+    view.show(room);
+
+    const point = view.screenPoint(1.4, -0.6);
+
+    expect(Number.isFinite(point?.x)).toBe(true);
+    expect(Number.isFinite(point?.y)).toBe(true);
+  });
+
+  // The names and bubbles are a GUI layer over the canvas, which takes Tab for its own controls while the canvas has
+  // the focus (a tap on the room gives it the focus): it has none, and Tab must go on to the page's buttons.
+  it("leaves Tab to the page: the names and bubbles take no keyboard focus", () => {
+    const view = new RoomScene(new NullEngine(), () => new Promise<AssetContainer>(() => {}));
+    view.show(room);
+
+    const gui = (view as unknown as { gui: { disableTabNavigation: boolean } }).gui;
+    expect(gui.disableTabNavigation).toBe(true);
+  });
+
   // While old and new servers run side by side in a rolling deploy, an old one sends a room with no props at all.
   it("shows a room whose snapshot has no props", () => {
     const view = new RoomScene(new NullEngine(), () => new Promise<AssetContainer>(() => {}));

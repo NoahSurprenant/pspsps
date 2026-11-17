@@ -285,12 +285,17 @@ export async function openCatalogue(page: Page): Promise<void> {
 /** The party hat's pink (client/src/wearables.ts): nothing else on a card is this colour. */
 export const partyHatPink: [number, number, number] = [0xff, 0x7e, 0xb6];
 
-/** The picture of the cat on the card open, once it has been taken. */
-export async function portrait(page: Page): Promise<Buffer> {
+/** Waits for the picture of the cat on the card open to be taken and shown. */
+export async function portraitShown(page: Page): Promise<void> {
   const image = page.locator("dialog .portrait img");
   await expect(image).toHaveAttribute("src", /^data:image\/png/);
   await expect.poll(() => image.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
-  return image.screenshot();
+}
+
+/** The picture of the cat on the card open, once it has been taken. */
+export async function portrait(page: Page): Promise<Buffer> {
+  await portraitShown(page);
+  return page.locator("dialog .portrait img").screenshot({ timeout: 15_000 });
 }
 
 /**
