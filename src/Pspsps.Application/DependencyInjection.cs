@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Pspsps.Application.Friends;
+using Pspsps.Application.Homes;
 using Pspsps.Application.Players;
 using Pspsps.Application.Shop;
 
@@ -14,6 +15,7 @@ public static class DependencyInjection
         services.AddScoped<IPlayerService, PlayerService>();
         services.AddScoped<IFriendService, FriendService>();
         services.AddScoped<IShopService, ShopService>();
+        services.AddScoped<IHomeService, HomeService>();
         return services;
     }
 }

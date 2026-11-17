@@ -8,10 +8,13 @@ import { catchBubble, FishingState, gotAwayMessage, paid, pondEdge, reelMessage,
 import { Room } from "./room";
 import type { CatAnimation } from "./cat";
 import type { RoomScene } from "./scene";
-import { Overlay, type Note } from "./ui";
+import { Overlay, type DecorateActions, type Note } from "./ui";
+import {
+  canVisitFromCard, decoratingHint, furnitureLeft, isOwnHome, pieceAt, propOf, propsOf, visitorsMessage, type Decorating,
+} from "./home";
 import type { FriendAction } from "./friends";
 import { shopMessage, showsOutfit, type ShopAction } from "./shop";
-import type { DoorView, OutfitView, Player, PlayerCard, RoomSnapshot, Shop } from "./types";
+import type { DoorView, HomeView, HomeVisitors, OutfitView, Player, PlayerCard, PropView, RoomSnapshot, Shop } from "./types";
 
 const overlay = new Overlay(required<HTMLElement>("#ui"));
 overlay.onFriends = () => void openFriends();
@@ -53,6 +56,7 @@ const stage = lazily(async (): Promise<RoomScene> => {
   });
   made.onPondClicked(() => void fish());
   made.onDoorClicked((door) => void goThrough(door));
+  made.onEditTapped((x, z) => editTap(x, z));
   // Another cat: its player card. The player's own cat has none.
   made.onCatClicked((playerId) => {
     if (room && playerId !== me?.id) {
@@ -64,6 +68,11 @@ const stage = lazily(async (): Promise<RoomScene> => {
 });
 
 let room: Room | undefined;
+// The room the page showed last, for walking back in after a room lost while it shows none.
+let lastShown: RoomSnapshot | undefined;
+// Decorating the player's own home: what is picked or selected, and the furniture they have (the shop, as last read).
+let decorating: Decorating | undefined;
+let decoratingShop: Shop | undefined;
 // Who is playing, once known: the world picker needs it again when a world is lost. Their coins (me.coins) are the
 // ones shown in the room bar, kept up to date by every catch.
 let me: Player | undefined;
@@ -89,6 +98,12 @@ declare global {
       catOnScreen(playerId: string): { x: number; y: number } | undefined;
       /** What a cat in the room is drawn wearing (its fur, hat and collar), once the cat is drawn. */
       wearing(playerId: string): { fur: string; hat: string | undefined; collar: string | undefined } | undefined;
+      /** The home the room is, as it is now (its furniture and who may visit); undefined in a world's room. */
+      home(): HomeView | undefined;
+      /** The props the room is drawn with now: a home's furniture, once drawn. */
+      drawnProps(): readonly PropView[];
+      /** What the owner is doing while decorating their home; undefined when not decorating. */
+      decorating(): Decorating | undefined;
     };
   }
 }
@@ -100,6 +115,9 @@ window.pspsps = {
   screenPoint: (x, z) => scene?.screenPoint(x, z),
   catOnScreen: (playerId) => scene?.screenPositionOf(playerId),
   wearing: (playerId) => scene?.wearingOf(playerId),
+  home: () => room?.snapshot.home ?? undefined,
+  drawnProps: () => scene?.drawnProps ?? [],
+  decorating: () => decorating,
 };
 
 const connection = new GameConnection({
@@ -159,6 +177,14 @@ const connection = new GameConnection({
     }
   },
   friendsChanged: (playerId) => void friendsChanged(playerId),
+  homeChanged: (home) => onRoom((here) => applyHome(home, here)),
+  // The home's owner stopped letting us in: back to Town Square, in the world we came from.
+  sentOut: (ownerId, message) => {
+    overlay.toast(message);
+    // Gone after whatever is loading now (the home itself, just come into): the tap that loads it would drop this.
+    sentOutOfHome = { ownerId, message };
+    leaveHomeIfSentOut();
+  },
 });
 
 /** Applies a room event to the room showing, or holds it for the one loading. */
@@ -245,6 +271,11 @@ async function reel(): Promise<void> {
 function show(snapshot: RoomSnapshot, view: RoomScene): Room {
   const shown = new Room(snapshot);
   room = shown;
+  lastShown = snapshot;
+  // Decorating is for the home it started in.
+  decorating = undefined;
+  decoratingShop = undefined;
+  const home = snapshot.home;
   view.playerId = me?.id;
   view.show(snapshot);
   overlay.showRoom(
@@ -260,6 +291,10 @@ function show(snapshot: RoomSnapshot, view: RoomScene): Room {
     () => window.location.reload(),
     me?.coins ?? 0,
     snapshot.pond ? { fish: () => void fish(), reel: () => void reel(), state: () => fishing.state } : undefined,
+    // In their own home, the owner decorates it and chooses who may visit.
+    home && isOwnHome(home, me?.id)
+      ? { decorate: () => void startDecorating(), visitors: home.visitors, letIn: (visitors) => void letIn(visitors) }
+      : undefined,
   );
   fishing.drop();
   return shown;
@@ -278,11 +313,38 @@ function pick(go: () => Promise<void>): void {
   picking = true;
   void go().finally(() => {
     picking = false;
+    leaveHomeIfSentOut();
   });
 }
 
+// The home the cat was last sent out of, and why, until a room shows with nothing loading.
+let sentOutOfHome: { ownerId: string; message: string } | undefined;
+
+/**
+ * Back to Town Square, in the world the cat is in, once nothing is loading, if the home showing is the one that sent the
+ * cat out. Any other room (the player's own home, say) stays.
+ */
+function leaveHomeIfSentOut(): void {
+  const out = sentOutOfHome;
+  if (out === undefined || picking || loads > 0) {
+    return;
+  }
+  // Looked at once, when whatever was loading has finished, room or not: never later, in a home that lets the cat in.
+  sentOutOfHome = undefined;
+  if (room?.snapshot.home?.ownerId === out.ownerId) {
+    pick(async () => {
+      await goTo("town-square");
+      // Said again once out; a walk that failed has said why instead.
+      if (room && !room.snapshot.home) {
+        overlay.toast(out.message);
+      }
+    });
+  }
+}
+
 function rejoin(reason: "roomLost" | "reconnected"): void {
-  const current = room?.snapshot;
+  // A room lost while the page shows none (a way back that failed after a load cleared it): the one it showed last.
+  const current = room?.snapshot ?? (reason === "roomLost" && !picking ? lastShown : undefined);
   if (current) {
     void comeBack(
       reason,
@@ -291,8 +353,26 @@ function rejoin(reason: "roomLost" | "reconnected"): void {
         await enter(worldId);
         return room?.snapshot.roomId;
       },
-      goTo,
+      // Back into the home the cat was in, if it still lets the cat in; Town Square if not.
+      current.home ? () => backInto(current.home?.ownerId ?? "") : goTo,
     );
+  }
+}
+
+/** Goes into a player's home, if it lets this player in: the cat stays where it is otherwise, and is told why. */
+function visitHome(ownerId: string): void {
+  const stay = room;
+  pick(() => load(() => connection.visitHome(ownerId), stay));
+}
+
+/** Back into a home after the server forgot the cat there; to Town Square when the home no longer lets it in. */
+async function backInto(ownerId: string): Promise<void> {
+  // After a reconnect the cat is in the world's Town Square already: refused, it stays there. After a lost room the page
+  // still shows the home, which the server no longer has the cat in: refused, it goes to Town Square.
+  const stay = room?.snapshot.home?.ownerId === ownerId ? undefined : room;
+  await load(() => connection.visitHome(ownerId), stay);
+  if (!room) {
+    await goTo("town-square");
   }
 }
 
@@ -312,6 +392,7 @@ async function goTo(roomId: string): Promise<void> {
  */
 async function load(request: () => Promise<RoomSnapshot>, stay?: Room): Promise<void> {
   room = undefined;
+  loads++;
   try {
     // The 3D scene before the room (the first room loads it): had it failed after, the server would have the cat in a
     // room the page can't show.
@@ -324,12 +405,19 @@ async function load(request: () => Promise<RoomSnapshot>, stay?: Room): Promise<
     // otherwise.
     room = stay;
     overlay.toast(messageOf(error));
+  } finally {
+    loads--;
   }
+  leaveHomeIfSentOut();
 }
+
+// How many rooms are loading (taps go through pick; a rejoin doesn't).
+let loads = 0;
 
 /** The world list; `providers` when they're already known (a guest who just signed in from the sign-in panel). */
 async function pickWorld(player: Player, providers?: string[], note?: Note): Promise<void> {
   me = player;
+  lastShown = undefined;
   await connection.start();
   // A guest can save their cat with any provider the server offers.
   const [saveWith, worlds] = await Promise.all([
@@ -379,7 +467,12 @@ async function openCard(playerId: string): Promise<void> {
 }
 
 function showCard(card: PlayerCard): void {
-  overlay.showPlayerCard(card, (action) => void changeFriendship(action, card.playerId));
+  // "Visit home", unless the player is in that home already.
+  const visit = canVisitFromCard(card, room?.snapshot.home?.ownerId) ? () => {
+    overlay.closeDialog();
+    visitHome(card.playerId);
+  } : undefined;
+  overlay.showPlayerCard(card, (action) => void changeFriendship(action, card.playerId), visit);
 }
 
 /**
@@ -392,7 +485,8 @@ async function openFriends(refresh = false): Promise<void> {
     if (refresh && overlay.openDialogFor?.kind !== "friends") {
       return;
     }
-    const here = room ? { worldId: room.snapshot.worldId, roomId: room.snapshot.roomId } : undefined;
+    const home = room?.snapshot.home ?? undefined;
+    const here = room ? { worldId: room.snapshot.worldId, roomId: room.snapshot.roomId, homeOwnerId: home?.ownerId } : undefined;
     overlay.showFriends(list, here, {
       card: (playerId) => void openCard(playerId),
       goTo: (playerId) => {
@@ -402,7 +496,16 @@ async function openFriends(refresh = false): Promise<void> {
         pick(() => load(() => connection.goToFriend(playerId), stay));
       },
       act: (action, playerId) => void changeFriendship(action, playerId),
-    });
+      goHome: () => {
+        overlay.closeDialog();
+        const stay = room;
+        pick(() => load(() => connection.goHome(), stay));
+      },
+      visitHome: (playerId) => {
+        overlay.closeDialog();
+        visitHome(playerId);
+      },
+    }, isOwnHome(home, me?.id));
   } catch (error) {
     overlay.toast(messageOf(error));
   }
@@ -466,6 +569,11 @@ let shopping = 0;
 
 function showShop(shop: Shop): void {
   shopShown = shop;
+  // Furniture just bought is there to put out.
+  if (decorating) {
+    decoratingShop = shop;
+    drawDecorating();
+  }
   if (me) {
     // The shop's count is the saved one: the room bar shows it too, and a world picked again starts from it.
     me = { ...me, coins: shop.coins };
@@ -514,6 +622,141 @@ async function dressed(outfit: OutfitView): Promise<void> {
     } catch {
       // Only a refresh: the card shows it when opened again.
     }
+  }
+}
+
+/**
+ * Starts decorating the player's own home: the room takes taps for its furniture (scene.editing), and a panel takes the
+ * place of the chat with the furniture the player has, from the shop.
+ */
+async function startDecorating(): Promise<void> {
+  const home = room?.snapshot.home;
+  if (!home || !isOwnHome(home, me?.id) || decorating) {
+    return;
+  }
+  try {
+    decoratingShop = await connection.getShop();
+  } catch (error) {
+    overlay.toast(messageOf(error));
+    return;
+  }
+  // Not if the cat left the home meanwhile.
+  if (room?.snapshot.home?.ownerId !== home.ownerId) {
+    return;
+  }
+  decorating = {};
+  if (scene) {
+    scene.editing = true;
+  }
+  drawDecorating();
+}
+
+/** Shows the decorating panel and the ring round the piece selected as they are now. */
+function drawDecorating(): void {
+  const home = room?.snapshot.home;
+  const shop = decoratingShop;
+  if (!decorating || !home || !shop) {
+    return;
+  }
+  const left = furnitureLeft(shop, home);
+  // A piece put away (in another tab, say) is no longer selected; furniture with none left to put out, no longer picked.
+  const selected = home.furniture.find((piece) => piece.id === decorating?.selected);
+  const picked = left.find((row) => row.item.id === decorating?.picked && row.left > 0)?.item.id;
+  decorating = { selected: selected?.id, picked: selected ? undefined : picked };
+  scene?.ring(selected ? propOf(selected) : undefined);
+  overlay.showDecorating(
+    { hint: decoratingHint(decorating, left, home), left, placed: home.furniture, picked: decorating.picked, selected },
+    decorateActions,
+  );
+}
+
+const decorateActions: DecorateActions = {
+  pick: (itemId) => {
+    decorating = { picked: decorating?.picked === itemId ? undefined : itemId };
+    drawDecorating();
+  },
+  putAnywhere: (itemId) => void putOut(itemId, undefined),
+  select: (pieceId) => {
+    decorating = { selected: decorating?.selected === pieceId ? undefined : pieceId };
+    drawDecorating();
+  },
+  turn: (pieceId) => void changeHome(() => connection.turnFurniture(pieceId)),
+  putAway: (pieceId) => void changeHome(() => connection.putAwayFurniture(pieceId)),
+  done: () => stopDecorating(),
+};
+
+function stopDecorating(): void {
+  decorating = undefined;
+  decoratingShop = undefined;
+  if (scene) {
+    scene.editing = false;
+    scene.ring(undefined);
+  }
+  overlay.stopDecorating();
+}
+
+/**
+ * A tap on the room while decorating: on a piece of furniture, selects it; on the floor, puts the furniture picked
+ * there, or (with none picked) drops the selection.
+ */
+function editTap(x: number, z: number): void {
+  const home = room?.snapshot.home;
+  if (!decorating || !home) {
+    return;
+  }
+  const piece = pieceAt(home.furniture, x, z);
+  if (piece) {
+    decorating = { selected: piece.id };
+    drawDecorating();
+  } else if (decorating.picked) {
+    void putOut(decorating.picked, { x, z });
+  } else {
+    decorating = {};
+    drawDecorating();
+  }
+}
+
+/** Puts out a piece of the furniture <itemId> at <spot> (or wherever it fits), then selects it, to turn it. */
+async function putOut(itemId: string, spot: { x: number; z: number } | undefined): Promise<void> {
+  const before = new Set(room?.snapshot.home?.furniture.map((piece) => piece.id));
+  const home = await changeHome(() => connection.placeFurniture(itemId, spot));
+  const added = home?.furniture.find((piece) => !before.has(piece.id));
+  if (added && decorating) {
+    decorating = { selected: added.id };
+    drawDecorating();
+  }
+}
+
+/** Changes the player's home (the server checks the change), then shows it as it is after; or says why not. */
+async function changeHome(change: () => Promise<HomeView>): Promise<HomeView | undefined> {
+  try {
+    const home = await change();
+    applyHome(home);
+    return home;
+  } catch (error) {
+    overlay.toast(messageOf(error));
+    return undefined;
+  }
+}
+
+/** A home as its owner just changed it: drawn, if it is the room showing, and the decorating panel brought up to date. */
+function applyHome(home: HomeView, here: Room | undefined = room): void {
+  if (here?.furnish(home)) {
+    if (here === room) {
+      scene?.furnish(propsOf(home));
+    }
+    overlay.setVisitors(home.visitors);
+  }
+  drawDecorating();
+}
+
+/** Changes who may visit the player's home; whoever may no longer stay is sent out. */
+async function letIn(visitors: HomeVisitors): Promise<void> {
+  const home = await changeHome(() => connection.letIntoHome(visitors));
+  if (home) {
+    overlay.toast(visitorsMessage(home.visitors));
+  } else if (room?.snapshot.home) {
+    overlay.setVisitors(room.snapshot.home.visitors);
   }
 }
 

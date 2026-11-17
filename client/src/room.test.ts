@@ -95,3 +95,22 @@ describe("Room", () => {
     expect(room.cats.get("tom")?.pose).toBeNull();
   });
 });
+
+describe("a home's room", () => {
+  const home = { ownerId: "tom", ownerName: "Tom", visitors: "Friends" as const, furniture: [], version: 1 };
+  const piece = { id: "s1", itemId: "sofa", name: "Sofa", x: 1, z: -1, radius: 1.2, quarterTurns: 2 };
+
+  it("draws the furniture as its owner changes it, keeping the newer of two changes", () => {
+    const room = new Room({ ...snapshot([tom]), roomId: "home", home });
+
+    expect(room.furnish({ ...home, furniture: [piece], version: 3 })).toBe(true);
+    expect(room.furnish({ ...home, version: 2 })).toBe(false);
+    expect(room.snapshot.props).toEqual([{ kind: "sofa", x: 1, z: -1, radius: 1.2, facing: Math.PI }]);
+    expect(room.snapshot.home?.version).toBe(3);
+  });
+
+  it("ignores a home's change in a world's room, or another's home", () => {
+    expect(new Room(snapshot([tom])).furnish(home)).toBe(false);
+    expect(new Room({ ...snapshot([tom]), home }).furnish({ ...home, ownerId: "felix" })).toBe(false);
+  });
+});

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  floorPixel, largestTexture, paintCafeFloor, paintCafeWall, paints, paintStreet, paintTownSquareFloor, paintTownSquareWall,
+  floorPixel, largestTexture, paintCafeFloor, paintCafeWall, paintHomeFloor, paintHomeWall, paints, paintStreet, paintTownSquareFloor, paintTownSquareWall,
   seeded, textureSize, type Brush, type Floorplan,
 } from "./paint";
 import { palette, topOf } from "./props";
@@ -114,6 +114,26 @@ describe("the painters", () => {
     }
   });
 
+  // A home's wall is laid out round its door, by the back wall on the left (src/Pspsps.Domain/Homes/Home.cs).
+  it("paints a home's wall with nothing off its edges, and nothing over its doorway", () => {
+    const door = { id: "out", x: -4.4, z: 3.7, radius: 0.8, toRoomId: "town-square", toRoomName: "Town Square" };
+    const { brush, calls } = recordingBrush();
+    paintHomeWall(brush, 12, 4, 10, [door]);
+
+    const framed = calls.filter((c) => c.name === "strokeRect");
+    expect(framed.length).toBeGreaterThan(2);
+    for (const { args } of calls.filter((c) => c.name === "fillRect" || c.name === "strokeRect")) {
+      const [x, , w] = args.map(Number);
+      expect(x, `${args.join(", ")}`).toBeGreaterThanOrEqual(0);
+      expect((x ?? 0) + (w ?? 0), `${args.join(", ")}`).toBeLessThanOrEqual(120 + 1e-9);
+    }
+    for (const { args } of framed) {
+      const [x, , w] = args.map(Number);
+      const [from, to] = [(x ?? 0) / 10 - 6, ((x ?? 0) + (w ?? 0)) / 10 - 6];
+      expect(to <= door.x - 1 || from >= door.x + 1, `${from} to ${to}`).toBe(true);
+    }
+  });
+
   it("paints the same floor every time", () => {
     const [first, second] = [recordingBrush(), recordingBrush()];
     paintTownSquareFloor(first.brush, square, 10, { x: 0, z: 3.4 });
@@ -132,12 +152,14 @@ describe("the painters", () => {
       (b: Brush) => paintCafeFloor(b, { ...square, width: 14, depth: 10, pond: null }, 10),
       (b: Brush) => paintCafeWall(b, 14, 4, 10, []),
       (b: Brush) => paintStreet(b, 10),
+      (b: Brush) => paintHomeFloor(b, { ...square, width: 12, depth: 9, pond: null }, 10),
+      (b: Brush) => paintHomeWall(b, 12, 4, 10, []),
     ]) {
       const { brush, colours } = recordingBrush();
       paint(brush);
       colours.forEach((colour) => used.add(colour));
     }
-    for (const room of ["town-square", "cafe", "elsewhere"]) {
+    for (const room of ["town-square", "cafe", "home", "elsewhere"]) {
       const look = lookOf(room);
       [look.sky, look.floorColour, look.wallColour, look.ground?.colour].forEach((colour) => colour && used.add(colour));
       look.backdrop(square, 4).forEach((part) => used.add(part.colour));

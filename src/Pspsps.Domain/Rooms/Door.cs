@@ -2,9 +2,10 @@ namespace Pspsps.Domain.Rooms;
 
 /// <summary>
 /// A doorway out of a room: a round spot on its floor (<see cref="Spot"/>, <see cref="Radius"/>) that a cat walks onto
-/// to go through, to the door <see cref="ToDoor"/> of the room <see cref="ToRoom"/>.
+/// to go through, to the door <see cref="ToDoor"/> of the room <see cref="ToRoom"/>, or, with no door there (a home's
+/// door out, which isn't one of the room's), to that room's spawn point.
 /// </summary>
-public sealed record Door(string Id, Position Spot, double Radius, string ToRoom, string ToDoor)
+public sealed record Door(string Id, Position Spot, double Radius, string ToRoom, string? ToDoor)
 {
     /// <summary>How far past the door's edge, towards the room's middle, a cat coming in through it stands.</summary>
     public const double StepIn = 0.75;

@@ -73,6 +73,14 @@ export const paints = {
   windowSky: "#cfe8f0",
   plinth: "#cfc2a8",
   panelLine: "#a8724a",
+  homeBoard: "#e2bf98",
+  homeBoardLight: "#e8c9a6",
+  homeBoardDark: "#d7b18a",
+  homeSeam: "#bd946c",
+  wallpaper: "#f5e4d6",
+  wallpaperSprig: "#e3c6b4",
+  skirting: "#fbf3ea",
+  curtain: "#d98ba6",
 } as const;
 
 /**
@@ -449,6 +457,126 @@ export function paintCafeWall(brush: Brush, width: number, height: number, scale
   // The line under the ceiling.
   brush.fillStyle = palette.darkWood;
   brush.fillRect(0, 0, width * scale, 0.12 * scale);
+}
+
+/** A home's floor: warm boards laid lengthways, a little paler than the café's. Rugs are the owner's to put down. */
+export function paintHomeFloor(brush: Brush, plan: Floorplan, scale: number): void {
+  const random = seeded(23);
+  const [w, h] = [plan.width * scale, plan.depth * scale];
+  const board = 0.36 * scale;
+  const shades = [paints.homeBoard, paints.homeBoardLight, paints.homeBoardDark] as const;
+  brush.lineWidth = Math.max(1.5, scale * 0.035);
+  brush.strokeStyle = paints.homeSeam;
+  for (let y = 0; y < h; y += board) {
+    for (let x = -random() * 2.5 * scale; x < w; ) {
+      const length = (1.8 + random() * 1.8) * scale;
+      brush.fillStyle = pick(shades, random());
+      brush.fillRect(x, y, length, board);
+      brush.strokeRect(x, y, length, board);
+      x += length;
+    }
+  }
+}
+
+/**
+ * A home's back wall: sprigged wallpaper over a pale skirting board, a picture rail, and, each painted only where it fits
+ * (on the wall, clear of the doorways), a window with its curtains drawn back, a framed fish and a shelf with a plant.
+ */
+export function paintHomeWall(brush: Brush, width: number, height: number, scale: number, doors: readonly DoorView[]): void {
+  const x = (metres: number) => (metres + width / 2) * scale;
+  const y = (metres: number) => (height - metres) * scale;
+  brush.fillStyle = paints.wallpaper;
+  brush.fillRect(0, 0, width * scale, height * scale);
+  // The wallpaper's sprigs: little three-leaf sprays in rows, every other row shifted half along.
+  brush.fillStyle = paints.wallpaperSprig;
+  for (let row = 0, up = 0.9; up < height - 0.3; row++, up += 0.55) {
+    for (let along = -width / 2 + 0.15 + (row % 2) * 0.3; along < width / 2 - 0.1; along += 0.6) {
+      for (const [dx, dy] of [[0, 0.07], [-0.06, 0], [0.06, 0]] as const) {
+        brush.beginPath();
+        brush.ellipse(x(along + dx), y(up + dy), 0.035 * scale, 0.06 * scale, dx * 6, 0, Math.PI * 2);
+        brush.fill();
+      }
+    }
+  }
+  // The skirting board, and the picture rail.
+  brush.fillStyle = paints.skirting;
+  brush.fillRect(0, y(0.35), width * scale, 0.35 * scale);
+  brush.fillStyle = palette.wood;
+  brush.fillRect(0, y(0.38), width * scale, 0.05 * scale);
+  brush.fillRect(0, y(3.25), width * scale, 0.07 * scale);
+
+  const taken: [number, number][] = [];
+  const fits = (from: number, to: number) => {
+    const ok = from >= -width / 2 + 0.1 && to <= width / 2 - 0.1
+      && !doors.some((door) => door.x + 1 > from && door.x - 1 < to)
+      && !taken.some(([a, b]) => b > from && a < to);
+    if (ok) {
+      taken.push([from, to]);
+    }
+    return ok;
+  };
+  // A window, a little right of the middle: sky, a sill, and pink curtains drawn back either side.
+  const window = 0.6;
+  if (fits(window - 0.5, window + 2.1)) {
+    frame(brush, x(window), y(3.0), 1.6 * scale, 1.7 * scale, scale, paints.windowSky);
+    brush.strokeStyle = ink;
+    brush.lineWidth = Math.max(2, scale * 0.05);
+    brush.beginPath();
+    brush.moveTo(x(window + 0.8), y(3.0));
+    brush.lineTo(x(window + 0.8), y(1.3));
+    brush.moveTo(x(window), y(2.15));
+    brush.lineTo(x(window + 1.6), y(2.15));
+    brush.stroke();
+    brush.fillStyle = palette.wood;
+    brush.fillRect(x(window - 0.15), y(1.3), 1.9 * scale, 0.1 * scale);
+    for (const side of [window - 0.45, window + 1.6]) {
+      brush.beginPath();
+      brush.moveTo(x(side), y(3.15));
+      brush.lineTo(x(side + 0.45), y(3.15));
+      brush.quadraticCurveTo(x(side + 0.15), y(2.2), x(side + 0.4), y(1.2));
+      brush.lineTo(x(side), y(1.2));
+      brush.closePath();
+      brush.fillStyle = paints.curtain;
+      brush.fill();
+      brush.strokeStyle = ink;
+      brush.lineWidth = Math.max(2, scale * 0.04);
+      brush.stroke();
+    }
+  }
+  // A framed picture of a fish, left of the window.
+  const picture = -1.5;
+  if (fits(picture, picture + 1)) {
+    frame(brush, x(picture), y(2.9), 1.0 * scale, 0.8 * scale, scale, palette.cream);
+    brush.fillStyle = palette.teal;
+    brush.beginPath();
+    brush.ellipse(x(picture + 0.45), y(2.5), 0.25 * scale, 0.13 * scale, 0, 0, Math.PI * 2);
+    brush.moveTo(x(picture + 0.7), y(2.5));
+    brush.lineTo(x(picture + 0.85), y(2.62));
+    brush.lineTo(x(picture + 0.85), y(2.38));
+    brush.closePath();
+    brush.fill();
+  }
+  // A shelf near the right end, with a potted plant and two little jars on it.
+  const shelf = width / 2 - 2.6;
+  if (fits(shelf, shelf + 1.8)) {
+    brush.fillStyle = palette.darkWood;
+    brush.fillRect(x(shelf), y(2.3), 1.8 * scale, 0.08 * scale);
+    brush.fillStyle = palette.pot;
+    brush.fillRect(x(shelf + 0.2), y(2.62), 0.3 * scale, 0.32 * scale);
+    brush.strokeStyle = ink;
+    brush.lineWidth = Math.max(1.5, scale * 0.03);
+    brush.strokeRect(x(shelf + 0.2), y(2.62), 0.3 * scale, 0.32 * scale);
+    brush.fillStyle = palette.leaf;
+    brush.beginPath();
+    brush.arc(x(shelf + 0.35), y(2.8), 0.22 * scale, 0, Math.PI * 2);
+    brush.fill();
+    brush.stroke();
+    for (const [left, colour] of [[shelf + 0.9, palette.sage], [shelf + 1.3, palette.rose]] as const) {
+      brush.fillStyle = colour;
+      brush.fillRect(x(left), y(2.6), 0.25 * scale, 0.3 * scale);
+      brush.strokeRect(x(left), y(2.6), 0.25 * scale, 0.3 * scale);
+    }
+  }
 }
 
 function frame(brush: Brush, left: number, top: number, w: number, h: number, scale: number, inside: string): void {

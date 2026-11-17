@@ -8,7 +8,7 @@ namespace Pspsps.Domain.Rooms;
 /// </summary>
 public sealed record Prop(string Kind, Position Spot, double Radius, double Facing = 0);
 
-/// <summary>The kinds of prop the browser knows how to draw.</summary>
+/// <summary>The kinds of prop the browser knows how to draw: the rooms' own, and the furniture in players' homes.</summary>
 public static class PropKinds
 {
     public const string Tree = "tree";
@@ -19,6 +19,13 @@ public static class PropKinds
     public const string Counter = "counter";
     public const string Plant = "plant";
     public const string CatTree = "cat-tree";
+    public const string Rug = "rug";
+    public const string Armchair = "armchair";
+    public const string Sofa = "sofa";
+    public const string FloorLamp = "floor-lamp";
+    public const string Bookshelf = "bookshelf";
+    public const string CatBed = "cat-bed";
 
-    public static IReadOnlyList<string> All { get; } = [Tree, Bench, Lamp, FlowerBed, CafeTable, Counter, Plant, CatTree];
+    public static IReadOnlyList<string> All { get; } =
+        [Tree, Bench, Lamp, FlowerBed, CafeTable, Counter, Plant, CatTree, Rug, Armchair, Sofa, FloorLamp, Bookshelf, CatBed];
 }

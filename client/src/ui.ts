@@ -2,8 +2,11 @@ import { emoteBar, emoteForKey, isTyping } from "./emotes";
 import type { Fishing } from "./fishing";
 import { canGoTo, friendButtons, friendStatus, sections, whereIs, type FriendAction, type Here } from "./friends";
 import { coatOf } from "./fur";
+import { visitorChoices, type FurnitureLeft } from "./home";
 import { shopSections, wearingLine, type ShopAction, type ShopRow } from "./shop";
-import type { DoorView, Emote, FurColor, Friend, Player, PlayerCard, RoomSnapshot, Shop, WorldSummary } from "./types";
+import type {
+  DoorView, Emote, FurColor, Friend, FurnitureView, HomeVisitors, Player, PlayerCard, RoomSnapshot, Shop, WorldSummary,
+} from "./types";
 
 /** A message for the player on a panel; an error shows in red. */
 export interface Note {
@@ -24,10 +27,44 @@ export interface FishingControls {
   state: () => Fishing;
 }
 
+/** What the owner's controls in their own home do: decorate, and choose who may visit (now `visitors`). */
+export interface HomeControls {
+  decorate: () => void;
+  visitors: HomeVisitors;
+  letIn: (visitors: HomeVisitors) => void;
+}
+
+/**
+ * The decorating panel's contents: what to do next, the owner's furniture with how many of each are left to put out,
+ * the pieces out in the home, the one picked to put out, and the piece selected.
+ */
+export interface DecorateView {
+  hint: string;
+  left: readonly FurnitureLeft[];
+  placed: readonly FurnitureView[];
+  picked?: string;
+  selected?: FurnitureView;
+}
+
+/** What the decorating panel's buttons do. */
+export interface DecorateActions {
+  /** Picks a piece of furniture to put out (a tap on the floor puts it there), or drops the pick when it's picked. */
+  pick: (itemId: string) => void;
+  /** Puts the picked furniture out wherever it fits: for the keyboard, which can't tap the floor. */
+  putAnywhere: (itemId: string) => void;
+  /** Selects a piece out in the home (or drops the selection when it's selected). */
+  select: (pieceId: string) => void;
+  turn: (pieceId: string) => void;
+  putAway: (pieceId: string) => void;
+  done: () => void;
+}
+
 /** The HTML laid over the canvas: sign-in, the world list, the room bar and the chat box. */
 export class Overlay {
   // Listeners that belong to what is showing (the room's emote keys): every show* ends them.
   private showing = new AbortController();
+  // Listeners of the decorating panel, while it shows.
+  private decorating: AbortController | undefined;
   private fishing: FishingControls | undefined;
   // The player card or friends list open over the room, if any.
   private dialog: { element: HTMLDialogElement; open: OpenDialog } | undefined;
@@ -100,7 +137,7 @@ export class Overlay {
 
   showRoom(
     room: RoomSnapshot, say: (text: string) => void, emote: (emote: Emote) => void, throughDoor: (door: DoorView) => void,
-    leave: () => void, coins: number, fishing?: FishingControls,
+    leave: () => void, coins: number, fishing?: FishingControls, home?: HomeControls,
   ): void {
     this.fishing = fishing;
     const input = el("input", { className: "chat" });
@@ -138,6 +175,7 @@ export class Overlay {
       el("div", { className: "dock" },
         el("div", { className: "toast", id: "toast" }),
         ...(fishing ? [el("div", { className: "fishing", id: "fishing" })] : []),
+        ...(home ? [homeTools(home)] : []),
         emotes,
         form,
       ),
@@ -212,11 +250,140 @@ export class Overlay {
     }
   }
 
+  /** Shows who may visit the owner's home, as it is now (changed from another tab, say). */
+  setVisitors(visitors: HomeVisitors): void {
+    const choice = this.root.querySelector<HTMLSelectElement>("#home-visitors");
+    if (choice) {
+      choice.value = visitors;
+    }
+  }
+
+  /** Whether the decorating panel is showing. */
+  get isDecorating(): boolean {
+    return this.decorating !== undefined;
+  }
+
+  /**
+   * The decorating panel, in place of the emotes and the chat at the bottom of the screen, the room still showing (and
+   * taking taps) above it: the owner's furniture to pick and put out, the pieces out to select, and Turn and Put away
+   * for the one selected. Shown again in place as things change, keeping the focus where it was. Escape or Done ends it.
+   */
+  showDecorating(view: DecorateView, actions: DecorateActions): void {
+    const dock = this.root.querySelector<HTMLElement>(".dock");
+    if (!dock) {
+      return;
+    }
+    const panel = dock.querySelector<HTMLElement>("#decorate") ?? this.openDecorating(dock, actions);
+    const active = document.activeElement instanceof HTMLElement && panel.contains(document.activeElement)
+      ? document.activeElement.dataset.focusKey ?? "heading"
+      : undefined;
+
+    const keyed = (text: string, key: string, onClick: () => void, className = "", label?: string) => {
+      const pick = button(text, onClick, className);
+      pick.dataset.focusKey = key;
+      if (label) {
+        pick.setAttribute("aria-label", label);
+      }
+      return pick;
+    };
+    const heading = el("h2", { text: "Decorating", id: "decorate-title" });
+    heading.tabIndex = -1;
+    const parts: Node[] = [
+      el("div", { className: "decorate-head" }, heading, keyed("Done", "done", actions.done, "primary", "Done decorating")),
+      el("p", { className: "decorate-hint", id: "decorate-hint", text: view.hint }),
+    ];
+    const selected = view.selected;
+    const picked = view.left.find((row) => row.item.id === view.picked);
+    if (selected) {
+      parts.push(el("div", { className: "actions" },
+        keyed("Turn", "turn", () => actions.turn(selected.id), "", `Turn the ${selected.name}`),
+        keyed("Put away", "put-away", () => actions.putAway(selected.id), "", `Put away the ${selected.name}`)));
+    } else if (picked) {
+      parts.push(el("div", { className: "actions" },
+        keyed("Find a spot", "anywhere", () => actions.putAnywhere(picked.item.id), "", `Find a spot for the ${picked.item.name}`)));
+    }
+    if (view.left.length > 0) {
+      parts.push(el("h3", { text: "Your furniture" }), el("ul", { className: "furniture-list" },
+        ...view.left.map((row) => {
+          const pick = keyed(`${row.item.name} · ${row.left} left`, `item-${row.item.id}`, () => actions.pick(row.item.id));
+          pick.setAttribute("aria-pressed", String(row.item.id === view.picked));
+          pick.disabled = row.left === 0;
+          return el("li", {}, pick);
+        })));
+    }
+    if (view.placed.length > 0) {
+      parts.push(el("h3", { text: "In your home" }), el("ul", { className: "furniture-list" },
+        ...view.placed.map((piece, i) => {
+          const pick = keyed(piece.name, `piece-${piece.id}`, () => actions.select(piece.id), "",
+            `${piece.name}, ${i + 1} of ${view.placed.length}`);
+          pick.setAttribute("aria-pressed", String(piece.id === selected?.id));
+          return el("li", {}, pick);
+        })));
+    }
+    panel.replaceChildren(...parts);
+
+    const again = [...panel.querySelectorAll<HTMLButtonElement>("button")].find((b) => b.dataset.focusKey === active && !b.disabled);
+    if (again) {
+      again.focus();
+    } else if (active !== undefined) {
+      // What had the focus went (a piece put away, the last one put out), or the panel just opened: at its heading.
+      panel.scrollTop = 0;
+      heading.focus();
+    } else {
+      // Changed from the room (a tap on the floor or a piece): at its top, where the hint and Turn and Put away are, not
+      // scrolled down where the last button pressed was (on a short screen, its heading and Done were off the top).
+      panel.scrollTop = 0;
+    }
+  }
+
+  /** Ends the decorating panel: the emotes and the chat come back. */
+  stopDecorating(): void {
+    if (!this.decorating) {
+      return;
+    }
+    this.decorating.abort();
+    this.decorating = undefined;
+    const dock = this.root.querySelector<HTMLElement>(".dock");
+    dock?.querySelector("#decorate")?.remove();
+    for (const part of dock?.querySelectorAll<HTMLElement>(":scope > [data-decorating-hides]") ?? []) {
+      part.hidden = false;
+      delete part.dataset.decoratingHides;
+    }
+    this.root.querySelector<HTMLElement>("#home-tools button")?.focus();
+  }
+
+  // Makes the decorating panel in the dock, in place of what the dock showed (but its toast), with the focus on it.
+  private openDecorating(dock: HTMLElement, actions: DecorateActions): HTMLElement {
+    for (const part of dock.querySelectorAll<HTMLElement>(":scope > :not(.toast)")) {
+      part.hidden = true;
+      part.dataset.decoratingHides = "";
+    }
+    const panel = el("section", { className: "decorate", id: "decorate" });
+    panel.setAttribute("aria-labelledby", "decorate-title");
+    dock.append(panel);
+    this.decorating = new AbortController();
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !this.openDialogFor) {
+        event.preventDefault();
+        actions.done();
+      }
+    }, { signal: this.decorating.signal });
+    // The focus moves from the Decorate button, now hidden, to the panel: shown as its heading, once it has one.
+    const placeholder = el("span", {});
+    placeholder.dataset.focusKey = "heading";
+    placeholder.tabIndex = -1;
+    panel.append(placeholder);
+    placeholder.focus();
+    return panel;
+  }
+
   /**
    * Another cat's player card, over the room: its name, its fur, and where the two stand, with the buttons for that
-   * (add, cancel, accept or decline, remove). `act` runs a button's change.
+   * (add, cancel, accept or decline, remove), and "Visit home" when <visitHome> is given (main.ts decides when). `act`
+   * runs a button's change.
    */
-  showPlayerCard(card: PlayerCard, act: (action: FriendAction) => void): void {
+  showPlayerCard(card: PlayerCard, act: (action: FriendAction) => void, visitHome?: () => void): void {
+    const visit = visitHome ? [button("Visit home", visitHome)] : [];
     const swatch = swatchOf(card.furColor);
     const status = friendStatus(card.friendState);
     const wearing = wearingLine(card);
@@ -226,18 +393,27 @@ export class Overlay {
       ...(wearing ? [el("p", { text: wearing, className: "wearing" })] : []),
       ...(status ? [el("p", { text: status, className: "friend-status" })] : []),
       el("div", { className: "actions" },
-        ...friendButtons(card.friendState).map((b) => button(b.label, () => act(b.action), b.primary ? "primary" : ""))),
+        ...friendButtons(card.friendState).map((b) => button(b.label, () => act(b.action), b.primary ? "primary" : "")),
+        ...visit),
     );
   }
 
   /**
-   * The friends list, over the room: each friend with where they are and "Go to", then requests to the player (accept,
+   * The friends list, over the room: the way home first ("Go home", unless the player is home), then each friend with
+   * where they are, "Go to" and, when their home lets the player in, "Visit home"; then requests to the player (accept,
    * decline) and the player's own (cancel). A friend's name opens their card.
    */
   showFriends(
     list: Friend[],
     here: Here | undefined,
-    actions: { card: (playerId: string) => void; goTo: (playerId: string) => void; act: (action: FriendAction, playerId: string) => void },
+    actions: {
+      card: (playerId: string) => void;
+      goTo: (playerId: string) => void;
+      act: (action: FriendAction, playerId: string) => void;
+      goHome: () => void;
+      visitHome: (playerId: string) => void;
+    },
+    atHome = false,
   ): void {
     const { friends, received, sent } = sections(list);
     const name = (friend: Friend) => {
@@ -253,7 +429,15 @@ export class Overlay {
     const row = (friend: Friend, ...children: Node[]) =>
       el("li", { className: "friend" }, name(friend), ...children);
 
-    const parts: Node[] = [el("h2", { text: "Friends", id: "dialog-title" })];
+    // The player's own home lives here, with the homes of their friends, rather than in the room bar, which a folded
+    // phone has no room left in.
+    const parts: Node[] = [
+      el("h2", { text: "Friends", id: "dialog-title" }),
+      el("div", { className: "home-row" },
+        atHome
+          ? el("p", { text: "You're home." })
+          : button("Go home", actions.goHome, "primary")),
+    ];
     if (list.length === 0) {
       parts.push(el("p", { text: "No friends yet. Tap a cat to see its card and add it." }));
     }
@@ -261,9 +445,13 @@ export class Overlay {
       parts.push(el("ul", { className: "friend-list" }, ...friends.map((friend) => {
         const go = labelled("Go to", `Go to ${friend.displayName}`, () => actions.goTo(friend.playerId), "primary");
         go.disabled = !canGoTo(friend, here);
+        const inTheirHome = here?.homeOwnerId === friend.playerId;
+        const visit = friend.canVisitHome && !inTheirHome
+          ? [labelled("Visit home", `Visit home of ${friend.displayName}`, () => actions.visitHome(friend.playerId))]
+          : [];
         return row(friend,
           el("span", { className: friend.place ? "where online" : "where", text: whereIs(friend, here) }),
-          go);
+          el("span", { className: "friend-buttons" }, go, ...visit));
       })));
     }
     if (received.length > 0) {
@@ -353,6 +541,8 @@ export class Overlay {
   /** Shows <children> in place of whatever was showing, and ends the old view's listeners. */
   private replace(...children: Node[]): void {
     this.closeDialog();
+    this.decorating?.abort();
+    this.decorating = undefined;
     this.showing.abort();
     this.showing = new AbortController();
     this.root.replaceChildren(...children);
@@ -415,6 +605,24 @@ function swatchOf(fur: FurColor): HTMLElement {
   swatch.style.background = `linear-gradient(135deg, ${coat.body} 55%, ${coat.accent} 55%)`;
   swatch.setAttribute("aria-hidden", "true");
   return swatch;
+}
+
+/** The owner's controls in their own home: Decorate, and who can visit. */
+function homeTools(home: HomeControls): HTMLElement {
+  const choice = el("select", { id: "home-visitors" });
+  for (const { value, label } of visitorChoices) {
+    const option = el("option", { text: label });
+    option.value = value;
+    choice.append(option);
+  }
+  choice.value = home.visitors;
+  choice.addEventListener("change", () => home.letIn(choice.value as HomeVisitors));
+  const label = el("label", { text: "Who can visit" });
+  label.htmlFor = choice.id;
+  return el("div", { className: "home-tools", id: "home-tools" },
+    button("Decorate", home.decorate, "primary"),
+    el("span", { className: "visitors" }, label, choice),
+  );
 }
 
 /** A button through each door, for the keyboard: the doors themselves are drawn on the canvas. */

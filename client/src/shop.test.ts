@@ -14,7 +14,10 @@ function item(id: string): ShopItem {
   if (!found) throw new Error(`no ${id}`);
   return found;
 }
-const shop: Shop = { items, coins: 50, owned: ["fur-grey", "red-collar"], furColor: "Grey", hat: null, collar: null };
+const shop: Shop = {
+  items, coins: 50, owned: ["fur-grey", "red-collar"], furColor: "Grey", hat: null, collar: null,
+  counts: { "fur-grey": 1, "red-collar": 1 }, maxOfEachFurniture: 5,
+};
 
 describe("shopRow", () => {
   it("sells what the player can afford, at its price", () => {
@@ -88,5 +91,35 @@ describe("wearingLine", () => {
     expect(wearingLine({ hatName: null, collarName: "Bell collar" })).toBe("Wearing: Bell collar");
     expect(wearingLine({ hatName: null, collarName: null })).toBeUndefined();
     expect(wearingLine({})).toBeUndefined();
+  });
+});
+
+describe("furniture in the shop", () => {
+  const sofa: ShopItem = { id: "sofa", name: "Sofa", kind: "Furniture", price: 350, furColor: null };
+  const withSofa = (count: number, coins = 400): Shop =>
+    ({ ...shop, items: [...items, sofa], coins, owned: [...shop.owned, ...(count > 0 ? ["sofa"] : [])], counts: { sofa: count } });
+
+  it("sells a piece the player hasn't got, and another of one they have, up to the most a cat keeps", () => {
+    expect(shopRow(withSofa(0), sofa)).toMatchObject({ status: "🪙 350", button: { action: "buy", label: "Buy", ariaLabel: "Buy the Sofa for 350 coins" } });
+    expect(shopRow(withSofa(2), sofa)).toMatchObject({
+      status: "🪙 350 · you have 2", button: { action: "buy", label: "Buy another", ariaLabel: "Buy another Sofa for 350 coins", disabled: false },
+    });
+    expect(shopRow(withSofa(2, 100), sofa)).toMatchObject({ button: { disabled: true }, reason: "need 250 more" });
+    expect(shopRow(withSofa(5), sofa)).toEqual({ item: sofa, status: "You have 5, as many as a cat can keep" });
+  });
+
+  it("keeps as many of a piece as the server says a cat can", () => {
+    const fewer = { ...withSofa(3), maxOfEachFurniture: 3 } as Shop;
+
+    expect(shopRow(fewer, sofa)).toEqual({ item: sofa, status: "You have 3, as many as a cat can keep" });
+  });
+
+  it("never wears furniture, and lists it in its own part after the fur", () => {
+    expect(isWorn(withSofa(1), sofa)).toBe(false);
+    expect(shopSections(withSofa(1)).map((s) => s.title)).toEqual(["Hats", "Collars", "Fur", "Furniture"]);
+  });
+
+  it("says where furniture bought goes", () => {
+    expect(shopMessage("buy", sofa)).toBe("You bought the Sofa! Put it out at home: Friends, then Go home.");
   });
 });

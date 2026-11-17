@@ -22,4 +22,13 @@ internal sealed class HubRoomBroadcaster(IHubContext<GameHub, IGameClient> hub) 
     public Task FishBit(string session) => hub.Clients.Client(session).FishBit();
 
     public Task FishGotAway(string session) => hub.Clients.Client(session).FishGotAway();
+
+    public Task HomeChanged(string roomKey, HomeView home) => hub.Clients.Group(roomKey).HomeChanged(home);
+
+    public async Task SentOut(string roomKey, string session, string message)
+    {
+        await hub.Groups.RemoveFromGroupAsync(session, roomKey);
+        // Which home: a tab that has gone into another meanwhile stays there.
+        await hub.Clients.Client(session).SentOut(RoomKey.HomeOwner(roomKey) ?? Guid.Empty, message);
+    }
 }

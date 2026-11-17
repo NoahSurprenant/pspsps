@@ -2,8 +2,8 @@ import { HubConnectionBuilder, HubConnectionState, LogLevel, type HubConnection 
 import type { FriendAction } from "./friends";
 import type { ShopAction } from "./shop";
 import type {
-  CatchView, CatView, ChatView, Emote, EmoteView, Friend, OutfitView, Player, PlayerCard, ReelView, RoomSnapshot, Shop,
-  WorldSummary,
+  CatchView, CatView, ChatView, Emote, EmoteView, Friend, HomeView, HomeVisitors, OutfitView, Player, PlayerCard, ReelView,
+  RoomSnapshot, Shop, WorldSummary,
 } from "./types";
 
 export interface GameEvents {
@@ -29,6 +29,10 @@ export interface GameEvents {
   replaced(): void;
   /** Another player asked this one to be friends, answered, took a request back or ended a friendship. */
   friendsChanged(playerId: string): void;
+  /** The owner of the home our cat is in changed its furniture, or who may visit. */
+  homeChanged(home: HomeView): void;
+  /** Our cat was sent out of <ownerId>'s home (its owner no longer lets it in): go back to Town Square. */
+  sentOut(ownerId: string, message: string): void;
 }
 
 export async function fetchMe(): Promise<Player | null> {
@@ -98,6 +102,8 @@ export class GameConnection {
     this.hub.on("RoomLost", () => events.roomLost());
     this.hub.on("WorldLost", (message: string) => events.worldLost(message));
     this.hub.on("FriendsChanged", (playerId: string) => events.friendsChanged(playerId));
+    this.hub.on("HomeChanged", (home: HomeView) => events.homeChanged(home));
+    this.hub.on("SentOut", (ownerId: string, message: string) => events.sentOut(ownerId, message));
     this.hub.on("SessionReplaced", () => {
       void this.hub.stop().then(() => events.replaced());
     });
@@ -171,6 +177,34 @@ export class GameConnection {
   /** Goes to the friend's room, in whichever world it is. */
   goToFriend(playerId: string): Promise<RoomSnapshot> {
     return this.hub.invoke<RoomSnapshot>("GoToFriend", playerId);
+  }
+
+  /** Goes into the player's own home. */
+  goHome(): Promise<RoomSnapshot> {
+    return this.hub.invoke<RoomSnapshot>("GoHome");
+  }
+
+  /** Goes into another player's home, if they let this player in. */
+  visitHome(ownerId: string): Promise<RoomSnapshot> {
+    return this.hub.invoke<RoomSnapshot>("VisitHome", ownerId);
+  }
+
+  /** Puts out a piece of the player's furniture at (x, z), or with no spot wherever it fits; the home as it is after. */
+  placeFurniture(itemId: string, spot: { x: number; z: number } | undefined, quarterTurns = 0): Promise<HomeView> {
+    return this.hub.invoke<HomeView>("PlaceFurniture", itemId, spot?.x ?? null, spot?.z ?? null, quarterTurns);
+  }
+
+  turnFurniture(pieceId: string): Promise<HomeView> {
+    return this.hub.invoke<HomeView>("TurnFurniture", pieceId);
+  }
+
+  putAwayFurniture(pieceId: string): Promise<HomeView> {
+    return this.hub.invoke<HomeView>("PutAwayFurniture", pieceId);
+  }
+
+  /** Changes who may visit the player's home; whoever may no longer stay is sent out. */
+  letIntoHome(visitors: HomeVisitors): Promise<HomeView> {
+    return this.hub.invoke<HomeView>("LetIntoHome", visitors);
   }
 }
 

@@ -35,7 +35,8 @@ public sealed class FriendsTests
         Assert.That((request.PlayerId, request.FriendState, request.Place), Is.EqualTo((tom.Id, "RequestReceived", (FriendPlaceView?)null)),
             "a request shows no place");
         var felixsCard = await felixHub.InvokeAsync<PlayerCardView>("AcceptFriend", tom.Id);
-        Assert.That(felixsCard, Is.EqualTo(new PlayerCardView(tom.Id, tom.DisplayName, tom.FurColor.ToString(), "Friends")));
+        Assert.That(felixsCard, Is.EqualTo(new PlayerCardView(tom.Id, tom.DisplayName, tom.FurColor.ToString(), "Friends", CanVisitHome: true)),
+            "a friend's home is open to friends until they say otherwise");
 
         // Felix's list shows Tom in Calico's café.
         var friend = (await felixHub.InvokeAsync<List<FriendView>>("GetFriends")).Single();

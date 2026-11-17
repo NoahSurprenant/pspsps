@@ -22,6 +22,8 @@ public sealed class Player
         CreatedAt = now;
         // The coat a cat is born with is its own: wearing another one later, it can always go back to it.
         _items.Add(new OwnedItem(ShopCatalog.FurOf(furColor).Id, now));
+        // And so is its bed, for its home: no home starts with nothing to put in it.
+        _items.Add(new OwnedItem(ShopCatalog.StarterFurniture, now));
     }
 
     public Guid Id { get; private set; }
@@ -93,16 +95,27 @@ public sealed class Player
     /// <summary>Whether the player has the shop item <paramref name="itemId"/>.</summary>
     public bool Owns(string itemId) => _items.Any(i => i.ItemId == itemId);
 
+    /// <summary>How many of the shop item <paramref name="itemId"/> the player has (0 when none).</summary>
+    public int CountOf(string itemId) => _items.FirstOrDefault(i => i.ItemId == itemId)?.Count ?? 0;
+
     /// <summary>
     /// Buys the shop item <paramref name="itemId"/>: the player pays its price from their coins, and has it from then on.
-    /// Refused when they have it already or can't afford it. Buying doesn't put it on.
+    /// Refused when they can't afford it, or have it already: one of anything a cat wears, and up to
+    /// <see cref="ShopCatalog.MaxOfEachFurniture"/> of a piece of furniture. Buying doesn't put it on, or out.
     /// </summary>
     public ShopItem Buy(string itemId, DateTimeOffset now)
     {
         var item = ShopCatalog.Find(itemId) ?? throw new DomainException("That isn't in the shop.");
-        if (Owns(item.Id))
+        var owned = _items.FirstOrDefault(i => i.ItemId == item.Id);
+        if (owned is not null && !item.IsFurniture)
         {
             throw new DomainException($"You already have the {item.Name}.");
+        }
+
+        if (owned is not null && owned.Count >= ShopCatalog.MaxOfEachFurniture)
+        {
+            throw new DomainException(
+                $"You have {ShopCatalog.MaxOfEachFurniture} of the {item.Name} already: that's as many as a cat can keep.");
         }
 
         if (item.Price > Coins)
@@ -111,7 +124,15 @@ public sealed class Player
         }
 
         SpendCoins(item.Price);
-        _items.Add(new OwnedItem(item.Id, now));
+        if (owned is null)
+        {
+            _items.Add(new OwnedItem(item.Id, now));
+        }
+        else
+        {
+            owned.AddOne();
+        }
+
         return item;
     }
 
@@ -138,6 +159,8 @@ public sealed class Player
             case ItemKind.Fur:
                 FurColor = item.Fur ?? throw new InvalidOperationException($"Fur item '{item.Id}' has no fur.");
                 break;
+            case ItemKind.Furniture:
+                throw new DomainException($"The {item.Name} goes in your home, not on your cat.");
             default:
                 throw new InvalidOperationException($"Item '{item.Id}' is of no known kind.");
         }

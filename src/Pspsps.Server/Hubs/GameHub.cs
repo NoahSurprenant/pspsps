@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Pspsps.Application.Friends;
+using Pspsps.Application.Homes;
 using Pspsps.Application.Players;
 using Pspsps.Application.Shop;
 using Pspsps.Domain;
 using Pspsps.Domain.Friends;
+using Pspsps.Domain.Homes;
 using Pspsps.Domain.Rooms;
 using Pspsps.Domain.Shop;
 using Pspsps.Domain.Worlds;
@@ -25,6 +27,7 @@ public sealed partial class GameHub(
     IPlayerService players,
     IFriendService friends,
     IShopService shop,
+    IHomeService homes,
     SessionHeartbeat heartbeat,
     GameMetrics metrics,
     ILogger<GameHub> logger)
@@ -86,7 +89,7 @@ public sealed partial class GameHub(
         }
 
         metrics.EnteredWorld(world.Id);
-        return await JoinRoom(world.Id, RoomCatalog.Default.Id, throughDoor: null);
+        return await JoinRoom(world.Id, RoomKey.For(world.Id, RoomCatalog.Default.Id), throughDoor: null);
     }
 
     public async Task<RoomSnapshot> GoToRoom(string roomId)
@@ -100,18 +103,223 @@ public sealed partial class GameHub(
         var room = RoomCatalog.Find(roomId) ?? throw new HubException("That room doesn't exist.");
         // Read after the wait: the heartbeat may have moved it meanwhile (a lost room or world).
         var place = Here ?? throw new HubException("Pick a world first.");
+        return await MoveInto(place, RoomKey.For(place.WorldId, room.Id));
+    }
+
+    /// <summary>Goes into the player's own home, from wherever in the world they are.</summary>
+    public Task<RoomSnapshot> GoHome() => VisitHome(PlayerId);
+
+    /// <summary>
+    /// Goes into a player's home, if its owner lets this player in (<see cref="Home.MayVisit"/>), at its spawn point by the
+    /// door. The player stays in the world they came from: the home's door leads back to its Town Square.
+    /// </summary>
+    public async Task<RoomSnapshot> VisitHome(Guid ownerId)
+    {
+        if (Here is null)
+        {
+            throw new HubException("Pick a world first.");
+        }
+
+        await EnsureCurrentTab();
+        var ownerName = await PlayersRule(() => homes.VisitAsync(PlayerId, ownerId, Context.ConnectionAborted));
+        // Read after the waits: the heartbeat may have moved it meanwhile (a lost room or world).
+        var place = Here ?? throw new HubException("Pick a world first.");
+        var key = RoomKey.ForHome(ownerId);
+        if (place.RoomKey == key)
+        {
+            throw new HubException(ownerId == PlayerId ? "You're home already." : $"You're in {ownerName}'s home already.");
+        }
+
+        var snapshot = await MoveInto(place, key);
+        if (ownerId == PlayerId)
+        {
+            return snapshot;
+        }
+
+        // Checked again, now the cat is in: an owner who made the home stricter meanwhile looked at who was in it when
+        // this cat was still on its way, and missed it. Either that look sees the cat, or this check sees the change.
+        try
+        {
+            await homes.VisitAsync(PlayerId, ownerId, CancellationToken.None);
+        }
+        catch (DomainException e)
+        {
+            await BackOut(place, key);
+            throw new HubException(e.Message);
+        }
+        catch
+        {
+            // Couldn't be checked: not let in, rather than in a home the browser doesn't know it is in.
+            await BackOut(place, key);
+            throw;
+        }
+
+        return snapshot;
+    }
+
+    // Takes the cat out of the home <key> it may not stay in, back into the room it came from (if any).
+    private async Task BackOut(ConnectionPlace from, string key)
+    {
+        var now = Here;
+        if (now?.RoomKey != key || !MoveTo(now with { RoomKey = null }))
+        {
+            return;
+        }
+
+        await LeaveRoom(key);
+        await GoBackInto(from);
+    }
+
+    // Back into the room <from> the cat just left (its spawn point), when a move on failed. Never straight back into
+    // another player's home, which may not let it in any more, and never left in no room: when it can't go back, the
+    // connection keeps the room it left as its place, whose next renewal finds the cat gone and sends RoomLost, and the
+    // browser walks back in by the way it always does (a home through its own checks, or to Town Square).
+    private async Task GoBackInto(ConnectionPlace from, string? throughDoor = null)
+    {
+        if (from.RoomKey is not { } was || heartbeat.IsClosed(Context.ConnectionId))
+        {
+            return;
+        }
+
+        try
+        {
+            if (RoomKey.HomeOwner(was) is not { } owner || owner == PlayerId)
+            {
+                await JoinRoom(from.WorldId, was, throughDoor);
+                return;
+            }
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            LogNotBackIn(logger, e, PlayerId, was);
+        }
+
+        MoveTo(from);
+    }
+
+    /// <summary>Puts out a piece of the player's furniture in their home, at (x, z) or, with no spot, wherever it fits.</summary>
+    public Task<HomeView> PlaceFurniture(string itemId, double? x, double? z, int quarterTurns) =>
+        Furnish(() => homes.PlaceAsync(PlayerId, itemId, x, z, quarterTurns, Context.ConnectionAborted));
+
+    /// <summary>Turns a piece of furniture in the player's home a quarter.</summary>
+    public Task<HomeView> TurnFurniture(Guid pieceId) =>
+        Furnish(() => homes.TurnAsync(PlayerId, pieceId, Context.ConnectionAborted));
+
+    /// <summary>Puts a piece of furniture in the player's home away.</summary>
+    public Task<HomeView> PutAwayFurniture(Guid pieceId) =>
+        Furnish(() => homes.PutAwayAsync(PlayerId, pieceId, Context.ConnectionAborted));
+
+    /// <summary>
+    /// Changes who may visit the player's home ("Friends", "Anyone" or "Nobody"). Cats in it who no longer may (the home's
+    /// rule) are sent out, back to their own world's Town Square, and told why.
+    /// </summary>
+    public async Task<HomeView> LetIntoHome(string visitors)
+    {
+        if (!Enum.TryParse<HomeVisitors>(visitors, out var choice) || !Enum.IsDefined(choice))
+        {
+            throw new HubException("That isn't a choice.");
+        }
+
+        var home = await Furnish(() => homes.LetInAsync(PlayerId, choice, Context.ConnectionAborted));
+        // Saved by now: a send-out that fails leaves its cats until they leave, and the owner keeps their setting.
+        await SendOutWhoMayNotStay(
+            PlayerId, null, () => Task.FromResult($"{home.OwnerName} changed who can visit their home, so you went back to Town Square."));
+
+        return home;
+    }
+
+    // Out of the room the connection is in (if any) and into the room <key>, at its spawn point.
+    private async Task<RoomSnapshot> MoveInto(ConnectionPlace place, string key)
+    {
         if (!MoveTo(place with { RoomKey = null }))
         {
             // The tab closed meanwhile; the disconnect leaves the room it was in.
             throw new HubException(ClosedMessage);
         }
 
-        if (place.RoomKey is { } key)
+        if (place.RoomKey is { } was)
         {
-            await LeaveRoom(key);
+            await LeaveRoom(was);
         }
 
-        return await JoinRoom(place.WorldId, room.Id, throughDoor: null);
+        try
+        {
+            return await JoinRoom(place.WorldId, key, throughDoor: null);
+        }
+        catch (Exception e) when (e is not OperationCanceledException && !heartbeat.IsClosed(Context.ConnectionId))
+        {
+            // The room is full, its owner doesn't let the cat in, or it couldn't be opened: back into the room it left, or
+            // (see GoBackInto) left for the renewal to walk the tab back in; and told why.
+            await GoBackInto(place);
+            throw;
+        }
+    }
+
+    // Sends each of the two out of the other's home if it no longer lets them stay (they stopped being friends). The home is
+    // asked who is in it (the room is the truth), unless the other's session says they're somewhere else: a home nobody is
+    // in isn't opened for nothing. A session that doesn't know (its Arrived failed, say) still has the home asked.
+    private async Task SendOutOfEachOthersHomes(PlayerRelation other)
+    {
+        // One after the other: both read the database through this call's one context.
+        await SendOutOf(
+            PlayerId, other.PlayerId, async () => (await players.FindAsync(PlayerId, CancellationToken.None))?.DisplayName);
+        await SendOutOf(other.PlayerId, PlayerId, () => Task.FromResult<string?>(other.DisplayName));
+
+        async Task SendOutOf(Guid owner, Guid visitor, Func<Task<string?>> ownerName)
+        {
+            if (await LocateAsync(visitor) is { } at && RoomKey.HomeOwner(at.WorldId, at.RoomId) != owner)
+            {
+                return;
+            }
+
+            await SendOutWhoMayNotStay(owner, [visitor], async () =>
+                $"You and {await ownerName() ?? "that cat"} aren't friends any more, so you went back to Town Square.");
+        }
+    }
+
+    // Of <who> (all the cats in it, when null), sends out of <owner>'s home those its rule no longer lets stay, each told
+    // <message> (made only when someone goes). Not cancelled with the tab: a change already saved must send out whoever it
+    // says must go. A failure is logged: the change stays saved, and those cats stay until they leave.
+    private async Task SendOutWhoMayNotStay(Guid owner, IReadOnlyList<Guid>? who, Func<Task<string>> message)
+    {
+        try
+        {
+            var room = grains.GetGrain<IRoomGrain>(RoomKey.ForHome(owner));
+            var here = await room.CatsHere();
+            IReadOnlyList<Guid> asked = who is null ? here : [.. here.Where(who.Contains)];
+            if (asked.Count == 0)
+            {
+                return;
+            }
+
+            var leaving = await homes.MustLeaveAsync(owner, asked, CancellationToken.None);
+            if (leaving.Count > 0)
+            {
+                await room.SendOut(leaving, await message());
+            }
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            LogSendOutFailed(logger, e, owner);
+        }
+    }
+
+    // Saves a change to the player's home, then shows it to whoever is in it. Saved by then: a home that isn't told shows
+    // it to whoever arrives next.
+    private async Task<HomeView> Furnish(Func<Task<HomePlan>> change)
+    {
+        var home = HomeView.From(await PlayersRule(change));
+        var key = RoomKey.ForHome(PlayerId);
+        try
+        {
+            await grains.GetGrain<IRoomGrain>(key).Furnish(home);
+        }
+        catch (Exception e)
+        {
+            LogFurnishNotShown(logger, e, key);
+        }
+
+        return home;
     }
 
     /// <summary>
@@ -159,12 +367,14 @@ public sealed partial class GameHub(
 
         try
         {
-            return await JoinRoom(place.WorldId, target.RoomId, target.DoorId);
+            // A home's door leads to a room of the world the cat came from.
+            return await JoinRoom(place.WorldId, RoomKey.For(place.WorldId, target.RoomId), target.DoorId);
         }
-        catch (HubException) when (!heartbeat.IsClosed(Context.ConnectionId))
+        catch (Exception e) when (e is not OperationCanceledException && !heartbeat.IsClosed(Context.ConnectionId))
         {
-            // The room past the door is full: the cat comes back in by the door it went through, and is told why.
-            await JoinRoom(place.WorldId, RoomKey.Parse(key).RoomId, doorId);
+            // The room past the door is full (or couldn't answer): the cat comes back in by the door it went through, and
+            // is told why; but not straight back into another player's home, which may not let it in any more (GoBackInto).
+            await GoBackInto(place, doorId);
             throw;
         }
     }
@@ -233,7 +443,7 @@ public sealed partial class GameHub(
     {
         var relation = await friends.GetAsync(PlayerId, playerId, Context.ConnectionAborted)
             ?? throw new HubException("That cat doesn't exist.");
-        return CardOf(relation);
+        return await CardOfAsync(relation);
     }
 
     /// <summary>Asks the cat to be friends (accepting, if they have asked this player); the card as it is now.</summary>
@@ -251,7 +461,7 @@ public sealed partial class GameHub(
         ChangeFriendship(playerId, friends.CancelAsync);
 
     public Task<PlayerCardView> RemoveFriend(Guid playerId) =>
-        ChangeFriendship(playerId, friends.UnfriendAsync);
+        ChangeFriendship(playerId, friends.UnfriendAsync, ending: true);
 
     /// <summary>The shop: everything in it, and the player's coins, things and what their cat wears.</summary>
     public async Task<ShopView> GetShop() =>
@@ -278,8 +488,20 @@ public sealed partial class GameHub(
         var places = await Task.WhenAll(list.Select(friend => friend.State == FriendState.Friends
             ? LocateAsync(friend.PlayerId)
             : Task.FromResult<PlayerPlace?>(null)));
-        return [.. list.Select((friend, i) => new FriendView(
-            friend.PlayerId, friend.DisplayName, friend.FurColor.ToString(), friend.State.ToString(), PlaceView(places[i])))];
+        var open = await homes.OpenToAsync(
+            PlayerId, [.. list.Where(friend => friend.State == FriendState.Friends).Select(friend => friend.PlayerId)],
+            Context.ConnectionAborted);
+        var names = list.ToDictionary<PlayerRelation, Guid, string?>(friend => friend.PlayerId, friend => friend.DisplayName);
+        var views = new List<FriendView>(list.Count);
+        for (var i = 0; i < list.Count; i++)
+        {
+            var friend = list[i];
+            views.Add(new FriendView(
+                friend.PlayerId, friend.DisplayName, friend.FurColor.ToString(), friend.State.ToString(),
+                await PlaceViewAsync(places[i], names), open.Contains(friend.PlayerId)));
+        }
+
+        return views;
     }
 
     /// <summary>
@@ -305,6 +527,12 @@ public sealed partial class GameHub(
             throw new HubException($"You're already with {relation.DisplayName}.");
         }
 
+        // A friend in a home: that home, if its owner lets this player in (the friend's, or another's).
+        if (RoomKey.HomeOwner(target.WorldId, target.RoomId) is { } owner)
+        {
+            return await VisitHome(owner);
+        }
+
         if (target.WorldId == place.WorldId)
         {
             return await GoToRoom(target.RoomId);
@@ -320,7 +548,7 @@ public sealed partial class GameHub(
         RoomSnapshot snapshot;
         try
         {
-            snapshot = await JoinRoom(world.Id, target.RoomId, throughDoor: null);
+            snapshot = await JoinRoom(world.Id, RoomKey.For(world.Id, target.RoomId), throughDoor: null);
         }
         catch
         {
@@ -377,7 +605,8 @@ public sealed partial class GameHub(
         }
     }
 
-    private async Task<RoomSnapshot> JoinRoom(string worldId, string roomId, string? throughDoor)
+    // Into the room <key> (a room of <worldId>, or a home, which the cat visits from that world).
+    private async Task<RoomSnapshot> JoinRoom(string worldId, string key, string? throughDoor)
     {
         if (heartbeat.IsClosed(Context.ConnectionId))
         {
@@ -386,7 +615,6 @@ public sealed partial class GameHub(
 
         var profile = await players.FindAsync(PlayerId, Context.ConnectionAborted)
             ?? throw new HubException("Your cat wasn't found. Sign in again.");
-        var key = RoomKey.For(worldId, roomId);
         var room = grains.GetGrain<IRoomGrain>(key);
 
         // In the group before joining, so nothing said in between is missed; the browser treats repeats as updates.
@@ -420,14 +648,20 @@ public sealed partial class GameHub(
             LogArrivalNotRecorded(logger, e, PlayerId, key);
         }
 
-        return snapshot;
+        // A home is in no world of its own: the cat is still in the one it came from.
+        return snapshot is { Home: not null } ? snapshot with { WorldId = worldId } : snapshot;
     }
 
     // A change to the friendship with another cat, as this player; the other player's tabs are told.
     private async Task<PlayerCardView> ChangeFriendship(
-        Guid otherId, Func<Guid, Guid, CancellationToken, Task<PlayerRelation>> change)
+        Guid otherId, Func<Guid, Guid, CancellationToken, Task<PlayerRelation>> change, bool ending = false)
     {
         var relation = await PlayersRule(() => change(PlayerId, otherId, Context.ConnectionAborted));
+        if (ending)
+        {
+            // Friends no more: a friends-only home no longer lets either stay. (Answering a request changes no home.)
+            await SendOutOfEachOthersHomes(relation);
+        }
 
         // Saved by now: a tab that isn't told sees it the next time it opens the list or the card.
         try
@@ -439,12 +673,16 @@ public sealed partial class GameHub(
             LogFriendsChangedNotSent(logger, e, otherId);
         }
 
-        return CardOf(relation);
+        return await CardOfAsync(relation);
     }
 
-    private static PlayerCardView CardOf(PlayerRelation relation) =>
-        new(relation.PlayerId, relation.DisplayName, relation.FurColor.ToString(), relation.State.ToString(),
-            ShopCatalog.Find(relation.Hat)?.Name, ShopCatalog.Find(relation.Collar)?.Name);
+    // The card of another cat, with whether its home would let this player in now.
+    private async Task<PlayerCardView> CardOfAsync(PlayerRelation relation)
+    {
+        var open = await homes.OpenToAsync(PlayerId, [relation.PlayerId], Context.ConnectionAborted);
+        return new(relation.PlayerId, relation.DisplayName, relation.FurColor.ToString(), relation.State.ToString(),
+            ShopCatalog.Find(relation.Hat)?.Name, ShopCatalog.Find(relation.Collar)?.Name, open.Contains(relation.PlayerId));
+    }
 
     // A use case's call: a rule it breaks (a DomainException) is the player's message.
     private static async Task<T> PlayersRule<T>(Func<Task<T>> call)
@@ -496,7 +734,30 @@ public sealed partial class GameHub(
         }
     }
 
-    private static FriendPlaceView? PlaceView(PlayerPlace? place) =>
+    // Where a friend is, with the names to show: a home by its owner's name (from <names>, the friends list and the names
+    // read so far). One at a time: a name not in it is read from the database, and kept in it.
+    private async Task<FriendPlaceView?> PlaceViewAsync(PlayerPlace? place, Dictionary<Guid, string?> names)
+    {
+        if (place is not null && RoomKey.HomeOwner(place.WorldId, place.RoomId) is { } owner)
+        {
+            if (owner == PlayerId)
+            {
+                return new FriendPlaceView("", "", Home.Layout.Id, "Your home", owner);
+            }
+
+            // Read once per list: several friends can be in the same home.
+            if (!names.TryGetValue(owner, out var name))
+            {
+                name = names[owner] = (await players.FindAsync(owner, Context.ConnectionAborted))?.DisplayName;
+            }
+
+            return name is null ? null : new FriendPlaceView("", "", Home.Layout.Id, Home.NameOf(name), owner);
+        }
+
+        return WorldPlaceView(place);
+    }
+
+    private static FriendPlaceView? WorldPlaceView(PlayerPlace? place) =>
         place is not null && WorldCatalog.Find(place.WorldId) is { } world && RoomCatalog.Find(place.RoomId) is { } room
             ? new FriendPlaceView(world.Id, world.Name, room.Id, room.Name)
             : null;
@@ -560,6 +821,15 @@ public sealed partial class GameHub(
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't show the room {RoomKey} what player {PlayerId} put on; it shows on their next arrival")]
     private static partial void LogDressNotShown(ILogger logger, Exception exception, Guid playerId, string roomKey);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Player {PlayerId} couldn't go back into {RoomKey}; the next renewal walks them back in")]
+    private static partial void LogNotBackIn(ILogger logger, Exception exception, Guid playerId, string roomKey);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't send an ex-friend out of the home of player {PlayerId}; they stay until they leave")]
+    private static partial void LogSendOutFailed(ILogger logger, Exception exception, Guid playerId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't show the home {RoomKey} its owner's change; it shows on the next arrival")]
+    private static partial void LogFurnishNotShown(ILogger logger, Exception exception, string roomKey);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't tell player {PlayerId} their friendships changed")]
     private static partial void LogFriendsChangedNotSent(ILogger logger, Exception exception, Guid playerId);

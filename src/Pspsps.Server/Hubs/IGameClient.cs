@@ -47,4 +47,13 @@ public interface IGameClient
     /// friends list and a player card showing that player are out of date. Sent to every tab of the player.
     /// </summary>
     Task FriendsChanged(Guid playerId);
+
+    /// <summary>The owner of the home this tab's cat is in changed its furniture or who may visit.</summary>
+    Task HomeChanged(HomeView home);
+
+    /// <summary>
+    /// This tab's cat was sent out of <paramref name="ownerId"/>'s home (its owner no longer lets it in): go back to Town
+    /// Square, unless the tab has gone elsewhere meanwhile. <paramref name="message"/> says why.
+    /// </summary>
+    Task SentOut(Guid ownerId, string message);
 }

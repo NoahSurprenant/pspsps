@@ -47,4 +47,19 @@ public interface IRoomGrain : IGrainWithStringKey
 
     /// <summary>Reels the line in. Nothing is shown to the room here: the hub pays a catch first, then shows it.</summary>
     Task<ReelView> Reel(Guid playerId);
+
+    /// <summary>
+    /// A home's owner changed it (saved by then): the room draws its furniture as <paramref name="home"/> has it from now
+    /// on, and is shown it (HomeChanged). Nothing for a world's room.
+    /// </summary>
+    Task Furnish(HomeView home);
+
+    /// <summary>The players whose cats are in the room now.</summary>
+    Task<IReadOnlyList<Guid>> CatsHere();
+
+    /// <summary>
+    /// Takes these players' cats out of the room (a home they may no longer stay in), whichever tab plays them; each
+    /// tab is told <paramref name="message"/> (SentOut), and the rest of the room sees them go.
+    /// </summary>
+    Task SendOut(IReadOnlyList<Guid> playerIds, string message);
 }

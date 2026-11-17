@@ -40,9 +40,10 @@ internal sealed class PlayerConfiguration : IEntityTypeConfiguration<Player>
 
         builder.OwnsMany(p => p.Items, item =>
         {
-            item.ToTable("player_items");
+            // Something a player has, they have at least one of.
+            item.ToTable("player_items", t => t.HasCheckConstraint("ck_player_items_count_positive", "count >= 1"));
             item.WithOwner().HasForeignKey("PlayerId");
-            // One of each per cat, also when two tabs buy the same thing at once.
+            // One row of each per cat (furniture counts how many), also when two tabs buy the same thing at once.
             item.HasKey("PlayerId", nameof(OwnedItem.ItemId));
             item.Property(i => i.ItemId).HasMaxLength(ItemIdLength);
         });

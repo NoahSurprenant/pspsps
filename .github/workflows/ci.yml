@@ -90,7 +90,7 @@ jobs:
     timeout-minutes: 25
     outputs:
       # Empty unless all the contact sheets were uploaded, so a run without them leaves the PR's last links alone.
-      screenshots: ${{ steps.sheet_sign_in.outputs.artifact-url && steps.sheet_worlds.outputs.artifact-url && steps.sheet_town_square.outputs.artifact-url && steps.sheet_cafe.outputs.artifact-url && steps.sheet_player_card.outputs.artifact-url && steps.sheet_friends.outputs.artifact-url && steps.sheet_shop.outputs.artifact-url && format('- [Sign-in]({0})\n- [World list]({1})\n- [Town Square]({2})\n- [Cat Café]({3})\n- [Player card]({4})\n- [Friends]({5})\n- [Shop]({6})', steps.sheet_sign_in.outputs.artifact-url, steps.sheet_worlds.outputs.artifact-url, steps.sheet_town_square.outputs.artifact-url, steps.sheet_cafe.outputs.artifact-url, steps.sheet_player_card.outputs.artifact-url, steps.sheet_friends.outputs.artifact-url, steps.sheet_shop.outputs.artifact-url) || '' }}
+      screenshots: ${{ steps.sheet_sign_in.outputs.artifact-url && steps.sheet_worlds.outputs.artifact-url && steps.sheet_town_square.outputs.artifact-url && steps.sheet_cafe.outputs.artifact-url && steps.sheet_player_card.outputs.artifact-url && steps.sheet_friends.outputs.artifact-url && steps.sheet_shop.outputs.artifact-url && steps.sheet_home.outputs.artifact-url && steps.sheet_decorating.outputs.artifact-url && format('- [Sign-in]({0})\n- [World list]({1})\n- [Town Square]({2})\n- [Cat Café]({3})\n- [Player card]({4})\n- [Friends]({5})\n- [Shop]({6})\n- [Home]({7})\n- [Decorating]({8})', steps.sheet_sign_in.outputs.artifact-url, steps.sheet_worlds.outputs.artifact-url, steps.sheet_town_square.outputs.artifact-url, steps.sheet_cafe.outputs.artifact-url, steps.sheet_player_card.outputs.artifact-url, steps.sheet_friends.outputs.artifact-url, steps.sheet_shop.outputs.artifact-url, steps.sheet_home.outputs.artifact-url, steps.sheet_decorating.outputs.artifact-url) || '' }}
     # The shipped image, run against PostgreSQL, driven by Chromium (software WebGL).
     services:
       postgres:
@@ -217,6 +217,22 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           path: e2e/screenshots/shop.png
+          archive: false
+          retention-days: 30
+      - name: Upload the home screenshots
+        id: sheet_home
+        if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+        uses: actions/upload-artifact@v7
+        with:
+          path: e2e/screenshots/home.png
+          archive: false
+          retention-days: 30
+      - name: Upload the decorating screenshots
+        id: sheet_decorating
+        if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+        uses: actions/upload-artifact@v7
+        with:
+          path: e2e/screenshots/decorating.png
           archive: false
           retention-days: 30
       - name: Server log
