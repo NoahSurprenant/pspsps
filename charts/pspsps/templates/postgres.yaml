@@ -89,19 +89,21 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.existingSecret }}
                   key: POSTGRES_PASSWORD
-          # Over TCP, so the first start's initdb (a server on the socket only) doesn't count as ready.
+          # Over TCP, so the first start's initdb (a server on the socket only) doesn't count as ready. As the app's
+          # user: pg_isready defaults to the OS user (postgres), which has no role, and PostgreSQL logs a FATAL for every
+          # probe.
           startupProbe:
             exec:
-              command: ["pg_isready", "-q", "-h", "127.0.0.1", "-p", "5432"]
+              command: ["pg_isready", "-q", "-h", "127.0.0.1", "-p", "5432", "-U", {{ $p.username | quote }}, "-d", {{ $p.database | quote }}]
             periodSeconds: 2
             failureThreshold: 60
           livenessProbe:
             exec:
-              command: ["pg_isready", "-q", "-h", "127.0.0.1", "-p", "5432"]
+              command: ["pg_isready", "-q", "-h", "127.0.0.1", "-p", "5432", "-U", {{ $p.username | quote }}, "-d", {{ $p.database | quote }}]
             periodSeconds: 10
           readinessProbe:
             exec:
-              command: ["pg_isready", "-q", "-h", "127.0.0.1", "-p", "5432"]
+              command: ["pg_isready", "-q", "-h", "127.0.0.1", "-p", "5432", "-U", {{ $p.username | quote }}, "-d", {{ $p.database | quote }}]
             periodSeconds: 5
           resources:
             {{- toYaml $p.resources | nindent 12 }}
