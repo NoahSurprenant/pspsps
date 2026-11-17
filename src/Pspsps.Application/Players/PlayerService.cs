@@ -8,9 +8,6 @@ namespace Pspsps.Application.Players;
 
 internal sealed class PlayerService(IApplicationDbContext db, TimeProvider time, Random random) : IPlayerService
 {
-    // How many times an earning is tried when other earnings for the same player keep saving first.
-    private const int EarnAttempts = 5;
-
     public async Task<PlayerProfile> SignInWithLoginAsync(
         LoginProvider provider, string providerKey, string? profileName, CancellationToken cancellationToken)
     {
@@ -106,27 +103,22 @@ internal sealed class PlayerService(IApplicationDbContext db, TimeProvider time,
         return player is null ? null : PlayerProfile.From(player);
     }
 
-    // Two earnings for one player can race (a tab replaced while its reel is paid, a new tab on another pod paying at the
-    // same time): the player's row version (xmin) refuses the later save, and the earning is applied again on the
-    // player as saved by the other.
+    // One statement adds the earning (coins = coins + n): two earnings at once (a tab replaced while its reel is paid, a
+    // new tab on another pod) both count, and other saves of the player (a link, a rename) aren't refused because of it.
     public async Task<PlayerProfile> EarnCoinsAsync(Guid playerId, int coins, CancellationToken cancellationToken)
     {
-        for (var attempt = 1; ; attempt++)
+        var earning = Player.Earning(coins);
+        var paid = await db.Players
+            .Where(p => p.Id == playerId)
+            .ExecuteUpdateAsync(s => s.SetProperty(p => p.Coins, p => p.Coins + earning), cancellationToken);
+        if (paid == 0)
         {
-            var player = await db.Players.FirstOrDefaultAsync(p => p.Id == playerId, cancellationToken)
-                ?? throw new DomainException("Your cat wasn't found. Sign in again.");
-            player.EarnCoins(coins);
-            try
-            {
-                await db.SaveChangesAsync(cancellationToken);
-                return PlayerProfile.From(player);
-            }
-            catch (DbUpdateConcurrencyException) when (attempt < EarnAttempts)
-            {
-                // Read it again, as saved by the other earning, and add to that.
-                db.Forget(player);
-            }
+            throw new DomainException("Your cat wasn't found. Sign in again.");
         }
+
+        // The total as saved now: with any other earning that landed meanwhile.
+        return await FindAsync(playerId, cancellationToken)
+            ?? throw new DomainException("Your cat wasn't found. Sign in again.");
     }
 
     /// <summary>The player (at most one) who signs in with this login.</summary>

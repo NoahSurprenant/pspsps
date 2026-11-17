@@ -10,7 +10,7 @@ public enum ReelOutcome
     TooLate,
 }
 
-/// <summary>How a reel went, and what it pays: a catch pays its fish's coins (even none), anything else nothing.</summary>
+/// <summary>How a reel went, and what it pays: a catch pays its fish's coins (at least one), anything else nothing.</summary>
 public sealed record ReelResult(ReelOutcome Outcome, Fish? Fish)
 {
     public bool IsCatch => Outcome == ReelOutcome.Caught;
@@ -43,11 +43,7 @@ public sealed class FishingLine
     /// <summary>Casts at <paramref name="now"/>; <paramref name="roll"/> in [0, 1) picks the wait for the bite.</summary>
     public static FishingLine Cast(DateTimeOffset now, double roll)
     {
-        if (roll is < 0 or >= 1)
-        {
-            throw new ArgumentOutOfRangeException(nameof(roll), roll, "A roll is in [0, 1).");
-        }
-
+        Roll.Check(roll);
         return new FishingLine(now + ShortestWait + ((LongestWait - ShortestWait) * roll));
     }
 
@@ -56,6 +52,9 @@ public sealed class FishingLine
     /// <see cref="BiteAt"/>): the window to reel runs from here. A line bites once.
     /// </summary>
     public void Bite(DateTimeOffset now) => BitAt ??= now;
+
+    /// <summary>Whether the bite was missed: it bit, and its window is over by <paramref name="now"/>.</summary>
+    public bool HasGotAway(DateTimeOffset now) => BitAt is { } bit && now > bit + BiteWindow;
 
     /// <summary>Reels in at <paramref name="now"/>; <paramref name="roll"/> in [0, 1) picks the fish when caught.</summary>
     public ReelResult Reel(DateTimeOffset now, double roll)

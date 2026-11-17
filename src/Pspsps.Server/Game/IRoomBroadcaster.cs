@@ -15,4 +15,7 @@ public interface IRoomBroadcaster
 
     /// <summary>Tells one tab (its connection) that its line has a bite: reel now.</summary>
     Task FishBit(string session);
+
+    /// <summary>Tells one tab that the bite on its line wasn't reeled in time: the fish got away, the line is in.</summary>
+    Task FishGotAway(string session);
 }

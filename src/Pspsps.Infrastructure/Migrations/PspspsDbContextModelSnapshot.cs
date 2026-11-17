@@ -75,12 +75,6 @@ namespace Pspsps.Infrastructure.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_guest");
 
-                    b.Property<uint>("xmin")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("xid")
-                        .HasColumnName("xmin");
-
                     b.HasKey("Id")
                         .HasName("pk_players");
 

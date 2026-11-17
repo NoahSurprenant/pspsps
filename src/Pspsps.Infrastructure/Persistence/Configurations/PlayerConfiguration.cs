@@ -12,9 +12,6 @@ internal sealed class PlayerConfiguration : IEntityTypeConfiguration<Player>
         builder.Property(p => p.Id).ValueGeneratedNever();
         builder.Property(p => p.DisplayName).HasMaxLength(DisplayNameRules.MaxLength);
         builder.Property(p => p.FurColor).HasConversion<string>().HasMaxLength(16);
-        // PostgreSQL's row version (the xmin system column, no column of ours): a save of a player someone else saved since
-        // it was read is refused, so two coin earnings at once can't overwrite each other.
-        builder.Property<uint>("xmin").IsRowVersion();
 
         builder.OwnsMany(p => p.Logins, login =>
         {

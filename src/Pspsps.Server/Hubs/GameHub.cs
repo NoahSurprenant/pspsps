@@ -128,7 +128,7 @@ public sealed partial class GameHub(
     public async Task<ReelView> Reel()
     {
         var (place, key, reel) = await InRoom<ReelView>(room => room.Reel(PlayerId));
-        if (reel is not { IsCatch: true, FishId: { } fishId, FishName: { } fishName })
+        if (reel is not { Outcome: ReelView.Caught, FishId: { } fishId, FishName: { } fishName })
         {
             return reel;
         }

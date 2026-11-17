@@ -2,6 +2,7 @@ namespace Pspsps.Domain.Fishing;
 
 public static class FishCatalog
 {
+    /// <summary>Every fish there is. Each pays at least one coin: a catch is always paid.</summary>
     public static IReadOnlyList<Fish> All { get; } =
     [
         new("boot", "Old boot", Coins: 1, Weight: 10),
@@ -12,16 +13,14 @@ public static class FishCatalog
         new("koi", "Golden koi", Coins: 100, Weight: 3),
     ];
 
+    // After All: static initializers run in order.
+    private static readonly int TotalWeight = All.Sum(f => f.Weight);
+
     /// <summary>A fish by weight: <paramref name="roll"/> is in [0, 1).</summary>
     public static Fish Pick(double roll)
     {
-        if (roll is < 0 or >= 1)
-        {
-            throw new ArgumentOutOfRangeException(nameof(roll), roll, "A roll is in [0, 1).");
-        }
-
-        var total = All.Sum(f => f.Weight);
-        var point = roll * total;
+        Roll.Check(roll);
+        var point = roll * TotalWeight;
         foreach (var fish in All)
         {
             if (point < fish.Weight)

@@ -52,8 +52,8 @@ public sealed record RoomSnapshot(
 public sealed record PondView([property: Id(0)] double X, [property: Id(1)] double Z, [property: Id(2)] double Radius);
 
 /// <summary>
-/// How a reel went: "caught" with the fish and its coins, "too-early" or "too-late" with nothing. TotalCoins is the
-/// player's coins after it (filled in by the hub, which pays). IsCatch and Coins are the Domain's (ReelResult).
+/// How a reel went: "caught" with the fish and the coins it paid, "too-early" or "too-late" with nothing. TotalCoins is
+/// the player's coins after a catch (filled in by the hub, which pays it), and null when nothing was caught.
 /// </summary>
 [GenerateSerializer, Immutable]
 public sealed record ReelView(
@@ -61,19 +61,21 @@ public sealed record ReelView(
     [property: Id(1)] string? FishId,
     [property: Id(2)] string? FishName,
     [property: Id(3)] int Coins,
-    [property: Id(4)] int TotalCoins,
-    [property: Id(5)] bool IsCatch)
+    [property: Id(4)] int? TotalCoins)
 {
+    public const string Caught = "caught";
+
     public static ReelView From(ReelResult result)
     {
         ArgumentNullException.ThrowIfNull(result);
         var outcome = result.Outcome switch
         {
-            ReelOutcome.Caught => "caught",
+            ReelOutcome.Caught => Caught,
             ReelOutcome.TooEarly => "too-early",
-            _ => "too-late",
+            ReelOutcome.TooLate => "too-late",
+            _ => throw new ArgumentOutOfRangeException(nameof(result), result.Outcome, "Not a reel outcome."),
         };
-        return new ReelView(outcome, result.Fish?.Id, result.Fish?.Name, result.Coins, 0, result.IsCatch);
+        return new ReelView(outcome, result.Fish?.Id, result.Fish?.Name, result.Coins, null);
     }
 }
 
