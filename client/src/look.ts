@@ -2,7 +2,7 @@ import { isPose } from "./emotes";
 import type { Emote, Pose } from "./types";
 
 /**
- * What one cat looks like apart from where it stands: its held pose, the bubble over it and a raised paw. Plain state
+ * What one cat looks like apart from where it stands: its held pose, the bubble over it, a wave and a meow. Plain state
  * with times passed in; the scene draws it every frame.
  */
 export class CatLook {
@@ -15,6 +15,8 @@ export class CatLook {
   private waveUntil = -Infinity;
   // Apart from the chat line, so a meow never cuts one short.
   private meowUntil = -Infinity;
+  /** How many meows so far: the cat's meow animation starts again on each. */
+  meows = 0;
 
   constructor(pose?: Pose | null) {
     this.pose = pose ?? undefined;
@@ -30,6 +32,7 @@ export class CatLook {
       this.pose = emote;
     } else if (emote === "meow") {
       this.meowUntil = now + CatLook.meowMilliseconds;
+      this.meows++;
     } else {
       this.waveUntil = now + CatLook.waveMilliseconds;
     }
@@ -56,5 +59,9 @@ export class CatLook {
 
   wavingAt(now: number): boolean {
     return now <= this.waveUntil;
+  }
+
+  meowingAt(now: number): boolean {
+    return now <= this.meowUntil;
   }
 }

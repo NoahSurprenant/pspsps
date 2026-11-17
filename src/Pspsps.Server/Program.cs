@@ -105,8 +105,7 @@ try
     // Forwarded headers first: everything after sees the real client address and scheme.
     app.UseForwardedHeaders();
     app.UseRequestTelemetry();
-    app.UseDefaultFiles();
-    app.UseStaticFiles();
+    app.UseClientFiles();
     app.UseAuthentication();
     app.UseAuthorization();
 

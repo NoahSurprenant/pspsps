@@ -1,5 +1,6 @@
 // Babylon by module, not from its index, so the page loads only what it uses.
 import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
+import type { AssetContainer } from "@babylonjs/core/assetContainer";
 import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
@@ -8,7 +9,7 @@ import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
 import { CreateCylinder } from "@babylonjs/core/Meshes/Builders/cylinderBuilder";
 import { CreateGround } from "@babylonjs/core/Meshes/Builders/groundBuilder";
-import type { TransformNode } from "@babylonjs/core/Meshes/transformNode";
+import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import { Scene } from "@babylonjs/core/scene";
 // For their side effects: picking what a pointer touches, and the meshes' drawn outlines (renderOutline).
 import "@babylonjs/core/Culling/ray";
@@ -17,28 +18,45 @@ import { AdvancedDynamicTexture } from "@babylonjs/gui/2D/advancedDynamicTexture
 import { Rectangle } from "@babylonjs/gui/2D/controls/rectangle";
 import { TextBlock } from "@babylonjs/gui/2D/controls/textBlock";
 import { cameraPitch, cameraRadius, fieldOfView } from "./view";
-import { buildCat } from "./cat";
-import { poseScales } from "./emotes";
+import { animationFor, Cat, facing, loadCatModel, MeowClip, type CatAnimation } from "./cat";
+import { lazily } from "./lazy";
 import { CatLook } from "./look";
+import catModelUrl from "./models/cat.glb?url";
 import type { CatView, DoorView, Emote, RoomSnapshot } from "./types";
 
 const walkSpeed = 4; // metres per second
 const sky = Color4.FromHexString("#bfe3f2ff");
+// Where the name and bubbles hang: just over the tips of the ears.
+const anchorHeight = 1.4;
 /** A door's mat: its own red, which nothing else in a room is (the layout test looks for it). */
 export const doorMatColour = "#c8553d";
 /** How close (in metres) a cat drawn walking somewhere counts as there. */
 const there = 0.05;
 
+// The cat model's bytes: fetched once, on the way into the first room; every room reads them into its own scene. A
+// fetch that failed is tried again by the next room.
+const catModel = lazily(async () => {
+  const response = await fetch(catModelUrl);
+  if (!response.ok) {
+    throw new Error(`The cat model didn't load: ${response.status}`);
+  }
+  return new Uint8Array(await response.arrayBuffer());
+});
+
+/** The cat model, read into <scene>. */
+async function catModelFor(scene: Scene): Promise<AssetContainer> {
+  return loadCatModel(scene, await catModel());
+}
+
 interface CatOnScreen {
+  // Where the cat stands and which way it faces; the model, once loaded, hangs off it.
   root: TransformNode;
-  // The parts a pose squashes.
-  body: TransformNode;
   anchor: AbstractMesh;
   target: Vector3;
   look: CatLook;
   bubble?: { box: Rectangle; text: string };
-  // Hidden until the cat waves.
-  paw: AbstractMesh;
+  model?: Cat;
+  meow: MeowClip;
   // Someone waiting for the cat to be drawn standing at a spot (a walk to a door), told true when it is, false if it
   // is sent elsewhere first.
   arrival?: { x: number; z: number; done: (arrived: boolean) => void };
@@ -49,11 +67,17 @@ export class RoomScene {
   private scene: Scene;
   private gui: AdvancedDynamicTexture | undefined;
   private readonly cats = new Map<string, CatOnScreen>();
+  // The cat model, read into the scene showing.
+  private model: Promise<AssetContainer | undefined> = Promise.resolve(undefined);
   private floorClicked: (x: number, z: number) => void = () => {};
   private pondClicked: () => void = () => {};
   private doorClicked: (door: DoorView) => void = () => {};
 
-  constructor(private readonly engine: AbstractEngine) {
+  /** <loadModel> reads the cat model into a room's scene (the tests hand in their own). */
+  constructor(
+    private readonly engine: AbstractEngine,
+    private readonly loadModel: (scene: Scene) => Promise<AssetContainer> = catModelFor,
+  ) {
     this.scene = new Scene(this.engine);
     this.scene.clearColor = sky;
     // One loop for the page; it draws whichever room is showing.
@@ -89,6 +113,25 @@ export class RoomScene {
     this.scene = new Scene(this.engine);
     this.scene.clearColor = sky;
     this.gui = AdvancedDynamicTexture.CreateFullscreenUI("ui", true, this.scene);
+    const scene = this.scene;
+    this.model = this.loadModel(scene)
+      .then((model) => {
+        // A room left while its model loaded: the scene and its dispose hooks are gone; nothing else would free it.
+        if (scene.isDisposed) {
+          model.dispose();
+          return undefined;
+        }
+        scene.onDisposeObservable.add(() => model.dispose());
+        return model;
+      })
+      .catch((error: unknown) => {
+        // The room still works without its cats drawn: their names and bubbles show. A room already left doesn't
+        // matter (reading into a scene that's gone fails).
+        if (!scene.isDisposed) {
+          console.error("The cat model didn't load", error);
+        }
+        return undefined;
+      });
 
     // A fixed, angled camera: the player never steers it, like a painted backdrop.
     const camera = new ArcRotateCamera("camera", -Math.PI / 2, cameraPitch, 1, Vector3.Zero(), this.scene);
@@ -165,12 +208,15 @@ export class RoomScene {
       return;
     }
 
-    // The anchor (name, bubbles) and the paw hang off the root, which poses don't squash.
-    const { root, body, paw } = buildCat(this.scene, `cat-${cat.playerId}`, cat.furColor);
+    // The anchor (name, bubbles) hangs off the root, above whatever the model is doing.
+    const name = `cat-${cat.playerId}`;
+    const root = new TransformNode(name, this.scene);
     root.position.set(cat.x, 0, cat.z);
+    // Facing the camera until it walks somewhere.
+    root.rotation.y = Math.PI;
     const anchor = CreateBox(`anchor-${cat.playerId}`, { size: 0.01 }, this.scene);
     anchor.parent = root;
-    anchor.position.y = 1.7;
+    anchor.position.y = anchorHeight;
     anchor.isVisible = false;
     anchor.isPickable = false;
 
@@ -184,7 +230,26 @@ export class RoomScene {
     label.linkWithMesh(anchor);
     label.linkOffsetY = -6;
 
-    this.cats.set(cat.playerId, { root, body, paw, anchor, target: new Vector3(cat.x, 0, cat.z), look: new CatLook(cat.pose) });
+    const look = new CatLook(cat.pose);
+    const shown: CatOnScreen = { root, anchor, target: new Vector3(cat.x, 0, cat.z), look, meow: new MeowClip() };
+    this.cats.set(cat.playerId, shown);
+    const scene = this.scene;
+    void this.model.then((model) => {
+      // Not for a cat that left, or a room that's gone, meanwhile.
+      if (model && this.cats.get(cat.playerId) === shown && this.scene === scene && !root.isDisposed()) {
+        try {
+          shown.model = new Cat(scene, model, root, name, cat.furColor);
+        } catch (error) {
+          // That cat goes undrawn; its name and bubbles still show.
+          console.error("A cat couldn't be drawn", error);
+        }
+      }
+    });
+  }
+
+  /** The animation a cat is playing (for the end-to-end tests), if it is in the room and drawn. */
+  animationOf(playerId: string): CatAnimation | undefined {
+    return this.cats.get(playerId)?.model?.animation;
   }
 
   /** Sends the cat somewhere new: it gets up (a pose taken while it walks holds until the next walk). */
@@ -246,8 +311,8 @@ export class RoomScene {
   }
 
   /**
-   * Stand-ins until the cat is a modelled, animated one: sit and sleep squash the cat's body into a pose it holds until
-   * it walks (asleep, with a "z z z" over it), wave raises a paw for a moment, and meow is a speech bubble.
+   * Sit and sleep are poses the cat holds until it walks (asleep, with a "z z z" over it); wave raises a paw for a
+   * moment; meow lifts the head with "meow!" over it.
    */
   emote(playerId: string, emote: Emote): void {
     this.cats.get(playerId)?.look.emote(emote, performance.now());
@@ -313,36 +378,32 @@ export class RoomScene {
     for (const [playerId, cat] of this.cats) {
       const offset = cat.target.subtract(cat.root.position);
       const distance = offset.length();
-      if (distance > 0.01) {
+      const moving = distance > 0.01;
+      if (moving) {
         const stride = Math.min(distance, walkSpeed * seconds);
         cat.root.position.addInPlace(offset.scale(stride / distance));
-        cat.root.rotation.y = Math.atan2(offset.x, offset.z);
+        cat.root.rotation.y = facing(offset.x, offset.z);
       }
       if (cat.arrival && Math.hypot(cat.root.position.x - cat.arrival.x, cat.root.position.z - cat.arrival.z) <= there) {
         const { done } = cat.arrival;
         cat.arrival = undefined;
         done(true);
       }
-      this.drawLook(playerId, cat, now);
+      this.drawLook(playerId, cat, moving, now);
     }
   }
 
-  /** Brings the cat's pose, bubble and paw in line with its look. */
-  private drawLook(playerId: string, cat: CatOnScreen, now: number): void {
-    const [x, y, z] = cat.look.pose ? poseScales[cat.look.pose] : [1, 1, 1];
-    cat.body.scaling.set(x, y, z);
+  /** Brings the cat's animation and bubble in line with its look. */
+  private drawLook(playerId: string, cat: CatOnScreen, moving: boolean, now: number): void {
+    const { look } = cat;
+    const doing = { moving, pose: look.pose, waving: look.wavingAt(now), meowing: false };
+    const meow = cat.meow.next(look.meows, look.meowingAt(now), animationFor(doing));
+    cat.model?.play(animationFor({ ...doing, meowing: meow.show }), meow.restart);
 
     const text = cat.look.bubbleAt(now);
     if (text !== cat.bubble?.text) {
       cat.bubble?.box.dispose();
       cat.bubble = text === undefined ? undefined : { box: this.bubble(playerId, cat, text), text };
-    }
-
-    const waving = cat.look.wavingAt(now);
-    cat.paw.setEnabled(waving);
-    if (waving) {
-      // Beside the head, however low the pose has it, waving side to side.
-      cat.paw.position.set(0.42 + 0.08 * Math.sin(now / 70), 1.05 * y + 0.15, 0.55 * z);
     }
   }
 

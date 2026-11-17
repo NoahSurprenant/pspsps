@@ -10,4 +10,9 @@ export default tseslint.config(
       eqeqeq: "error",
     },
   },
+  // The scripts run in Node.
+  {
+    files: ["scripts/**/*.mjs"],
+    languageOptions: { globals: { process: "readonly", console: "readonly", Buffer: "readonly" } },
+  },
 );

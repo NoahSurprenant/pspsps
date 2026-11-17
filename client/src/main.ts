@@ -6,6 +6,7 @@ import { loadRoom, PendingEvents } from "./pending";
 import { comeBack } from "./rejoin";
 import { catchBubble, FishingState, gotAwayMessage, paid, pondEdge, reelMessage, type Fishing } from "./fishing";
 import { Room } from "./room";
+import type { CatAnimation } from "./cat";
 import type { RoomScene } from "./scene";
 import { Overlay, type Note } from "./ui";
 import type { DoorView, Player, RoomSnapshot } from "./types";
@@ -70,6 +71,8 @@ declare global {
       room(): Room | undefined;
       coins(): number;
       fishing(): Fishing;
+      /** The animation a cat in the room is playing ("idle", "walk", ...), once the cat is drawn. */
+      animation(playerId: string): CatAnimation | undefined;
       /** Where a spot on the floor is drawn on the canvas, in CSS pixels, to click it; undefined with no room showing. */
       screenPoint(x: number, z: number): { x: number; y: number } | undefined;
     };
@@ -79,6 +82,7 @@ window.pspsps = {
   room: () => room,
   coins: () => me?.coins ?? 0,
   fishing: () => fishing.state,
+  animation: (playerId) => scene?.animationOf(playerId),
   screenPoint: (x, z) => scene?.screenPoint(x, z),
 };
 
