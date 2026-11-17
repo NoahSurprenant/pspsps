@@ -139,14 +139,14 @@ public class RequestTelemetryTests
         var context = new DefaultHttpContext();
         context.Connection.RemoteIpAddress = IPAddress.Parse("203.0.113.7");
         context.Request.Scheme = "https";
-        context.Request.Host = new HostString("android.gurnt.com");
+        context.Request.Host = new HostString("play.example.com");
         context.Request.Headers.UserAgent = "curl/8";
         context.SetEndpoint(new Endpoint(null, null, "HTTP: GET /api/me"));
 
         RequestTelemetryExtensions.EnrichDiagnosticContext(diagnostics, context);
 
         diagnostics.Received().Set("ClientIp", "203.0.113.7");
-        diagnostics.Received().Set("RequestHost", "android.gurnt.com");
+        diagnostics.Received().Set("RequestHost", "play.example.com");
         diagnostics.Received().Set("RequestScheme", "https");
         diagnostics.Received().Set("UserAgent", "curl/8");
         diagnostics.Received().Set("EndpointName", "HTTP: GET /api/me");

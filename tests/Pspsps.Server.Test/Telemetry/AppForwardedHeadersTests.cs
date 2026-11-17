@@ -45,12 +45,12 @@ public class AppForwardedHeadersTests
         var context = await app.GetTestServer().SendAsync(c =>
         {
             c.Connection.RemoteIpAddress = IPAddress.Parse(peer);
-            c.Request.Host = new HostString("android.gurnt.com");
+            c.Request.Host = new HostString("play.example.com");
             c.Request.Headers["X-Forwarded-For"] = xff;
             c.Request.Headers["X-Real-IP"] = Client;
             c.Request.Headers["CF-Connecting-IP"] = Client;
             c.Request.Headers["X-Forwarded-Proto"] = "https";
-            c.Request.Headers["X-Forwarded-Host"] = "android.gurnt.com";
+            c.Request.Headers["X-Forwarded-Host"] = "play.example.com";
         });
 
         using var reader = new StreamReader(context.Response.Body);
@@ -74,7 +74,7 @@ public class AppForwardedHeadersTests
         {
             Assert.That(remoteIp, Is.EqualTo(Client));
             Assert.That(scheme, Is.EqualTo("https"), "UseHttpsRedirection needs the scheme Traefik saw");
-            Assert.That(host, Is.EqualTo("android.gurnt.com"));
+            Assert.That(host, Is.EqualTo("play.example.com"));
         });
     }
 
