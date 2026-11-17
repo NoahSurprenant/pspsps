@@ -79,12 +79,8 @@ export class RoomScene {
     const camera = new ArcRotateCamera("camera", -Math.PI / 2, 0.95, 1, Vector3.Zero(), this.scene);
     camera.fov = fieldOfView;
     // Back far enough for the screen's shape, now and whenever it changes (a phone turned on its side).
-    // The near and far planes close around the room, which keeps the depth buffer fine enough to tell the pond from
-    // the floor under it however far back the camera is (with the defaults, 1 to 10,000, a narrow screen lost it).
     const fit = () => {
       camera.radius = cameraRadius(this.engine.getAspectRatio(camera), room.width, room.depth);
-      camera.minZ = camera.radius / 3;
-      camera.maxZ = camera.radius * 3;
     };
     fit();
     this.engine.onResizeObservable.add(fit);
@@ -93,28 +89,31 @@ export class RoomScene {
 
     const floor = CreateGround("floor", { width: room.width, height: room.depth }, this.scene);
     floor.material = flat(this.scene, "floor", room.roomId === "cafe" ? "#d9b38c" : "#9fd38a");
+    // The floor's dark edge: a little larger and just below it. Not renderOutline, whose pass, from far off (a narrow
+    // screen backs the camera away), covered whatever lay flat on the floor, the pond.
+    const rim = CreateGround("floor-edge", { width: room.width + 0.08, height: room.depth + 0.08 }, this.scene);
+    rim.position.y = -0.01;
+    rim.material = flat(this.scene, "floor-edge", "#2a2230");
+    rim.isPickable = false;
     const back = CreateBox("back-wall", { width: room.width, height: 4, depth: 0.3 }, this.scene);
     back.position.set(0, 2, room.depth / 2 + 0.15);
     back.material = flat(this.scene, "wall", room.roomId === "cafe" ? "#f2d6c2" : "#f4efe4");
     back.isPickable = false;
-    for (const mesh of [floor, back]) {
-      mesh.renderOutline = true;
-      mesh.outlineWidth = 0.04;
-      mesh.outlineColor = Color3.FromHexString("#2a2230");
-    }
+    back.renderOutline = true;
+    back.outlineWidth = 0.04;
+    back.outlineColor = Color3.FromHexString("#2a2230");
 
     // The pond: a flat disc of water just above the floor. Clicking it fishes, rather than walking into it.
     let pond: AbstractMesh | undefined;
     if (room.pond) {
-      // Two flat cylinders: the water, and a little larger and just below it, its dark edge. Not renderOutline: on
-      // something this flat the outline pass painted over the whole of it. Clear of the floor by more than the depth
-      // buffer can tell apart from far off: a few centimetres above it, the floor won.
+      // Two flat cylinders: the water, and a little larger and just below it, its dark edge, as the floor has. Not
+      // renderOutline: on something this flat the outline pass painted over the whole of it.
       const edge = CreateCylinder("pond-edge", { diameter: room.pond.radius * 2 + 0.16, height: 0.02, tessellation: 48 }, this.scene);
-      edge.position.set(room.pond.x, 0.06, room.pond.z);
+      edge.position.set(room.pond.x, 0.01, room.pond.z);
       edge.material = flat(this.scene, "pond-edge", "#2a2230");
       edge.isPickable = false;
       pond = CreateCylinder("pond", { diameter: room.pond.radius * 2, height: 0.02, tessellation: 48 }, this.scene);
-      pond.position.set(room.pond.x, 0.08, room.pond.z);
+      pond.position.set(room.pond.x, 0.03, room.pond.z);
       pond.material = flat(this.scene, "pond", "#5fb3d9");
     }
 

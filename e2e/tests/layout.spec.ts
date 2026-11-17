@@ -67,7 +67,7 @@ const SCREENS: Screen[] = [
       await page.waitForTimeout(500);
     },
     parts: [".room-bar", ".emote-bar", ".chat-bar", ".fishing"],
-    // The pond, drawn: from further off (a narrow screen backs the camera away) the floor once hid it.
+    // The pond, drawn: from further off (a narrow screen backs the camera away) the floor's outline once hid it.
     shows: async (page) =>
       pixelsNear(await page.locator("#game").screenshot(), pondBlue) > 20 ? [] : ["the pond is not drawn"],
   },
