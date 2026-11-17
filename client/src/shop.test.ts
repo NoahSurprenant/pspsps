@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isWorn, shopMessage, shopRow, shopSections, wearingLine } from "./shop";
+import { isWorn, shopMessage, shopRow, shopSections, showsOutfit, wearingLine } from "./shop";
 import type { Shop, ShopItem } from "./types";
 
 const items: ShopItem[] = [
@@ -50,6 +50,17 @@ describe("isWorn", () => {
   it("is the hat, the collar or the coat the cat has on", () => {
     const dressed = { ...shop, hat: "party-hat", furColor: "Black" as const };
     expect(items.filter((i) => isWorn(dressed, i)).map((i) => i.id)).toEqual(["party-hat", "fur-black"]);
+  });
+});
+
+describe("showsOutfit", () => {
+  // The tab that made a change already shows the shop as it is after; only a change it didn't make needs it fetched.
+  it("is whether the shop already shows the cat dressed so", () => {
+    const dressed = { ...shop, hat: "party-hat" };
+    expect(showsOutfit(dressed, { playerId: "tom", furColor: "Grey", hat: "party-hat", collar: null })).toBe(true);
+    expect(showsOutfit(dressed, { playerId: "tom", furColor: "Grey", hat: null, collar: null })).toBe(false);
+    expect(showsOutfit(dressed, { playerId: "tom", furColor: "Black", hat: "party-hat", collar: null })).toBe(false);
+    expect(showsOutfit(dressed, { playerId: "tom", furColor: "Grey", hat: "party-hat", collar: "red-collar" })).toBe(false);
   });
 });
 

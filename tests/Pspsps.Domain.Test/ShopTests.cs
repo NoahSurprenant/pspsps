@@ -184,6 +184,22 @@ public sealed class ShopTests
     }
 
     [Test]
+    public void EveryChangeOfOutfit_CountsUp_SoARoomCanTellANewerOneFromAnOlder()
+    {
+        var player = WithCoins(100);
+        player.Buy("bow", Now);
+        Assert.That(player.OutfitVersion, Is.Zero, "buying puts nothing on");
+
+        player.Wear("bow");
+        player.Wear("fur-grey");
+        player.TakeOff("bow");
+
+        Assert.That(player.OutfitVersion, Is.EqualTo(3));
+        Assert.Throws<DomainException>(() => player.TakeOff("bow"));
+        Assert.That(player.OutfitVersion, Is.EqualTo(3), "a refused change counts nothing");
+    }
+
+    [Test]
     public void TakeOff_RefusesWhatIsntWorn_AndTheFur()
     {
         var player = WithCoins(100);

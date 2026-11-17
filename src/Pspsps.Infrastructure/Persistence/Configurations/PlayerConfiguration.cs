@@ -20,6 +20,9 @@ internal sealed class PlayerConfiguration : IEntityTypeConfiguration<Player>
         builder.Property(p => p.Coins).IsConcurrencyToken();
         builder.Property(p => p.Hat).HasMaxLength(ItemIdLength);
         builder.Property(p => p.Collar).HasMaxLength(ItemIdLength);
+        // A concurrency token too: two changes of outfit at once are counted one after the other, never both as the same
+        // version (a room keeps the newer of two by it).
+        builder.Property(p => p.OutfitVersion).IsConcurrencyToken();
         // Whatever the code above does, coins never go below zero.
         builder.ToTable(t => t.HasCheckConstraint("ck_players_coins_not_negative", "coins >= 0"));
 

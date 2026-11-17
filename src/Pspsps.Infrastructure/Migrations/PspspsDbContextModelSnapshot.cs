@@ -127,6 +127,11 @@ namespace Pspsps.Infrastructure.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_guest");
 
+                    b.Property<int>("OutfitVersion")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("outfit_version");
+
                     b.HasKey("Id")
                         .HasName("pk_players");
 

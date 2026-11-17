@@ -111,9 +111,8 @@ internal sealed class FriendService(IApplicationDbContext db, TimeProvider time)
     {
         var friendships = await Of(playerId).AsNoTracking().ToListAsync(cancellationToken);
         var others = friendships.Select(f => f.OtherThan(playerId)).ToList();
-        var players = await db.Players.AsNoTracking()
-            .Where(p => others.Contains(p.Id))
-            .ToDictionaryAsync(p => p.Id, cancellationToken);
+        var players = await Cats(db.Players.Where(p => others.Contains(p.Id)))
+            .ToDictionaryAsync(c => c.Id, cancellationToken);
         return
         [
             .. friendships
@@ -179,11 +178,18 @@ internal sealed class FriendService(IApplicationDbContext db, TimeProvider time)
             f => f.FirstPlayerId == first && f.SecondPlayerId == second, cancellationToken);
     }
 
-    private Task<Player?> FindPlayerAsync(Guid playerId, CancellationToken cancellationToken) =>
-        db.Players.AsNoTracking().FirstOrDefaultAsync(p => p.Id == playerId, cancellationToken);
+    private Task<Cat?> FindPlayerAsync(Guid playerId, CancellationToken cancellationToken) =>
+        Cats(db.Players.Where(p => p.Id == playerId)).FirstOrDefaultAsync(cancellationToken);
 
-    private static PlayerRelation Relation(Player other, FriendState state) =>
+    // Other cats as a card shows them, read on their own: loading whole players would read every login and item they
+    // have as well (for every friend in a list). Filter the players first: the projection can't be.
+    private static IQueryable<Cat> Cats(IQueryable<Player> players) =>
+        players.Select(p => new Cat(p.Id, p.DisplayName, p.FurColor, p.Hat, p.Collar));
+
+    private static PlayerRelation Relation(Cat other, FriendState state) =>
         new(other.Id, other.DisplayName, other.FurColor, state, other.Hat, other.Collar);
+
+    private sealed record Cat(Guid Id, string DisplayName, FurColor FurColor, string? Hat, string? Collar);
 
     private static int ListOrder(FriendState state) => state switch
     {

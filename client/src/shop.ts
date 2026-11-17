@@ -1,4 +1,4 @@
-import type { ItemKind, PlayerCard, Shop, ShopItem } from "./types";
+import type { ItemKind, OutfitView, PlayerCard, Shop, ShopItem } from "./types";
 
 /** What a shop button does (the hub's Buy, Wear and TakeOff). */
 export type ShopAction = "buy" | "wear" | "takeOff";
@@ -54,6 +54,11 @@ export function shopRow(shop: Shop, item: ShopItem): ShopRow {
   return short > 0
     ? { item, status: `🪙 ${item.price}`, button, reason: `need ${short} more` }
     : { item, status: `🪙 ${item.price}`, button };
+}
+
+/** Whether <shop> already shows the player's cat dressed as <outfit>: nothing to fetch again. */
+export function showsOutfit(shop: Shop, outfit: OutfitView): boolean {
+  return shop.furColor === outfit.furColor && shop.hat === outfit.hat && shop.collar === outfit.collar;
 }
 
 /** The shop in its parts (hats, collars, fur), each in the server's order. */

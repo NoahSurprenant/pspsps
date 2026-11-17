@@ -25,6 +25,13 @@ namespace Pspsps.Infrastructure.Migrations
                 maxLength: 32,
                 nullable: true);
 
+            migrationBuilder.AddColumn<int>(
+                name: "outfit_version",
+                table: "players",
+                type: "integer",
+                nullable: false,
+                defaultValue: 0);
+
             migrationBuilder.CreateTable(
                 name: "player_items",
                 columns: table => new
@@ -72,6 +79,10 @@ namespace Pspsps.Infrastructure.Migrations
 
             migrationBuilder.DropColumn(
                 name: "hat",
+                table: "players");
+
+            migrationBuilder.DropColumn(
+                name: "outfit_version",
                 table: "players");
         }
     }

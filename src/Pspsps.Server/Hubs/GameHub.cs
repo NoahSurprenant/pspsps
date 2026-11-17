@@ -255,11 +255,11 @@ public sealed partial class GameHub(
 
     /// <summary>The shop: everything in it, and the player's coins, things and what their cat wears.</summary>
     public async Task<ShopView> GetShop() =>
-        ShopView.From(await Shopping(() => shop.GetAsync(PlayerId, Context.ConnectionAborted)));
+        ShopView.From(await PlayersRule(() => shop.GetAsync(PlayerId, Context.ConnectionAborted)));
 
     /// <summary>Buys something with the player's coins (it isn't put on); the shop as it is after.</summary>
     public async Task<ShopView> Buy(string itemId) =>
-        ShopView.From(await Shopping(() => shop.BuyAsync(PlayerId, itemId, Context.ConnectionAborted)));
+        ShopView.From(await PlayersRule(() => shop.BuyAsync(PlayerId, itemId, Context.ConnectionAborted)));
 
     /// <summary>Puts on a hat, collar or fur the player has: the room the cat is in sees it at once.</summary>
     public Task<ShopView> Wear(string itemId) => Dress(() => shop.WearAsync(PlayerId, itemId, Context.ConnectionAborted));
@@ -294,15 +294,7 @@ public sealed partial class GameHub(
         }
 
         await EnsureCurrentTab();
-        PlayerRelation relation;
-        try
-        {
-            relation = await friends.VisitAsync(PlayerId, friendId, Context.ConnectionAborted);
-        }
-        catch (DomainException e)
-        {
-            throw new HubException(e.Message);
-        }
+        var relation = await PlayersRule(() => friends.VisitAsync(PlayerId, friendId, Context.ConnectionAborted));
 
         var target = await LocateAsync(friendId)
             ?? throw new HubException($"{relation.DisplayName} isn't in a room right now.");
@@ -402,7 +394,8 @@ public sealed partial class GameHub(
         RoomSnapshot snapshot;
         try
         {
-            var card = new PlayerCard(profile.Id, profile.DisplayName, profile.FurColor.ToString(), profile.Hat, profile.Collar);
+            var card = new PlayerCard(
+                profile.Id, profile.DisplayName, profile.FurColor.ToString(), profile.Hat, profile.Collar, profile.OutfitVersion);
             snapshot = await room.Join(card, Context.ConnectionId, throughDoor);
         }
         catch (GameRuleException e)
@@ -434,15 +427,7 @@ public sealed partial class GameHub(
     private async Task<PlayerCardView> ChangeFriendship(
         Guid otherId, Func<Guid, Guid, CancellationToken, Task<PlayerRelation>> change)
     {
-        PlayerRelation relation;
-        try
-        {
-            relation = await change(PlayerId, otherId, Context.ConnectionAborted);
-        }
-        catch (DomainException e)
-        {
-            throw new HubException(e.Message);
-        }
+        var relation = await PlayersRule(() => change(PlayerId, otherId, Context.ConnectionAborted));
 
         // Saved by now: a tab that isn't told sees it the next time it opens the list or the card.
         try
@@ -461,8 +446,8 @@ public sealed partial class GameHub(
         new(relation.PlayerId, relation.DisplayName, relation.FurColor.ToString(), relation.State.ToString(),
             ShopCatalog.Find(relation.Hat)?.Name, ShopCatalog.Find(relation.Collar)?.Name);
 
-    // A shop call: a rule it breaks is the player's message.
-    private static async Task<Wardrobe> Shopping(Func<Task<Wardrobe>> call)
+    // A use case's call: a rule it breaks (a DomainException) is the player's message.
+    private static async Task<T> PlayersRule<T>(Func<Task<T>> call)
     {
         try
         {
@@ -479,7 +464,7 @@ public sealed partial class GameHub(
     // whoever arrives next.
     private async Task<ShopView> Dress(Func<Task<Wardrobe>> change)
     {
-        var wardrobe = await Shopping(change);
+        var wardrobe = await PlayersRule(change);
         var key = await LocateAsync(PlayerId) is { } place ? RoomKey.For(place.WorldId, place.RoomId) : Here?.RoomKey;
 
         if (key is not null)

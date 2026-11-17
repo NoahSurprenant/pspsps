@@ -4,7 +4,7 @@ namespace Pspsps.Domain.Rooms;
 
 /// <summary>
 /// A cat in a room right now: where it stands, whether it's sitting or asleep there, and what it wears (its fur, and the
-/// hat and collar it has on, as shop item IDs).
+/// hat and collar it has on, as shop item IDs, as of the player's <see cref="Players.Player.OutfitVersion"/>).
 /// </summary>
 public sealed record CatInRoom(
     Guid PlayerId,
@@ -13,4 +13,5 @@ public sealed record CatInRoom(
     Position Position,
     CatPose Pose = CatPose.Standing,
     string? Hat = null,
-    string? Collar = null);
+    string? Collar = null,
+    int OutfitVersion = 0);

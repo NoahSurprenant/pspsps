@@ -1,12 +1,17 @@
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Client;
+using System.Collections.Concurrent;
+using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Pspsps.Application.Abstractions;
+using Pspsps.Application.Friends;
 using Pspsps.Application.Players;
 using Pspsps.Application.Shop;
 using Pspsps.Domain;
 using Pspsps.Domain.Players;
 using Pspsps.Domain.Shop;
+using Pspsps.Infrastructure.Persistence;
 using Pspsps.Server.Game;
 using static Pspsps.Integration.Test.PlayerServiceTests;
 
@@ -165,6 +170,45 @@ public sealed class ShopTests
     }
 
     [Test]
+    public async Task ShowingPlayers_DoesntReadWhatTheyOwn()
+    {
+        // Joining a room, signing in, a card and the friends list need a cat's name, fur and what it wears: never the
+        // rows of everything it has (logins times items, for every friend in a list).
+        var key = NewKey();
+        var tom = await Game.Get<IPlayerService>().SignInWithLoginAsync(
+            LoginProvider.Discord, key, "Tom", CancellationToken.None);
+        var felix = await Game.Get<IPlayerService>().CreateGuestAsync(CancellationToken.None);
+        await Game.Get<IFriendService>().RequestAsync(tom.Id, felix.Id, CancellationToken.None);
+        var statements = new ConcurrentQueue<string>();
+        await using var db = new PspspsDbContext(new DbContextOptionsBuilder<PspspsDbContext>()
+            .UseNpgsql(PostgresFixture.ConnectionString)
+            .UseSnakeCaseNamingConvention()
+            .AddInterceptors(new Statements(statements))
+            .Options);
+        var players = new PlayerService(db, TimeProvider.System, Random.Shared);
+        var friends = new FriendService(db, TimeProvider.System);
+
+        await players.FindAsync(tom.Id, CancellationToken.None);
+        await players.SignInWithLoginAsync(LoginProvider.Discord, key, "Tom", CancellationToken.None);
+        await friends.GetAsync(tom.Id, felix.Id, CancellationToken.None);
+        await friends.ListAsync(tom.Id, CancellationToken.None);
+
+        Assert.That(statements, Is.Not.Empty);
+        Assert.That(statements, Has.None.Contains("player_items"));
+    }
+
+    private sealed class Statements(ConcurrentQueue<string> seen) : DbCommandInterceptor
+    {
+        public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
+            DbCommand command, CommandEventData eventData, InterceptionResult<DbDataReader> result,
+            CancellationToken cancellationToken = default)
+        {
+            seen.Enqueue(command.CommandText);
+            return ValueTask.FromResult(result);
+        }
+    }
+
+    [Test]
     public async Task TheDatabase_RefusesCoinsBelowZero()
     {
         var guest = await Game.Get<IPlayerService>().CreateGuestAsync(CancellationToken.None);
@@ -195,7 +239,7 @@ public sealed class ShopTests
         Assert.That(worn.Hat, Is.EqualTo("party-hat"));
 
         var dressed = await felixSees.Next<OutfitView>("CatDressed", o => o.PlayerId == tom.Id);
-        Assert.That(dressed, Is.EqualTo(new OutfitView(tom.Id, tom.FurColor.ToString(), "party-hat", null)));
+        Assert.That(dressed, Is.EqualTo(new OutfitView(tom.Id, tom.FurColor.ToString(), "party-hat", null, Version: 1)));
 
         // A cat arriving later sees it in the room's snapshot.
         var (_, garfieldHub) = await Game.ConnectGuestAsync();

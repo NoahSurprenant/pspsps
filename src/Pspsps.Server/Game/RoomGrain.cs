@@ -63,7 +63,8 @@ internal sealed class RoomGrain(
     {
         var fur = Enum.Parse<FurColor>(player.FurColor);
         var cat = Rule(() => _state.Join(
-            player.PlayerId, player.DisplayName, fur, session, time.GetUtcNow(), throughDoor, player.Hat, player.Collar));
+            player.PlayerId, player.DisplayName, fur, session, time.GetUtcNow(), throughDoor, player.Hat, player.Collar,
+            player.OutfitVersion));
         if (!_counted)
         {
             _counted = true;
@@ -154,13 +155,15 @@ internal sealed class RoomGrain(
     public async Task Dress(OutfitView outfit)
     {
         ArgumentNullException.ThrowIfNull(outfit);
-        if (_state.Dress(outfit.PlayerId, Enum.Parse<FurColor>(outfit.FurColor), outfit.Hat, outfit.Collar) is { } cat)
+        var fur = Enum.Parse<FurColor>(outfit.FurColor);
+        if (_state.Dress(outfit.PlayerId, fur, outfit.Hat, outfit.Collar, outfit.Version) is { } cat)
         {
             await broadcaster.CatDressed(_key, OutfitView.From(cat));
         }
         else
         {
-            // Asking can be what activated this room (the cat's tab just left it): an empty room goes again.
+            // Not here, or an older outfit than it has. Asking can be what activated this room (the cat's tab just left
+            // it): an empty room goes again.
             GoIfEmpty();
         }
     }

@@ -88,11 +88,6 @@ const collars: Record<(typeof collarIds)[number], Maker> = {
   "bell-collar": collar("#d64545", true),
 };
 
-/** Whether the client can draw <id> (a hat or collar it knows): an unknown one (a newer server's) is left off. */
-export function canDraw(id: string): boolean {
-  return id in hats || id in collars;
-}
-
 /**
  * Makes the hat or collar <id> under <parent> (a cat's anchor), outlined like the cat (<outline>, in the anchor's
  * units). Undefined for an ID the client doesn't know. Disposing the node (or the cat) disposes its meshes and

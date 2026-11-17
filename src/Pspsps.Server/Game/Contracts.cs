@@ -14,26 +14,31 @@ public sealed record PlayerCard(
     [property: Id(1)] string DisplayName,
     [property: Id(2)] string FurColor,
     [property: Id(3)] string? Hat = null,
-    [property: Id(4)] string? Collar = null);
+    [property: Id(4)] string? Collar = null,
+    [property: Id(5)] int OutfitVersion = 0);
 
-/// <summary>What a cat wears: its fur, and the hat and collar it has on (shop item IDs), if any.</summary>
+/// <summary>
+/// What a cat wears: its fur, and the hat and collar it has on (shop item IDs), if any, as of Version (the player's
+/// OutfitVersion: a room keeps the newer of two).
+/// </summary>
 [GenerateSerializer, Immutable]
 public sealed record OutfitView(
     [property: Id(0)] Guid PlayerId,
     [property: Id(1)] string FurColor,
     [property: Id(2)] string? Hat,
-    [property: Id(3)] string? Collar)
+    [property: Id(3)] string? Collar,
+    [property: Id(4)] int Version = 0)
 {
     public static OutfitView From(CatInRoom cat)
     {
         ArgumentNullException.ThrowIfNull(cat);
-        return new(cat.PlayerId, cat.FurColor.ToString(), cat.Hat, cat.Collar);
+        return new(cat.PlayerId, cat.FurColor.ToString(), cat.Hat, cat.Collar, cat.OutfitVersion);
     }
 
     public static OutfitView From(Wardrobe wardrobe)
     {
         ArgumentNullException.ThrowIfNull(wardrobe);
-        return new(wardrobe.PlayerId, wardrobe.FurColor.ToString(), wardrobe.Hat, wardrobe.Collar);
+        return new(wardrobe.PlayerId, wardrobe.FurColor.ToString(), wardrobe.Hat, wardrobe.Collar, wardrobe.OutfitVersion);
     }
 }
 

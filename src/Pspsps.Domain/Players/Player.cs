@@ -45,6 +45,12 @@ public sealed class Player
     /// <summary>The collar the cat wears (a <see cref="ShopCatalog"/> item ID), if any.</summary>
     public string? Collar { get; private set; }
 
+    /// <summary>
+    /// Counts every change to what the cat wears (fur, hat, collar), so a room told of two changes out of order (or told
+    /// one by a tab that read the player before the other) keeps the newer.
+    /// </summary>
+    public int OutfitVersion { get; private set; }
+
     /// <summary>What the player has from the shop: what they bought, and the coat they were born with.</summary>
     public IReadOnlyCollection<OwnedItem> Items => _items.AsReadOnly();
 
@@ -136,6 +142,7 @@ public sealed class Player
                 throw new InvalidOperationException($"Item '{item.Id}' is of no known kind.");
         }
 
+        OutfitVersion++;
         return item;
     }
 
@@ -145,10 +152,12 @@ public sealed class Player
         if (Hat is not null && Hat == itemId)
         {
             Hat = null;
+            OutfitVersion++;
         }
         else if (Collar is not null && Collar == itemId)
         {
             Collar = null;
+            OutfitVersion++;
         }
         else if (ShopCatalog.Find(itemId) is { Kind: ItemKind.Fur })
         {

@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using Pspsps.Application.Abstractions;
 using Pspsps.Domain;
@@ -17,7 +18,7 @@ internal sealed class PlayerService(IApplicationDbContext db, TimeProvider time,
         var existing = await OwnerAsync(provider, providerKey, cancellationToken);
         if (existing is not null)
         {
-            return PlayerProfile.From(existing);
+            return existing;
         }
 
         var name = DisplayNameRules.FromProfile(profileName, fallback: RandomCatName());
@@ -38,7 +39,7 @@ internal sealed class PlayerService(IApplicationDbContext db, TimeProvider time,
                 throw;
             }
 
-            return PlayerProfile.From(winner);
+            return winner;
         }
 
         return PlayerProfile.From(player);
@@ -55,9 +56,13 @@ internal sealed class PlayerService(IApplicationDbContext db, TimeProvider time,
             {
                 return await LinkOnceAsync(playerId, provider, providerKey, cancellationToken);
             }
-            catch (DbUpdateConcurrencyException) when (attempt < LinkAttempts)
+            catch (DbUpdateConcurrencyException)
             {
                 // Forgotten already: the next try reads the player again.
+                if (attempt == LinkAttempts)
+                {
+                    return LinkLoginOutcome.Busy;
+                }
             }
         }
     }
@@ -125,8 +130,7 @@ internal sealed class PlayerService(IApplicationDbContext db, TimeProvider time,
 
     public async Task<PlayerProfile?> FindAsync(Guid playerId, CancellationToken cancellationToken)
     {
-        var player = await db.Players.AsNoTracking().FirstOrDefaultAsync(p => p.Id == playerId, cancellationToken);
-        return player is null ? null : PlayerProfile.From(player);
+        return await db.Players.Where(p => p.Id == playerId).Select(Profile).FirstOrDefaultAsync(cancellationToken);
     }
 
     // One statement adds the earning (coins = coins + n): two earnings at once (a tab replaced while its reel is paid, a
@@ -151,8 +155,13 @@ internal sealed class PlayerService(IApplicationDbContext db, TimeProvider time,
     private IQueryable<Player> Owning(LoginProvider provider, string providerKey) =>
         db.Players.Where(p => p.Logins.Any(l => l.Provider == provider && l.ProviderKey == providerKey));
 
-    private Task<Player?> OwnerAsync(LoginProvider provider, string providerKey, CancellationToken cancellationToken) =>
-        Owning(provider, providerKey).FirstOrDefaultAsync(cancellationToken);
+    private Task<PlayerProfile?> OwnerAsync(
+        LoginProvider provider, string providerKey, CancellationToken cancellationToken) =>
+        Owning(provider, providerKey).Select(Profile).FirstOrDefaultAsync(cancellationToken);
+
+    // A player as shown, read on its own: loading the whole aggregate would read every login and item it has as well.
+    private static readonly Expression<Func<Player, PlayerProfile>> Profile = p => new PlayerProfile(
+        p.Id, p.DisplayName, p.FurColor, p.Coins, p.IsGuest, p.Hat, p.Collar, p.OutfitVersion);
 
     private Task<Guid?> OwnerIdAsync(LoginProvider provider, string providerKey, CancellationToken cancellationToken) =>
         Owning(provider, providerKey).Select(p => (Guid?)p.Id).FirstOrDefaultAsync(cancellationToken);

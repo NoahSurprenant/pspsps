@@ -10,7 +10,7 @@ import type { CatAnimation } from "./cat";
 import type { RoomScene } from "./scene";
 import { Overlay, type Note } from "./ui";
 import type { FriendAction } from "./friends";
-import { shopMessage, type ShopAction } from "./shop";
+import { shopMessage, showsOutfit, type ShopAction } from "./shop";
 import type { DoorView, OutfitView, Player, PlayerCard, RoomSnapshot, Shop } from "./types";
 
 const overlay = new Overlay(required<HTMLElement>("#ui"));
@@ -459,7 +459,13 @@ async function openShop(refresh = false): Promise<void> {
   }
 }
 
+// The shop showing, as last drawn, and how many of this tab's shop buttons are still waiting for the server (each draws
+// the shop as it is after, so a CatDressed of this tab's own change, which comes back first, needs no fetch).
+let shopShown: Shop | undefined;
+let shopping = 0;
+
 function showShop(shop: Shop): void {
+  shopShown = shop;
   if (me) {
     // The shop's count is the saved one: the room bar shows it too, and a world picked again starts from it.
     me = { ...me, coins: shop.coins };
@@ -470,6 +476,7 @@ function showShop(shop: Shop): void {
 
 /** Buys, puts on or takes off an item, then shows the shop as it is after, and says what happened. */
 async function shopAction(action: ShopAction, itemId: string, before: Shop): Promise<void> {
+  shopping++;
   try {
     const after = await connection.shop(action, itemId);
     if (overlay.openDialogFor?.kind === "shop") {
@@ -481,16 +488,21 @@ async function shopAction(action: ShopAction, itemId: string, before: Shop): Pro
     overlay.toast(shopMessage(action, before.items.find((item) => item.id === itemId)));
   } catch (error) {
     overlay.toast(messageOf(error));
+  } finally {
+    shopping--;
   }
 }
 
 /**
- * A cat changed what it wears: the card showing it is brought up to date; when it's the player's own (from another
- * tab), the open shop.
+ * A cat changed what it wears: the card showing it is brought up to date; when it's the player's own, the open shop,
+ * unless it shows that already (this tab's own change).
  */
 async function dressed(outfit: OutfitView): Promise<void> {
   const open = overlay.openDialogFor;
   if (open?.kind === "shop" && outfit.playerId === me?.id) {
+    if (shopping > 0 || (shopShown && showsOutfit(shopShown, outfit))) {
+      return;
+    }
     await openShop(true);
   } else if (open?.kind === "card" && open.playerId === outfit.playerId) {
     try {

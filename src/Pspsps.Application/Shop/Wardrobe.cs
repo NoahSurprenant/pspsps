@@ -2,9 +2,13 @@ using Pspsps.Domain.Players;
 
 namespace Pspsps.Application.Shop;
 
-/// <summary>A player's side of the shop: their coins, what they have (shop item IDs) and what their cat wears.</summary>
+/// <summary>
+/// A player's side of the shop: their coins, what they have (shop item IDs) and what their cat wears (as of
+/// OutfitVersion).
+/// </summary>
 public sealed record Wardrobe(
-    Guid PlayerId, int Coins, IReadOnlyList<string> Owned, FurColor FurColor, string? Hat, string? Collar)
+    Guid PlayerId, int Coins, IReadOnlyList<string> Owned, FurColor FurColor, string? Hat, string? Collar,
+    int OutfitVersion = 0)
 {
     public static Wardrobe Of(Player player)
     {
@@ -15,6 +19,7 @@ public sealed record Wardrobe(
             [.. player.Items.Select(i => i.ItemId)],
             player.FurColor,
             player.Hat,
-            player.Collar);
+            player.Collar,
+            player.OutfitVersion);
     }
 }

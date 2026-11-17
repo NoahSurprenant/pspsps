@@ -41,7 +41,7 @@ public interface IRoomGrain : IGrainWithStringKey
 
     /// <summary>
     /// The player changed what their cat wears: if the cat is here, it wears that from now on, and the room is shown it
-    /// (CatDressed). Nothing when it isn't.
+    /// (CatDressed). Nothing when it isn't, or already wears a newer outfit (OutfitView.Version).
     /// </summary>
     Task Dress(OutfitView outfit);
 

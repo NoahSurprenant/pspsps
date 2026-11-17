@@ -12,7 +12,7 @@ using Pspsps.Infrastructure.Persistence;
 namespace Pspsps.Infrastructure.Migrations
 {
     [DbContext(typeof(PspspsDbContext))]
-    [Migration("20261117095324_ShopItems")]
+    [Migration("20261117103334_ShopItems")]
     partial class ShopItems
     {
         /// <inheritdoc />
@@ -129,6 +129,11 @@ namespace Pspsps.Infrastructure.Migrations
                     b.Property<bool>("IsGuest")
                         .HasColumnType("boolean")
                         .HasColumnName("is_guest");
+
+                    b.Property<int>("OutfitVersion")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("outfit_version");
 
                     b.HasKey("Id")
                         .HasName("pk_players");
