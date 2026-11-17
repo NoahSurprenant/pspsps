@@ -56,10 +56,8 @@ export interface ReelView {
   fishId: string | null;
   fishName: string | null;
   coins: number;
-  /** The player's coins after it; 0 when nothing was caught (nothing changed). */
-  totalCoins: number;
-  /** Whether something was caught (and paid): a catch can be worth no coins. */
-  isCatch: boolean;
+  /** The player's coins after a catch; null when nothing was caught. */
+  totalCoins: number | null;
 }
 
 /** A catch, shown to the room. */

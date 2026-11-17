@@ -14,10 +14,11 @@ export interface SaveYourCat {
   link: (provider: string) => void;
 }
 
-/** What the fishing controls do: walk to the pond and cast, or reel in. */
+/** What the fishing controls do: walk to the pond and cast, or reel in; and where the line is now. */
 export interface FishingControls {
   fish: () => void;
   reel: () => void;
+  state: () => Fishing;
 }
 
 /** The HTML laid over the canvas: sign-in, the world list, the room bar and the chat box. */
@@ -25,7 +26,6 @@ export class Overlay {
   // Listeners that belong to what is showing (the room's emote keys): every show* ends them.
   private showing = new AbortController();
   private fishing: FishingControls | undefined;
-  private fishingState: Fishing = "idle";
 
   constructor(private readonly root: HTMLElement) {}
 
@@ -137,12 +137,25 @@ export class Overlay {
     }, { signal: this.showing.signal });
 
     if (fishing) {
-      this.setFishing("idle");
-      // Space reels in at a bite (not while typing): faster than reaching for the button.
+      this.setFishing(fishing.state());
+      // Space reels in at a bite (not while typing): faster than reaching for the button. A button with the focus (the
+      // last one clicked) would take the same Space as a click of its own on keyup: it loses the focus, and that keyup
+      // is swallowed.
+      let reeledBySpace = false;
       document.addEventListener("keydown", (event) => {
-        if (event.code === "Space" && !event.repeat && !isTyping(event.target) && this.fishingState === "bite") {
+        if (event.code === "Space" && !event.repeat && !isTyping(event.target) && fishing.state() === "bite") {
           event.preventDefault();
+          reeledBySpace = true;
+          if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur();
+          }
           fishing.reel();
+        }
+      }, { signal: this.showing.signal });
+      document.addEventListener("keyup", (event) => {
+        if (event.code === "Space" && reeledBySpace) {
+          event.preventDefault();
+          reeledBySpace = false;
         }
       }, { signal: this.showing.signal });
     }
@@ -155,7 +168,6 @@ export class Overlay {
     if (!box || !controls) {
       return;
     }
-    this.fishingState = state;
     box.dataset.state = state;
     switch (state) {
       case "idle":

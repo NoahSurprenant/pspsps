@@ -3,7 +3,7 @@ import { addressNote, linkUrl, loginUrl } from "./link";
 import { GameConnection, fetchMe, fetchProviders, messageOf, playAsGuest, signOut } from "./net";
 import { PendingEvents } from "./pending";
 import { comeBack } from "./rejoin";
-import { catchBubble, FishingState, paid, pondEdge, reelMessage, type Fishing } from "./fishing";
+import { catchBubble, FishingState, gotAwayMessage, paid, pondEdge, reelMessage, type Fishing } from "./fishing";
 import { Room } from "./room";
 import { RoomScene } from "./scene";
 import { Overlay, type Note } from "./ui";
@@ -15,10 +15,10 @@ window.addEventListener("resize", () => engine.resize());
 const scene = new RoomScene(engine);
 
 let room: Room | undefined;
-// Who is playing, once known: the world picker needs it again when a world is lost.
+// Who is playing, once known: the world picker needs it again when a world is lost. Their coins (me.coins) are the
+// ones shown in the room bar, kept up to date by every catch.
 let me: Player | undefined;
-// The player's coins, shown in the room bar, and where their fishing line is.
-let coins = 0;
+// Where the player's fishing line is.
 const fishing = new FishingState((state) => overlay.setFishing(state));
 // Room events that arrive while the next room loads, for it once its snapshot shows.
 const loading = new PendingEvents<(room: Room) => void>();
@@ -29,7 +29,7 @@ declare global {
     pspsps?: { room(): Room | undefined; coins(): number; fishing(): Fishing };
   }
 }
-window.pspsps = { room: () => room, coins: () => coins, fishing: () => fishing.state };
+window.pspsps = { room: () => room, coins: () => me?.coins ?? 0, fishing: () => fishing.state };
 
 const connection = new GameConnection({
   catJoined: (cat) => onRoom((here) => {
@@ -55,6 +55,11 @@ const connection = new GameConnection({
     scene.emote(emote.playerId, emote.emote);
   }),
   fishBit: () => fishing.bite(),
+  fishGotAway: () => {
+    if (fishing.gotAway()) {
+      overlay.toast(gotAwayMessage);
+    }
+  },
   catFished: (caught) => onRoom(() => scene.speak(caught.playerId, catchBubble(caught.fishName))),
   replaced: () => {
     loading.cancel();
@@ -106,6 +111,10 @@ async function fish(): Promise<void> {
   try {
     const spot = pondEdge(pond, cat);
     await connection.move(spot.x, spot.z);
+    // Not if a floor click meanwhile walked the cat off (and dropped this cast).
+    if (!fishing.isCasting(cast)) {
+      return;
+    }
     await connection.cast();
     // Waiting only if still casting: a floor click meanwhile walked off, and the server dropped the line.
     fishing.castDone(cast);
@@ -123,13 +132,10 @@ async function reel(): Promise<void> {
   try {
     const result = await connection.reel();
     overlay.toast(reelMessage(result));
-    if (result.isCatch) {
-      coins = result.totalCoins;
-      // Kept on the player too: a world picked again (after worldLost) shows these coins, not the page load's.
-      if (me) {
-        me = paid(me, result);
-      }
-      overlay.setCoins(coins);
+    if (me) {
+      // Kept on the player: a world picked again (after worldLost) shows these coins, not the page load's.
+      me = paid(me, result);
+      overlay.setCoins(me.coins);
     }
   } catch (error) {
     overlay.toast(messageOf(error));
@@ -153,8 +159,8 @@ function show(snapshot: RoomSnapshot): Room {
       }
     },
     () => window.location.reload(),
-    coins,
-    snapshot.pond ? { fish: () => void fish(), reel: () => void reel() } : undefined,
+    me?.coins ?? 0,
+    snapshot.pond ? { fish: () => void fish(), reel: () => void reel(), state: () => fishing.state } : undefined,
   );
   fishing.drop();
   return shown;
@@ -207,7 +213,6 @@ async function load(request: () => Promise<RoomSnapshot>): Promise<void> {
 /** The world list; `providers` when they're already known (a guest who just signed in from the sign-in panel). */
 async function pickWorld(player: Player, providers?: string[], note?: Note): Promise<void> {
   me = player;
-  coins = player.coins;
   await connection.start();
   // A guest can save their cat with any provider the server offers.
   const [saveWith, worlds] = await Promise.all([

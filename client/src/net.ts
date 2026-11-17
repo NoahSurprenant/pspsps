@@ -11,6 +11,7 @@ export interface GameEvents {
   catEmoted(emote: EmoteView): void;
   /** Something bit our line: reel now. */
   fishBit(): void;
+  fishGotAway(): void;
   /** A cat in the room caught something. */
   catFished(caught: CatchView): void;
   /** The connection came back after a drop; the server forgot where we were, so the game re-enters. */
@@ -67,6 +68,7 @@ export class GameConnection {
     this.hub.on("ChatSaid", (line: ChatView) => events.chatSaid(line));
     this.hub.on("CatEmoted", (emote: EmoteView) => events.catEmoted(emote));
     this.hub.on("FishBit", () => events.fishBit());
+    this.hub.on("FishGotAway", () => events.fishGotAway());
     this.hub.on("CatFished", (caught: CatchView) => events.catFished(caught));
     this.hub.onreconnected(() => events.reconnected());
     this.hub.on("RoomLost", () => events.roomLost());

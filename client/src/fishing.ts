@@ -30,16 +30,21 @@ export class FishingState {
     return this.casts;
   }
 
+  /** Whether <cast> is still the cast going: a floor click meanwhile dropped it, and then it isn't sent. */
+  isCasting(cast: number): boolean {
+    return this.current === "casting" && cast === this.casts;
+  }
+
   /** The cast is in the water: wait for a bite, unless the line was dropped meanwhile (a walk off, another room). */
   castDone(cast: number): void {
-    if (this.current === "casting" && cast === this.casts) {
+    if (this.isCasting(cast)) {
       this.set("waiting");
     }
   }
 
   /** The cast was refused. */
   castFailed(cast: number): void {
-    if (this.current === "casting" && cast === this.casts) {
+    if (this.isCasting(cast)) {
       this.set("idle");
     }
   }
@@ -67,6 +72,15 @@ export class FishingState {
     }
   }
 
+  /** The server says the bite wasn't reeled in time and the line is in: whether to tell the player. */
+  gotAway(): boolean {
+    if (this.current !== "waiting" && this.current !== "bite") {
+      return false;
+    }
+    this.set("idle");
+    return true;
+  }
+
   /** The line is out of the water without a reel: the cat walked off, or another room is showing. */
   drop(): void {
     this.set("idle");
@@ -80,7 +94,7 @@ export class FishingState {
 
 /** The player after a reel: a catch's coins are theirs from now on (a world picked again shows them). */
 export function paid(player: Player, reel: ReelView): Player {
-  return reel.isCatch ? { ...player, coins: reel.totalCoins } : player;
+  return reel.outcome === "caught" && reel.totalCoins !== null ? { ...player, coins: reel.totalCoins } : player;
 }
 
 /** How far out from the water a cat stands to fish (the server allows up to 1.5). */
@@ -112,6 +126,9 @@ export function reelMessage(reel: ReelView): string {
       return "Too slow! It got away.";
   }
 }
+
+/** What the player is told when a bite they didn't reel in gets away. */
+export const gotAwayMessage = "It got away!";
 
 /** The bubble over a cat that caught something, seen by everyone in the room. */
 export function catchBubble(fishName: string): string {
