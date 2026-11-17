@@ -29,3 +29,32 @@ export class PendingEvents<T> {
     this.held = undefined;
   }
 }
+
+/**
+ * Loads the next room with `open`, holding room events from the start until it shows, then replaying them onto it in
+ * order; resolves to it. When loading fails, the events held meanwhile go onto `stay`, the room still showing, when the
+ * server kept the cat there (a door that refused it); with no room to stay in, they are dropped. The failure is passed
+ * on either way.
+ */
+export async function loadRoom<R>(
+  pending: PendingEvents<(room: R) => void>, open: () => Promise<R>, stay: R | undefined,
+): Promise<R> {
+  pending.start();
+  let shown: R;
+  try {
+    shown = await open();
+  } catch (error) {
+    if (stay === undefined) {
+      pending.cancel();
+    } else {
+      for (const apply of pending.finish()) {
+        apply(stay);
+      }
+    }
+    throw error;
+  }
+  for (const apply of pending.finish()) {
+    apply(shown);
+  }
+  return shown;
+}

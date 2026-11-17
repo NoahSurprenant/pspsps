@@ -119,12 +119,14 @@ public sealed partial class GameHub(
         var place = Here ?? throw new HubException("You aren't in a room.");
         var key = place.RoomKey ?? throw new HubException("You aren't in a room.");
 
-        // Out of the room before the room lets the cat go, as in GoToRoom, so no renewal meanwhile finds the cat gone.
+        // Out of the room, and its group, before the room lets the cat go, as in GoToRoom: no renewal meanwhile finds the
+        // cat gone, and nothing the room says from here (the cat leaving included) reaches the tab loading the next room.
         if (!MoveTo(place with { RoomKey = null }))
         {
             throw new HubException(ClosedMessage);
         }
 
+        await Groups.RemoveFromGroupAsync(Context.ConnectionId, key);
         DoorTarget target;
         try
         {
@@ -132,19 +134,40 @@ public sealed partial class GameHub(
         }
         catch (GameRuleException e)
         {
-            // Not on the door: the cat stays where it is, and the connection stays in its room. Had the tab closed
-            // meanwhile, its disconnect found it in no room, so the cat is taken out here.
-            if (!MoveTo(place))
-            {
-                await LeaveRoom(key);
-                throw new HubException(ClosedMessage);
-            }
-
+            // Not on the door: the cat stays where it is, and so does the tab.
+            await BackInto(place, key);
             throw new HubException(e.Message);
         }
+        catch
+        {
+            // The room couldn't answer: back in it too. Had the cat gone after all, the next renewal says so, and the tab
+            // walks back in.
+            await BackInto(place, key);
+            throw;
+        }
 
-        await Groups.RemoveFromGroupAsync(Context.ConnectionId, key);
-        return await JoinRoom(place.WorldId, target.RoomId, target.DoorId);
+        try
+        {
+            return await JoinRoom(place.WorldId, target.RoomId, target.DoorId);
+        }
+        catch (HubException) when (!heartbeat.IsClosed(Context.ConnectionId))
+        {
+            // The room past the door is full: the cat comes back in by the door it went through, and is told why.
+            await JoinRoom(place.WorldId, RoomKey.Parse(key).RoomId, doorId);
+            throw;
+        }
+    }
+
+    // Puts the connection back in the room it was leaving, which kept its cat. Had the tab closed meanwhile, its
+    // disconnect found it in no room, so the cat is taken out here.
+    private async Task BackInto(ConnectionPlace place, string key)
+    {
+        await Groups.AddToGroupAsync(Context.ConnectionId, key);
+        if (!MoveTo(place))
+        {
+            await LeaveRoom(key);
+            throw new HubException(ClosedMessage);
+        }
     }
 
     public Task Move(double x, double z) => InRoom(room => room.Move(PlayerId, x, z));

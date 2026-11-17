@@ -2,7 +2,7 @@ import { DoorWalks, doorAt } from "./doors";
 import { addressNote, linkUrl, loginUrl } from "./link";
 import { GameConnection, fetchMe, fetchProviders, messageOf, playAsGuest, signOut } from "./net";
 import { lazily } from "./lazy";
-import { PendingEvents } from "./pending";
+import { loadRoom, PendingEvents } from "./pending";
 import { comeBack } from "./rejoin";
 import { catchBubble, FishingState, gotAwayMessage, paid, pondEdge, reelMessage, type Fishing } from "./fishing";
 import { Room } from "./room";
@@ -184,7 +184,9 @@ async function goThrough(door: DoorView): Promise<void> {
     const there = await view.reached(me.id, door.x, door.z);
     if (there && doorWalks.isGoing(walk)) {
       doorWalks.callOff();
-      pick(() => load(() => connection.goThroughDoor(door.id)));
+      // A door that refuses the cat (or a full room past it, which sends it back in) keeps it in this room.
+      const here = room;
+      pick(() => load(() => connection.goThroughDoor(door.id), here));
     }
   } catch (error) {
     overlay.toast(messageOf(error));
@@ -276,23 +278,21 @@ async function goTo(roomId: string): Promise<void> {
  * Leaves the room showing and loads the next. The server sends the new room's events (our own join among them) from
  * just before it takes the snapshot, so they are held until the snapshot shows and then replayed onto it, in order;
  * the room's updates are idempotent, so those already in the snapshot change nothing.
+ * A load that fails leaves the page in `stay` (with what it said meanwhile) when the server kept the cat there.
  */
-async function load(request: () => Promise<RoomSnapshot>): Promise<void> {
+async function load(request: () => Promise<RoomSnapshot>, stay?: Room): Promise<void> {
   room = undefined;
-  loading.start();
-  let shown: Room;
   try {
     // The 3D scene before the room (the first room loads it): had it failed after, the server would have the cat in a
     // room the page can't show.
-    const view = await stage();
-    shown = show(await request(), view);
+    await loadRoom(loading, async () => {
+      const view = await stage();
+      return show(await request(), view);
+    }, stay);
   } catch (error) {
-    loading.cancel();
+    // Still in `stay` if the server kept the cat there (a door that refused it); in no room otherwise.
+    room = stay;
     overlay.toast(messageOf(error));
-    return;
-  }
-  for (const apply of loading.finish()) {
-    apply(shown);
   }
 }
 
