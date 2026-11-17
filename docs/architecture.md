@@ -142,7 +142,7 @@ is told (`SentOut`) and goes back to Town Square in its own world.
 
 In the browser, the way home is at the top of the friends list (the room bar has no room for another button on a folded
 phone). In their own home, the owner has Decorate and who can visit in the dock; decorating (`client/src/home.ts`) picks
-a piece to put out with a tap on the floor (or "Find it a spot", for the keyboard), and selects a piece with a tap (or its
+a piece to put out with a tap on the floor (or "Find a spot", for the keyboard), and selects a piece with a tap (or its
 button) to turn it or put it away.
 
 ## Layers (Clean Architecture)

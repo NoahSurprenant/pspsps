@@ -572,7 +572,7 @@ test("a cat buys a plant with its catch, puts it out at home, and a friend visit
 
     // Felix visits Tom's home from his friends list, comes in by its door, and sees the plant where Tom put it.
     await felix.page.getByRole("button", { name: "Friends", exact: true }).click();
-    await felix.page.getByRole("button", { name: `Visit ${fisher.name}'s home` }).click();
+    await felix.page.getByRole("button", { name: `Visit home of ${fisher.name}` }).click();
     await expect(felix.page.locator(".room-bar strong")).toHaveText(`${fisher.name}'s home`);
     await expect.poll(() => felix.page.evaluate(() => window.pspsps?.drawnProps().map((p) => p.kind))).toContain("plant");
     await expect.poll(async () => Object.keys(await cats(felix.page))).toContain(fisher.id);
@@ -583,7 +583,7 @@ test("a cat buys a plant with its catch, puts it out at home, and a friend visit
     // Tom puts it away: Felix sees it go.
     await tom.getByRole("button", { name: "Decorate" }).click();
     await tom.getByRole("button", { name: "Potted plant, 1 of 1" }).click();
-    await tom.getByRole("button", { name: "Put the Potted plant away" }).click();
+    await tom.getByRole("button", { name: "Put away the Potted plant" }).click();
     await expect.poll(() => felix.page.evaluate(() => window.pspsps?.drawnProps().map((p) => p.kind))).not.toContain("plant");
 
     expect(felix.errors, "Felix's console errors and uncaught exceptions").toEqual([]);

@@ -71,7 +71,7 @@ export function decoratingHint(decorating: Decorating, left: readonly FurnitureL
   }
   const picked = left.find((row) => row.item.id === decorating.picked);
   if (picked) {
-    return `Tap the floor where the ${picked.item.name} goes, or let it find a spot.`;
+    return `Tap the floor where the ${picked.item.name} goes, or find it a spot.`;
   }
   if (left.length === 0) {
     return "You have no furniture yet. Buy some in the shop.";

@@ -245,7 +245,7 @@ public sealed class ShopTests
     [Test]
     public void ANewCat_HasOneOfWhatItWasBornWith_AndNoneOfTheRest()
     {
-        var player = WithCoins(0);
+        var player = WithCoins(1);
 
         Assert.Multiple(() =>
         {
@@ -258,7 +258,7 @@ public sealed class ShopTests
     [Test]
     public void Wear_Furniture_IsRefused()
     {
-        var player = WithCoins(0);
+        var player = WithCoins(1);
 
         var refused = Assert.Throws<DomainException>(() => player.Wear(ShopCatalog.StarterFurniture));
 

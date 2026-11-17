@@ -219,7 +219,7 @@ export async function fishFor(hub: HubConnection, world: string, coins: number):
 /** Goes to the player's own home, from the friends list (where the way home is); resolves in there. */
 export async function goHome(page: Page): Promise<void> {
   await page.getByRole("button", { name: "Friends", exact: true }).click();
-  await page.getByRole("button", { name: "Go to your home" }).click();
+  await page.getByRole("button", { name: "Go home", exact: true }).click();
   await expect(page.locator(".room-bar strong")).toHaveText(/'s home$/);
 }
 

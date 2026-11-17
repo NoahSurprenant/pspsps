@@ -73,7 +73,7 @@ describe("decoratingHint", () => {
 
   it("says what to do next: with a piece selected, with furniture picked, and with neither", () => {
     expect(decoratingHint({ selected: "b1" }, left, home)).toBe("The Cat bed: turn it, or put it away.");
-    expect(decoratingHint({ picked: "plant" }, left, home)).toBe("Tap the floor where the Potted plant goes, or let it find a spot.");
+    expect(decoratingHint({ picked: "plant" }, left, home)).toBe("Tap the floor where the Potted plant goes, or find it a spot.");
     expect(decoratingHint({}, left, home)).toBe("Pick something to put out, or tap a piece in the room to turn it or put it away.");
     expect(decoratingHint({}, left, { ...home, furniture: [] })).toBe("Pick something to put out.");
   });

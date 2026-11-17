@@ -297,11 +297,10 @@ export class Overlay {
     if (selected) {
       parts.push(el("div", { className: "actions" },
         keyed("Turn", "turn", () => actions.turn(selected.id), "", `Turn the ${selected.name}`),
-        keyed("Put away", "put-away", () => actions.putAway(selected.id), "", `Put the ${selected.name} away`)));
+        keyed("Put away", "put-away", () => actions.putAway(selected.id), "", `Put away the ${selected.name}`)));
     } else if (picked) {
       parts.push(el("div", { className: "actions" },
-        keyed("Find it a spot", "anywhere", () => actions.putAnywhere(picked.item.id), "",
-          `Put the ${picked.item.name} wherever it fits`)));
+        keyed("Find a spot", "anywhere", () => actions.putAnywhere(picked.item.id), "", `Find a spot for the ${picked.item.name}`)));
     }
     if (view.left.length > 0) {
       parts.push(el("h3", { text: "Your furniture" }), el("ul", { className: "furniture-list" },
@@ -432,7 +431,7 @@ export class Overlay {
       el("div", { className: "home-row" },
         atHome
           ? el("p", { text: "You're home." })
-          : labelled("Go home", "Go to your home", actions.goHome, "primary")),
+          : button("Go home", actions.goHome, "primary")),
     ];
     if (list.length === 0) {
       parts.push(el("p", { text: "No friends yet. Tap a cat to see its card and add it." }));
@@ -443,7 +442,7 @@ export class Overlay {
         go.disabled = !canGoTo(friend, here);
         const inTheirHome = here?.homeOwnerId === friend.playerId;
         const visit = friend.canVisitHome && !inTheirHome
-          ? [labelled("Visit home", `Visit ${friend.displayName}'s home`, () => actions.visitHome(friend.playerId))]
+          ? [labelled("Visit home", `Visit home of ${friend.displayName}`, () => actions.visitHome(friend.playerId))]
           : [];
         return row(friend,
           el("span", { className: friend.place ? "where online" : "where", text: whereIs(friend, here) }),
