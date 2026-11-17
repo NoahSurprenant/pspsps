@@ -12,4 +12,6 @@ public interface IRoomGrain : IGrainWithStringKey
     Task Move(Guid playerId, double x, double z);
 
     Task Say(Guid playerId, string text);
+
+    Task Emote(Guid playerId, string emote);
 }

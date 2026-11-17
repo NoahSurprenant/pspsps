@@ -13,6 +13,8 @@ public interface IGameClient
 
     Task ChatSaid(ChatView line);
 
+    Task CatEmoted(EmoteView emote);
+
     /// <summary>The player opened the game in another tab, which is the one playing now.</summary>
     Task SessionReplaced();
 }

@@ -42,6 +42,7 @@ The ASP.NET Core, HTTP client, runtime, process, Npgsql, EF Core, health check a
 | `pspsps.world.connections` | Browser tabs in a world, by `world` |
 | `pspsps.rooms.active` | Rooms with a cat in them, hosted here |
 | `pspsps.chat.lines` | Chat lines said, by `world` |
+| `pspsps.emotes` | Emotes done, by `world` and `emote` (`sit`, `meow`, `wave`, `sleep`) |
 | `pspsps.hub.call.duration` | Hub method calls, by `method` and `outcome` (`ok`, `refused`, `error`) |
 
 ## Health
