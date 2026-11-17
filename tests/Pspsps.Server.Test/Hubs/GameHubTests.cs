@@ -895,6 +895,43 @@ public sealed class GameHubTests
     }
 
     [Test]
+    public async Task GoToRoom_FullWhenTheRoomLeftCantAnswerEither_LeavesTheRenewalToWalkTheTabBackIn()
+    {
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+        await hub.GoToRoom("cafe");
+        _room.Join(default!, default!, default).ThrowsAsyncForAnyArgs(new GameRuleException("Town Square is full."));
+        _cafe.Join(default!, default!, default).ThrowsAsyncForAnyArgs(new TimeoutException());
+        RenewalsFindEveryCat();
+
+        var refused = Assert.ThrowsAsync<HubException>(() => hub.GoToRoom("town-square"));
+
+        Assert.That(refused!.Message, Is.EqualTo("Town Square is full."), "the reason, not the failure after it");
+        await _heartbeat.RenewAsync();
+        await _cafe.ReceivedWithAnyArgs(1).Renew(default!);
+    }
+
+    [Test]
+    public async Task GoToRoom_FullFromAnotherPlayersHome_DoesntGoBackInto_ButLetsTheRenewalSendTheTabBack()
+    {
+        var felixHome = HomeOf(Felix);
+        _homes.VisitAsync(Tom.Id, Felix, Arg.Any<CancellationToken>()).Returns(Plan(Felix, "Felix"));
+        felixHome.Join(default!, default!, default).ReturnsForAnyArgs(HomeSnapshot(Felix));
+        felixHome.Renew(default!).ReturnsForAnyArgs(Task.FromResult<IReadOnlyList<string>>([]));
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+        await hub.VisitHome(Felix);
+        _room.Join(default!, default!, default).ThrowsAsyncForAnyArgs(new GameRuleException("Town Square is full."));
+        RenewalsFindEveryCat();
+
+        Assert.ThrowsAsync<HubException>(() => hub.GoToRoom("town-square"));
+
+        await felixHome.Received(1).Join(Arg.Any<PlayerCard>(), Connection, null);
+        await _heartbeat.RenewAsync();
+        await felixHome.ReceivedWithAnyArgs(1).Renew(default!);
+    }
+
+    [Test]
     public async Task VisitHome_WhenTheSecondCheckFails_TakesTheCatBackOut()
     {
         var felixHome = HomeOf(Felix);

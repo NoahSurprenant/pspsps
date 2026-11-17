@@ -153,8 +153,8 @@ public sealed class HomesTests
         await garfieldHub.InvokeAsync<RoomSnapshot>("EnterWorld", "calico");
         await felixHub.InvokeAsync<RoomSnapshot>("VisitHome", tom.Id);
         await garfieldHub.InvokeAsync<RoomSnapshot>("VisitHome", tom.Id);
-        var felixOut = SentOut(felixHub);
-        var garfieldOut = SentOut(garfieldHub);
+        var felixOut = SentOut(felixHub, tom.Id);
+        var garfieldOut = SentOut(garfieldHub, tom.Id);
         var tomSees = new Recorder(tomHub);
         var grains = Game.Services.GetRequiredService<IGrainFactory>();
         var homeGrain = grains.GetGrain<IRoomGrain>(RoomKey.ForHome(tom.Id));
@@ -256,10 +256,17 @@ public sealed class HomesTests
     }
 
     // The message the hub sends when a cat is sent out of a home.
-    private static TaskCompletionSource<string> SentOut(HubConnection hub)
+    private static TaskCompletionSource<string> SentOut(HubConnection hub, Guid ownerId)
     {
         var sent = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-        hub.On<string>("SentOut", message => sent.TrySetResult(message));
+        // Which home it was, so a browser that has gone into another meanwhile stays there.
+        hub.On<Guid, string>("SentOut", (owner, message) =>
+        {
+            if (owner == ownerId)
+            {
+                sent.TrySetResult(message);
+            }
+        });
         return sent;
     }
 
