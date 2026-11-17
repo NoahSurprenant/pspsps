@@ -95,7 +95,7 @@ export class Overlay {
   }
 
   showRoom(
-    room: RoomSnapshot, goTo: (roomId: string) => void, say: (text: string) => void, emote: (emote: Emote) => void,
+    room: RoomSnapshot, say: (text: string) => void, emote: (emote: Emote) => void,
     leave: () => void, coins: number, fishing?: FishingControls,
   ): void {
     this.fishing = fishing;
@@ -122,8 +122,8 @@ export class Overlay {
     );
     this.replace(
       el("div", { className: "room-bar" },
+        // No buttons to other rooms: the doors are the way around.
         el("strong", { text: room.roomName }),
-        ...room.rooms.map((link) => button(link.name, () => goTo(link.id))),
         el("span", { className: "coins", id: "coins", text: coinText(coins) }),
         ...(this.onFriends ? [button("Friends", this.onFriends)] : []),
         button("Worlds", leave, "quiet"),
