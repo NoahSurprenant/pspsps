@@ -47,6 +47,17 @@ describe("Room", () => {
     expect(room.chat.at(-1)?.text).toBe(`line ${Room.chatHistory + 2}`);
   });
 
+  it("ignores a chat line it already has, and lines from cats that aren't here", () => {
+    const line = { playerId: "tom", text: "hi", at: "2026-11-17T12:00:00Z" };
+    const room = new Room({ ...snapshot([tom]), chat: [line] });
+
+    room.say({ ...line });
+    room.say({ playerId: "garfield", text: "from the old room", at: "2026-11-17T12:00:01Z" });
+    room.say({ ...line, at: "2026-11-17T12:00:02Z" });
+
+    expect(room.chat.map((l) => l.at)).toEqual(["2026-11-17T12:00:00Z", "2026-11-17T12:00:02Z"]);
+  });
+
   it("keeps each cat's latest emote and forgets it when the cat walks or leaves", () => {
     const room = new Room(snapshot([tom, felix]));
 

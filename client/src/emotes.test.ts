@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { emoteBar, emoteForKey, isTyping, poseScales } from "./emotes";
+import { emoteBar, emoteForKey, isPose, isTyping, poseScales } from "./emotes";
 
 const onPage = { tagName: "BODY", isContentEditable: false } as unknown as EventTarget;
 const chatBox = { tagName: "INPUT", isContentEditable: false } as unknown as EventTarget;
@@ -42,6 +42,13 @@ describe("poseScales", () => {
   it("squashes a sitting cat, and a sleeping one flatter", () => {
     expect(poseScales.sit[1]).toBeLessThan(1);
     expect(poseScales.sleep[1]).toBeLessThan(poseScales.sit[1]);
+  });
+});
+
+describe("isPose", () => {
+  it("is true for the emotes a cat holds, and each has a scale", () => {
+    expect(emoteBar.map((entry) => entry.emote).filter(isPose)).toEqual(["sit", "sleep"]);
+    expect(Object.keys(poseScales).sort()).toEqual(["sit", "sleep"]);
   });
 });
 

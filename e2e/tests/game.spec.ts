@@ -73,12 +73,14 @@ test("a cat's emotes show on the other cat's screen", async ({ page: tom, browse
     await felix.page.getByRole("button", { name: "Wave" }).click();
     await expect.poll(async () => (await emotes(tom))[felixId]).toBe("wave");
 
-    // A number typed in the chat box is just typing; past the one-second wait, nothing new has reached Tom.
+    // A number typed in the chat box is just typing. Past the one-second wait after the wave, so a "4" that did reach
+    // the server as an emote would be let through and Tom would see Felix fall asleep.
+    await felix.page.waitForTimeout(1_500);
     const chat = felix.page.getByPlaceholder("Say something…");
     await chat.fill("");
     await chat.press("4");
     await expect(chat).toHaveValue("4");
-    await felix.page.waitForTimeout(1_200);
+    await felix.page.waitForTimeout(1_500);
     expect((await emotes(tom))[felixId]).toBe("wave");
 
     // The same key anywhere else is the shortcut: 1 sits.

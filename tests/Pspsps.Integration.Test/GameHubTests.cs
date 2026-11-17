@@ -1,6 +1,7 @@
 using System.Threading.Channels;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Client;
+using Pspsps.Domain.Rooms;
 using Pspsps.Server.Game;
 using Pspsps.Server.Hubs;
 
@@ -70,13 +71,18 @@ public sealed class GameHubTests
         var wave = await tomSees.Next<EmoteView>("CatEmoted", e => e.PlayerId == felix.Id);
         Assert.That(wave.Emote, Is.EqualTo("wave"));
 
-        // Straight after the wave: well inside the one-second wait.
+        // The grains' clock stands still until the test moves it: this meow is at the same instant as the wave.
         var tooFast = Assert.ThrowsAsync<HubException>(() => felixHub.InvokeAsync("Emote", "meow"));
         Assert.That(tooFast!.Message, Does.Contain("one emote a second"));
 
         var unknown = Assert.ThrowsAsync<HubException>(() => felixHub.InvokeAsync("Emote", "dance"));
         Assert.That(unknown!.Message, Does.Contain("That isn't an emote."));
         Assert.That(await tomSees.Saw<EmoteView>("CatEmoted", e => e.PlayerId == felix.Id, TimeSpan.FromSeconds(1)), Is.False);
+
+        // A second later (on the grains' clock), the meow goes through.
+        Game.GrainClock.Advance(RoomState.EmoteCooldown);
+        await felixHub.InvokeAsync("Emote", "meow");
+        Assert.That((await tomSees.Next<EmoteView>("CatEmoted", e => e.PlayerId == felix.Id)).Emote, Is.EqualTo("meow"));
     }
 
     [Test]

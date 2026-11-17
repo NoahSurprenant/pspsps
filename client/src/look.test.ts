@@ -44,10 +44,29 @@ describe("CatLook", () => {
 
     look.emote("meow", t0 + 10_000);
     expect(look.bubbleAt(t0 + 10_001)).toBe("meow!");
-    expect(look.bubbleAt(t0 + 10_000 + CatLook.bubbleMilliseconds + 1)).toBe("z z z");
+    expect(look.bubbleAt(t0 + 10_000 + CatLook.meowMilliseconds + 1)).toBe("z z z");
 
     look.walk();
     expect(look.bubbleAt(t0 + 60_000)).toBeUndefined();
+  });
+
+  it("doesn't cut a chat line short with a meow: both show, then the line alone", () => {
+    const look = new CatLook();
+    look.say("come here", t0);
+
+    look.emote("meow", t0 + 1_000);
+
+    expect(look.bubbleAt(t0 + 1_001)).toBe("come here\nmeow!");
+    expect(look.bubbleAt(t0 + 1_000 + CatLook.meowMilliseconds + 1)).toBe("come here");
+    expect(look.bubbleAt(t0 + CatLook.bubbleMilliseconds + 1)).toBeUndefined();
+  });
+
+  it("shows a meow on its own for a moment", () => {
+    const look = new CatLook();
+    look.emote("meow", t0);
+
+    expect(look.bubbleAt(t0 + 1)).toBe("meow!");
+    expect(look.bubbleAt(t0 + CatLook.meowMilliseconds + 1)).toBeUndefined();
   });
 
   it("shows a chat line for a while when awake", () => {
