@@ -14,6 +14,7 @@ namespace Pspsps.Server.Game;
 [KeepAlive]
 internal sealed class RoomGrain(
     IRoomBroadcaster broadcaster,
+    ChatFilters chatFilters,
     [FromKeyedServices(TimeProviderNames.Grains)] TimeProvider time,
     GameMetrics metrics) : Grain, IRoomGrain
 {
@@ -109,7 +110,7 @@ internal sealed class RoomGrain(
 
     public async Task Say(Guid playerId, string text)
     {
-        var line = Rule(() => _state.Say(playerId, text, time.GetUtcNow()));
+        var line = Rule(() => _state.Say(playerId, text, chatFilters.Current, time.GetUtcNow()));
         await broadcaster.ChatSaid(_key, ChatView.From(line));
     }
 

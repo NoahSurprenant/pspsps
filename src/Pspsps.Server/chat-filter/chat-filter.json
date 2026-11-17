@@ -1,0 +1,17 @@
+{
+  // The chat filter's word lists (src/Pspsps.Domain/Rooms/ChatFilter.cs). Empty here: a deployment supplies its own,
+  // by mounting its own copy of this file over the chat-filter directory (the Helm chart's chatFilter values do this)
+  // or through configuration such as environment variables (ChatFilter__Lists__0__Words__0), which override this file.
+  // The file is reread when it changes; if it goes missing or can't be read, the server warns and keeps the lists it had.
+  //
+  // Each list either masks its words (the line is said with them starred out) or refuses them (the line isn't said,
+  // and the player is told why):
+  //   { "Action": "Mask", "Words": [ "some", "words" ] }, { "Action": "Refuse", "Words": [ "others" ] }
+  // One word per entry: letters, digits and look-alikes; an entry with a space or punctuation is left out with a
+  // warning. Accents, look-alike letters, digits and symbols for letters, punctuation inside a word, letters stretched
+  // three or more times and spaced-out single letters are seen through. An entry with a digit that isn't a look-alike,
+  // no letter, or a single letter ("69") is matched only as written.
+  "ChatFilter": {
+    "Lists": []
+  }
+}

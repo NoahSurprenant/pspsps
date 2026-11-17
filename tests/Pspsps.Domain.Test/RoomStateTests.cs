@@ -78,7 +78,7 @@ public sealed class RoomStateTests
         var state = new RoomState(Room);
 
         Assert.Throws<DomainException>(() => state.Move(Tom, new Position(0, 0)));
-        Assert.Throws<DomainException>(() => state.Say(Tom, "hi", Now));
+        Assert.Throws<DomainException>(() => state.Say(Tom, "hi", ChatFilter.None, Now));
     }
 
     [Test]
@@ -87,10 +87,10 @@ public sealed class RoomStateTests
         var state = new RoomState(Room);
         state.Join(Tom, "Tom", FurColor.Grey, TabA, Now);
 
-        Assert.That(state.Say(Tom, "  meow  ", Now).Text, Is.EqualTo("meow"));
+        Assert.That(state.Say(Tom, "  meow  ", ChatFilter.None, Now).Text, Is.EqualTo("meow"));
         for (var i = 0; i < RoomState.ChatHistory + 5; i++)
         {
-            state.Say(Tom, $"line {i}", Now);
+            state.Say(Tom, $"line {i}", ChatFilter.None, Now);
         }
 
         Assert.That(state.RecentChat, Has.Count.EqualTo(RoomState.ChatHistory));
@@ -104,7 +104,7 @@ public sealed class RoomStateTests
         var state = new RoomState(Room);
         state.Join(Tom, "Tom", FurColor.Grey, TabA, Now);
 
-        Assert.Throws<DomainException>(() => state.Say(Tom, text, Now));
+        Assert.Throws<DomainException>(() => state.Say(Tom, text, ChatFilter.None, Now));
     }
 
     [Test]
@@ -113,7 +113,33 @@ public sealed class RoomStateTests
         var state = new RoomState(Room);
         state.Join(Tom, "Tom", FurColor.Grey, TabA, Now);
 
-        Assert.Throws<DomainException>(() => state.Say(Tom, new string('a', RoomState.MaxChatLength + 1), Now));
+        Assert.Throws<DomainException>(() => state.Say(Tom, new string('a', RoomState.MaxChatLength + 1), ChatFilter.None, Now));
+    }
+
+    [Test]
+    public void Say_MasksFilteredWordsInWhatTheRoomKeeps()
+    {
+        var state = new RoomState(Room);
+        state.Join(Tom, "Tom", FurColor.Grey, TabA, Now);
+        var filter = ChatFilter.Create([new ChatWordList(ChatFilterAction.Mask, ["darn"])]);
+
+        var line = state.Say(Tom, "  oh darn  ", filter, Now);
+
+        Assert.That(line.Text, Is.EqualTo("oh ****"));
+        Assert.That(state.RecentChat.Single().Text, Is.EqualTo("oh ****"));
+    }
+
+    [Test]
+    public void Say_RefusesALineWithARefusedWord_AndKeepsNothing()
+    {
+        var state = new RoomState(Room);
+        state.Join(Tom, "Tom", FurColor.Grey, TabA, Now);
+        var filter = ChatFilter.Create([new ChatWordList(ChatFilterAction.Refuse, ["woof"])]);
+
+        var refused = Assert.Throws<DomainException>(() => state.Say(Tom, "W 0 0 F", filter, Now));
+
+        Assert.That(refused!.Message, Is.EqualTo(ChatFilter.RefusedMessage));
+        Assert.That(state.RecentChat, Is.Empty);
     }
 
     [TestCase("sit")]
