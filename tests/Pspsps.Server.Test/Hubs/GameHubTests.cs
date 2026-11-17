@@ -47,7 +47,11 @@ public sealed class GameHubTests
     }
 
     [TearDown]
-    public void Dispose() => _services.Dispose();
+    public void Dispose()
+    {
+        _heartbeat.Dispose();
+        _services.Dispose();
+    }
 
     [Test]
     public async Task OnDisconnected_WhenLeavingTheRoomFails_StillLeavesTheWorld_AndStopsRenewing()
