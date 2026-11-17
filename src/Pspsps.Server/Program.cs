@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Pspsps.Application;
 using Pspsps.Infrastructure;
 using Pspsps.Infrastructure.Persistence;
+using Pspsps.Server;
 using Pspsps.Server.Auth;
 using Pspsps.Server.Game;
 using Pspsps.Server.Hubs;
