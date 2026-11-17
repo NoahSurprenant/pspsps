@@ -103,7 +103,8 @@ export class RoomScene {
     let pond: AbstractMesh | undefined;
     if (room.pond) {
       pond = CreateDisc("pond", { radius: room.pond.radius, tessellation: 48 }, this.scene);
-      pond.rotation.x = Math.PI / 2;
+      // Turned to face up: facing down, only its back shows, which the outline pass paints in the outline colour.
+      pond.rotation.x = -Math.PI / 2;
       pond.position.set(room.pond.x, 0.02, room.pond.z);
       pond.material = flat(this.scene, "pond", "#5fb3d9");
       pond.renderOutline = true;
