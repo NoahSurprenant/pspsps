@@ -15,6 +15,13 @@ public sealed class DoorTests
     private const string Tab = "tom-tab";
 
     [Test]
+    public void DistanceTo_IsStraightAcrossTheFloor()
+    {
+        Assert.That(new Position(1, 2).DistanceTo(new Position(4, 6)), Is.EqualTo(5));
+        Assert.That(new Position(-1, -1).DistanceTo(new Position(-1, -1)), Is.Zero);
+    }
+
+    [Test]
     public void InReach_OnlyOnTheDoor()
     {
         Assert.Multiple(() =>
@@ -31,10 +38,10 @@ public sealed class DoorTests
     {
         var arrival = Out.Arrival;
 
-        var fromDoor = Distance(arrival, Out.Spot);
+        var fromDoor = arrival.DistanceTo(Out.Spot);
         Assert.That(fromDoor, Is.EqualTo(Out.Radius + Door.StepIn).Within(1e-9));
         Assert.That(Out.InReach(arrival), Is.False, "a cat coming in doesn't stand on the door");
-        Assert.That(Distance(arrival, new Position(0, 0)), Is.LessThan(Distance(Out.Spot, new Position(0, 0))), "inwards");
+        Assert.That(arrival.DistanceTo(new Position(0, 0)), Is.LessThan(Out.Spot.DistanceTo(new Position(0, 0))), "inwards");
     }
 
     [Test]
@@ -153,6 +160,4 @@ public sealed class DoorTests
             Assert.That(room.Doors.Select(d => d.Id), Is.Unique, room.Id);
         }
     }
-
-    private static double Distance(Position a, Position b) => Math.Sqrt(Math.Pow(a.X - b.X, 2) + Math.Pow(a.Z - b.Z, 2));
 }
