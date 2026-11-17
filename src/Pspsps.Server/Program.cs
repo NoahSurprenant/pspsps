@@ -46,6 +46,8 @@ try
     }
 
     builder.Services.AddSingleton<IRoomBroadcaster, HubRoomBroadcaster>();
+    // The words chat masks or refuses, from chat-filter/chat-filter.json, reread when it changes.
+    builder.AddChatFilter();
 
     builder.UseOrleans(silo =>
     {

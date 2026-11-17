@@ -10,7 +10,8 @@ namespace Pspsps.Server.Game;
 /// cats are in it (idle cats are still there), deactivated by the last one leaving.
 /// </summary>
 [KeepAlive]
-internal sealed class RoomGrain(IRoomBroadcaster broadcaster, TimeProvider time, GameMetrics metrics) : Grain, IRoomGrain
+internal sealed class RoomGrain(IRoomBroadcaster broadcaster, ChatFilters chatFilters, TimeProvider time, GameMetrics metrics)
+    : Grain, IRoomGrain
 {
     private string _key = "";
     private RoomState _state = null!;
@@ -70,7 +71,7 @@ internal sealed class RoomGrain(IRoomBroadcaster broadcaster, TimeProvider time,
 
     public async Task Say(Guid playerId, string text)
     {
-        var line = Rule(() => _state.Say(playerId, text, time.GetUtcNow()));
+        var line = Rule(() => _state.Say(playerId, text, chatFilters.Current, time.GetUtcNow()));
         await broadcaster.ChatSaid(_key, ChatView.From(line));
     }
 

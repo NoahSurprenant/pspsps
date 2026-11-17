@@ -48,6 +48,19 @@ healthChecks:
   # Managed memory above this reports Degraded on /health: about 75% of the server's memory limit.
   maxAllocatedMegabytes: 576
 
+# The chat filter's word lists: each list masks its words (starred out) or refuses the whole line. Empty: the image's
+# few placeholder words. The lists go in a ConfigMap mounted over the image's copy, which the server rereads when it
+# changes, so editing the ConfigMap changes the filter without restarting a pod.
+chatFilter:
+  lists: []
+  #  - action: Refuse
+  #    words: [some, words]
+  #  - action: Mask
+  #    words: [other, words]
+  # Or a ConfigMap of your own, with a chat-filter.json key in the format of
+  # src/Pspsps.Server/chat-filter/chat-filter.json. Takes the place of lists.
+  existingConfigMap: ""
+
 extraEnv: []
 
 server:

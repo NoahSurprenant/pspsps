@@ -1,0 +1,20 @@
+{
+  // The chat filter's word lists (src/Pspsps.Domain/Rooms/ChatFilter.cs). These few harmless words are placeholders,
+  // for development and the tests: a real deployment supplies its own lists, by mounting its own copy of this file
+  // over the chat-filter directory (the Helm chart's chatFilter values do this). The file is reread when it changes.
+  //
+  // Each list either masks its words (the line is said with them starred out) or refuses them (the line isn't said,
+  // and the player is told why). Spacing, punctuation, digits for letters and stretched letters are seen through.
+  "ChatFilter": {
+    "Lists": [
+      {
+        "Action": "Mask",
+        "Words": [ "darn", "heck" ]
+      },
+      {
+        "Action": "Refuse",
+        "Words": [ "woof" ]
+      }
+    ]
+  }
+}

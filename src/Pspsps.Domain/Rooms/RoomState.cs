@@ -77,8 +77,13 @@ public sealed class RoomState(RoomDefinition room)
         return position;
     }
 
-    public ChatLine Say(Guid playerId, string text, DateTimeOffset now)
+    /// <summary>
+    /// Says a line in the room, through <paramref name="filter"/>: words it masks are starred out, and a word it refuses
+    /// keeps the whole line out of the room.
+    /// </summary>
+    public ChatLine Say(Guid playerId, string text, ChatFilter filter, DateTimeOffset now)
     {
+        ArgumentNullException.ThrowIfNull(filter);
         Get(playerId);
         var trimmed = (text ?? "").Trim();
         if (trimmed.Length == 0)
@@ -91,7 +96,7 @@ public sealed class RoomState(RoomDefinition room)
             throw new DomainException($"Chat messages are at most {MaxChatLength} characters.");
         }
 
-        var line = new ChatLine(playerId, trimmed, now);
+        var line = new ChatLine(playerId, filter.Apply(trimmed), now);
         _chat.Enqueue(line);
         while (_chat.Count > ChatHistory)
         {

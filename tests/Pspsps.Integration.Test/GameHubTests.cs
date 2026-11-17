@@ -1,6 +1,7 @@
 using System.Threading.Channels;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Client;
+using Pspsps.Domain.Rooms;
 using Pspsps.Server.Game;
 using Pspsps.Server.Hubs;
 
@@ -39,6 +40,31 @@ public sealed class GameHubTests
 
         await felixHub.InvokeAsync<RoomSnapshot>("GoToRoom", "cafe");
         Assert.That(await tomSees.Next<Guid>("CatLeft", id => id == felix.Id), Is.EqualTo(felix.Id));
+    }
+
+    [Test]
+    public async Task FilteredWordsNeverReachTheRoom()
+    {
+        // The placeholder lists in src/Pspsps.Server/chat-filter/chat-filter.json: "darn" masked, "woof" refused.
+        var (_, tomHub) = await Game.ConnectGuestAsync();
+        var (felix, felixHub) = await Game.ConnectGuestAsync();
+        await using var _ = tomHub;
+        await using var __ = felixHub;
+        var tomSees = Record(tomHub);
+        await tomHub.InvokeAsync<RoomSnapshot>("EnterWorld", "calico");
+        await felixHub.InvokeAsync<RoomSnapshot>("EnterWorld", "calico");
+
+        await felixHub.InvokeAsync("Say", "oh d4rn it");
+        Assert.That((await tomSees.Next<ChatView>("ChatSaid", c => c.PlayerId == felix.Id)).Text, Is.EqualTo("oh **** it"));
+
+        var refused = Assert.ThrowsAsync<HubException>(() => felixHub.InvokeAsync("Say", "w o o f"));
+        Assert.That(refused!.Message, Does.Contain(ChatFilter.RefusedMessage));
+
+        // The refused line was never said: Felix's next line is the next one Tom hears, and the room kept only those two.
+        await felixHub.InvokeAsync("Say", "pspsps");
+        Assert.That((await tomSees.Next<ChatView>("ChatSaid", c => c.PlayerId == felix.Id)).Text, Is.EqualTo("pspsps"));
+        var room = await tomHub.InvokeAsync<RoomSnapshot>("GoToRoom", "town-square");
+        Assert.That(room.Chat.Where(c => c.PlayerId == felix.Id).Select(c => c.Text), Is.EqualTo(new[] { "oh **** it", "pspsps" }));
     }
 
     [Test]

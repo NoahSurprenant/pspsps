@@ -1,4 +1,5 @@
 {{- $fullname := include "pspsps.fullname" . -}}
+{{- $chatFilter := .Values.chatFilter.existingConfigMap | default (ternary (printf "%s-chat-filter" $fullname) "" (not (empty .Values.chatFilter.lists))) -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -87,6 +88,11 @@ spec:
             {{- end }}
             - name: DOTNET_SHUTDOWNTIMEOUTSECONDS
               value: "45"
+            {{- if $chatFilter }}
+            # A ConfigMap volume changes by swapping a symlink, which file events miss: poll the chat filter's file.
+            - name: DOTNET_USE_POLLING_FILE_WATCHER
+              value: "true"
+            {{- end }}
             - name: HealthChecks__MaxAllocatedMegabytes
               value: {{ .Values.healthChecks.maxAllocatedMegabytes | quote }}
             {{- with .Values.telemetry }}
@@ -137,9 +143,20 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+            {{- if $chatFilter }}
+            # Over the image's placeholder lists; no subPath, so changes to the ConfigMap reach the pod.
+            - name: chat-filter
+              mountPath: /app/chat-filter
+              readOnly: true
+            {{- end }}
       volumes:
         - name: tmp
           emptyDir: {}
+        {{- if $chatFilter }}
+        - name: chat-filter
+          configMap:
+            name: {{ $chatFilter }}
+        {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
