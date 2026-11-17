@@ -1,0 +1,127 @@
+{{- $b := .Values.backup -}}
+{{- if $b.enabled }}
+{{- if not .Values.postgres.enabled }}
+{{- fail "backup.enabled backs up the chart's PostgreSQL: it needs postgres.enabled" }}
+{{- end }}
+{{- if lt (int $b.keep) 1 }}
+{{- fail "backup.keep must be at least 1" }}
+{{- end }}
+{{- $p := .Values.postgres -}}
+{{- $name := printf "%s-backup" (include "pspsps.fullname" .) -}}
+{{- if not $b.persistence.existingClaim }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "pspsps.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backup
+  {{- with $b.persistence.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: {{ $b.persistence.size }}
+  {{- with $b.persistence.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+---
+{{- end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "pspsps.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backup
+data:
+  backup.sh: |
+    {{- .Files.Get "files/backup.sh" | nindent 4 }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "pspsps.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backup
+spec:
+  schedule: {{ $b.schedule | quote }}
+  {{- with $b.timeZone }}
+  timeZone: {{ . | quote }}
+  {{- end }}
+  # One dump at a time: two would race on the retention.
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: {{ $b.activeDeadlineSeconds }}
+      template:
+        metadata:
+          labels:
+            {{- include "pspsps.selectorLabels" (dict "root" . "component" "backup") | nindent 12 }}
+          annotations:
+            # A new script reaches the next run.
+            checksum/script: {{ .Files.Get "files/backup.sh" | sha256sum }}
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            # The alpine image's postgres user, as in the database's pod.
+            runAsUser: 70
+            runAsGroup: 70
+            fsGroup: 70
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: backup
+              # The database's own image, so pg_dump matches the server's version.
+              image: {{ include "pspsps.imageRef" $p.image }}
+              imagePullPolicy: {{ $p.image.pullPolicy }}
+              command: ["/bin/sh", "/scripts/backup.sh"]
+              env:
+                - name: PGHOST
+                  value: {{ include "pspsps.postgresHost" . | quote }}
+                - name: PGPORT
+                  value: "5432"
+                - name: PGUSER
+                  value: {{ $p.username | quote }}
+                - name: PGDATABASE
+                  value: {{ $p.database | quote }}
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.existingSecret }}
+                      key: POSTGRES_PASSWORD
+                - name: BACKUP_DIR
+                  value: /backups
+                - name: BACKUP_KEEP
+                  value: {{ int $b.keep | quote }}
+              resources:
+                {{- toYaml $b.resources | nindent 16 }}
+              securityContext:
+                {{- toYaml .Values.securityContext | nindent 16 }}
+              volumeMounts:
+                - name: backups
+                  mountPath: /backups
+                - name: scripts
+                  mountPath: /scripts
+                  readOnly: true
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: backups
+              persistentVolumeClaim:
+                claimName: {{ $b.persistence.existingClaim | default $name }}
+            - name: scripts
+              configMap:
+                name: {{ $name }}
+            - name: tmp
+              emptyDir: {}
+{{- end }}

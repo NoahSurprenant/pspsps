@@ -95,6 +95,33 @@ postgres:
       cpu: "1"
       memory: 512Mi
 
+# A scheduled pg_dump of the chart's PostgreSQL (needs postgres.enabled), in pg_dump's custom format, onto a volume.
+# Restoring one: docs/backups.md.
+backup:
+  enabled: false
+  # Cron syntax, in the controller's time zone unless timeZone is set (an IANA name, e.g. Europe/Paris).
+  schedule: "0 3 * * *"
+  timeZone: ""
+  # How many dumps to keep: each run deletes the oldest beyond this.
+  keep: 7
+  # A run still going after this many seconds is stopped (and counts as failed).
+  activeDeadlineSeconds: 3600
+  persistence:
+    # A PersistentVolumeClaim to write the dumps to instead of the chart's own (which is made only when this is
+    # empty). The pod runs as uid/gid 70 with fsGroup 70: the claim must be writable by them.
+    existingClaim: ""
+    size: 10Gi
+    storageClass: ""
+    # e.g. helm.sh/resource-policy: keep, so uninstalling the chart leaves the dumps.
+    annotations: {}
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
 # Used only with cluster.enabled: Orleans' membership table and the SignalR backplane. Orleans needs it durable, so
 # it writes an append-only file to its volume.
 redis:

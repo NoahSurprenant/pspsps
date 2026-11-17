@@ -57,6 +57,33 @@ jobs:
           helm template pspsps charts/pspsps --set cluster.enabled=true --set cluster.kubeApi.cidr=10.0.0.1/32
           --set ingressRoute.enabled=true --set ingressRoute.host=pspsps.example
           --set ingress.enabled=true --set ingress.host=pspsps.example > /dev/null
+      - run: helm lint charts/pspsps --set backup.enabled=true
+      - run: helm template pspsps charts/pspsps --set backup.enabled=true > /dev/null
+      - run: >-
+          helm template pspsps charts/pspsps --set backup.enabled=true --set backup.persistence.existingClaim=dumps
+          --set backup.timeZone=Etc/UTC > /dev/null
+
+  backup:
+    name: Backup and restore
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # The chart's backup script against PostgreSQL set up like the chart's, then the restores in docs/backups.md.
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: pspsps
+          POSTGRES_PASSWORD: backup
+          POSTGRES_DB: pspsps
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U pspsps -d pspsps" --health-interval 2s --health-timeout 5s --health-retries 30
+    steps:
+      - uses: actions/checkout@v7
+      - run: tests/chart/backup-test.sh
+        env:
+          PG_CONTAINER: ${{ job.services.postgres.id }}
+          PGPASSWORD: backup
 
   e2e:
     name: End-to-end (Playwright)
