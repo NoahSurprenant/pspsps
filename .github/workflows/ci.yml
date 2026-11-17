@@ -58,7 +58,6 @@ jobs:
           --set ingressRoute.enabled=true --set ingressRoute.host=pspsps.example
           --set ingress.enabled=true --set ingress.host=pspsps.example > /dev/null
       - run: helm lint charts/pspsps --set backup.enabled=true
-      - run: charts/pspsps/tests/backup-render-test.sh
       - run: >-
           helm template pspsps charts/pspsps --set backup.enabled=true --set backup.persistence.existingClaim=dumps
           --set backup.timeZone=Etc/UTC > /dev/null

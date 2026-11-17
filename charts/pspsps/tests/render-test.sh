@@ -35,6 +35,72 @@ for names in "pspsps pspsps" "cats game"; do
   done <<< "$commands"
 done
 
+# One document of a kind from a render.
+document() {
+  awk -v kind="$2" '
+    /^---/ { if (found) print doc; doc = ""; found = 0; next }
+    { doc = doc $0 "\n" }
+    $0 == "kind: " kind { found = 1 }
+    END { if (found) print doc }
+  ' <<< "$1"
+}
+
+# A pod's securityContext (the one with runAsNonRoot, not a container's), unindented.
+pod_security_context() {
+  awk '
+    BEGIN { base = -1 }
+    base >= 0 { match($0, /^ */); if (RLENGTH > base && $0 !~ /^ *$/) { print substr($0, base + 1); next } base = -1 }
+    /^ *securityContext:$/ { match($0, /^ */); start = RLENGTH; getline next_line
+      if (next_line ~ /runAsNonRoot/) { base = start; match(next_line, /^ */); print substr(next_line, base + 1) } }
+  ' <<< "$1"
+}
+
+backup() { helm template pspsps "$chart" --show-only templates/backup.yaml --set backup.enabled=true "$@"; }
+
+# Backups: off by default.
+if helm template pspsps "$chart" | grep -q 'component: backup'; then fail "backup objects render with backups off"; fi
+
+# The chart's backup claim outlives an uninstall unless told otherwise.
+pvc=$(document "$(backup)" PersistentVolumeClaim)
+[[ -n "$pvc" ]] || fail "no backup PersistentVolumeClaim"
+grep -q '^    helm.sh/resource-policy: keep$' <<< "$pvc" || fail "the backup PVC is not kept on uninstall"
+pvc=$(document "$(backup --set backup.persistence.keepOnUninstall=false)" PersistentVolumeClaim)
+[[ -n "$pvc" ]] || fail "no backup PersistentVolumeClaim with keepOnUninstall=false"
+if grep -q 'helm.sh/resource-policy' <<< "$pvc"; then fail "keepOnUninstall=false still keeps the backup PVC"; fi
+
+# An existing claim replaces the chart's own.
+existing=$(backup --set backup.persistence.existingClaim=dumps)
+[[ -z "$(document "$existing" PersistentVolumeClaim)" ]] || fail "existingClaim still makes a PVC"
+grep -q '^ *claimName: dumps$' <<< "$existing" || fail "existingClaim is not mounted"
+
+# Each run's pod mounts the ConfigMap as it is then: a checksum annotation only churns the CronJob.
+cronjob=$(document "$(backup)" CronJob)
+[[ -n "$cronjob" ]] || fail "no backup CronJob"
+if grep -q 'checksum/' <<< "$cronjob"; then fail "the backup CronJob has a checksum annotation"; fi
+
+# The backup pod runs as the database's pod does, and neither relabels its whole volume on every start.
+postgres_sc=$(pod_security_context "$(helm template pspsps "$chart" --show-only templates/postgres.yaml)")
+backup_sc=$(pod_security_context "$cronjob")
+grep -qx 'fsGroupChangePolicy: OnRootMismatch' <<< "$postgres_sc" || fail "PostgreSQL's pod has no fsGroupChangePolicy"
+[[ "$postgres_sc" == "$backup_sc" ]] || fail "the backup pod's securityContext isn't PostgreSQL's"
+
+# The backup pod is placed like the server.
+placed=$(backup -f /dev/stdin <<'YAML'
+nodeSelector: { disk: ssd }
+tolerations: [{ key: dedicated, operator: Exists, effect: NoSchedule }]
+affinity: { nodeAffinity: { requiredDuringSchedulingIgnoredDuringExecution: { nodeSelectorTerms: [
+  { matchExpressions: [{ key: zone, operator: In, values: [a] }] }] } } }
+YAML
+)
+grep -qx '            disk: ssd' <<< "$placed" || fail "the backup pod ignores nodeSelector"
+grep -q '^ *- effect: NoSchedule$' <<< "$placed" || fail "the backup pod ignores tolerations"
+grep -qx '            nodeAffinity:' <<< "$placed" || fail "the backup pod ignores affinity"
+
+# Settings the chart refuses: keep 1 leaves no dump while a run deletes the previous one.
+for bad in backup.keep=1 backup.keep=0 backup.activeDeadlineSeconds=0 postgres.enabled=false; do
+  if backup --set "$bad" > /dev/null 2>&1; then fail "rendered with backups on and $bad"; fi
+done
+
 if (( failures > 0 )); then
   exit 1
 fi
