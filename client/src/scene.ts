@@ -14,6 +14,7 @@ import { CreateGround } from "@babylonjs/core/Meshes/Builders/groundBuilder";
 import { CreatePlane } from "@babylonjs/core/Meshes/Builders/planeBuilder";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Node as BabylonNode } from "@babylonjs/core/node";
+import type { PickingInfo } from "@babylonjs/core/Collisions/pickingInfo";
 import { Scene } from "@babylonjs/core/scene";
 // For its side effects: picking what a pointer touches.
 import "@babylonjs/core/Culling/ray";
@@ -22,9 +23,12 @@ import { Rectangle } from "@babylonjs/gui/2D/controls/rectangle";
 import { TextBlock } from "@babylonjs/gui/2D/controls/textBlock";
 import { cameraPitch, cameraRadius, fieldOfView } from "./view";
 import { animationFor, Cat, facing, loadCatModel, MeowClip, type CatAnimation, type Outfit } from "./cat";
+import { hasDoorway } from "./doors";
 import { lazily } from "./lazy";
 import { lookOf } from "./looks";
-import { floorPixelsPerMetre, streetTile, textureSize, wallPixelsPerMetre, type Brush, type Floorplan } from "./paint";
+import {
+  floorPixelsPerMetre, powerOfTwo, streetTile, textureSize, wallPixelsPerMetre, type Brush, type Floorplan,
+} from "./paint";
 import { besideProp, buildParts, ink, propParts, type Part } from "./props";
 import { CatLook } from "./look";
 import catModelUrl from "./models/cat.glb?url";
@@ -85,6 +89,8 @@ export class RoomScene {
   private pondClicked: () => void = () => {};
   private doorClicked: (door: DoorView) => void = () => {};
   private catClicked: (playerId: string) => void = () => {};
+  // What a tap does, given everything along its ray (multiPick): set for the room showing.
+  private tap: (picks: readonly PickingInfo[]) => void = () => {};
   /** The player's own cat: it never takes the pointer, so a tap just behind it still walks or fishes. */
   playerId: string | undefined;
 
@@ -131,7 +137,6 @@ export class RoomScene {
     this.cats.clear();
     this.scene.dispose();
     this.scene = new Scene(this.engine);
-    this.scene.clearColor = sky;
     this.gui = AdvancedDynamicTexture.CreateFullscreenUI("ui", true, this.scene);
     const scene = this.scene;
     this.model = this.loadModel(scene)
@@ -201,15 +206,21 @@ export class RoomScene {
     if (look.paintWall) {
       const front = CreatePlane("back-wall-front", { width: room.width, height: wallHeight }, this.scene);
       front.position.set(0, wallHeight / 2, room.depth / 2 - 0.01);
+      // Painted round the doorways in it (the doors by the wall: the ones drawDoor draws a doorway for).
+      const doorways = room.doors.filter((door) => hasDoorway(door, room.depth));
       front.material = painted(this.scene, "back-wall-front",
-        `${room.roomId}/wall/${room.width}/${JSON.stringify(room.doors)}`, textureSize(room.width, wallHeight, wallPixelsPerMetre),
-        (brush, scale) => look.paintWall?.(brush, room.width, wallHeight, scale, room.doors));
+        `${room.roomId}/wall/${room.width}/${JSON.stringify(doorways)}`, textureSize(room.width, wallHeight, wallPixelsPerMetre),
+        (brush, scale) => look.paintWall?.(brush, room.width, wallHeight, scale, doorways));
       front.isPickable = false;
     }
-    // The wall, the props and the backdrop: one mesh, drawn in one go. Cats walk through props; a tap on one walks the
-    // cat beside it (a tap on the wall or the backdrop does nothing).
+    // The wall and the props: one mesh, drawn in one go. Cats walk through props; a tap on one walks the cat beside it
+    // (a tap on the wall does nothing). The backdrop is another, which a tap never tests: it does nothing there.
     const props = room.props ?? [];
-    const decor = buildParts(this.scene, "decor", [wall, ...props.flatMap(propParts), ...look.backdrop(plan, wallHeight)]);
+    const decor = buildParts(this.scene, "decor", [wall, ...props.flatMap(propParts)]);
+    const backdrop = buildParts(this.scene, "backdrop", look.backdrop(plan, wallHeight));
+    if (backdrop) {
+      backdrop.isPickable = false;
+    }
 
     // The pond: a flat disc of water just above the floor. Clicking it fishes, rather than walking into it.
     let pond: AbstractMesh | undefined;
@@ -233,24 +244,29 @@ export class RoomScene {
       }
     }
 
-    this.scene.onPointerDown = (_event, pick) => {
-      const catId = pick.hit ? catPlayerIdOf(pick.pickedMesh) : undefined;
-      const door = pick.hit && pick.pickedMesh ? doors.get(pick.pickedMesh) : undefined;
+    // A tap goes to the first thing along its ray in this order, not to the nearest: another cat, a door, the pond, a
+    // prop (beside it), the floor. Props are tall and cats walk through them: a cat among a table's chairs, or a door
+    // mat showing round a tree, still takes the tap.
+    this.tap = (picks) => {
+      const hits = picks.filter((pick) => pick.hit && pick.pickedMesh).sort((a, b) => a.distance - b.distance);
+      const catId = hits.map((pick) => catPlayerIdOf(pick.pickedMesh)).find((id) => id !== undefined);
+      const door = hits.map((pick) => (pick.pickedMesh ? doors.get(pick.pickedMesh) : undefined)).find((d) => d);
+      const beside = hits.filter((pick) => decor && pick.pickedMesh === decor && pick.pickedPoint)
+        .map((pick) => besideProp(props, room, pick.pickedPoint?.x ?? 0, pick.pickedPoint?.z ?? 0)).find((spot) => spot);
+      const ground = hits.find((pick) => pick.pickedMesh === floor)?.pickedPoint;
       if (catId !== undefined) {
         this.catClicked(catId);
       } else if (door) {
         this.doorClicked(door);
-      } else if (pick.hit && pond && pick.pickedMesh === pond) {
+      } else if (pond && hits.some((pick) => pick.pickedMesh === pond)) {
         this.pondClicked();
-      } else if (pick.hit && pick.pickedMesh === floor && pick.pickedPoint) {
-        this.floorClicked(pick.pickedPoint.x, pick.pickedPoint.z);
-      } else if (pick.hit && decor && pick.pickedMesh === decor && pick.pickedPoint) {
-        const spot = besideProp(props, room, pick.pickedPoint.x, pick.pickedPoint.z);
-        if (spot) {
-          this.floorClicked(spot.x, spot.z);
-        }
+      } else if (beside) {
+        this.floorClicked(beside.x, beside.z);
+      } else if (ground) {
+        this.floorClicked(ground.x, ground.z);
       }
     };
+    this.scene.onPointerDown = () => this.tap(this.scene.multiPick(this.scene.pointerX, this.scene.pointerY) ?? []);
     this.scene.onBeforeRenderObservable.add(() => this.step(this.engine.getDeltaTime() / 1000));
 
     for (const cat of room.cats) {
@@ -453,7 +469,7 @@ export class RoomScene {
 
     // Only a door near the back wall has a doorway in it; one further out is just its mat.
     const wall = depth / 2;
-    if (wall - door.z > 2) {
+    if (!hasDoorway(door, depth)) {
       return [mat];
     }
     // Clear of the wall's own outline, which is drawn a little in front of it.
@@ -573,8 +589,12 @@ function painted(scene: Scene, name: string, key: string, size: { width: number;
   const sized = `${key}@${size.width}x${size.height}`;
   let canvas = paintings.get(sized);
   if (!canvas) {
-    canvas = scene.getEngine().createCanvas(size.width, size.height);
-    paint(canvas.getContext("2d") as unknown as Brush, size.scale);
+    // Sides of powers of two (for WebGL1's mipmaps), painted stretched to fill them: the mesh shows it unstretched.
+    const [width, height] = [powerOfTwo(size.width), powerOfTwo(size.height)];
+    canvas = scene.getEngine().createCanvas(width, height);
+    const brush = canvas.getContext("2d") as unknown as Brush;
+    brush.scale(width / size.width, height / size.height);
+    paint(brush, size.scale);
     paintings.set(sized, canvas);
   }
   // The texture draws from the kept canvas, and leaves it be when the room's scene is disposed.

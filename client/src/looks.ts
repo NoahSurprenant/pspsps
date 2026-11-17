@@ -17,7 +17,8 @@ export interface RoomLook {
   /** The ground round the floor, if any (a town's street): its colour, and a painting that repeats every <streetTile> metres. */
   ground?: { colour: string; paint?(brush: Brush, scale: number): void };
   paintFloor?(brush: Brush, plan: Floorplan, scale: number): void;
-  paintWall?(brush: Brush, width: number, height: number, scale: number, doors: readonly DoorView[]): void;
+  /** Paints the back wall's front, round <doorways>: the doors with a doorway in the wall (doors.ts, hasDoorway). */
+  paintWall?(brush: Brush, width: number, height: number, scale: number, doorways: readonly DoorView[]): void;
   /** What stands behind the back wall (and round the room), in the room's own space. */
   backdrop(plan: Floorplan, wallHeight: number): Part[];
 }

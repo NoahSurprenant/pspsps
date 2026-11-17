@@ -1,5 +1,6 @@
 import { NullEngine, Scene, VertexBuffer } from "@babylonjs/core";
 import { describe, expect, it } from "vitest";
+import serverProps from "../../src/Pspsps.Domain/Rooms/Prop.cs?raw";
 import { besideProp, buildParts, outline, propKinds, propParts, type Part } from "./props";
 import type { PropView } from "./types";
 
@@ -15,10 +16,13 @@ function verticesOf(prop: PropView): { x: number; y: number; z: number }[] {
 }
 
 describe("props", () => {
-  // The kinds the server places (src/Pspsps.Domain/Rooms/Prop.cs, PropKinds.All): each must have a drawing.
-  it("draws every kind of prop the server places", () => {
-    expect(propKinds).toEqual(expect.arrayContaining(
-      ["tree", "bench", "lamp", "flower-bed", "cafe-table", "counter", "plant", "cat-tree"]));
+  // The kinds the server places, read from its source (src/Pspsps.Domain/Rooms/Prop.cs, PropKinds): a kind added there
+  // and not drawn here would be missing from the room without a word.
+  it("draws exactly the kinds of prop the server places", () => {
+    const kinds = [...serverProps.matchAll(/public const string \w+ = "([^"]+)";/g)].map((m) => m[1]);
+
+    expect(kinds.length).toBeGreaterThan(0);
+    expect([...propKinds].sort()).toEqual(kinds.sort());
   });
 
   // The server keeps each prop's circle clear of the doors, the pond, the spawn point and the walks between them

@@ -30,7 +30,7 @@ export type Part = (
 ) & { at: [number, number, number]; turn?: [number, number, number]; colour: string; outlined?: boolean };
 
 // The props' colours. None is the pond's blue (#5fb3d9), a door mat's red (#c8553d) or a cat's eye yellow (#ffc85a): the
-// end-to-end tests look for those (palette.test.ts keeps it so).
+// end-to-end tests look for those (paint.test.ts keeps it so, the lighter tops included).
 export const palette = {
   wood: "#c98f5a",
   darkWood: "#7a5a44",
@@ -269,7 +269,9 @@ function shapeOf(part: Part, grow: number): VertexData {
     case "ball": {
       const radius = part.diameter / 2 + grow;
       return CreateIcoSphereVertexData({
-        radiusX: radius, radiusZ: radius, radiusY: (part.height ?? part.diameter) / 2 + grow, subdivisions: 2, flat: true,
+        // A small ball (a flower) needs fewer facets to look round: fewer triangles to draw, and for a tap to test.
+        radiusX: radius, radiusZ: radius, radiusY: (part.height ?? part.diameter) / 2 + grow, subdivisions: part.diameter < 0.5 ? 1 : 2,
+        flat: true,
       });
     }
   }

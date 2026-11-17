@@ -201,11 +201,14 @@ function steppingStones(brush: Brush, at: (x: number, z: number) => [number, num
   }
 }
 
+/** How wide the striped awning over a door in the square's wall is, in metres. */
+const doorAwning = 2.4;
+
 /**
- * How far a shop window's middle keeps from a door's: half its awning (0.95 m) and half the door's frame (0.95 m), so
- * neither runs into the other.
+ * How far a shop window's middle keeps from a door's: half its own awning (0.95 m) and half the door's (1.2 m), which
+ * hang at the same height, so neither runs into the other (nor the door's frame, narrower than its awning).
  */
-const windowClearOfDoor = 1.9;
+const windowClearOfDoor = 0.95 + doorAwning / 2;
 
 /** The square's back wall: the ground floors of the houses behind it, shopfronts with striped awnings. */
 export function paintTownSquareWall(brush: Brush, width: number, height: number, scale: number, doors: readonly DoorView[]): void {
@@ -230,7 +233,7 @@ export function paintTownSquareWall(brush: Brush, width: number, height: number,
     }
     // An awning over each door in this house.
     for (const door of doors.filter((d) => d.x > house.from && d.x < house.to)) {
-      awning(brush, x(door.x), y(3.15), 2.4 * scale, scale, palette.mustard);
+      awning(brush, x(door.x), y(3.15), doorAwning * scale, scale, palette.mustard);
     }
   }
   // A stone plinth along the bottom, and the line between houses.
@@ -352,7 +355,7 @@ export function paintCafeWall(brush: Brush, width: number, height: number, scale
   brush.fillRect(0, 0, width * scale, height * scale);
   brush.fillStyle = paints.cafeStripe;
   for (let m = -width / 2; m < width / 2; m += 0.6) {
-    brush.fillRect(x(m), 0, 0.25 * scale, height * scale);
+    brush.fillRect(x(m), 0, Math.min(0.25, width / 2 - m) * scale, height * scale);
   }
   // Panelling, waist high.
   brush.fillStyle = palette.wood;
@@ -365,53 +368,67 @@ export function paintCafeWall(brush: Brush, width: number, height: number, scale
   brush.fillStyle = palette.darkWood;
   brush.fillRect(0, y(1.18), width * scale, 0.1 * scale);
 
-  const clear = (from: number, to: number) => !doors.some((door) => door.x + 1 > from && door.x - 1 < to);
-  // A window onto the street.
-  if (clear(-6.6, -5.2)) {
-    frame(brush, x(-6.6), y(3.3), 1.4 * scale, 1.8 * scale, scale, paints.windowSky);
+  // What hangs on the wall, each placed from the wall's ends or its middle, and painted only where it fits: on the wall,
+  // clear of the doorways and of what is already up.
+  const taken: [number, number][] = [];
+  const fits = (from: number, to: number) => {
+    const ok = from >= -width / 2 + 0.1 && to <= width / 2 - 0.1
+      && !doors.some((door) => door.x + 1 > from && door.x - 1 < to)
+      && !taken.some(([a, b]) => b > from && a < to);
+    if (ok) {
+      taken.push([from, to]);
+    }
+    return ok;
+  };
+  // A window onto the street, near the left end.
+  const window = -width / 2 + 0.4;
+  if (fits(window, window + 1.4)) {
+    frame(brush, x(window), y(3.3), 1.4 * scale, 1.8 * scale, scale, paints.windowSky);
     brush.fillStyle = palette.lightLeaf;
-    brush.fillRect(x(-6.6), y(1.95), 1.4 * scale, 0.45 * scale);
+    brush.fillRect(x(window), y(1.95), 1.4 * scale, 0.45 * scale);
     brush.strokeStyle = ink;
     brush.lineWidth = Math.max(2, scale * 0.05);
     brush.beginPath();
-    brush.moveTo(x(-5.9), y(3.3));
-    brush.lineTo(x(-5.9), y(1.5));
-    brush.moveTo(x(-6.6), y(2.4));
-    brush.lineTo(x(-5.2), y(2.4));
+    brush.moveTo(x(window + 0.7), y(3.3));
+    brush.lineTo(x(window + 0.7), y(1.5));
+    brush.moveTo(x(window), y(2.4));
+    brush.lineTo(x(window + 1.4), y(2.4));
     brush.stroke();
   }
-  // The menu: a chalkboard with a fish and a cup, and lines of chalk writing.
-  if (clear(-1.8, 0.6)) {
-    frame(brush, x(-1.8), y(3.4), 2.4 * scale, 1.75 * scale, scale, paints.chalkboard);
+  // The menu, a little left of the middle: a chalkboard with a fish, and lines of chalk writing.
+  const menu = -1.8;
+  if (fits(menu, menu + 2.4)) {
+    frame(brush, x(menu), y(3.4), 2.4 * scale, 1.75 * scale, scale, paints.chalkboard);
     brush.strokeStyle = paints.chalk;
     brush.fillStyle = paints.chalk;
     brush.lineWidth = Math.max(1.5, scale * 0.03);
     brush.font = `bold ${Math.round(0.3 * scale)}px sans-serif`;
     brush.textAlign = "center";
-    brush.fillText("Menu", x(-0.6), y(3.0));
+    brush.fillText("Menu", x(menu + 1.2), y(3.0));
     for (let line = 0; line < 3; line++) {
       brush.beginPath();
-      brush.moveTo(x(-1.5), y(2.6 - line * 0.32));
-      brush.lineTo(x(-0.35 - (line % 2) * 0.3), y(2.6 - line * 0.32));
+      brush.moveTo(x(menu + 0.3), y(2.6 - line * 0.32));
+      brush.lineTo(x(menu + 1.45 - (line % 2) * 0.3), y(2.6 - line * 0.32));
       brush.stroke();
     }
     // A fish.
     brush.beginPath();
-    brush.ellipse(x(0.05), y(2.35), 0.28 * scale, 0.14 * scale, 0, 0, Math.PI * 2);
-    brush.moveTo(x(0.33), y(2.35));
-    brush.lineTo(x(0.48), y(2.47));
-    brush.lineTo(x(0.48), y(2.23));
+    brush.ellipse(x(menu + 1.85), y(2.35), 0.28 * scale, 0.14 * scale, 0, 0, Math.PI * 2);
+    brush.moveTo(x(menu + 2.13), y(2.35));
+    brush.lineTo(x(menu + 2.28), y(2.47));
+    brush.lineTo(x(menu + 2.28), y(2.23));
     brush.closePath();
     brush.stroke();
   }
-  // Shelves of cups and jars above the counter.
-  if (clear(2.6, 6.4)) {
+  // Shelves of cups and jars near the right end, over the counter.
+  const shelves = width / 2 - 4.4;
+  if (fits(shelves, shelves + 3.8)) {
     const cups = [palette.white, palette.teal, palette.mustard, palette.rose, palette.sage];
     for (const [shelf, count] of [[2.3, 6], [3.1, 5]] as const) {
       brush.fillStyle = palette.darkWood;
-      brush.fillRect(x(2.7), y(shelf), 3.6 * scale, 0.08 * scale);
+      brush.fillRect(x(shelves + 0.1), y(shelf), 3.6 * scale, 0.08 * scale);
       for (let i = 0; i < count; i++) {
-        const left = 2.9 + i * (3.2 / count);
+        const left = shelves + 0.3 + i * (3.2 / count);
         brush.fillStyle = cups[(i + count) % cups.length] ?? palette.white;
         brush.fillRect(x(left), y(shelf + 0.32), 0.28 * scale, 0.32 * scale);
         brush.strokeStyle = ink;
@@ -420,12 +437,13 @@ export function paintCafeWall(brush: Brush, width: number, height: number, scale
       }
     }
   }
-  // A framed picture of a fish.
-  if (clear(1.2, 2.2)) {
-    frame(brush, x(1.2), y(3.5), 1.0 * scale, 0.8 * scale, scale, paints.windowSky);
+  // A framed picture of a fish, right of the middle.
+  const picture = 1.2;
+  if (fits(picture, picture + 1)) {
+    frame(brush, x(picture), y(3.5), 1.0 * scale, 0.8 * scale, scale, paints.windowSky);
     brush.fillStyle = palette.mustard;
     brush.beginPath();
-    brush.ellipse(x(1.65), y(3.1), 0.25 * scale, 0.13 * scale, 0, 0, Math.PI * 2);
+    brush.ellipse(x(picture + 0.45), y(3.1), 0.25 * scale, 0.13 * scale, 0, 0, Math.PI * 2);
     brush.fill();
   }
   // The line under the ceiling.
@@ -469,4 +487,12 @@ export function paintStreet(brush: Brush, scale: number): void {
       brush.fill();
     }
   }
+}
+
+/**
+ * The power of two nearest <pixels> (up to the largest texture): the sides of a painted canvas. WebGL1 can't build
+ * mipmaps for a texture whose sides aren't powers of two, and samples it black.
+ */
+export function powerOfTwo(pixels: number): number {
+  return Math.min(largestTexture, 2 ** Math.max(0, Math.round(Math.log2(pixels))));
 }

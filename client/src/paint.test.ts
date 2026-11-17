@@ -84,11 +84,11 @@ describe("the painters", () => {
     expect(circles.map((c) => c.args[2])).toContain((2.5 + 0.6) * 10);
   });
 
-  // A shop window's awning reaches 0.95 m either side of its middle, and so does a door's frame: a window nearer a door
-  // than both together would run into it.
-  it("paints no shop window into a door's frame", () => {
-    // The pink house's second window is at x = 1.125: a door 1.7 m from it.
-    const door = { id: "cafe", x: 2.825, z: 7, radius: 0.8, toRoomId: "cafe", toRoomName: "Cat Café" };
+  // A shop window's awning reaches 0.95 m either side of its middle, and a door's awning 1.2 m either side of the door's,
+  // at the same height: a window nearer a door than both together would run into it.
+  it("paints no shop window into a door's awning", () => {
+    // The pink house's second window is at x = 1.125: a door 2 m from it.
+    const door = { id: "cafe", x: 3.125, z: 7, radius: 0.8, toRoomId: "cafe", toRoomName: "Cat Café" };
     const { brush, calls } = recordingBrush();
     paintTownSquareWall(brush, 24, 4, 10, [door]);
 
@@ -96,7 +96,21 @@ describe("the painters", () => {
       .map((c) => (Number(c.args[0]) + Number(c.args[2]) / 2) / 10 - 12);
     expect(windows.length).toBeGreaterThan(4);
     for (const middle of windows) {
-      expect(Math.abs(middle - door.x), `the window at ${middle}`).toBeGreaterThanOrEqual(1.9);
+      expect(Math.abs(middle - door.x), `the window at ${middle}`).toBeGreaterThanOrEqual(0.95 + 1.2);
+    }
+  });
+
+  // The café's wall is laid out from its width: a narrower café still has everything on its wall, and nothing off it.
+  it.each([14, 9, 6])("paints the café's wall %s m wide with nothing off its edges", (width) => {
+    const { brush, calls } = recordingBrush();
+    paintCafeWall(brush, width, 4, 10, []);
+
+    const rects = calls.filter((c) => c.name === "fillRect" || c.name === "strokeRect");
+    expect(rects.length).toBeGreaterThan(10);
+    for (const { args } of rects) {
+      const [x, , w] = args.map(Number);
+      expect(x, `${args.join(", ")}`).toBeGreaterThanOrEqual(0);
+      expect((x ?? 0) + (w ?? 0), `${args.join(", ")}`).toBeLessThanOrEqual(width * 10 + 1e-9);
     }
   });
 

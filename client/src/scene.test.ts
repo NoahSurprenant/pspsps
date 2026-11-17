@@ -1,5 +1,5 @@
 import type { AssetContainer } from "@babylonjs/core/assetContainer";
-import { NullEngine, PointerEventTypes, Scene, StandardMaterial, TransformNode, Vector3, type IPointerEvent, type PickingInfo } from "@babylonjs/core";
+import { NullEngine, Scene, StandardMaterial, TransformNode, Vector3, type PickingInfo } from "@babylonjs/core";
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { loadCatModel } from "./cat";
@@ -128,9 +128,9 @@ describe("RoomScene", () => {
     expect(() => view.show({ ...room, props: null })).not.toThrow();
   });
 
-  // Props are decoration: drawn together in one go, and a tap on one walks the cat beside it (props, the pond and the
-  // doors are kept apart, so it never takes a tap meant for them).
-  it("draws the room's props and backdrop as one mesh that takes taps, and keeps the pond and mats their colours", () => {
+  // Props are decoration: the wall and the props are one mesh, which a tap on a prop walks the cat beside, and the
+  // backdrop (which a tap does nothing on) another, never ray-tested: two draw calls.
+  it("draws the wall and props as one mesh that takes taps, the backdrop as one that doesn't, and keeps the pond and mats their colours", () => {
     const view = new RoomScene(new NullEngine(), () => new Promise<AssetContainer>(() => {}));
     view.show({
       ...room,
@@ -145,8 +145,9 @@ describe("RoomScene", () => {
 
     const scene = (view as unknown as { scene: Scene }).scene;
     const mesh = (name: string) => scene.getMeshByName(name);
-    expect(scene.meshes.filter((m) => m.name === "decor")).toHaveLength(1);
+    expect(scene.meshes.filter((m) => m.name === "decor" || m.name === "backdrop")).toHaveLength(2);
     expect(mesh("decor")?.isPickable).toBe(true);
+    expect(mesh("backdrop")?.isPickable).toBe(false);
     expect(mesh("floor")?.isPickable).toBe(true);
     expect(mesh("pond")?.isPickable).toBe(true);
     expect(mesh("door-cafe-mat")?.isPickable).toBe(true);
@@ -155,26 +156,108 @@ describe("RoomScene", () => {
     expect(colour("door-cafe-mat")).toBe("#C8553D");
   });
 
-  it("walks the cat beside a prop tapped, and nowhere for a tap on the wall or the backdrop", () => {
-    const view = new RoomScene(new NullEngine(), () => new Promise<AssetContainer>(() => {}));
-    const walks: [number, number][] = [];
-    view.onFloorClicked((x, z) => walks.push([x, z]));
-    view.show({ ...room, props: [{ kind: "tree", x: 6, z: -3, radius: 1, facing: 0 }] });
-    const scene = (view as unknown as { scene: Scene }).scene;
-    const tap = (x: number, y: number, z: number) => scene.onPointerDown?.(
-      {} as IPointerEvent,
-      { hit: true, pickedMesh: scene.getMeshByName("decor"), pickedPoint: new Vector3(x, y, z) } as PickingInfo,
-      PointerEventTypes.POINTERDOWN);
+  describe("a tap", () => {
+    // Everything a tap's ray goes through, nearest first, as the scene's multiPick finds them.
+    function setUp() {
+      const view = new RoomScene(new NullEngine(), () => new Promise<AssetContainer>(() => {}));
+      const heard: string[] = [];
+      view.onFloorClicked((x, z) => heard.push(`walk ${x.toFixed(2)} ${z.toFixed(2)}`));
+      view.onDoorClicked((door) => heard.push(`door ${door.id}`));
+      view.onCatClicked((id) => heard.push(`cat ${id}`));
+      view.onPondClicked(() => heard.push("pond"));
+      view.show({
+        ...room,
+        pond: { x: -5, z: -2, radius: 2 },
+        doors: [{ id: "cafe", x: 6, z: 5, radius: 0.8, toRoomId: "cafe", toRoomName: "Cat Café" }],
+        props: [{ kind: "tree", x: 6, z: 2, radius: 1, facing: 0 }, { kind: "cafe-table", x: -1, z: -3, radius: 1.2, facing: 0 }],
+      });
+      view.place({ playerId: "felix", displayName: "Felix", furColor: "Black", x: -1, z: -3, pose: null, hat: null, collar: null });
+      const scene = (view as unknown as { scene: Scene }).scene;
+      const hit = (name: string, x: number, y: number, z: number): PickingInfo =>
+        ({ hit: true, pickedMesh: scene.getMeshByName(name), pickedPoint: new Vector3(x, y, z) }) as PickingInfo;
+      const tap = (...hits: PickingInfo[]) =>
+        (view as unknown as { tap(picks: PickingInfo[]): void }).tap(hits.map((h, i) => Object.assign(h, { distance: i + 1 })));
+      return { heard, hit, tap };
+    }
 
-    tap(6.5, 2.5, -3);
-    tap(0, 2, 6.2);
+    // A tree between the camera and the door: the door mat still shows round it, and a tap that reaches it goes through.
+    it("goes through a door behind a prop", () => {
+      const { heard, hit, tap } = setUp();
 
-    expect(walks).toHaveLength(1);
-    const [[x, z] = [0, 0]] = walks;
-    expect(x).toBeGreaterThan(7);
-    expect(z).toBeCloseTo(-3);
+      tap(hit("decor", 6, 3, 2.5), hit("door-cafe-mat", 6, 0.04, 5), hit("floor", 6, 0, 5));
+
+      expect(heard).toEqual(["door cafe"]);
+    });
+
+    // Cats walk through props: a cat sitting among a table's chairs still opens its card.
+    it("opens the card of a cat at a prop", () => {
+      const { heard, hit, tap } = setUp();
+
+      tap(hit("decor", -1, 0.7, -3.3), hit("anchor-felix", -1, 0.5, -3), hit("floor", -1, 0, -2.8));
+
+      expect(heard).toEqual(["cat felix"]);
+    });
+
+    it("on a prop's top walks the cat beside the prop, not to the floor behind it", () => {
+      const { heard, hit, tap } = setUp();
+
+      tap(hit("decor", 6.5, 3, 2), hit("floor", 6.5, 0, 4));
+
+      expect(heard).toEqual(["walk 7.40 2.00"]);
+    });
+
+    it("on the wall or the backdrop does nothing", () => {
+      const { heard, hit, tap } = setUp();
+
+      tap(hit("decor", 0, 2, 6));
+
+      expect(heard).toEqual([]);
+    });
+
+    it("on the floor walks there, and on the pond fishes", () => {
+      const { heard, hit, tap } = setUp();
+
+      tap(hit("floor", 2, 0, -1));
+      tap(hit("pond", -5, 0.04, -2), hit("floor", -5, 0, -2));
+
+      expect(heard).toEqual(["walk 2.00 -1.00", "pond"]);
+    });
   });
 
+
+  // WebGL1 can't build mipmaps for a texture whose sides aren't powers of two (it samples black instead).
+  it("paints every surface onto a canvas whose sides are powers of two", () => {
+    const engine = new NullEngine();
+    const canvases = vi.spyOn(engine, "createCanvas");
+    const view = new RoomScene(engine, () => new Promise<AssetContainer>(() => {}));
+    canvases.mockClear();
+    // Sizes no other test paints, so nothing is kept from before.
+    view.show({ ...room, roomId: "town-square", width: 23, depth: 15 });
+    view.show({ ...room, roomId: "cafe", width: 13, depth: 9 });
+
+    const sizes = canvases.mock.calls.filter(([width, height]) => width > 1 || height > 1);
+    expect(sizes.length).toBeGreaterThanOrEqual(4);
+    const powerOfTwo = (n: number) => Number.isInteger(Math.log2(n));
+    for (const [width, height] of sizes) {
+      expect(powerOfTwo(width) && powerOfTwo(height), `${width}x${height}`).toBe(true);
+    }
+  });
+
+  // Only a door by the back wall has a doorway in it, so only those doors change how the wall is painted.
+  it("paints the wall round the doorways it draws, not round doors out on the floor", () => {
+    const look = lookOf("town-square");
+    const paintWall = vi.spyOn(look, "paintWall");
+    try {
+      const view = new RoomScene(new NullEngine(), () => new Promise<AssetContainer>(() => {}));
+      const byTheWall = { id: "cafe", x: 6, z: 7, radius: 0.8, toRoomId: "cafe", toRoomName: "Cat Café" };
+      const outFront = { id: "park", x: -6, z: -7, radius: 0.8, toRoomId: "park", toRoomName: "Park" };
+      view.show({ ...room, roomId: "town-square", width: 21, depth: 16, doors: [byTheWall, outFront] });
+
+      expect(paintWall).toHaveBeenCalledWith(expect.anything(), 21, 4, expect.any(Number), [byTheWall]);
+    } finally {
+      paintWall.mockRestore();
+    }
+  });
   // The paintings are the same every time (seeded), so a room seen again reuses them rather than painting them anew.
   it("paints a room's floor, wall and street once, however often it shows", () => {
     const look = lookOf("town-square");
