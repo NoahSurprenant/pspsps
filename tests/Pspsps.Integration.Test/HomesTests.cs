@@ -235,6 +235,26 @@ public sealed class HomesTests
         Assert.That(refused!.Message, Does.Contain("That home isn't open to visitors right now."));
     }
 
+    [Test]
+    public async Task AHomeAlreadyOpen_IsCalledAfterItsOwnersNameAsItIsNow()
+    {
+        var (tom, tomHub) = await Game.ConnectGuestAsync();
+        var (felix, felixHub) = await Game.ConnectGuestAsync();
+        await using var _ = tomHub;
+        await using var __ = felixHub;
+        await BefriendAsync(tom.Id, felix.Id);
+        await tomHub.InvokeAsync<RoomSnapshot>("EnterWorld", "tabby");
+        await tomHub.InvokeAsync<RoomSnapshot>("GoHome");
+        await felixHub.InvokeAsync<RoomSnapshot>("EnterWorld", "tabby");
+
+        // A change told to the home, as the owner is called now (renamed since it opened).
+        var grains = Game.Services.GetRequiredService<IGrainFactory>();
+        await grains.GetGrain<IRoomGrain>(RoomKey.ForHome(tom.Id)).Furnish(new HomeView(tom.Id, "Tommy", "Friends", [], 1));
+        var there = await felixHub.InvokeAsync<RoomSnapshot>("VisitHome", tom.Id);
+
+        Assert.That(there.RoomName, Is.EqualTo("Tommy's home"));
+    }
+
     // The message the hub sends when a cat is sent out of a home.
     private static TaskCompletionSource<string> SentOut(HubConnection hub)
     {

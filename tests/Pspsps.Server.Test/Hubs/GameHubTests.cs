@@ -835,6 +835,66 @@ public sealed class GameHubTests
         Assert.That(friend.CanVisitHome, Is.True);
     }
 
+    [Test]
+    public async Task RemoveFriend_SendsEachOutOfTheOthersHome_WhenItsHomeNoLongerLetsThemStay()
+    {
+        var tomsHome = HomeOf(Tom.Id);
+        var felixsHome = HomeOf(Felix);
+        _friends.UnfriendAsync(Tom.Id, Felix, Arg.Any<CancellationToken>())
+            .Returns(new PlayerRelation(Felix, "Felix", FurColor.Black, FriendState.None));
+        tomsHome.CatsHere().Returns([Felix]);
+        felixsHome.CatsHere().Returns([Tom.Id, Felix]);
+        _homes.MustLeaveAsync(Tom.Id, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>()).Returns([Felix]);
+        _homes.MustLeaveAsync(Felix, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>()).Returns([Tom.Id]);
+        _players.FindAsync(Felix, Arg.Any<CancellationToken>()).Returns(new PlayerProfile(Felix, "Felix", FurColor.Black, 0, IsGuest: true));
+
+        await Hub().RemoveFriend(Felix);
+
+        await tomsHome.Received(1).SendOut(Arg.Is<IReadOnlyList<Guid>>(ids => ids.SequenceEqual(new[] { Felix })), Arg.Any<string>());
+        await felixsHome.Received(1).SendOut(Arg.Is<IReadOnlyList<Guid>>(ids => ids.SequenceEqual(new[] { Tom.Id })), Arg.Any<string>());
+    }
+
+    [Test]
+    public async Task VisitHome_ThatIsFull_ComesBackIntoTheRoomItLeft_AndSaysWhy()
+    {
+        var felixHome = HomeOf(Felix);
+        _homes.VisitAsync(Tom.Id, Felix, Arg.Any<CancellationToken>()).Returns(Plan(Felix, "Felix"));
+        felixHome.Join(default!, default!, default).ThrowsAsyncForAnyArgs(new GameRuleException("Felix's home is full."));
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+        RenewalsFindEveryCat();
+
+        var refused = Assert.ThrowsAsync<HubException>(() => hub.VisitHome(Felix));
+
+        Assert.That(refused!.Message, Is.EqualTo("Felix's home is full."));
+        await _room.Received(2).Join(Arg.Is<PlayerCard>(c => c.PlayerId == Tom.Id), Connection, null);
+        await _heartbeat.RenewAsync();
+        await _room.ReceivedWithAnyArgs(1).Renew(default!);
+    }
+
+    [Test]
+    public async Task VisitHome_ClosedToThePlayerWhileTheyCameIn_TakesThemBackOut()
+    {
+        // The owner made the home stricter between the check and the join: the owner's look at who is in it may have
+        // missed this cat, so the cat checks again once in, and goes back out.
+        var felixHome = HomeOf(Felix);
+        _homes.VisitAsync(Tom.Id, Felix, Arg.Any<CancellationToken>()).Returns(
+            Task.FromResult(Plan(Felix, "Felix")),
+            Task.FromException<HomePlan>(new DomainException("That home isn't open to visitors right now.")));
+        felixHome.Join(default!, default!, default).ReturnsForAnyArgs(HomeSnapshot(Felix));
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+        RenewalsFindEveryCat();
+
+        var refused = Assert.ThrowsAsync<HubException>(() => hub.VisitHome(Felix));
+
+        Assert.That(refused!.Message, Is.EqualTo("That home isn't open to visitors right now."));
+        await felixHome.Received(1).Leave(Tom.Id, Connection);
+        await _room.Received(2).Join(Arg.Is<PlayerCard>(c => c.PlayerId == Tom.Id), Connection, null);
+        await _heartbeat.RenewAsync();
+        await felixHome.DidNotReceiveWithAnyArgs().Renew(default!);
+    }
+
     // The grain of <owner>'s home.
     private IRoomGrain HomeOf(Guid owner)
     {
