@@ -39,8 +39,11 @@ html, body {
   flex-direction: column;
   gap: 0.6rem;
   box-sizing: border-box;
-  min-width: 18rem;
+  min-width: min(18rem, calc(100% - 2rem));
   max-width: min(26rem, calc(100% - 2rem));
+  /* Taller than the screen (a phone on its side, with the sign-in buttons): the panel scrolls, as the page can't. */
+  max-height: calc(100% - 2rem);
+  overflow-y: auto;
   padding: 1.5rem 2rem;
   background: var(--paper);
   border: 3px solid var(--ink);
@@ -62,6 +65,8 @@ button {
   font: inherit;
   font-weight: bold;
   padding: 0.55rem 1rem;
+  /* Big enough to tap on a phone (44 CSS px, Apple's minimum). */
+  min-height: 2.75rem;
   border: 2px solid var(--ink);
   border-radius: 999px;
   background: white;
@@ -93,6 +98,12 @@ button:disabled {
   left: 50%;
   transform: translateX(-50%);
   display: flex;
+  /* On a narrow screen the room's buttons wrap onto a second line rather than run off it. */
+  flex-wrap: wrap;
+  justify-content: center;
+  width: max-content;
+  max-width: calc(100% - 1rem);
+  box-sizing: border-box;
   align-items: center;
   gap: 0.5rem;
   padding: 0.4rem 0.6rem 0.4rem 1rem;
@@ -101,35 +112,54 @@ button:disabled {
   border-radius: 999px;
 }
 
-.chat-bar {
+/* The bottom of the screen, one column from the top down: a toast, fishing, the emotes and the chat. Stacked by the
+   layout, so none covers another however the emotes wrap. Only its controls take the pointer, not the gaps. */
+.dock {
   position: absolute;
   bottom: 1rem;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  width: min(36rem, calc(100% - 1rem));
+}
+
+#ui > .dock {
+  pointer-events: none;
+}
+
+.dock > * {
+  pointer-events: auto;
+}
+
+.chat-bar {
+  display: flex;
   gap: 0.5rem;
-  width: min(36rem, calc(100% - 2rem));
+  width: 100%;
 }
 
 .chat {
   flex: 1;
+  /* A text box keeps its default width in a row unless told it may shrink: on a folded phone that pushed Send off. */
+  min-width: 0;
   font: inherit;
   padding: 0.55rem 1rem;
+  min-height: 2.75rem;
+  box-sizing: border-box;
   border: 2px solid var(--ink);
   border-radius: 999px;
 }
 
 .toast {
-  position: absolute;
-  bottom: 7.25rem;
-  left: 50%;
-  transform: translateX(-50%);
   padding: 0.5rem 1rem;
   background: var(--ink);
   color: white;
   border-radius: 999px;
   opacity: 0;
   transition: opacity 0.2s;
+  /* Unseen and untouchable until shown, while keeping its place at the top of the dock. */
   pointer-events: none;
 }
 
@@ -146,11 +176,9 @@ button:disabled {
 }
 
 .emote-bar {
-  position: absolute;
-  bottom: 4.25rem;
-  left: 50%;
-  transform: translateX(-50%);
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 0.4rem;
 }
 
@@ -164,11 +192,8 @@ button:disabled {
   white-space: nowrap;
 }
 
-/* Bottom left, clear of the emote and chat bars in the middle. */
 .fishing {
-  position: absolute;
-  bottom: 1rem;
-  left: 1rem;
+  white-space: nowrap;
   display: flex;
   align-items: center;
   gap: 0.5rem;

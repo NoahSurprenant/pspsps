@@ -1,18 +1,46 @@
-import { Engine } from "@babylonjs/core";
 import { addressNote, linkUrl, loginUrl } from "./link";
 import { GameConnection, fetchMe, fetchProviders, messageOf, playAsGuest, signOut } from "./net";
+import { lazily } from "./lazy";
 import { PendingEvents } from "./pending";
 import { comeBack } from "./rejoin";
 import { catchBubble, FishingState, gotAwayMessage, paid, pondEdge, reelMessage, type Fishing } from "./fishing";
 import { Room } from "./room";
-import { RoomScene } from "./scene";
+import type { RoomScene } from "./scene";
 import { Overlay, type Note } from "./ui";
 import type { Player, RoomSnapshot } from "./types";
 
 const overlay = new Overlay(required<HTMLElement>("#ui"));
-const engine = new Engine(required<HTMLCanvasElement>("#game"), true, { stencil: true });
-window.addEventListener("resize", () => engine.resize());
-const scene = new RoomScene(engine);
+// The 3D scene, made on the way into the first room: Babylon (most of the page's script) loads only then, so the
+// sign-in screen and the world list stay light, and nothing draws until there is a room to draw.
+let scene: RoomScene | undefined;
+
+// A scene that failed to load (a dropped connection, a deploy that replaced the chunks) is tried again on the next room.
+const stage = lazily(async (): Promise<RoomScene> => {
+  const [{ Engine }, { RoomScene }] = await Promise.all([import("@babylonjs/core/Engines/engine"), import("./scene")]);
+  const canvas = required<HTMLCanvasElement>("#game");
+  // Babylon makes the canvas a Tab stop (tabindex 1), again whenever the pointer moves over it; the room is played
+  // with the pointer and the buttons, so it isn't a stop at all.
+  const engine = new Engine(canvas, true, { stencil: true, canvasTabIndex: -1 });
+  let made: RoomScene;
+  try {
+    made = new RoomScene(engine);
+  } catch (error) {
+    // Nothing left behind for the next try: it makes its own engine.
+    engine.dispose();
+    throw error;
+  }
+  window.addEventListener("resize", () => engine.resize());
+  made.onFloorClicked((x, z) => {
+    if (room) {
+      // Walking off reels the line in (the server drops it), with nothing on it.
+      fishing.drop();
+      connection.move(x, z).catch((error: unknown) => overlay.toast(messageOf(error)));
+    }
+  });
+  made.onPondClicked(() => void fish());
+  scene = made;
+  return made;
+});
 
 let room: Room | undefined;
 // Who is playing, once known: the world picker needs it again when a world is lost. Their coins (me.coins) are the
@@ -34,25 +62,25 @@ window.pspsps = { room: () => room, coins: () => me?.coins ?? 0, fishing: () => 
 const connection = new GameConnection({
   catJoined: (cat) => onRoom((here) => {
     here.join(cat);
-    scene.place(cat);
+    scene?.place(cat);
   }),
   catLeft: (playerId) => onRoom((here) => {
     here.leave(playerId);
-    scene.remove(playerId);
+    scene?.remove(playerId);
   }),
   catMoved: (playerId, x, z) => onRoom((here) => {
     if (here.move(playerId, x, z)) {
-      scene.walk(playerId, x, z);
+      scene?.walk(playerId, x, z);
     }
   }),
   chatSaid: (line) => onRoom((here) => {
     if (here.say(line)) {
-      scene.speak(line.playerId, line.text);
+      scene?.speak(line.playerId, line.text);
     }
   }),
   catEmoted: (emote) => onRoom((here) => {
     here.emote(emote);
-    scene.emote(emote.playerId, emote.emote);
+    scene?.emote(emote.playerId, emote.emote);
   }),
   fishBit: () => fishing.bite(),
   fishGotAway: () => {
@@ -60,7 +88,7 @@ const connection = new GameConnection({
       overlay.toast(gotAwayMessage);
     }
   },
-  catFished: (caught) => onRoom(() => scene.speak(caught.playerId, catchBubble(caught.fishName))),
+  catFished: (caught) => onRoom(() => scene?.speak(caught.playerId, catchBubble(caught.fishName))),
   replaced: () => {
     loading.cancel();
     room = undefined;
@@ -87,15 +115,6 @@ function onRoom(apply: (room: Room) => void): void {
     apply(room);
   }
 }
-
-scene.onFloorClicked((x, z) => {
-  if (room) {
-    // Walking off reels the line in (the server drops it), with nothing on it.
-    fishing.drop();
-    connection.move(x, z).catch((error: unknown) => overlay.toast(messageOf(error)));
-  }
-});
-scene.onPondClicked(() => void fish());
 
 /** Walks the player's cat to the pond's edge and casts: once, however many clicks. */
 async function fish(): Promise<void> {
@@ -144,13 +163,13 @@ async function reel(): Promise<void> {
   }
 }
 
-function show(snapshot: RoomSnapshot): Room {
+function show(snapshot: RoomSnapshot, view: RoomScene): Room {
   const shown = new Room(snapshot);
   room = shown;
-  scene.show(snapshot);
+  view.show(snapshot);
   overlay.showRoom(
     snapshot,
-    (roomId) => void goTo(roomId),
+    (roomId) => pick(() => goTo(roomId)),
     (text) => connection.say(text).catch((error: unknown) => overlay.toast(messageOf(error))),
     // Between rooms (room undefined while the next one loads) an emote would only be refused.
     (emote) => {
@@ -164,6 +183,22 @@ function show(snapshot: RoomSnapshot): Room {
   );
   fishing.drop();
   return shown;
+}
+
+let picking = false;
+
+/**
+ * Goes where the player picked, one pick at a time: taps while one loads (the first room downloads the scene) are
+ * ignored, rather than loading two rooms over each other.
+ */
+function pick(go: () => Promise<void>): void {
+  if (picking) {
+    return;
+  }
+  picking = true;
+  void go().finally(() => {
+    picking = false;
+  });
 }
 
 function rejoin(reason: "roomLost" | "reconnected"): void {
@@ -199,7 +234,10 @@ async function load(request: () => Promise<RoomSnapshot>): Promise<void> {
   loading.start();
   let shown: Room;
   try {
-    shown = show(await request());
+    // The 3D scene before the room (the first room loads it): had it failed after, the server would have the cat in a
+    // room the page can't show.
+    const view = await stage();
+    shown = show(await request(), view);
   } catch (error) {
     loading.cancel();
     overlay.toast(messageOf(error));
@@ -222,7 +260,7 @@ async function pickWorld(player: Player, providers?: string[], note?: Note): Pro
   overlay.showWorlds(
     player,
     worlds,
-    (worldId) => void enter(worldId),
+    (worldId) => pick(() => enter(worldId)),
     () => void signOut().then(() => window.location.reload()),
     { providers: saveWith, link: (provider) => postTo(linkUrl(provider)) },
     note,

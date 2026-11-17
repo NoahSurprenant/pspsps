@@ -3,13 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="A social game where everyone is a cat." />
+    <meta name="description" content="A social game where everyone is a cat: pick a world, wander between rooms, chat, fish for coins." />
+    <meta name="theme-color" content="#bfe3f2" />
     <title>pspsps</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
-    <canvas id="game"></canvas>
-    <div id="ui"></div>
+    <!-- The 3D room (drawn once a room shows) and, over it, everything the player reads and taps. -->
+    <canvas id="game" role="img" aria-label="The room, with the cats in it"></canvas>
+    <main id="ui"></main>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

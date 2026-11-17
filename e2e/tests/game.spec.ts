@@ -1,5 +1,5 @@
 import { PNG } from "pngjs";
-import { cats, emotes, enterWorld, expect, newPlayer, test, watchErrors } from "./game";
+import { cats, emotes, enterWorld, expect, newPlayer, pixelsNear, pondBlue, test, watchErrors } from "./game";
 
 test("the sign-in page loads without errors", async ({ page }) => {
   await page.goto("/");
@@ -25,6 +25,29 @@ test("a guest picks a world and the room draws", async ({ page }) => {
   await page.locator("#ui").evaluate((ui) => (ui.style.visibility = "hidden"));
   await expect.poll(async () => colours(await page.locator("#game").screenshot()), { timeout: 15_000 })
     .toBeGreaterThan(20);
+  // Town Square's pond is water-blue (#5fb3d9), seen from above: a disc facing away from the camera would show only
+  // its dark outline.
+  await expect.poll(async () => pixelsNear(await page.locator("#game").screenshot(), pondBlue), { timeout: 15_000 })
+    .toBeGreaterThan(50);
+});
+
+// The first room waits for the 3D scene to download: on a slow phone a player may tap another world meanwhile.
+test("a world tapped while another is loading is ignored", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Play as a guest" }).click();
+  await expect(page.getByRole("button", { name: /^Calico · / })).toBeVisible();
+  // A slow network: the scene's scripts take a while.
+  await page.route("**/assets/**", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await route.continue();
+  });
+
+  await page.getByRole("button", { name: /^Tabby · / }).click();
+  await page.getByRole("button", { name: /^Calico · / }).click();
+
+  await expect(page.locator(".room-bar strong")).toHaveText("Town Square");
+  await page.waitForTimeout(2000);
+  expect(await page.evaluate(() => window.pspsps?.room()?.snapshot.worldId)).toBe("tabby");
 });
 
 test("two cats see each other walk, chat and leave", async ({ page: tom, browser }) => {
