@@ -2,6 +2,7 @@ import { Engine } from "@babylonjs/core";
 import { addressNote, linkUrl } from "./link";
 import { GameConnection, fetchMe, fetchProviders, messageOf, playAsGuest, signOut } from "./net";
 import { PendingEvents } from "./pending";
+import { comeBack } from "./rejoin";
 import { Room } from "./room";
 import { RoomScene } from "./scene";
 import { Overlay, type Note } from "./ui";
@@ -13,6 +14,8 @@ window.addEventListener("resize", () => engine.resize());
 const scene = new RoomScene(engine);
 
 let room: Room | undefined;
+// Who is playing, once known: the world picker needs it again when a world is lost.
+let me: Player | undefined;
 // Room events that arrive while the next room loads, for it once its snapshot shows.
 const loading = new PendingEvents<(room: Room) => void>();
 
@@ -52,11 +55,17 @@ const connection = new GameConnection({
     room = undefined;
     overlay.showReplaced(() => window.location.reload());
   },
-  reconnected: () => {
-    // The server dropped us from the room with the old connection: walk back in.
-    const current = room?.snapshot;
-    if (current) {
-      void enter(current.worldId).then(() => current.roomId === room?.snapshot.roomId ? undefined : goTo(current.roomId));
+  // The server dropped us from the room with the old connection: walk back in.
+  reconnected: () => rejoin("reconnected"),
+  // The room no longer has our cat; we are still in the world: go back to the room.
+  roomLost: () => rejoin("roomLost"),
+  // The world has no room for us any more: pick another.
+  worldLost: (message) => {
+    loading.cancel();
+    room = undefined;
+    overlay.toast(message);
+    if (me) {
+      void pickWorld(me);
     }
   },
 });
@@ -93,6 +102,21 @@ function show(snapshot: RoomSnapshot): Room {
   return shown;
 }
 
+function rejoin(reason: "roomLost" | "reconnected"): void {
+  const current = room?.snapshot;
+  if (current) {
+    void comeBack(
+      reason,
+      current,
+      async (worldId) => {
+        await enter(worldId);
+        return room?.snapshot.roomId;
+      },
+      goTo,
+    );
+  }
+}
+
 async function enter(worldId: string): Promise<void> {
   await load(() => connection.enterWorld(worldId));
 }
@@ -124,6 +148,7 @@ async function load(request: () => Promise<RoomSnapshot>): Promise<void> {
 
 /** The world list; `providers` when they're already known (a guest who just signed in from the sign-in panel). */
 async function pickWorld(player: Player, providers?: string[], note?: Note): Promise<void> {
+  me = player;
   await connection.start();
   // A guest can save their cat with any provider the server offers.
   const [saveWith, worlds] = await Promise.all([
