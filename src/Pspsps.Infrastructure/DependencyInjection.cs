@@ -11,8 +11,10 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, string connectionString)
     {
         services.AddDbContext<PspspsDbContext>(options => options
-            // Retries transient failures (a refused connection while a new pod's network policy applies, PostgreSQL
-            // restarting) in every query, SaveChanges and the startup migration, instead of failing them.
+            // Retries transient failures (a dropped connection, PostgreSQL restarting) in every query, SaveChanges and
+            // the startup migration, instead of failing them. About 45 s of retries is too short for a new pod's first
+            // connections, which can be refused or dropped while its network policy is applied, so the server first
+            // waits for the database (Pspsps.Server's DatabaseStartup).
             .UseNpgsql(connectionString, npgsql => npgsql.EnableRetryOnFailure(
                 maxRetryCount: 6, maxRetryDelay: TimeSpan.FromSeconds(10), errorCodesToAdd: null))
             .UseSnakeCaseNamingConvention());

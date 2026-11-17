@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using Pspsps.Application;
 using Pspsps.Infrastructure;
 using Pspsps.Infrastructure.Persistence;
@@ -78,14 +79,29 @@ try
     await using (var scope = app.Services.CreateAsyncScope())
     {
         var db = scope.ServiceProvider.GetRequiredService<PspspsDbContext>();
-        // Waits for the database first (DatabaseStartup says why); if it never answers, the migration fails with the
-        // real error.
-        var wait = TimeSpan.FromSeconds(app.Configuration.GetValue("Database:StartupWaitSeconds", 120));
+        var time = scope.ServiceProvider.GetRequiredService<TimeProvider>();
+        // Waits for the database first (DatabaseStartup says why). The 90 s default, plus at most one 5 s attempt,
+        // leaves room in the chart's 180 s startup probe (2 s x 90) for the migration and its retries.
+        var wait = new DatabaseWaitOptions(
+            Budget: TimeSpan.FromSeconds(app.Configuration.GetValue("Database:StartupWaitSeconds", 90)),
+            Interval: TimeSpan.FromSeconds(2), AttemptTimeout: TimeSpan.FromSeconds(5));
         if (!await DatabaseStartup.WaitAsync(
-            db.Database.CanConnectAsync, wait, TimeSpan.FromSeconds(2), TimeProvider.System,
-            (delay, ct) => Task.Delay(delay, ct), app.Lifetime.ApplicationStopping))
+            async ct =>
+            {
+                // A plain connection, so a failed attempt shows its real error.
+                await using var connection = new NpgsqlConnection(database);
+                await connection.OpenAsync(ct);
+            },
+            // PostgreSQL answered, even with an error (a missing database, a wrong password): the migration runs now
+            // and creates the database or fails with that error.
+            e => e is PostgresException,
+            (attempt, e) => Log.Information(
+                "The database isn't reachable yet (attempt {Attempt}): {Error}", attempt, e.Message),
+            wait, time, (delay, ct) => Task.Delay(delay, time, ct),
+            // Nothing to cancel with: the host's SIGTERM handling only starts in RunAsync, after this.
+            CancellationToken.None))
         {
-            Log.Warning("The database didn't answer within {Seconds}s; migrating anyway", wait.TotalSeconds);
+            Log.Warning("The database didn't answer within {Seconds}s; migrating anyway", wait.Budget.TotalSeconds);
         }
 
         // EF Core takes a database lock while migrating, so pods starting together don't race.
