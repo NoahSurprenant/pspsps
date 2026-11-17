@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addressNote, linkUrl } from "./link";
+import { addressNote, LINK_RESULTS, linkUrl, loginUrl } from "./link";
 
 describe("addressNote", () => {
   it("says the cat is saved", () => {
@@ -49,5 +49,22 @@ describe("linkUrl", () => {
   it("goes to the server's link endpoint for the provider", () => {
     expect(linkUrl("Google")).toBe("/auth/link/Google");
     expect(linkUrl("a/b")).toBe("/auth/link/a%2Fb");
+  });
+});
+
+describe("loginUrl", () => {
+  it("goes to the server's sign-in endpoint for the provider", () => {
+    expect(loginUrl("Discord")).toBe("/auth/login/Discord");
+    expect(loginUrl("a/b")).toBe("/auth/login/a%2Fb");
+  });
+});
+
+describe("LINK_RESULTS", () => {
+  // The same four as the server's AuthRedirects (src/Pspsps.Server/Auth/AuthRedirects.cs).
+  it("are what the server sends, and each has a note", () => {
+    expect([...LINK_RESULTS].sort()).toEqual(["failed", "linked", "refused", "taken"]);
+    for (const result of LINK_RESULTS) {
+      expect(addressNote(`?link=${result}`, true)).toBeDefined();
+    }
   });
 });

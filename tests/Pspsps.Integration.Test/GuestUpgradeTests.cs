@@ -99,7 +99,7 @@ public sealed class GuestUpgradeTests
     {
         using var browser = NewBrowser();
 
-        using var response = await browser.GetAsync(new Uri("/auth/link/Google", UriKind.Relative));
+        using var response = await PostLinkAsync(browser, "Discord", SameOrigin);
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
         Assert.That(response.Headers.Location?.OriginalString, Is.EqualTo("/?link=failed"));
@@ -111,9 +111,76 @@ public sealed class GuestUpgradeTests
         using var browser = NewBrowser();
         await SignInGuestAsync(browser);
 
-        using var response = await browser.GetAsync(new Uri("/auth/link/Nowhere", UriKind.Relative));
+        using var response = await PostLinkAsync(browser, "Nowhere", SameOrigin);
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
+    [TestCase("Sec-Fetch-Site: same-origin")]
+    [TestCase("Origin: http://localhost")]
+    public async Task LinkEndpoint_FromThisSite_GoesToTheProvider(string header)
+    {
+        using var browser = NewBrowser();
+        await SignInGuestAsync(browser);
+
+        using var response = await PostLinkAsync(browser, "Discord", header);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
+        Assert.That(response.Headers.Location?.Host, Is.EqualTo("discord.com"));
+    }
+
+    [TestCase("Sec-Fetch-Site: cross-site")]
+    [TestCase("Sec-Fetch-Site: same-site")]
+    [TestCase("Sec-Fetch-Site: none")]
+    [TestCase("Origin: https://elsewhere.example")]
+    [TestCase(null)]
+    public async Task LinkEndpoint_StartedByAnotherSite_IsRefused(string? header)
+    {
+        // A page elsewhere can send a signed-in guest here (the cookie is SameSite=Lax): only the game starts a link.
+        using var browser = NewBrowser();
+        await SignInGuestAsync(browser);
+
+        using var response = await PostLinkAsync(browser, "Discord", header);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+    }
+
+    [Test]
+    public async Task LinkEndpoint_IsNotAGet()
+    {
+        using var browser = NewBrowser();
+        await SignInGuestAsync(browser);
+        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri("/auth/link/Discord", UriKind.Relative));
+        request.Headers.Add("Sec-Fetch-Site", "same-origin");
+
+        using var response = await browser.SendAsync(request);
+
+        // The client app's page (the fallback), not a challenge: a link can't be started with a plain link.
+        Assert.That(response.Headers.Location?.Host, Is.Not.EqualTo("discord.com"));
+    }
+
+    [Test]
+    public async Task Link_WithAnEmptyProviderKey_Failed()
+    {
+        using var browser = NewBrowser();
+        var guest = await SignInGuestAsync(browser);
+
+        var landed = await FinishExternalSignInAsync(browser, FakeExternalSignIn.Url("Google", " ", guest.Id));
+
+        // Not "refused": the cat has no Google login; the provider sent no user ID.
+        Assert.That(landed, Is.EqualTo("/?link=failed"));
+        Assert.That(await MeAsync(browser), Is.EqualTo(guest));
+    }
+
+    [Test]
+    public async Task SignIn_WithAnEmptyProviderKey_Failed()
+    {
+        using var browser = NewBrowser();
+
+        var landed = await FinishExternalSignInAsync(browser, FakeExternalSignIn.Url("Google", " "));
+
+        Assert.That(landed, Is.EqualTo("/?signin=failed"));
+        Assert.That(await MeAsync(browser), Is.Null);
     }
 
     [Test]
@@ -206,6 +273,21 @@ public sealed class GuestUpgradeTests
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
         Assert.That(response.Headers.Location?.OriginalString, Is.EqualTo("/?link=failed"));
+    }
+
+    private const string SameOrigin = "Sec-Fetch-Site: same-origin";
+
+    /// <summary>The "Save your cat" button's form post, with one header the browser would add (or none).</summary>
+    private static async Task<HttpResponseMessage> PostLinkAsync(HttpClient browser, string provider, string? header)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri($"/auth/link/{provider}", UriKind.Relative));
+        if (header is not null)
+        {
+            var colon = header.IndexOf(':', StringComparison.Ordinal);
+            request.Headers.Add(header[..colon], header[(colon + 2)..]);
+        }
+
+        return await browser.SendAsync(request);
     }
 
     /// <summary>A browser: keeps its cookies, and lets the test see each redirect.</summary>

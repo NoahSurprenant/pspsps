@@ -159,3 +159,18 @@ test("coming back from saving the cat says how it went, once", async ({ page }) 
   await expect(page.getByRole("heading", { name: /^Hi, Kitty \d{4}!$/ })).toBeVisible();
   await expect(page.getByText("That account already has its own cat")).toBeHidden();
 });
+
+test("the panel fits a phone's screen", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 667 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Play as a guest" }).click();
+  await expect(page.getByRole("heading", { name: /^Hi, Kitty \d{4}!$/ })).toBeVisible();
+  // The longest note: the panel is as wide as it gets.
+  await page.goto("/?link=taken");
+  await expect(page.getByText("That account already has its own cat")).toBeVisible();
+
+  const panel = await page.locator(".panel").boundingBox();
+  if (!panel) throw new Error("no panel");
+  expect(panel.x).toBeGreaterThanOrEqual(0);
+  expect(panel.x + panel.width).toBeLessThanOrEqual(375);
+});

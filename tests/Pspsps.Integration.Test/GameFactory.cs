@@ -23,6 +23,9 @@ public sealed class GameFactory(string connectionString) : WebApplicationFactory
     {
         builder.UseEnvironment("Testing");
         builder.UseSetting("ConnectionStrings:Pspsps", connectionString);
+        // Discord as a configured provider: /auth/login and /auth/link challenge it (a redirect, never a request to it).
+        builder.UseSetting("Authentication:Discord:ClientId", "test-client");
+        builder.UseSetting("Authentication:Discord:ClientSecret", "test-secret");
         builder.ConfigureTestServices(services =>
         {
             services.AddSingleton<IStartupFilter, FakeExternalSignIn>();
