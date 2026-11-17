@@ -1,5 +1,6 @@
 import { addressNote, linkUrl, loginUrl } from "./link";
 import { GameConnection, fetchMe, fetchProviders, messageOf, playAsGuest, signOut } from "./net";
+import { lazily } from "./lazy";
 import { PendingEvents } from "./pending";
 import { comeBack } from "./rejoin";
 import { catchBubble, FishingState, gotAwayMessage, paid, pondEdge, reelMessage, type Fishing } from "./fishing";
@@ -12,31 +13,28 @@ const overlay = new Overlay(required<HTMLElement>("#ui"));
 // The 3D scene, made on the way into the first room: Babylon (most of the page's script) loads only then, so the
 // sign-in screen and the world list stay light, and nothing draws until there is a room to draw.
 let scene: RoomScene | undefined;
-let staging: Promise<RoomScene> | undefined;
 
-function stage(): Promise<RoomScene> {
-  staging ??= (async () => {
-    const [{ Engine }, { RoomScene }] = await Promise.all([import("@babylonjs/core/Engines/engine"), import("./scene")]);
-    const canvas = required<HTMLCanvasElement>("#game");
-    const engine = new Engine(canvas, true, { stencil: true });
-    // Babylon makes the canvas the first stop for Tab (tabindex 1); the room is played with the pointer and the
-    // buttons, so it isn't a stop at all.
-    canvas.tabIndex = -1;
-    window.addEventListener("resize", () => engine.resize());
-    const made = new RoomScene(engine);
-    made.onFloorClicked((x, z) => {
-      if (room) {
-        // Walking off reels the line in (the server drops it), with nothing on it.
-        fishing.drop();
-        connection.move(x, z).catch((error: unknown) => overlay.toast(messageOf(error)));
-      }
-    });
-    made.onPondClicked(() => void fish());
-    scene = made;
-    return made;
-  })();
-  return staging;
-}
+// A scene that failed to load (a dropped connection, a deploy that replaced the chunks) is tried again on the next room.
+const stage = lazily(async (): Promise<RoomScene> => {
+  const [{ Engine }, { RoomScene }] = await Promise.all([import("@babylonjs/core/Engines/engine"), import("./scene")]);
+  const canvas = required<HTMLCanvasElement>("#game");
+  const engine = new Engine(canvas, true, { stencil: true });
+  // Babylon makes the canvas the first stop for Tab (tabindex 1); the room is played with the pointer and the
+  // buttons, so it isn't a stop at all.
+  canvas.tabIndex = -1;
+  window.addEventListener("resize", () => engine.resize());
+  const made = new RoomScene(engine);
+  made.onFloorClicked((x, z) => {
+    if (room) {
+      // Walking off reels the line in (the server drops it), with nothing on it.
+      fishing.drop();
+      connection.move(x, z).catch((error: unknown) => overlay.toast(messageOf(error)));
+    }
+  });
+  made.onPondClicked(() => void fish());
+  scene = made;
+  return made;
+});
 
 let room: Room | undefined;
 // Who is playing, once known: the world picker needs it again when a world is lost. Their coins (me.coins) are the
@@ -214,9 +212,10 @@ async function load(request: () => Promise<RoomSnapshot>): Promise<void> {
   loading.start();
   let shown: Room;
   try {
-    // The first room also loads the 3D scene, side by side with the room itself.
-    const [snapshot, view] = await Promise.all([request(), stage()]);
-    shown = show(snapshot, view);
+    // The 3D scene before the room (the first room loads it): had it failed after, the server would have the cat in a
+    // room the page can't show.
+    const view = await stage();
+    shown = show(await request(), view);
   } catch (error) {
     loading.cancel();
     overlay.toast(messageOf(error));
