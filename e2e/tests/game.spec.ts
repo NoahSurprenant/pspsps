@@ -1,5 +1,5 @@
 import { PNG } from "pngjs";
-import { cats, enterWorld, expect, newPlayer, test, watchErrors } from "./game";
+import { cats, emotes, enterWorld, expect, newPlayer, test, watchErrors } from "./game";
 
 test("the sign-in page loads without errors", async ({ page }) => {
   await page.goto("/");
@@ -90,6 +90,57 @@ test("filtered words never reach another cat", async ({ page: tom, browser }) =>
     await chat.press("Enter");
     await expect.poll(felixSaid).toEqual(["what the ****", "pspsps"]);
 
+    expect(felix.errors, "Felix's console errors and uncaught exceptions").toEqual([]);
+  } finally {
+    await felix.close();
+  }
+});
+
+test("a cat's emotes show on the other cat's screen", async ({ page: tom, browser }) => {
+  const felix = await newPlayer(browser);
+  try {
+    const tomId = await enterWorld(tom, "Siamese");
+    const felixId = await enterWorld(felix.page, "Siamese");
+    await expect.poll(async () => Object.keys(await cats(tom))).toContain(felixId);
+
+    // From the emote bar.
+    await felix.page.getByRole("button", { name: "Wave" }).click();
+    await expect.poll(async () => (await emotes(tom))[felixId]).toBe("wave");
+
+    // A number typed in the chat box is just typing. Past the one-second wait after the wave, so a "4" that did reach
+    // the server as an emote would be let through and Tom would see Felix fall asleep.
+    await felix.page.waitForTimeout(1_500);
+    const chat = felix.page.getByPlaceholder("Say something…");
+    await chat.fill("");
+    await chat.press("4");
+    await expect(chat).toHaveValue("4");
+    await felix.page.waitForTimeout(1_500);
+    expect((await emotes(tom))[felixId]).toBe("wave");
+
+    // The same key anywhere else is the shortcut: 1 sits.
+    await felix.page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await felix.page.keyboard.press("1");
+    await expect.poll(async () => (await emotes(tom))[felixId]).toBe("sit");
+    expect((await cats(tom))[felixId]?.pose).toBe("sit");
+    expect(Object.keys(await emotes(felix.page))).toContain(felixId);
+    expect((await emotes(tom))[tomId]).toBeUndefined();
+
+    expect(felix.errors, "Felix's console errors and uncaught exceptions").toEqual([]);
+  } finally {
+    await felix.close();
+  }
+});
+
+test("a cat that arrives later sees a sleeping cat asleep", async ({ page: tom, browser }) => {
+  const felix = await newPlayer(browser);
+  try {
+    const felixId = await enterWorld(felix.page, "Siamese");
+    await felix.page.getByRole("button", { name: "Sleep" }).click();
+    await expect.poll(async () => (await cats(felix.page))[felixId]?.pose).toBe("sleep");
+
+    await enterWorld(tom, "Siamese");
+
+    expect((await cats(tom))[felixId]?.pose).toBe("sleep");
     expect(felix.errors, "Felix's console errors and uncaught exceptions").toEqual([]);
   } finally {
     await felix.close();

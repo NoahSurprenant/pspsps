@@ -1,3 +1,4 @@
+using Orleans.Runtime;
 using Pspsps.Domain;
 using Pspsps.Domain.Players;
 using Pspsps.Domain.Rooms;
@@ -10,8 +11,11 @@ namespace Pspsps.Server.Game;
 /// cats are in it (idle cats are still there), deactivated by the last one leaving.
 /// </summary>
 [KeepAlive]
-internal sealed class RoomGrain(IRoomBroadcaster broadcaster, ChatFilters chatFilters, TimeProvider time, GameMetrics metrics)
-    : Grain, IRoomGrain
+internal sealed class RoomGrain(
+    IRoomBroadcaster broadcaster,
+    ChatFilters chatFilters,
+    [FromKeyedServices(TimeProviderNames.Grains)] TimeProvider time,
+    GameMetrics metrics) : Grain, IRoomGrain
 {
     private string _key = "";
     private RoomState _state = null!;
@@ -73,6 +77,12 @@ internal sealed class RoomGrain(IRoomBroadcaster broadcaster, ChatFilters chatFi
     {
         var line = Rule(() => _state.Say(playerId, text, chatFilters.Current, time.GetUtcNow()));
         await broadcaster.ChatSaid(_key, ChatView.From(line));
+    }
+
+    public async Task Emote(Guid playerId, string emote)
+    {
+        var done = Rule(() => _state.Emote(playerId, emote, time.GetUtcNow()));
+        await broadcaster.CatEmoted(_key, EmoteView.From(done));
     }
 
     // DomainException stays in this pod; callers get a GameRuleException, which Orleans knows how to copy.

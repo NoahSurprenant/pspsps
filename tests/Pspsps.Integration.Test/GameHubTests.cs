@@ -82,6 +82,55 @@ public sealed class GameHubTests
     }
 
     [Test]
+    public async Task CatsSeeEachOthersEmotes_AndTooFastOrUnknownOnesAreRefused()
+    {
+        var (_, tomHub) = await Game.ConnectGuestAsync();
+        var (felix, felixHub) = await Game.ConnectGuestAsync();
+        await using var _ = tomHub;
+        await using var __ = felixHub;
+        var tomSees = Record(tomHub);
+        await tomHub.InvokeAsync<RoomSnapshot>("EnterWorld", "calico");
+        await felixHub.InvokeAsync<RoomSnapshot>("EnterWorld", "calico");
+
+        await felixHub.InvokeAsync("Emote", "wave");
+        var wave = await tomSees.Next<EmoteView>("CatEmoted", e => e.PlayerId == felix.Id);
+        Assert.That(wave.Emote, Is.EqualTo("wave"));
+
+        // The grains' clock stands still until the test moves it: this meow is at the same instant as the wave.
+        var tooFast = Assert.ThrowsAsync<HubException>(() => felixHub.InvokeAsync("Emote", "meow"));
+        Assert.That(tooFast!.Message, Does.Contain("one emote a second"));
+
+        var unknown = Assert.ThrowsAsync<HubException>(() => felixHub.InvokeAsync("Emote", "dance"));
+        Assert.That(unknown!.Message, Does.Contain("That isn't an emote."));
+        Assert.That(await tomSees.Saw<EmoteView>("CatEmoted", e => e.PlayerId == felix.Id, TimeSpan.FromSeconds(1)), Is.False);
+
+        // A second later (on the grains' clock), the meow goes through.
+        Game.GrainClock.Advance(RoomState.EmoteCooldown);
+        await felixHub.InvokeAsync("Emote", "meow");
+        Assert.That((await tomSees.Next<EmoteView>("CatEmoted", e => e.PlayerId == felix.Id)).Emote, Is.EqualTo("meow"));
+    }
+
+    [Test]
+    public async Task ACatThatArrivesLater_SeesASleepingCatAsleep_UntilItWalks()
+    {
+        var (felix, felixHub) = await Game.ConnectGuestAsync();
+        await using var _ = felixHub;
+        await felixHub.InvokeAsync<RoomSnapshot>("EnterWorld", "calico");
+        await felixHub.InvokeAsync("Emote", "sleep");
+
+        var (_, tomHub) = await Game.ConnectGuestAsync();
+        await using var __ = tomHub;
+        var tomRoom = await tomHub.InvokeAsync<RoomSnapshot>("EnterWorld", "calico");
+        Assert.That(tomRoom.Cats.Single(c => c.PlayerId == felix.Id).Pose, Is.EqualTo("sleep"));
+
+        await felixHub.InvokeAsync("Move", 1.0, 1.0);
+        var (_, garfieldHub) = await Game.ConnectGuestAsync();
+        await using var ___ = garfieldHub;
+        var garfieldRoom = await garfieldHub.InvokeAsync<RoomSnapshot>("EnterWorld", "calico");
+        Assert.That(garfieldRoom.Cats.Single(c => c.PlayerId == felix.Id).Pose, Is.Null);
+    }
+
+    [Test]
     public async Task GetWorlds_CountsPlayersInEachWorld()
     {
         var (_, hub) = await Game.ConnectGuestAsync();
@@ -142,6 +191,7 @@ public sealed class GameHubTests
             hub.On<Guid>("CatLeft", id => _events.Writer.TryWrite(("CatLeft", id)));
             hub.On<Guid, double, double>("CatMoved", (id, x, z) => _events.Writer.TryWrite(("CatMoved", (id, x, z))));
             hub.On<ChatView>("ChatSaid", c => _events.Writer.TryWrite(("ChatSaid", c)));
+            hub.On<EmoteView>("CatEmoted", e => _events.Writer.TryWrite(("CatEmoted", e)));
         }
 
         /// <summary>Whether a matching event arrives within <paramref name="within"/>.</summary>
