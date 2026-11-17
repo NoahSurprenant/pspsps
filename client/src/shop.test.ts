@@ -28,8 +28,8 @@ describe("shopRow", () => {
   it("disables Buy for what the player can't afford, and says how many coins are still needed", () => {
     const row = shopRow(shop, item("crown"));
     expect(row.button).toMatchObject({ action: "buy", disabled: true, primary: false });
-    expect(row.reason).toBe("950 more coins to go");
-    expect(shopRow({ ...shop, coins: 29 }, item("party-hat")).reason).toBe("1 more coin to go");
+    expect(row.reason).toBe("need 950 more");
+    expect(shopRow({ ...shop, coins: 29 }, item("party-hat")).reason).toBe("need 1 more");
     expect(shopRow({ ...shop, coins: 30 }, item("party-hat")).button?.disabled).toBe(false);
   });
 

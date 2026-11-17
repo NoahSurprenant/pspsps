@@ -95,6 +95,9 @@ export const SCREENS: Screen[] = [
       await page.getByRole("button", { name: "Shop", exact: true }).click();
       const shop = page.getByRole("dialog", { name: "Shop" });
       await expect(shop).toBeVisible();
+      // It opens at its top, on its heading, not scrolled down to the one button a new guest can press (Close).
+      await expect(shop.getByRole("heading", { name: "Shop" })).toBeFocused();
+      expect(await shop.evaluate((dialog) => dialog.scrollTop)).toBe(0);
       await expect(shop.getByRole("button", { name: "Buy the Party hat for 30 coins" })).toBeDisabled();
       await expect(shop.getByText("Your fur now")).toBeVisible();
     },

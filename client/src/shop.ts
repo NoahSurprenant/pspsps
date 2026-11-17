@@ -52,7 +52,7 @@ export function shopRow(shop: Shop, item: ShopItem): ShopRow {
   const short = item.price - shop.coins;
   const button = { action: "buy" as const, label: "Buy", ariaLabel: `Buy the ${item.name} for ${item.price} coins`, primary: short <= 0, disabled: short > 0 };
   return short > 0
-    ? { item, status: `🪙 ${item.price}`, button, reason: `${short} more ${short === 1 ? "coin" : "coins"} to go` }
+    ? { item, status: `🪙 ${item.price}`, button, reason: `need ${short} more` }
     : { item, status: `🪙 ${item.price}`, button };
 }
 

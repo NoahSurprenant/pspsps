@@ -283,8 +283,12 @@ export class Overlay {
    * a button's change.
    */
   showShop(shop: Shop, act: (action: ShopAction, itemId: string) => void): void {
+    // The shop opens at its top, on its heading: the first button can be far down (a new guest's is Close).
+    const heading = el("h2", { text: "Shop", id: "dialog-title" });
+    heading.tabIndex = -1;
+    heading.autofocus = true;
     const parts: Node[] = [
-      el("h2", { text: "Shop", id: "dialog-title" }),
+      heading,
       el("p", { className: "purse", text: `You have ${coinText(shop.coins)}` }),
     ];
     for (const section of shopSections(shop)) {
@@ -454,7 +458,10 @@ function refreshInPlace(dialog: HTMLDialogElement, children: Node[]): void {
   const kept = [...dialog.children].slice(-2);
   dialog.replaceChildren(...children, ...kept);
   dialog.scrollTop = scroll;
-  if (focused !== undefined) {
+  if (active?.id && !(active instanceof HTMLButtonElement)) {
+    // Not a button (the shop's heading): the same element again.
+    dialog.querySelector<HTMLElement>(`#${CSS.escape(active.id)}`)?.focus();
+  } else if (focused !== undefined) {
     const buttons = [...dialog.querySelectorAll<HTMLElement>("button")];
     const again = (key !== undefined ? buttons.find((b) => b.dataset.focusKey === key && !isDisabled(b)) : undefined)
       ?? buttons.find((b) => nameOf(b) === focused && !isDisabled(b));
