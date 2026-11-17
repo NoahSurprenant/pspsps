@@ -109,6 +109,38 @@ for bad in backup.keep=1 backup.keep=0 backup.activeDeadlineSeconds=0 backup.con
   if backup --set "$bad" > /dev/null 2>&1; then fail "rendered with backups on and $bad"; fi
 done
 
+# The chat filter: nothing extra by default; lists become a ConfigMap, and either that or an existing one is mounted
+# over the image's word lists with the polling file watcher on (a ConfigMap changes by a symlink swap).
+server() { helm template pspsps "$chart" --show-only templates/deployment.yaml "$@"; }
+plain=$(helm template pspsps "$chart")
+if grep -qE "chat-filter|DOTNET_USE_POLLING_FILE_WATCHER" <<< "$plain"; then
+  fail "the chat filter renders something with chatFilter unset"
+fi
+
+lists=(--set "chatFilter.lists[0].action=Refuse" --set "chatFilter.lists[0].words[0]=woof"
+  --set "chatFilter.lists[1].action=Mask" --set "chatFilter.lists[1].words[0]=darn" --set "chatFilter.lists[1].words[1]=heck")
+configmap=$(document "$(helm template pspsps "$chart" "${lists[@]}")" ConfigMap)
+grep -q "^  name: pspsps-chat-filter$" <<< "$configmap" || fail "no pspsps-chat-filter ConfigMap from chatFilter.lists"
+json=$(sed -n "/^  chat-filter.json: |$/,\$p" <<< "$configmap" | tail -n +2 | tr -d " \n")
+expected='{"ChatFilter":{"Lists":[{"Action":"Refuse","Words":["woof"]},{"Action":"Mask","Words":["darn","heck"]}]}}'
+[[ "$json" == "$expected" ]] || fail "chat-filter.json is $json, not $expected"
+
+for case in "pspsps-chat-filter:${lists[*]}" "my-words:--set chatFilter.existingConfigMap=my-words"; do
+  name=${case%%:*}
+  read -ra flags <<< "${case#*:}"
+  rendered=$(helm template pspsps "$chart" "${flags[@]}")
+  deployment=$(server "${flags[@]}")
+  [[ "$(env_value "$deployment" DOTNET_USE_POLLING_FILE_WATCHER)" == "true" ]] \
+    || fail "$name: DOTNET_USE_POLLING_FILE_WATCHER isn't true"
+  grep -A2 -E "^ +- name: chat-filter$" <<< "$deployment" | grep -qx "              mountPath: /app/chat-filter" \
+    || fail "$name: the word lists aren't mounted at /app/chat-filter"
+  if grep -qE "^ +subPath:" <<< "$deployment"; then fail "$name: a subPath mount never sees ConfigMap changes"; fi
+  grep -A2 -E "^ +- name: chat-filter$" <<< "$deployment" | grep -qx "            name: $name" \
+    || fail "$name: the chat-filter volume isn't ConfigMap $name"
+  configmaps=$(grep -c "^kind: ConfigMap$" <<< "$rendered" || true)
+  if [[ "$name" == my-words && "$configmaps" -ne 0 ]]; then fail "existingConfigMap still renders a ConfigMap"; fi
+done
+
 if (( failures > 0 )); then
   exit 1
 fi

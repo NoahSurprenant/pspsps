@@ -46,6 +46,8 @@ try
     }
 
     builder.Services.AddSingleton<IRoomBroadcaster, HubRoomBroadcaster>();
+    // The words chat masks or refuses, from chat-filter/chat-filter.json, reread when it changes.
+    builder.AddChatFilter();
     // Renews this pod's connections' leases with their rooms and worlds; a dead pod's cats leave when theirs run out.
     builder.Services.AddSingleton<SessionHeartbeat>();
     builder.Services.AddHostedService(services => services.GetRequiredService<SessionHeartbeat>());
@@ -73,6 +75,9 @@ try
     (await builder.Services.ConfigureAppForwardedHeadersAsync(builder.Configuration)).LogTo(Log.Logger);
 
     var app = builder.Build();
+
+    // Build the chat filter now, so a missing or broken word list is logged at startup, not at the first line said.
+    app.Services.GetRequiredService<ChatFilters>();
 
     await using (var scope = app.Services.CreateAsyncScope())
     {

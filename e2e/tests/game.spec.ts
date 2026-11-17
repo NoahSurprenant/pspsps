@@ -62,6 +62,39 @@ test("two cats see each other walk, chat and leave", async ({ page: tom, browser
   }
 });
 
+test("filtered words never reach another cat", async ({ page: tom, browser }) => {
+  // The word lists CI starts the game with (.github/workflows/ci.yml): "heck" is masked, "woof" refused.
+  const felix = await newPlayer(browser);
+  try {
+    await enterWorld(tom, "Siamese");
+    const felixId = await enterWorld(felix.page, "Siamese");
+    await expect.poll(async () => Object.keys(await cats(tom))).toContain(felixId);
+    const felixSaid = () => tom.evaluate(
+      (id) => window.pspsps?.room()?.chat.filter((line) => line.playerId === id).map((line) => line.text),
+      felixId,
+    );
+    const chat = felix.page.getByPlaceholder("Say something…");
+
+    // A masked word arrives starred out, however Felix spells it.
+    await chat.fill("what the h3ck");
+    await chat.press("Enter");
+    await expect.poll(felixSaid).toEqual(["what the ****"]);
+
+    // A refused line isn't said at all: Felix is told why, and the next line Tom gets from Felix is the one after it.
+    await chat.fill("w o o f");
+    await chat.press("Enter");
+    await expect(felix.page.getByText("Keep it friendly: that message has a word this game doesn't allow."))
+      .toBeVisible();
+    await chat.fill("pspsps");
+    await chat.press("Enter");
+    await expect.poll(felixSaid).toEqual(["what the ****", "pspsps"]);
+
+    expect(felix.errors, "Felix's console errors and uncaught exceptions").toEqual([]);
+  } finally {
+    await felix.close();
+  }
+});
+
 test("a cat's emotes show on the other cat's screen", async ({ page: tom, browser }) => {
   const felix = await newPlayer(browser);
   try {
