@@ -78,4 +78,17 @@ public sealed class WorldPopulationTests
         Assert.That(population.Renew(Felix, "felix-tab", Now), Is.False);
         Assert.That(population.Count, Is.Zero);
     }
+
+    [Test]
+    public void Renew_FromATabTheWorldForgot_CountsItBackIn_WithinTheCap()
+    {
+        // The world's actor came back empty on another pod; the live tabs' pods keep renewing them.
+        var population = new WorldPopulation(World);
+
+        Assert.That(population.Renew(Tom, TabA, Now), Is.True);
+        Assert.That(population.Renew(Felix, "felix-tab", Now), Is.True);
+        Assert.That(population.Renew(Guid.NewGuid(), "garfield-tab", Now), Is.False, "full");
+        Assert.That(population.Count, Is.EqualTo(2));
+        Assert.That(population.RemoveExpired(Now + SessionLease.Duration), Is.Zero);
+    }
 }

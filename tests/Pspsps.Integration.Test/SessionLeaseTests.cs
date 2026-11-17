@@ -50,4 +50,27 @@ public sealed class SessionLeaseTests
         var worlds = await felixHub.InvokeAsync<List<WorldSummary>>("GetWorlds");
         Assert.That(worlds.Single(w => w.Id == WorldId).Population, Is.GreaterThanOrEqualTo(1), "Felix still counts");
     }
+
+    [Test]
+    public async Task ATabWhoseCatTheRoomLost_IsToldAndWalksBackIn()
+    {
+        var (felix, felixHub) = await Game.ConnectGuestAsync();
+        await using var _ = felixHub;
+        var lost = new TaskCompletionSource();
+        felixHub.On("RoomLost", () => lost.TrySetResult());
+        await felixHub.InvokeAsync<RoomSnapshot>("EnterWorld", WorldId);
+        await felixHub.InvokeAsync<RoomSnapshot>("GoToRoom", "cafe");
+
+        // The café forgot Felix's cat (its pod died and it came back empty, say) while his tab stayed open.
+        var grains = Game.Services.GetRequiredService<IGrainFactory>();
+        await grains.GetGrain<IRoomGrain>(RoomKey.For(WorldId, "cafe")).Leave(felix.Id, felixHub.ConnectionId!);
+        await Game.Get<SessionHeartbeat>().RenewAsync();
+
+        await lost.Task.WaitAsync(TimeSpan.FromSeconds(10));
+
+        // What the browser does then: back into the world, then the room it was in.
+        await felixHub.InvokeAsync<RoomSnapshot>("EnterWorld", WorldId);
+        var room = await felixHub.InvokeAsync<RoomSnapshot>("GoToRoom", "cafe");
+        Assert.That(room.Cats.Select(c => c.PlayerId), Does.Contain(felix.Id));
+    }
 }
