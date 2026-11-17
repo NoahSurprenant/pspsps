@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.SignalR;
 using Pspsps.Domain;
+using Pspsps.Domain.Worlds;
 using Pspsps.Server.Game;
+using Pspsps.Server.Telemetry;
 
 namespace Pspsps.Server.Hubs;
 
@@ -16,6 +18,7 @@ public sealed record ConnectionPlace(Guid PlayerId, string WorldId, string? Room
 public sealed partial class SessionHeartbeat(
     IGrainFactory grains,
     IHubContext<GameHub, IGameClient> hub,
+    GameMetrics metrics,
     TimeProvider time,
     ILogger<SessionHeartbeat> logger) : BackgroundService
 {
@@ -62,6 +65,15 @@ public sealed partial class SessionHeartbeat(
         }
     }
 
+    /// <summary>Whether <paramref name="connectionId"/> has closed.</summary>
+    public bool IsClosed(string connectionId)
+    {
+        lock (_gate)
+        {
+            return _closed.ContainsKey(connectionId);
+        }
+    }
+
     /// <summary>
     /// Forgets <paramref name="connectionId"/> for good (it closed) and returns where it was, for the hub to leave.
     /// </summary>
@@ -76,8 +88,8 @@ public sealed partial class SessionHeartbeat(
     }
 
     /// <summary>
-    /// Renews every connection's leases now. A tab whose cat its room no longer has stops being renewed there and is
-    /// told to walk back in.
+    /// Renews every connection's leases now. A tab whose cat its room no longer has leaves that room and is told to walk
+    /// back in; a tab its world no longer counts and can't take back (full) leaves the world and is told to pick one.
     /// </summary>
     public async Task RenewAsync()
     {
@@ -94,7 +106,7 @@ public sealed partial class SessionHeartbeat(
 
         var worlds = connections
             .GroupBy(c => c.Value.WorldId)
-            .Select(world => grains.GetGrain<IWorldGrain>(world.Key).Renew(Sessions(world)));
+            .Select(world => RenewWorld(world.Key, Sessions(world)));
         var rooms = connections
             .Where(c => c.Value.RoomKey is not null)
             .GroupBy(c => c.Value.RoomKey!)
@@ -119,15 +131,51 @@ public sealed partial class SessionHeartbeat(
         }
     }
 
+    private async Task RenewWorld(string worldId, List<PlayerSession> sessions)
+    {
+        var refused = await grains.GetGrain<IWorldGrain>(worldId).Renew(sessions);
+        var name = WorldCatalog.Find(worldId)?.Name ?? worldId;
+        await Task.WhenAll(refused
+            .Select(connectionId => (connectionId, place: LeaveLostWorld(connectionId, worldId)))
+            .Where(lost => lost.place is not null)
+            .Select(lost => TellWorldLost(lost.connectionId, lost.place!, name)));
+    }
+
+    private async Task TellWorldLost(string connectionId, ConnectionPlace place, string worldName)
+    {
+        metrics.LeftWorld(place.WorldId);
+        if (place.RoomKey is { } roomKey)
+        {
+            await hub.Groups.RemoveFromGroupAsync(connectionId, roomKey);
+            await grains.GetGrain<IRoomGrain>(roomKey).Leave(place.PlayerId, connectionId);
+        }
+
+        await hub.Clients.Client(connectionId).WorldLost($"{worldName} filled up while the game recovered. Pick a world.");
+    }
+
     private async Task RenewRoom(string roomKey, List<PlayerSession> sessions)
     {
         var lost = await grains.GetGrain<IRoomGrain>(roomKey).Renew(sessions);
-        foreach (var connectionId in lost)
+        await Task.WhenAll(lost.Where(connectionId => LeaveLostRoom(connectionId, roomKey)).Select(async connectionId =>
         {
-            if (LeaveLostRoom(connectionId, roomKey))
+            // Out of the room's group too, so the tab hears nothing more from a room it isn't in.
+            await hub.Groups.RemoveFromGroupAsync(connectionId, roomKey);
+            await hub.Clients.Client(connectionId).RoomLost();
+        }));
+    }
+
+    // Takes the connection out of a world that no longer counts it, unless it has moved on meanwhile; returns where it was.
+    private ConnectionPlace? LeaveLostWorld(string connectionId, string worldId)
+    {
+        lock (_gate)
+        {
+            if (!_places.TryGetValue(connectionId, out var place) || place.WorldId != worldId)
             {
-                await hub.Clients.Client(connectionId).RoomLost();
+                return null;
             }
+
+            _places.Remove(connectionId);
+            return place;
         }
     }
 

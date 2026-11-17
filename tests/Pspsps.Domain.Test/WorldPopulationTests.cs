@@ -45,11 +45,11 @@ public sealed class WorldPopulationTests
         population.TryEnter(Tom, TabA, Now);
         population.TryEnter(Tom, TabB, Now);
 
-        population.Leave(Tom, TabA);
-        population.Leave(Tom, TabA);
+        population.Leave(Tom, TabA, Now);
+        population.Leave(Tom, TabA, Now);
         Assert.That(population.Count, Is.EqualTo(1));
 
-        population.Leave(Tom, TabB);
+        population.Leave(Tom, TabB, Now);
         Assert.That(population.Count, Is.Zero);
     }
 
@@ -76,9 +76,9 @@ public sealed class WorldPopulationTests
         // The world's actor came back empty on another pod; the live tabs' pods keep renewing them.
         var population = new WorldPopulation(World);
 
-        Assert.That(population.Renew(Tom, TabA, Now), Is.True);
-        Assert.That(population.Renew(Felix, "felix-tab", Now), Is.True);
-        Assert.That(population.Renew(Guid.NewGuid(), "garfield-tab", Now), Is.False, "full");
+        Assert.That(population.Renew(Tom, TabA, Now), Is.EqualTo(TabRenewal.CountedBackIn));
+        Assert.That(population.Renew(Felix, "felix-tab", Now), Is.EqualTo(TabRenewal.CountedBackIn));
+        Assert.That(population.Renew(Guid.NewGuid(), "garfield-tab", Now), Is.EqualTo(TabRenewal.Full));
         Assert.That(population.Count, Is.EqualTo(2));
         Assert.That(population.RemoveExpired(Now + SessionLease.Duration), Is.Zero, "counted back in with fresh leases");
     }
@@ -89,10 +89,34 @@ public sealed class WorldPopulationTests
         // The heartbeat read the tab's place just before it left (another world, or the tab closed).
         var population = new WorldPopulation(World);
         population.TryEnter(Tom, TabA, Now);
-        population.Leave(Tom, TabA);
+        population.Leave(Tom, TabA, Now);
 
-        population.Renew(Tom, TabA, Now + TimeSpan.FromSeconds(1));
+        Assert.That(population.Renew(Tom, TabA, Now + TimeSpan.FromSeconds(1)), Is.EqualTo(TabRenewal.Left));
 
         Assert.That(population.Count, Is.Zero);
+    }
+
+    [Test]
+    public void Renew_KnownTab_IsRenewed_AndATabThatLeftCanEnterAgain()
+    {
+        var population = new WorldPopulation(World);
+        population.TryEnter(Tom, TabA, Now);
+        Assert.That(population.Renew(Tom, TabA, Now + SessionLease.RenewEvery), Is.EqualTo(TabRenewal.Renewed));
+
+        population.Leave(Tom, TabA, Now + SessionLease.RenewEvery);
+        Assert.That(population.TryEnter(Tom, TabA, Now + SessionLease.RenewEvery), Is.True);
+        Assert.That(population.Renew(Tom, TabA, Now + (SessionLease.RenewEvery * 2)), Is.EqualTo(TabRenewal.Renewed));
+    }
+
+    [Test]
+    public void ALeftTab_IsForgottenAfterALease_ThenARenewalCountsItBackIn()
+    {
+        var population = new WorldPopulation(World);
+        population.TryEnter(Tom, TabA, Now);
+        population.Leave(Tom, TabA, Now);
+
+        population.RemoveExpired(Now + PastALease);
+
+        Assert.That(population.Renew(Tom, TabA, Now + PastALease), Is.EqualTo(TabRenewal.CountedBackIn));
     }
 }

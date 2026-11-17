@@ -33,19 +33,17 @@ internal sealed class WorldGrain(
 
     public Task Leave(Guid playerId, string session)
     {
-        _population.Leave(playerId, session);
+        _population.Leave(playerId, session, time.GetUtcNow());
         return Task.CompletedTask;
     }
 
-    public Task Renew(IReadOnlyList<PlayerSession> sessions)
+    public Task<IReadOnlyList<string>> Renew(IReadOnlyList<PlayerSession> sessions)
     {
         var now = time.GetUtcNow();
-        foreach (var session in sessions)
-        {
-            _population.Renew(session.PlayerId, session.Session, now);
-        }
-
-        return Task.CompletedTask;
+        IReadOnlyList<string> refused = [.. sessions
+            .Where(s => _population.Renew(s.PlayerId, s.Session, now) == TabRenewal.Full)
+            .Select(s => s.Session)];
+        return Task.FromResult(refused);
     }
 
     public Task<int> GetPopulation() => Task.FromResult(_population.Count);

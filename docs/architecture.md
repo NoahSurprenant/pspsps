@@ -39,8 +39,10 @@ them, so within about two minutes their cats leave their rooms (the others see t
 their worlds. The browsers reconnect to another pod and enter again, as new sessions.
 
 The other way round, when a world or room grain's pod dies, the grain comes back empty on another pod. A world counts
-the live tabs back in as their renewals arrive. A room answers a renewal with the tabs whose cats it no longer has;
-those tabs are told (`RoomLost`) and walk back in, entering the world again and then going to the room they were in.
+the live tabs back in as their renewals arrive (but not tabs that left it lately: a renewal sent just before a tab left
+can arrive after it); a tab it can't take back because it filled up meanwhile is told (`WorldLost`) and goes back to
+the world picker. A room answers a renewal with the tabs whose cats it no longer has (`RoomState.Renew`: renewed, taken
+over by a newer tab, or gone); those tabs leave its SignalR group, are told (`RoomLost`), and go back to the room.
 
 A move goes like this:
 

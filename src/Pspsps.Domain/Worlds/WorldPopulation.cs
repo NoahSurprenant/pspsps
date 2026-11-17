@@ -10,6 +10,10 @@ public sealed class WorldPopulation(WorldDefinition world)
     // Each player's sessions (browser tabs' connections) in this world, by session.
     private readonly Dictionary<Guid, Dictionary<string, SessionLease>> _players = [];
 
+    // Sessions that left lately, and when: a renewal sent before a tab left can arrive after it, and mustn't count it back
+    // in. Kept for one lease; no renewal is that late.
+    private readonly Dictionary<string, DateTimeOffset> _left = [];
+
     public WorldDefinition World { get; } = world;
 
     /// <summary>How many players are in the world.</summary>
@@ -32,13 +36,15 @@ public sealed class WorldPopulation(WorldDefinition world)
             _players.Add(playerId, sessions);
         }
 
+        _left.Remove(session);
         sessions[session] = sessions.TryGetValue(session, out var lease) ? lease.Renew(now) : SessionLease.Start(session, now);
         return true;
     }
 
     /// <summary>Counts <paramref name="session"/> out; the player leaves with their last one.</summary>
-    public void Leave(Guid playerId, string session)
+    public void Leave(Guid playerId, string session, DateTimeOffset now)
     {
+        _left[session] = now;
         if (_players.TryGetValue(playerId, out var sessions) && sessions.Remove(session) && sessions.Count == 0)
         {
             _players.Remove(playerId);
@@ -46,15 +52,34 @@ public sealed class WorldPopulation(WorldDefinition world)
     }
 
     /// <summary>
-    /// Renews <paramref name="session"/>'s lease. A session the world doesn't know (the world's actor came back empty
-    /// after its pod died, or the lease ran out while the tab was still open) is counted back in, within the cap: the tab
-    /// is live, since its pod renews it. False when it couldn't be, because the world is full.
+    /// Renews <paramref name="session"/>'s lease. A session the world doesn't know and that didn't leave it lately is a
+    /// live tab the world forgot (it came back empty after its pod died, or the lease ran out while the tab was still
+    /// open: its pod renews it, so it's live), and is counted back in within the cap.
     /// </summary>
-    public bool Renew(Guid playerId, string session, DateTimeOffset now) => TryEnter(playerId, session, now);
+    public TabRenewal Renew(Guid playerId, string session, DateTimeOffset now)
+    {
+        if (_players.TryGetValue(playerId, out var sessions) && sessions.TryGetValue(session, out var lease))
+        {
+            sessions[session] = lease.Renew(now);
+            return TabRenewal.Renewed;
+        }
+
+        if (_left.ContainsKey(session))
+        {
+            return TabRenewal.Left;
+        }
+
+        return TryEnter(playerId, session, now) ? TabRenewal.CountedBackIn : TabRenewal.Full;
+    }
 
     /// <summary>Counts out every session that stopped renewing its lease. Returns how many it counted out.</summary>
     public int RemoveExpired(DateTimeOffset now)
     {
+        foreach (var session in _left.Where(l => now - l.Value > SessionLease.Duration).Select(l => l.Key).ToList())
+        {
+            _left.Remove(session);
+        }
+
         var removed = 0;
         foreach (var (playerId, sessions) in _players.ToList())
         {

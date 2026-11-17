@@ -1,7 +1,7 @@
 import { Engine } from "@babylonjs/core";
 import { GameConnection, fetchMe, fetchProviders, messageOf, playAsGuest, signOut } from "./net";
 import { PendingEvents } from "./pending";
-import { walkBackIn } from "./rejoin";
+import { comeBack } from "./rejoin";
 import { Room } from "./room";
 import { RoomScene } from "./scene";
 import { Overlay } from "./ui";
@@ -13,6 +13,8 @@ window.addEventListener("resize", () => engine.resize());
 const scene = new RoomScene(engine);
 
 let room: Room | undefined;
+// Who is playing, once known: the world picker needs it again when a world is lost.
+let me: Player | undefined;
 // Room events that arrive while the next room loads, for it once its snapshot shows.
 const loading = new PendingEvents<(room: Room) => void>();
 
@@ -53,9 +55,18 @@ const connection = new GameConnection({
     overlay.showReplaced(() => window.location.reload());
   },
   // The server dropped us from the room with the old connection: walk back in.
-  reconnected: () => rejoin(),
-  // The room no longer has our cat: walk back in the same way.
-  roomLost: () => rejoin(),
+  reconnected: () => rejoin("reconnected"),
+  // The room no longer has our cat; we are still in the world: go back to the room.
+  roomLost: () => rejoin("roomLost"),
+  // The world has no room for us any more: pick another.
+  worldLost: (message) => {
+    loading.cancel();
+    room = undefined;
+    overlay.toast(message);
+    if (me) {
+      void pickWorld(me);
+    }
+  },
 });
 
 /** Applies a room event to the room showing, or holds it for the one loading. */
@@ -90,10 +101,11 @@ function show(snapshot: RoomSnapshot): Room {
   return shown;
 }
 
-function rejoin(): void {
+function rejoin(reason: "roomLost" | "reconnected"): void {
   const current = room?.snapshot;
   if (current) {
-    void walkBackIn(
+    void comeBack(
+      reason,
       current,
       async (worldId) => {
         await enter(worldId);
@@ -134,6 +146,7 @@ async function load(request: () => Promise<RoomSnapshot>): Promise<void> {
 }
 
 async function pickWorld(player: Player): Promise<void> {
+  me = player;
   await connection.start();
   overlay.showWorlds(player, await connection.getWorlds(), (worldId) => void enter(worldId), () => {
     void signOut().then(() => window.location.reload());

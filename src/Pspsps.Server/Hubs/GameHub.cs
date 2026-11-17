@@ -45,6 +45,14 @@ public sealed class GameHub(IGrainFactory grains, IPlayerService players, Sessio
 
         // Entering a world makes this tab the player's one; the tab it replaces is told, and stops.
         var replaced = await Session.Claim(Context.ConnectionId);
+        if (heartbeat.IsClosed(Context.ConnectionId))
+        {
+            // The tab closed while claiming (a refresh, say): a dead connection mustn't be the player's tab, nor replace the
+            // live one. The disconnect released it before the claim landed, so release it again.
+            await Session.Release(Context.ConnectionId);
+            throw new HubException(ClosedMessage);
+        }
+
         if (replaced is not null)
         {
             await Clients.Client(replaced).SessionReplaced();
@@ -68,12 +76,23 @@ public sealed class GameHub(IGrainFactory grains, IPlayerService players, Sessio
 
     public async Task<RoomSnapshot> GoToRoom(string roomId)
     {
-        var place = Here ?? throw new HubException("Pick a world first.");
+        if (Here is null)
+        {
+            throw new HubException("Pick a world first.");
+        }
+
         await EnsureCurrentTab();
         var room = RoomCatalog.Find(roomId) ?? throw new HubException("That room doesn't exist.");
+        // Read after the wait: the heartbeat may have moved it meanwhile (a lost room or world).
+        var place = Here ?? throw new HubException("Pick a world first.");
+        if (!MoveTo(place with { RoomKey = null }))
+        {
+            // The tab closed meanwhile; the disconnect leaves the room it was in.
+            throw new HubException(ClosedMessage);
+        }
+
         if (place.RoomKey is { } key)
         {
-            MoveTo(place with { RoomKey = null });
             await LeaveRoom(key);
         }
 
@@ -131,6 +150,11 @@ public sealed class GameHub(IGrainFactory grains, IPlayerService players, Sessio
 
     private async Task<RoomSnapshot> JoinRoom(string worldId, string roomId)
     {
+        if (heartbeat.IsClosed(Context.ConnectionId))
+        {
+            throw new HubException(ClosedMessage);
+        }
+
         var profile = await players.FindAsync(PlayerId, Context.ConnectionAborted)
             ?? throw new HubException("Your cat wasn't found. Sign in again.");
         var key = RoomKey.For(worldId, roomId);

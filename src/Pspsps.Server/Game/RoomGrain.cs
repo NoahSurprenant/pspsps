@@ -20,6 +20,9 @@ internal sealed class RoomGrain(
     private string _key = "";
     private RoomState _state = null!;
 
+    // Counted in pspsps.rooms.active once a cat joins, not on activation: a renewal can wake an empty room for a moment.
+    private bool _counted;
+
     public override Task OnActivateAsync(CancellationToken cancellationToken)
     {
         _key = this.GetPrimaryKeyString();
@@ -30,13 +33,16 @@ internal sealed class RoomGrain(
             static (grain, _) => grain.RemoveExpired(),
             this,
             new GrainTimerCreationOptions { DueTime = SessionLease.RenewEvery, Period = SessionLease.RenewEvery });
-        metrics.RoomActivated();
         return Task.CompletedTask;
     }
 
     public override Task OnDeactivateAsync(DeactivationReason reason, CancellationToken cancellationToken)
     {
-        metrics.RoomDeactivated();
+        if (_counted)
+        {
+            metrics.RoomDeactivated();
+        }
+
         return Task.CompletedTask;
     }
 
@@ -44,6 +50,12 @@ internal sealed class RoomGrain(
     {
         var fur = Enum.Parse<FurColor>(player.FurColor);
         var cat = Rule(() => _state.Join(player.PlayerId, player.DisplayName, fur, session, time.GetUtcNow()));
+        if (!_counted)
+        {
+            _counted = true;
+            metrics.RoomActivated();
+        }
+
         await broadcaster.CatJoined(_key, CatView.From(cat));
 
         var (worldId, _) = RoomKey.Parse(_key);
@@ -75,7 +87,7 @@ internal sealed class RoomGrain(
     {
         var now = time.GetUtcNow();
         var lost = sessions
-            .Where(s => !_state.Renew(s.PlayerId, s.Session, now) && !_state.Has(s.PlayerId))
+            .Where(s => _state.Renew(s.PlayerId, s.Session, now) == CatRenewal.Gone)
             .Select(s => s.Session)
             .ToList();
 
@@ -116,10 +128,7 @@ internal sealed class RoomGrain(
             metrics.LeasesExpired("room", expired.Count);
         }
 
-        foreach (var playerId in expired)
-        {
-            await broadcaster.CatLeft(_key, playerId);
-        }
+        await Task.WhenAll(expired.Select(playerId => broadcaster.CatLeft(_key, playerId)));
 
         if (_state.Cats.Count == 0)
         {

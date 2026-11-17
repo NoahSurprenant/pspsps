@@ -19,3 +19,21 @@ export async function walkBackIn(
     await goTo(where.roomId);
   }
 }
+
+/**
+ * Comes back to where the tab was. After a lost room the tab is still in its world, so it only goes back to the room
+ * (entering the world again could find it full, and would flash the cat through the world's first room); after a
+ * reconnect the server has forgotten the tab entirely, so it walks back in through the world.
+ */
+export async function comeBack(
+  reason: "roomLost" | "reconnected",
+  where: Whereabouts,
+  enter: (worldId: string) => Promise<string | undefined>,
+  goTo: (roomId: string) => Promise<unknown>,
+): Promise<void> {
+  if (reason === "roomLost") {
+    await goTo(where.roomId);
+    return;
+  }
+  await walkBackIn(where, enter, goTo);
+}

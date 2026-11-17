@@ -72,18 +72,18 @@ public sealed class RoomState(RoomDefinition room)
     }
 
     /// <summary>
-    /// Renews the lease of the cat <paramref name="session"/> controls; false when the cat isn't here or another session
-    /// controls it. A renewal never brings a cat back.
+    /// Renews the lease of the cat <paramref name="session"/> controls. A renewal never brings a cat back: when the cat is
+    /// gone, the session has lost it (and its tab should walk back in); when another session took it over, it hasn't.
     /// </summary>
-    public bool Renew(Guid playerId, string session, DateTimeOffset now)
+    public CatRenewal Renew(Guid playerId, string session, DateTimeOffset now)
     {
-        if (!Controls(playerId, session))
+        if (Controls(playerId, session))
         {
-            return false;
+            _leases[playerId] = _leases[playerId].Renew(now);
+            return CatRenewal.Renewed;
         }
 
-        _leases[playerId] = _leases[playerId].Renew(now);
-        return true;
+        return _cats.ContainsKey(playerId) ? CatRenewal.TakenOver : CatRenewal.Gone;
     }
 
     /// <summary>
@@ -140,9 +140,6 @@ public sealed class RoomState(RoomDefinition room)
 
         return line;
     }
-
-    /// <summary>Whether the player's cat is here, whichever session controls it.</summary>
-    public bool Has(Guid playerId) => _cats.ContainsKey(playerId);
 
     /// <summary>
     /// The cat does <paramref name="emote"/>, one of <see cref="Emotes.All"/>, at most once per <see cref="EmoteCooldown"/>.

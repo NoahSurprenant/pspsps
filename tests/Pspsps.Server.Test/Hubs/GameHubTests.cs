@@ -49,7 +49,11 @@ public sealed class GameHubTests
         _players = Substitute.For<IPlayerService>();
         _players.FindAsync(Tom.Id, Arg.Any<CancellationToken>()).Returns(Tom);
         _heartbeat = new SessionHeartbeat(
-            _grains, Substitute.For<IHubContext<GameHub, IGameClient>>(), TimeProvider.System, NullLogger<SessionHeartbeat>.Instance);
+            _grains,
+            Substitute.For<IHubContext<GameHub, IGameClient>>(),
+            new GameMetrics(_services.GetRequiredService<IMeterFactory>()),
+            TimeProvider.System,
+            NullLogger<SessionHeartbeat>.Instance);
     }
 
     [TearDown]
