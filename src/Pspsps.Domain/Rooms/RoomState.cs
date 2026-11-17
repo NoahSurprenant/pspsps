@@ -16,8 +16,9 @@ public sealed class RoomState(RoomDefinition room)
 
     private readonly Dictionary<Guid, CatInRoom> _cats = [];
 
-    // Which session (a browser tab's connection) controls each cat: a player is one cat, in their newest tab.
-    private readonly Dictionary<Guid, string> _sessions = [];
+    // Which session (a browser tab's connection) controls each cat, and when it last renewed its lease: a player is one
+    // cat, in their newest tab.
+    private readonly Dictionary<Guid, SessionLease> _leases = [];
     private readonly Queue<ChatLine> _chat = new();
 
     // When each cat last emoted, for the cooldown.
@@ -32,14 +33,14 @@ public sealed class RoomState(RoomDefinition room)
     public bool IsFull => _cats.Count >= Room.Capacity;
 
     /// <summary>
-    /// Puts a cat at the room's spawn point, controlled by <paramref name="session"/>. A cat already here (the player's
-    /// other tab) keeps its spot and passes to the new session.
+    /// Puts a cat at the room's spawn point, controlled by <paramref name="session"/>, whose lease starts
+    /// <paramref name="now"/>. A cat already here (the player's other tab) keeps its spot and passes to the new session.
     /// </summary>
-    public CatInRoom Join(Guid playerId, string displayName, FurColor furColor, string session)
+    public CatInRoom Join(Guid playerId, string displayName, FurColor furColor, string session, DateTimeOffset now)
     {
         if (_cats.TryGetValue(playerId, out var existing))
         {
-            _sessions[playerId] = session;
+            _leases[playerId] = SessionLease.Start(session, now);
             return existing;
         }
 
@@ -50,7 +51,7 @@ public sealed class RoomState(RoomDefinition room)
 
         var cat = new CatInRoom(playerId, displayName, furColor, Room.Spawn);
         _cats.Add(playerId, cat);
-        _sessions[playerId] = session;
+        _leases[playerId] = SessionLease.Start(session, now);
         return cat;
     }
 
@@ -60,14 +61,46 @@ public sealed class RoomState(RoomDefinition room)
     /// </summary>
     public bool Leave(Guid playerId, string session)
     {
-        if (!_sessions.TryGetValue(playerId, out var current) || current != session)
+        if (!Controls(playerId, session))
         {
             return false;
         }
 
-        _sessions.Remove(playerId);
+        _leases.Remove(playerId);
         _lastEmotes.Remove(playerId);
         return _cats.Remove(playerId);
+    }
+
+    /// <summary>
+    /// Renews the lease of the cat <paramref name="session"/> controls. A renewal never brings a cat back: when the cat is
+    /// gone, the session has lost it (and its tab should walk back in); when another session took it over, it hasn't.
+    /// </summary>
+    public CatRenewal Renew(Guid playerId, string session, DateTimeOffset now)
+    {
+        if (Controls(playerId, session))
+        {
+            _leases[playerId] = _leases[playerId].Renew(now);
+            return CatRenewal.Renewed;
+        }
+
+        return _cats.ContainsKey(playerId) ? CatRenewal.TakenOver : CatRenewal.Gone;
+    }
+
+    /// <summary>
+    /// Takes out every cat whose session stopped renewing its lease (its connection went away without saying so, as when
+    /// its pod dies). Returns whose cats left.
+    /// </summary>
+    public IReadOnlyList<Guid> RemoveExpired(DateTimeOffset now)
+    {
+        var expired = _leases.Where(l => l.Value.HasExpired(now)).Select(l => l.Key).ToList();
+        foreach (var playerId in expired)
+        {
+            _leases.Remove(playerId);
+            _cats.Remove(playerId);
+            _lastEmotes.Remove(playerId);
+        }
+
+        return expired;
     }
 
     /// <summary>Walks the cat towards <paramref name="target"/>, stopping at the room's walls. Returns where it ends up.</summary>
@@ -133,6 +166,9 @@ public sealed class RoomState(RoomDefinition room)
 
         return new CatEmote(playerId, emote, now);
     }
+
+    private bool Controls(Guid playerId, string session) =>
+        _leases.TryGetValue(playerId, out var lease) && lease.Session == session;
 
     private CatInRoom Get(Guid playerId) =>
         _cats.TryGetValue(playerId, out var cat) ? cat : throw new DomainException("You aren't in this room.");

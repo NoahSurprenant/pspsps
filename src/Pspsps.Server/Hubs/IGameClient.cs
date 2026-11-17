@@ -13,6 +13,18 @@ public interface IGameClient
 
     Task ChatSaid(ChatView line);
 
+    /// <summary>
+    /// The room no longer has this tab's cat (its lease ran out, or the room came back empty after its pod died): enter the
+    /// world again, then go back to that room.
+    /// </summary>
+    Task RoomLost();
+
+    /// <summary>
+    /// The world no longer counts this tab and is full (it came back empty after its pod died, and filled up before this
+    /// tab's renewal arrived): pick a world again. <paramref name="message"/> says why.
+    /// </summary>
+    Task WorldLost(string message);
+
     Task CatEmoted(EmoteView emote);
 
     /// <summary>The player opened the game in another tab, which is the one playing now.</summary>

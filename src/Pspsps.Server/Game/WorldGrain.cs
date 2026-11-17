@@ -1,55 +1,61 @@
+using Orleans.Runtime;
+using Pspsps.Domain;
 using Pspsps.Domain.Worlds;
+using Pspsps.Server.Telemetry;
 
 namespace Pspsps.Server.Game;
 
-// Kept alive: its counts exist only in memory.
+/// <summary>
+/// Holds a world's <see cref="WorldPopulation"/> in memory and counts out sessions whose lease ran out; renewals count
+/// live ones back in. Kept alive: its counts exist only in memory.
+/// </summary>
 [KeepAlive]
-internal sealed class WorldGrain : Grain, IWorldGrain
+internal sealed class WorldGrain(
+    [FromKeyedServices(TimeProviderNames.Grains)] TimeProvider time,
+    GameMetrics metrics) : Grain, IWorldGrain
 {
-    // Connections per player: a player with two tabs open counts once against the cap.
-    private readonly Dictionary<Guid, int> _connections = [];
-    private WorldDefinition _world = null!;
+    private WorldPopulation _population = null!;
 
     public override Task OnActivateAsync(CancellationToken cancellationToken)
     {
         var id = this.GetPrimaryKeyString();
-        _world = WorldCatalog.Find(id) ?? throw new InvalidOperationException($"No world '{id}'.");
+        var world = WorldCatalog.Find(id) ?? throw new InvalidOperationException($"No world '{id}'.");
+        _population = new WorldPopulation(world);
+        this.RegisterGrainTimer(
+            static (grain, _) => grain.RemoveExpired(),
+            this,
+            new GrainTimerCreationOptions { DueTime = SessionLease.RenewEvery, Period = SessionLease.RenewEvery });
         return Task.CompletedTask;
     }
 
-    public Task<bool> TryEnter(Guid playerId)
+    public Task<bool> TryEnter(Guid playerId, string session) =>
+        Task.FromResult(_population.TryEnter(playerId, session, time.GetUtcNow()));
+
+    public Task Leave(Guid playerId, string session)
     {
-        if (_connections.TryGetValue(playerId, out var count))
-        {
-            _connections[playerId] = count + 1;
-            return Task.FromResult(true);
-        }
-
-        if (_connections.Count >= _world.Capacity)
-        {
-            return Task.FromResult(false);
-        }
-
-        _connections[playerId] = 1;
-        return Task.FromResult(true);
+        _population.Leave(playerId, session, time.GetUtcNow());
+        return Task.CompletedTask;
     }
 
-    public Task Leave(Guid playerId)
+    public Task<IReadOnlyList<string>> Renew(IReadOnlyList<PlayerSession> sessions)
     {
-        if (_connections.TryGetValue(playerId, out var count))
+        var now = time.GetUtcNow();
+        IReadOnlyList<string> refused = [.. sessions
+            .Where(s => _population.Renew(s.PlayerId, s.Session, now) == TabRenewal.Full)
+            .Select(s => s.Session)];
+        return Task.FromResult(refused);
+    }
+
+    public Task<int> GetPopulation() => Task.FromResult(_population.Count);
+
+    private Task RemoveExpired()
+    {
+        var expired = _population.RemoveExpired(time.GetUtcNow());
+        if (expired > 0)
         {
-            if (count > 1)
-            {
-                _connections[playerId] = count - 1;
-            }
-            else
-            {
-                _connections.Remove(playerId);
-            }
+            metrics.LeasesExpired("world", expired);
         }
 
         return Task.CompletedTask;
     }
-
-    public Task<int> GetPopulation() => Task.FromResult(_connections.Count);
 }

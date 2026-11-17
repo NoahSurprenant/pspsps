@@ -9,6 +9,10 @@ export interface GameEvents {
   catEmoted(emote: EmoteView): void;
   /** The connection came back after a drop; the server forgot where we were, so the game re-enters. */
   reconnected(): void;
+  /** The room lost our cat (its lease ran out, or the room restarted); the game walks back in. */
+  roomLost(): void;
+  /** The world no longer has room for us (it restarted and filled up); the game goes back to the world picker. */
+  worldLost(message: string): void;
   /** The player opened the game in another tab, which plays now; this one has stopped. */
   replaced(): void;
 }
@@ -52,6 +56,8 @@ export class GameConnection {
     this.hub.on("ChatSaid", (line: ChatView) => events.chatSaid(line));
     this.hub.on("CatEmoted", (emote: EmoteView) => events.catEmoted(emote));
     this.hub.onreconnected(() => events.reconnected());
+    this.hub.on("RoomLost", () => events.roomLost());
+    this.hub.on("WorldLost", (message: string) => events.worldLost(message));
     this.hub.on("SessionReplaced", () => {
       void this.hub.stop().then(() => events.replaced());
     });
