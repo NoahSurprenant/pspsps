@@ -32,6 +32,7 @@ public sealed class ChatFiltersTests
             _app = null;
         }
 
+        _logs.Dispose();
         Directory.Delete(_root, recursive: true);
     }
 
