@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using Pspsps.Infrastructure.Persistence;
 
 namespace Pspsps.Integration.Test;
@@ -15,5 +17,23 @@ public sealed class DatabaseResilienceTests
         var db = Game.Get<PspspsDbContext>();
 
         Assert.That(db.Database.CreateExecutionStrategy().RetriesOnFailure, Is.True);
+    }
+
+    // A network that drops packets makes each connect wait its whole timeout: 5 s, not Npgsql's 15 s, keeps the
+    // migration's retries inside the server's startup probe.
+    [Test]
+    public void TheDatabaseGivesUpConnectingAfterFiveSeconds()
+    {
+        var db = Game.Get<PspspsDbContext>();
+
+        Assert.That(new NpgsqlConnectionStringBuilder(db.Database.GetConnectionString()).Timeout, Is.EqualTo(5));
+    }
+
+    [Test]
+    public void AConnectTimeoutInTheConnectionStringIsKept()
+    {
+        var connectionString = PostgresConnectionStrings.WithConnectDefaults("Host=db;Database=pspsps;Timeout=30");
+
+        Assert.That(new NpgsqlConnectionStringBuilder(connectionString).Timeout, Is.EqualTo(30));
     }
 }

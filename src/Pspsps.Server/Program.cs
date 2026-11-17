@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Pspsps.Application;
 using Pspsps.Infrastructure;
 using Pspsps.Infrastructure.Persistence;
+using Pspsps.Server;
 using Pspsps.Server.Auth;
 using Pspsps.Server.Game;
 using Pspsps.Server.Hubs;
@@ -81,8 +82,24 @@ try
 
     await using (var scope = app.Services.CreateAsyncScope())
     {
+        var db = scope.ServiceProvider.GetRequiredService<PspspsDbContext>();
+        var time = scope.ServiceProvider.GetRequiredService<TimeProvider>();
+        // Waits for the database first (DatabaseStartup says why, and how it fits the chart's startup probe).
+        var wait = DatabaseStartup.OptionsFrom(app.Configuration, invalid => Log.Warning(
+            "{Key} is {Value}, not a whole number from 1 to {Max}; waiting the default {Seconds}s",
+            DatabaseStartup.BudgetKey, invalid,DatabaseStartup.MaxBudgetSeconds, DatabaseStartup.DefaultBudgetSeconds));
+        if (!await DatabaseStartup.WaitForPostgresAsync(
+            database, wait, time,
+            (attempt, e) => Log.Information(
+                "The database isn't reachable yet (attempt {Attempt}): {Error}", attempt, DatabaseStartup.Describe(e)),
+            // Nothing to cancel with: the host's SIGTERM handling only starts in RunAsync, after this.
+            CancellationToken.None))
+        {
+            Log.Warning("The database didn't answer within {Seconds}s; migrating anyway", wait.Budget.TotalSeconds);
+        }
+
         // EF Core takes a database lock while migrating, so pods starting together don't race.
-        await scope.ServiceProvider.GetRequiredService<PspspsDbContext>().Database.MigrateAsync();
+        await db.Database.MigrateAsync();
     }
 
     // Forwarded headers first: everything after sees the real client address and scheme.

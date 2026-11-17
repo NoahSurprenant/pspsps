@@ -109,9 +109,23 @@ for bad in backup.keep=1 backup.keep=0 backup.activeDeadlineSeconds=0 backup.con
   if backup --set "$bad" > /dev/null 2>&1; then fail "rendered with backups on and $bad"; fi
 done
 
+server() { helm template pspsps "$chart" --show-only templates/deployment.yaml "$@"; }
+
+# The server's database wait: 90 s by default, else the value, and only from 1 to 120, which the startup probe's 240 s
+# are sized for.
+[[ "$(env_value "$(server)" Database__StartupWaitSeconds)" == 90 ]] \
+  || fail "Database__StartupWaitSeconds isn't 90 by default"
+[[ "$(env_value "$(server --set server.databaseStartupWaitSeconds=30)" Database__StartupWaitSeconds)" == 30 ]] \
+  || fail "Database__StartupWaitSeconds doesn't follow server.databaseStartupWaitSeconds"
+for bad in 0 121; do
+  if server --set "server.databaseStartupWaitSeconds=$bad" > /dev/null 2>&1; then
+    fail "rendered with server.databaseStartupWaitSeconds=$bad"
+  fi
+done
+grep -qx '            failureThreshold: 120' <<< "$(server)" || fail "the server's startup probe doesn't allow 240 s"
+
 # The chat filter: nothing extra by default; lists become a ConfigMap, and either that or an existing one is mounted
 # over the image's word lists with the polling file watcher on (a ConfigMap changes by a symlink swap).
-server() { helm template pspsps "$chart" --show-only templates/deployment.yaml "$@"; }
 plain=$(helm template pspsps "$chart")
 if grep -qE "chat-filter|DOTNET_USE_POLLING_FILE_WATCHER" <<< "$plain"; then
   fail "the chat filter renders something with chatFilter unset"
