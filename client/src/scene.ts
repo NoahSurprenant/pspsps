@@ -1,8 +1,22 @@
-import {
-  ArcRotateCamera, Color3, Color4, MeshBuilder, Scene, StandardMaterial, Vector3, type AbstractEngine, type AbstractMesh,
-  type TransformNode,
-} from "@babylonjs/core";
-import { AdvancedDynamicTexture, Rectangle, TextBlock } from "@babylonjs/gui";
+// Babylon by module, not from its index, so the page loads only what it uses.
+import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
+import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
+import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
+import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
+import { CreateDisc } from "@babylonjs/core/Meshes/Builders/discBuilder";
+import { CreateGround } from "@babylonjs/core/Meshes/Builders/groundBuilder";
+import type { TransformNode } from "@babylonjs/core/Meshes/transformNode";
+import { Scene } from "@babylonjs/core/scene";
+// For their side effects: picking what a pointer touches, and the meshes' drawn outlines (renderOutline).
+import "@babylonjs/core/Culling/ray";
+import "@babylonjs/core/Rendering/outlineRenderer";
+import { AdvancedDynamicTexture } from "@babylonjs/gui/2D/advancedDynamicTexture";
+import { Rectangle } from "@babylonjs/gui/2D/controls/rectangle";
+import { TextBlock } from "@babylonjs/gui/2D/controls/textBlock";
+import { cameraRadius, fieldOfView } from "./view";
 import { buildCat } from "./cat";
 import { poseScales } from "./emotes";
 import { CatLook } from "./look";
@@ -62,13 +76,20 @@ export class RoomScene {
     this.gui = AdvancedDynamicTexture.CreateFullscreenUI("ui", true, this.scene);
 
     // A fixed, angled camera: the player never steers it, like a painted backdrop.
-    const camera = new ArcRotateCamera("camera", -Math.PI / 2, 0.95, Math.max(room.width, room.depth) * 1.15, Vector3.Zero(), this.scene);
-    camera.fov = 0.7;
+    const camera = new ArcRotateCamera("camera", -Math.PI / 2, 0.95, 1, Vector3.Zero(), this.scene);
+    camera.fov = fieldOfView;
+    // Back far enough for the screen's shape, now and whenever it changes (a phone turned on its side).
+    const fit = () => {
+      camera.radius = cameraRadius(this.engine.getAspectRatio(camera), room.width, room.depth);
+    };
+    fit();
+    this.engine.onResizeObservable.add(fit);
+    this.scene.onDisposeObservable.add(() => this.engine.onResizeObservable.removeCallback(fit));
     camera.inputs.clear();
 
-    const floor = MeshBuilder.CreateGround("floor", { width: room.width, height: room.depth }, this.scene);
+    const floor = CreateGround("floor", { width: room.width, height: room.depth }, this.scene);
     floor.material = flat(this.scene, "floor", room.roomId === "cafe" ? "#d9b38c" : "#9fd38a");
-    const back = MeshBuilder.CreateBox("back-wall", { width: room.width, height: 4, depth: 0.3 }, this.scene);
+    const back = CreateBox("back-wall", { width: room.width, height: 4, depth: 0.3 }, this.scene);
     back.position.set(0, 2, room.depth / 2 + 0.15);
     back.material = flat(this.scene, "wall", room.roomId === "cafe" ? "#f2d6c2" : "#f4efe4");
     back.isPickable = false;
@@ -81,7 +102,7 @@ export class RoomScene {
     // The pond: a flat disc of water just above the floor. Clicking it fishes, rather than walking into it.
     let pond: AbstractMesh | undefined;
     if (room.pond) {
-      pond = MeshBuilder.CreateDisc("pond", { radius: room.pond.radius, tessellation: 48 }, this.scene);
+      pond = CreateDisc("pond", { radius: room.pond.radius, tessellation: 48 }, this.scene);
       pond.rotation.x = Math.PI / 2;
       pond.position.set(room.pond.x, 0.02, room.pond.z);
       pond.material = flat(this.scene, "pond", "#5fb3d9");
@@ -115,7 +136,7 @@ export class RoomScene {
     // The anchor (name, bubbles) and the paw hang off the root, which poses don't squash.
     const { root, body, paw } = buildCat(this.scene, `cat-${cat.playerId}`, cat.furColor);
     root.position.set(cat.x, 0, cat.z);
-    const anchor = MeshBuilder.CreateBox(`anchor-${cat.playerId}`, { size: 0.01 }, this.scene);
+    const anchor = CreateBox(`anchor-${cat.playerId}`, { size: 0.01 }, this.scene);
     anchor.parent = root;
     anchor.position.y = 1.7;
     anchor.isVisible = false;

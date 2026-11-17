@@ -1,18 +1,42 @@
-import { Engine } from "@babylonjs/core";
 import { addressNote, linkUrl, loginUrl } from "./link";
 import { GameConnection, fetchMe, fetchProviders, messageOf, playAsGuest, signOut } from "./net";
 import { PendingEvents } from "./pending";
 import { comeBack } from "./rejoin";
 import { catchBubble, FishingState, gotAwayMessage, paid, pondEdge, reelMessage, type Fishing } from "./fishing";
 import { Room } from "./room";
-import { RoomScene } from "./scene";
+import type { RoomScene } from "./scene";
 import { Overlay, type Note } from "./ui";
 import type { Player, RoomSnapshot } from "./types";
 
 const overlay = new Overlay(required<HTMLElement>("#ui"));
-const engine = new Engine(required<HTMLCanvasElement>("#game"), true, { stencil: true });
-window.addEventListener("resize", () => engine.resize());
-const scene = new RoomScene(engine);
+// The 3D scene, made on the way into the first room: Babylon (most of the page's script) loads only then, so the
+// sign-in screen and the world list stay light, and nothing draws until there is a room to draw.
+let scene: RoomScene | undefined;
+let staging: Promise<RoomScene> | undefined;
+
+function stage(): Promise<RoomScene> {
+  staging ??= (async () => {
+    const [{ Engine }, { RoomScene }] = await Promise.all([import("@babylonjs/core/Engines/engine"), import("./scene")]);
+    const canvas = required<HTMLCanvasElement>("#game");
+    const engine = new Engine(canvas, true, { stencil: true });
+    // Babylon makes the canvas the first stop for Tab (tabindex 1); the room is played with the pointer and the
+    // buttons, so it isn't a stop at all.
+    canvas.tabIndex = -1;
+    window.addEventListener("resize", () => engine.resize());
+    const made = new RoomScene(engine);
+    made.onFloorClicked((x, z) => {
+      if (room) {
+        // Walking off reels the line in (the server drops it), with nothing on it.
+        fishing.drop();
+        connection.move(x, z).catch((error: unknown) => overlay.toast(messageOf(error)));
+      }
+    });
+    made.onPondClicked(() => void fish());
+    scene = made;
+    return made;
+  })();
+  return staging;
+}
 
 let room: Room | undefined;
 // Who is playing, once known: the world picker needs it again when a world is lost. Their coins (me.coins) are the
@@ -34,25 +58,25 @@ window.pspsps = { room: () => room, coins: () => me?.coins ?? 0, fishing: () => 
 const connection = new GameConnection({
   catJoined: (cat) => onRoom((here) => {
     here.join(cat);
-    scene.place(cat);
+    scene?.place(cat);
   }),
   catLeft: (playerId) => onRoom((here) => {
     here.leave(playerId);
-    scene.remove(playerId);
+    scene?.remove(playerId);
   }),
   catMoved: (playerId, x, z) => onRoom((here) => {
     if (here.move(playerId, x, z)) {
-      scene.walk(playerId, x, z);
+      scene?.walk(playerId, x, z);
     }
   }),
   chatSaid: (line) => onRoom((here) => {
     if (here.say(line)) {
-      scene.speak(line.playerId, line.text);
+      scene?.speak(line.playerId, line.text);
     }
   }),
   catEmoted: (emote) => onRoom((here) => {
     here.emote(emote);
-    scene.emote(emote.playerId, emote.emote);
+    scene?.emote(emote.playerId, emote.emote);
   }),
   fishBit: () => fishing.bite(),
   fishGotAway: () => {
@@ -60,7 +84,7 @@ const connection = new GameConnection({
       overlay.toast(gotAwayMessage);
     }
   },
-  catFished: (caught) => onRoom(() => scene.speak(caught.playerId, catchBubble(caught.fishName))),
+  catFished: (caught) => onRoom(() => scene?.speak(caught.playerId, catchBubble(caught.fishName))),
   replaced: () => {
     loading.cancel();
     room = undefined;
@@ -87,15 +111,6 @@ function onRoom(apply: (room: Room) => void): void {
     apply(room);
   }
 }
-
-scene.onFloorClicked((x, z) => {
-  if (room) {
-    // Walking off reels the line in (the server drops it), with nothing on it.
-    fishing.drop();
-    connection.move(x, z).catch((error: unknown) => overlay.toast(messageOf(error)));
-  }
-});
-scene.onPondClicked(() => void fish());
 
 /** Walks the player's cat to the pond's edge and casts: once, however many clicks. */
 async function fish(): Promise<void> {
@@ -144,10 +159,10 @@ async function reel(): Promise<void> {
   }
 }
 
-function show(snapshot: RoomSnapshot): Room {
+function show(snapshot: RoomSnapshot, view: RoomScene): Room {
   const shown = new Room(snapshot);
   room = shown;
-  scene.show(snapshot);
+  view.show(snapshot);
   overlay.showRoom(
     snapshot,
     (roomId) => void goTo(roomId),
@@ -199,7 +214,9 @@ async function load(request: () => Promise<RoomSnapshot>): Promise<void> {
   loading.start();
   let shown: Room;
   try {
-    shown = show(await request());
+    // The first room also loads the 3D scene, side by side with the room itself.
+    const [snapshot, view] = await Promise.all([request(), stage()]);
+    shown = show(snapshot, view);
   } catch (error) {
     loading.cancel();
     overlay.toast(messageOf(error));
