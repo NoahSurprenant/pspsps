@@ -101,12 +101,12 @@ describe("RoomScene", () => {
       return loadCatModel(scene, modelBytes());
     });
     view.playerId = "tom";
-    view.show({ ...room, cats: [{ playerId: "tom", displayName: "Tom", furColor: "Grey", x: 0, z: 0, pose: null }] });
-    view.place({ playerId: "felix", displayName: "Felix", furColor: "Black", x: 2, z: 0, pose: null });
+    view.show({ ...room, cats: [{ playerId: "tom", displayName: "Tom", furColor: "Grey", x: 0, z: 0, pose: null, hat: null, collar: null }] });
+    view.place({ playerId: "felix", displayName: "Felix", furColor: "Black", x: 2, z: 0, pose: null, hat: null, collar: null });
 
     loaded.resolve(true);
     await vi.waitFor(() => expect(view.animationOf("felix")).toBeDefined());
-    view.place({ playerId: "garfield", displayName: "Garfield", furColor: "Orange", x: -2, z: 0, pose: null });
+    view.place({ playerId: "garfield", displayName: "Garfield", furColor: "Orange", x: -2, z: 0, pose: null, hat: null, collar: null });
     await vi.waitFor(() => expect(view.animationOf("garfield")).toBeDefined());
     expect(view.animationOf("tom")).toBeDefined();
 
@@ -118,6 +118,36 @@ describe("RoomScene", () => {
     expect(pickable("garfield")).toEqual([true]);
     expect(pickable("tom")).toEqual([false]);
     expect(meshes.filter((mesh) => mesh.name.startsWith("anchor-")).every((anchor) => !anchor.isPickable)).toBe(true);
+  });
+});
+
+describe("RoomScene dressing", () => {
+  beforeEach(() => vi.stubGlobal("OffscreenCanvas", NoCanvas));
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("dresses a cat as it arrives, and as it changes, also while its model still loads; another cat's hat takes taps", async () => {
+    const loaded = deferred<true>();
+    const view = new RoomScene(new NullEngine(), async (scene) => {
+      await loaded.promise;
+      return loadCatModel(scene, modelBytes());
+    });
+    view.playerId = "tom";
+    view.show({ ...room, cats: [{ playerId: "felix", displayName: "Felix", furColor: "Black", x: 2, z: 0, pose: null, hat: "bow", collar: null }] });
+    view.dress({ playerId: "felix", furColor: "Calico", hat: "crown", collar: "blue-collar" });
+
+    loaded.resolve(true);
+    await vi.waitFor(() => expect(view.wearingOf("felix")).toEqual({ fur: "Calico", hat: "crown", collar: "blue-collar" }));
+
+    view.dress({ playerId: "felix", furColor: "Calico", hat: null, collar: "blue-collar" });
+    expect(view.wearingOf("felix")).toEqual({ fur: "Calico", hat: undefined, collar: "blue-collar" });
+    // A join for a cat already here (its other tab) brings what it wears now.
+    view.place({ playerId: "felix", displayName: "Felix", furColor: "Calico", x: 2, z: 0, pose: null, hat: "party-hat", collar: null });
+    expect(view.wearingOf("felix")).toEqual({ fur: "Calico", hat: "party-hat", collar: undefined });
+    const meshes = (view as unknown as { scene: Scene }).scene.meshes;
+    const hat = meshes.filter((mesh) => mesh.name.startsWith("cat-felix-hat"));
+    expect(hat.length).toBeGreaterThan(0);
+    expect(hat.every((mesh) => mesh.isPickable && catPlayerIdOf(mesh) === "felix")).toBe(true);
+    view.dress({ playerId: "nobody", furColor: "Grey", hat: "crown", collar: null });
   });
 });
 

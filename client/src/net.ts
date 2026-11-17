@@ -1,7 +1,9 @@
 import { HubConnectionBuilder, HubConnectionState, LogLevel, type HubConnection } from "@microsoft/signalr";
 import type { FriendAction } from "./friends";
+import type { ShopAction } from "./shop";
 import type {
-  CatchView, CatView, ChatView, Emote, EmoteView, Friend, Player, PlayerCard, ReelView, RoomSnapshot, WorldSummary,
+  CatchView, CatView, ChatView, Emote, EmoteView, Friend, OutfitView, Player, PlayerCard, ReelView, RoomSnapshot, Shop,
+  WorldSummary,
 } from "./types";
 
 export interface GameEvents {
@@ -10,6 +12,8 @@ export interface GameEvents {
   catMoved(playerId: string, x: number, z: number): void;
   chatSaid(line: ChatView): void;
   catEmoted(emote: EmoteView): void;
+  /** A cat in the room put on or took off a hat or collar, or changed its fur. */
+  catDressed(outfit: OutfitView): void;
   /** Something bit our line: reel now. */
   fishBit(): void;
   fishGotAway(): void;
@@ -64,6 +68,13 @@ export const friendMethods: Record<FriendAction, string> = {
   remove: "RemoveFriend",
 };
 
+/** The hub method for each shop button. */
+export const shopMethods: Record<ShopAction, string> = {
+  buy: "Buy",
+  wear: "Wear",
+  takeOff: "TakeOff",
+};
+
 /** The one realtime connection (src/Pspsps.Server/Hubs/GameHub.cs). */
 export class GameConnection {
   private readonly hub: HubConnection;
@@ -79,6 +90,7 @@ export class GameConnection {
     this.hub.on("CatMoved", (playerId: string, x: number, z: number) => events.catMoved(playerId, x, z));
     this.hub.on("ChatSaid", (line: ChatView) => events.chatSaid(line));
     this.hub.on("CatEmoted", (emote: EmoteView) => events.catEmoted(emote));
+    this.hub.on("CatDressed", (outfit: OutfitView) => events.catDressed(outfit));
     this.hub.on("FishBit", () => events.fishBit());
     this.hub.on("FishGotAway", () => events.fishGotAway());
     this.hub.on("CatFished", (caught: CatchView) => events.catFished(caught));
@@ -141,6 +153,15 @@ export class GameConnection {
   /** A change to the friendship with another cat; the card as it is after. */
   changeFriendship(action: FriendAction, playerId: string): Promise<PlayerCard> {
     return this.hub.invoke<PlayerCard>(friendMethods[action], playerId);
+  }
+
+  getShop(): Promise<Shop> {
+    return this.hub.invoke<Shop>("GetShop");
+  }
+
+  /** Buys, puts on or takes off a shop item; the shop as it is after. */
+  shop(action: ShopAction, itemId: string): Promise<Shop> {
+    return this.hub.invoke<Shop>(shopMethods[action], itemId);
   }
 
   getFriends(): Promise<Friend[]> {

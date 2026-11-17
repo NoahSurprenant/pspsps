@@ -93,8 +93,14 @@ namespace Pspsps.Infrastructure.Migrations
                         .HasColumnName("id");
 
                     b.Property<int>("Coins")
+                        .IsConcurrencyToken()
                         .HasColumnType("integer")
                         .HasColumnName("coins");
+
+                    b.Property<string>("Collar")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("collar");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -112,14 +118,27 @@ namespace Pspsps.Infrastructure.Migrations
                         .HasColumnType("character varying(16)")
                         .HasColumnName("fur_color");
 
+                    b.Property<string>("Hat")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("hat");
+
                     b.Property<bool>("IsGuest")
                         .HasColumnType("boolean")
                         .HasColumnName("is_guest");
 
+                    b.Property<int>("OutfitVersion")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("outfit_version");
+
                     b.HasKey("Id")
                         .HasName("pk_players");
 
-                    b.ToTable("players", (string)null);
+                    b.ToTable("players", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_players_coins_not_negative", "coins >= 0");
+                        });
                 });
 
             modelBuilder.Entity("Pspsps.Domain.Friends.Friendship", b =>
@@ -141,6 +160,31 @@ namespace Pspsps.Infrastructure.Migrations
 
             modelBuilder.Entity("Pspsps.Domain.Players.Player", b =>
                 {
+                    b.OwnsMany("Pspsps.Domain.Players.OwnedItem", "Items", b1 =>
+                        {
+                            b1.Property<Guid>("PlayerId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("player_id");
+
+                            b1.Property<string>("ItemId")
+                                .HasMaxLength(32)
+                                .HasColumnType("character varying(32)")
+                                .HasColumnName("item_id");
+
+                            b1.Property<DateTimeOffset>("At")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("at");
+
+                            b1.HasKey("PlayerId", "ItemId")
+                                .HasName("pk_player_items");
+
+                            b1.ToTable("player_items", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("PlayerId")
+                                .HasConstraintName("fk_player_items_players_player_id");
+                        });
+
                     b.OwnsMany("Pspsps.Domain.Players.PlayerLogin", "Logins", b1 =>
                         {
                             b1.Property<string>("Provider")
@@ -170,6 +214,8 @@ namespace Pspsps.Infrastructure.Migrations
                                 .HasForeignKey("PlayerId")
                                 .HasConstraintName("fk_player_logins_players_player_id");
                         });
+
+                    b.Navigation("Items");
 
                     b.Navigation("Logins");
                 });

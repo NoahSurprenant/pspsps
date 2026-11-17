@@ -62,7 +62,9 @@ internal sealed class RoomGrain(
     public async Task<RoomSnapshot> Join(PlayerCard player, string session, string? throughDoor)
     {
         var fur = Enum.Parse<FurColor>(player.FurColor);
-        var cat = Rule(() => _state.Join(player.PlayerId, player.DisplayName, fur, session, time.GetUtcNow(), throughDoor));
+        var cat = Rule(() => _state.Join(
+            player.PlayerId, player.DisplayName, fur, session, time.GetUtcNow(), throughDoor, player.Hat, player.Collar,
+            player.OutfitVersion));
         if (!_counted)
         {
             _counted = true;
@@ -148,6 +150,22 @@ internal sealed class RoomGrain(
     {
         var done = Rule(() => _state.Emote(playerId, emote, time.GetUtcNow()));
         await broadcaster.CatEmoted(_key, EmoteView.From(done));
+    }
+
+    public async Task Dress(OutfitView outfit)
+    {
+        ArgumentNullException.ThrowIfNull(outfit);
+        var fur = Enum.Parse<FurColor>(outfit.FurColor);
+        if (_state.Dress(outfit.PlayerId, fur, outfit.Hat, outfit.Collar, outfit.Version) is { } cat)
+        {
+            await broadcaster.CatDressed(_key, OutfitView.From(cat));
+        }
+        else
+        {
+            // Not here, or an older outfit than it has. Asking can be what activated this room (the cat's tab just left
+            // it): an empty room goes again.
+            GoIfEmpty();
+        }
     }
 
     public Task Cast(Guid playerId)

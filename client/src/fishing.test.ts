@@ -151,7 +151,7 @@ describe("FishingState", () => {
 });
 
 describe("paid", () => {
-  const player: Player = { id: "p1", displayName: "Kitty 1234", furColor: "Grey", coins: 40, isGuest: true };
+  const player: Player = { id: "p1", displayName: "Kitty 1234", furColor: "Grey", coins: 40, isGuest: true, hat: null, collar: null };
 
   it("keeps the coins a catch paid, so the next world picked shows them", () => {
     const after = paid(player, { outcome: "caught", fishId: "koi", fishName: "Golden koi", coins: 100, totalCoins: 140 });

@@ -91,17 +91,35 @@ world first (within its cap), then joins their room (within its cap), and only t
 player was in, so a full world or room leaves the player where they were. A change to a friendship is sent to the other
 player's tabs (`FriendsChanged`, through SignalR's user = player ID).
 
+## Shop
+
+The shop (`ShopCatalog`) sells hats, collars and fur colours for coins, which come from fishing. Buying and wearing are
+rules of the `Player` aggregate: a player buys what they can afford and don't have yet (`Buy`), and has it from then on
+(`player_items`); every cat also owns the coat it was born with. A cat wears at most one hat and one collar, and always
+one fur (`Wear`, `TakeOff`). Guests shop like everyone.
+
+Coins never go below zero, however many purchases and catches land at once. A catch adds its coins in one statement
+(`coins = coins + n`); a purchase reads the player, applies the rule and saves, with `Coins` as a concurrency token: a
+purchase whose coins changed meanwhile (a catch, a purchase in another tab) is refused by the database and decided
+again on the coins there are now (`ShopService`). A check constraint keeps `coins >= 0` whatever the code does, and
+the key of `player_items` (player, item) keeps a thing from being bought twice.
+
+What a cat wears is saved on the player, comes with it into every room (`CatView`, so later arrivals see it in the
+snapshot), and a change is shown live: the hub saves it, then tells the room the player's cat is in
+(`IRoomGrain.Dress`), which updates its `RoomState` and broadcasts `CatDressed`. The browser draws the hats and
+collars in code (`client/src/wearables.ts`), on the cat model's head-top and neck anchors.
+
 ## Layers (Clean Architecture)
 
 Dependencies point inwards only: **Domain ← Application ← Infrastructure ← Server**. `Pspsps.Architecture.Test`
 enforces this.
 
 - **Domain** (`src/Pspsps.Domain`): the game's rules, no frameworks. Aggregates in the DDD sense: `Player` owns its
-  logins, coins and fur. A private constructor for EF Core, named static factories (`CreateGuest`,
+  logins, coins, fur and what it has from the shop. A private constructor for EF Core, named static factories (`CreateGuest`,
   `CreateWithLogin`), private setters, collections exposed read-only, and methods that refuse invalid changes with a
   `DomainException`. `Friendship` is another aggregate (Friends, above). Also the in-memory world and room rules
   (`WorldPopulation`, `RoomState`, `SessionLease`) and the world and room catalogues.
-- **Application** (`src/Pspsps.Application`): use cases (`PlayerService`, `FriendService`) and the ports they need
+- **Application** (`src/Pspsps.Application`): use cases (`PlayerService`, `FriendService`, `ShopService`) and the ports they need
   (`IApplicationDbContext`).
 - **Infrastructure** (`src/Pspsps.Infrastructure`): EF Core on PostgreSQL (snake_case names), the migrations, and the
   Data Protection key ring in the database.

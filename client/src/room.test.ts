@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { Room } from "./room";
 import type { CatView, RoomSnapshot } from "./types";
 
-const tom: CatView = { playerId: "tom", displayName: "Tom", furColor: "Grey", x: 0, z: 4, pose: null };
-const felix: CatView = { playerId: "felix", displayName: "Felix", furColor: "Tuxedo", x: 1, z: 1, pose: null };
+const tom: CatView = { playerId: "tom", displayName: "Tom", furColor: "Grey", x: 0, z: 4, pose: null, hat: null, collar: null };
+const felix: CatView = { playerId: "felix", displayName: "Felix", furColor: "Tuxedo", x: 1, z: 1, pose: null, hat: null, collar: null };
 
 function snapshot(cats: CatView[]): RoomSnapshot {
   return { worldId: "tabby", roomId: "town-square", roomName: "Town Square", width: 24, depth: 16, cats, chat: [], rooms: [], pond: null, doors: [] };
@@ -24,6 +24,15 @@ describe("Room", () => {
     expect(room.move("tom", 5, -2)).toEqual({ ...tom, x: 5, z: -2 });
     expect(room.move("felix", 1, 1)).toBeUndefined();
     expect(room.cats.has("felix")).toBe(false);
+  });
+
+  it("dresses a cat that's here, keeping where it stands, and ignores one that isn't", () => {
+    const room = new Room(snapshot([tom]));
+
+    expect(room.dress({ playerId: "tom", furColor: "Calico", hat: "crown", collar: null })).toBe(true);
+    expect(room.dress({ playerId: "felix", furColor: "Grey", hat: "bow", collar: null })).toBe(false);
+
+    expect([...room.cats.values()]).toEqual([{ ...tom, furColor: "Calico", hat: "crown", collar: null }]);
   });
 
   it("forgets cats that leave", () => {

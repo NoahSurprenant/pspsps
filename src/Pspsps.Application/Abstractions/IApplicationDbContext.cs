@@ -17,8 +17,8 @@ public interface IApplicationDbContext
     bool IsUniqueViolation(DbUpdateException exception);
 
     /// <summary>
-    /// Stops tracking the player and their logins, so their unsaved changes (refused by the database) aren't saved by
-    /// the next save. Nothing else in the scope is touched.
+    /// Stops tracking the player, their logins and items, so their unsaved changes (refused by the database) aren't
+    /// saved by the next save. Nothing else in the scope is touched.
     /// </summary>
     void Forget(Player player);
 

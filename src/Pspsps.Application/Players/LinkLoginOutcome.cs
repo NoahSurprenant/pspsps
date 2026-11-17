@@ -17,4 +17,7 @@ public enum LinkLoginOutcome
 
     /// <summary>The login itself isn't valid (no provider user ID, an unknown provider).</summary>
     InvalidLogin,
+
+    /// <summary>The cat kept changing while it was linked (coins earned at every try): nothing changed; try again.</summary>
+    Busy,
 }

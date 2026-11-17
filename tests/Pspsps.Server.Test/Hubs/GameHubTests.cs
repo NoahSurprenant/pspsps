@@ -7,9 +7,11 @@ using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using Pspsps.Application.Friends;
 using Pspsps.Application.Players;
+using Pspsps.Application.Shop;
 using Pspsps.Domain;
 using Pspsps.Domain.Friends;
 using Pspsps.Domain.Players;
+using Pspsps.Domain.Shop;
 using Pspsps.Server.Auth;
 using Pspsps.Server.Game;
 using Pspsps.Server.Hubs;
@@ -30,6 +32,7 @@ public sealed class GameHubTests
     private IRoomGrain _room = null!;
     private IPlayerService _players = null!;
     private IFriendService _friends = null!;
+    private IShopService _shop = null!;
     private IPlayerSessionGrain _session = null!;
     private IRoomGrain _cafe = null!;
     private IHubCallerClients<IGameClient> _clients = null!;
@@ -53,6 +56,7 @@ public sealed class GameHubTests
         _world.TryEnter(Tom.Id, Connection).Returns(true);
         _players = Substitute.For<IPlayerService>();
         _friends = Substitute.For<IFriendService>();
+        _shop = Substitute.For<IShopService>();
         _players.FindAsync(Tom.Id, Arg.Any<CancellationToken>()).Returns(Tom);
         _heartbeat = new SessionHeartbeat(
             _grains,
@@ -566,6 +570,122 @@ public sealed class GameHubTests
         _cafe.Renew(default!).ReturnsForAnyArgs(Task.FromResult<IReadOnlyList<string>>([]));
     }
 
+    [Test]
+    public async Task EnterWorld_TheRoomIsToldWhatTheCatWears()
+    {
+        _players.FindAsync(Tom.Id, Arg.Any<CancellationToken>())
+            .Returns(Tom with { FurColor = FurColor.Tuxedo, Hat = "crown", Collar = "bell-collar" });
+        var hub = Hub();
+
+        await hub.EnterWorld("tabby");
+
+        await _room.Received(1).Join(
+            new PlayerCard(Tom.Id, "Tom", "Tuxedo", "crown", "bell-collar"), Connection, null);
+    }
+
+    [Test]
+    public async Task Wear_SavesIt_ThenShowsTheRoomTheCatIsIn()
+    {
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+        _shop.WearAsync(Tom.Id, "bow", Arg.Any<CancellationToken>()).Returns(Dressed("bow", null));
+
+        var shop = await hub.Wear("bow");
+
+        await _room.Received(1).Dress(new OutfitView(Tom.Id, "Grey", "bow", null));
+        Assert.Multiple(() =>
+        {
+            Assert.That(shop.Hat, Is.EqualTo("bow"));
+            Assert.That(shop.Coins, Is.EqualTo(15));
+            Assert.That(shop.Owned, Is.EqualTo(new[] { "fur-grey", "bow" }));
+            Assert.That(shop.Items.Select(i => i.Id), Is.EqualTo(ShopCatalog.All.Select(i => i.Id)), "the whole catalogue, in order");
+            Assert.That(shop.Items.Single(i => i.Id == "fur-calico"), Is.EqualTo(
+                new ShopItemView("fur-calico", "Calico fur", "Fur", ShopCatalog.PatternedFurPrice, "Calico")));
+        });
+    }
+
+    [Test]
+    public async Task TakeOff_ShowsTheRoomWhereThePlayersCurrentTabHasTheCat()
+    {
+        // This tab is in no room (the world list, say); the player's cat is in the café, played from another tab.
+        _session.Locate().Returns(new PlayerPlace("tabby", "cafe"));
+        _shop.TakeOffAsync(Tom.Id, "bow", Arg.Any<CancellationToken>()).Returns(Dressed(null, "red-collar"));
+        var hub = Hub();
+
+        await hub.TakeOff("bow");
+
+        await _cafe.Received(1).Dress(new OutfitView(Tom.Id, "Grey", null, "red-collar"));
+        await _room.DidNotReceiveWithAnyArgs().Dress(default!);
+    }
+
+    [Test]
+    public async Task Wear_ARuleBroken_IsThePlayersMessage_AndTheRoomIsntTold()
+    {
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+        _shop.WearAsync(Tom.Id, "crown", Arg.Any<CancellationToken>())
+            .ThrowsAsync(new DomainException("Buy the Crown first."));
+
+        var refused = Assert.ThrowsAsync<HubException>(() => hub.Wear("crown"));
+
+        Assert.That(refused!.Message, Is.EqualTo("Buy the Crown first."));
+        await _room.DidNotReceiveWithAnyArgs().Dress(default!);
+    }
+
+    [Test]
+    public async Task Wear_WhenTheRoomCantBeTold_StillSucceeds()
+    {
+        // Saved by then: the room shows it to whoever arrives next, and the player's next arrival.
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+        _shop.WearAsync(Tom.Id, "bow", Arg.Any<CancellationToken>()).Returns(Dressed("bow", null));
+        _room.Dress(Arg.Any<OutfitView>()).ThrowsAsync(new TimeoutException());
+
+        var shop = await hub.Wear("bow");
+
+        Assert.That(shop.Hat, Is.EqualTo("bow"));
+    }
+
+    [Test]
+    public async Task Buy_PutsNothingOn_SoTheRoomIsntTold()
+    {
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+        _shop.BuyAsync(Tom.Id, "bow", Arg.Any<CancellationToken>()).Returns(Dressed(null, null));
+
+        var shop = await hub.Buy("bow");
+
+        Assert.That(shop.Owned, Does.Contain("bow"));
+        await _room.DidNotReceiveWithAnyArgs().Dress(default!);
+    }
+
+    [Test]
+    public void Buy_WithoutTheCoins_IsThePlayersMessage()
+    {
+        _shop.BuyAsync(Tom.Id, "crown", Arg.Any<CancellationToken>())
+            .ThrowsAsync(new DomainException("The Crown costs 1000 coins. You have 15."));
+        var hub = Hub();
+
+        var refused = Assert.ThrowsAsync<HubException>(() => hub.Buy("crown"));
+
+        Assert.That(refused!.Message, Is.EqualTo("The Crown costs 1000 coins. You have 15."));
+    }
+
+    [Test]
+    public async Task GetPlayerCard_SaysWhatTheCatWears_ByName()
+    {
+        _friends.GetAsync(Tom.Id, Felix, Arg.Any<CancellationToken>())
+            .Returns(new PlayerRelation(Felix, "Felix", FurColor.Black, FriendState.None, "top-hat", "bell-collar"));
+        var hub = Hub();
+
+        var card = await hub.GetPlayerCard(Felix);
+
+        Assert.That(card, Is.EqualTo(new PlayerCardView(Felix, "Felix", "Black", "None", "Top hat", "Bell collar")));
+    }
+
+    private static Wardrobe Dressed(string? hat, string? collar) =>
+        new(Tom.Id, 15, ["fur-grey", "bow"], FurColor.Grey, hat, collar);
+
     private GameHub Hub()
     {
         var context = Substitute.For<HubCallerContext>();
@@ -574,7 +694,7 @@ public sealed class GameHubTests
         context.Items.Returns(new ConnectionItems());
         context.ConnectionAborted.Returns(CancellationToken.None);
         var metrics = new GameMetrics(_services.GetRequiredService<IMeterFactory>());
-        return new GameHub(_grains, _players, _friends, _heartbeat, metrics, NullLogger<GameHub>.Instance)
+        return new GameHub(_grains, _players, _friends, _shop, _heartbeat, metrics, NullLogger<GameHub>.Instance)
         {
             Context = context,
             Groups = Substitute.For<IGroupManager>(),

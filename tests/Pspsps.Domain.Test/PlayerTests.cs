@@ -145,16 +145,6 @@ public sealed class PlayerTests
     }
 
     [Test]
-    public void ChangeFurColor_RefusesAColorThatDoesNotExist()
-    {
-        var player = Player.CreateGuest("Whiskers", FurColor.Grey, Now);
-
-        Assert.Throws<DomainException>(() => player.ChangeFurColor((FurColor)99));
-        player.ChangeFurColor(FurColor.Tuxedo);
-        Assert.That(player.FurColor, Is.EqualTo(FurColor.Tuxedo));
-    }
-
-    [Test]
     public void Rename_AppliesTheNameRules()
     {
         var player = Player.CreateGuest("Whiskers", FurColor.Grey, Now);

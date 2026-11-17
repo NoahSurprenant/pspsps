@@ -27,6 +27,9 @@ public interface IGameClient
 
     Task CatEmoted(EmoteView emote);
 
+    /// <summary>A cat in the room put on or took off a hat or collar, or changed its fur.</summary>
+    Task CatDressed(OutfitView outfit);
+
     /// <summary>Something bit this tab's line: reel in within <see cref="Pspsps.Domain.Fishing.FishingLine.BiteWindow"/>.</summary>
     Task FishBit();
 
