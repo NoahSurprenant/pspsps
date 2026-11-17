@@ -71,15 +71,22 @@ internal sealed class RoomGrain(
         }
     }
 
-    public Task Renew(IReadOnlyList<PlayerSession> sessions)
+    public Task<IReadOnlyList<string>> Renew(IReadOnlyList<PlayerSession> sessions)
     {
         var now = time.GetUtcNow();
-        foreach (var session in sessions)
+        var lost = sessions
+            .Where(s => !_state.Renew(s.PlayerId, s.Session, now) && !_state.Has(s.PlayerId))
+            .Select(s => s.Session)
+            .ToList();
+
+        // A renewal can be what activated this room (it came back empty after its pod died): the tabs are told and stop
+        // renewing here, so an empty room goes again rather than waiting for its timer.
+        if (_state.Cats.Count == 0)
         {
-            _state.Renew(session.PlayerId, session.Session, now);
+            DeactivateOnIdle();
         }
 
-        return Task.CompletedTask;
+        return Task.FromResult<IReadOnlyList<string>>(lost);
     }
 
     public async Task Move(Guid playerId, double x, double z)
@@ -97,9 +104,14 @@ internal sealed class RoomGrain(
     // Cats whose pod died without closing their connections: nothing renews their leases.
     private async Task RemoveExpired()
     {
-        foreach (var playerId in _state.RemoveExpired(time.GetUtcNow()))
+        var expired = _state.RemoveExpired(time.GetUtcNow());
+        if (expired.Count > 0)
         {
-            metrics.LeaseExpired();
+            metrics.LeasesExpired("room", expired.Count);
+        }
+
+        foreach (var playerId in expired)
+        {
             await broadcaster.CatLeft(_key, playerId);
         }
 

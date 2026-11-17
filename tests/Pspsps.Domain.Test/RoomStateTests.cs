@@ -13,6 +13,9 @@ public sealed class RoomStateTests
     private const string TabA = "tom-tab-a";
     private const string TabB = "tom-tab-b";
 
+    // Leases run out once strictly older than their duration.
+    private static readonly TimeSpan PastALease = SessionLease.Duration + TimeSpan.FromTicks(1);
+
     [Test]
     public void Join_PutsTheCatAtTheSpawnPoint()
     {
@@ -144,12 +147,12 @@ public sealed class RoomStateTests
         state.Join(Tom, "Tom", FurColor.Grey, TabA, Now);
         state.Join(Felix, "Felix", FurColor.Tuxedo, "felix-tab", Now + TimeSpan.FromSeconds(30));
 
-        Assert.That(state.RemoveExpired(Now + SessionLease.Duration - TimeSpan.FromTicks(1)), Is.Empty);
-        Assert.That(state.RemoveExpired(Now + SessionLease.Duration), Is.EqualTo(new[] { Tom }));
+        Assert.That(state.RemoveExpired(Now + SessionLease.Duration), Is.Empty);
+        Assert.That(state.RemoveExpired(Now + PastALease), Is.EqualTo(new[] { Tom }));
         Assert.That(state.Cats.Select(c => c.PlayerId), Is.EqualTo(new[] { Felix }));
 
         // Gone for good: its session can't renew it or take it out again.
-        Assert.That(state.Renew(Tom, TabA, Now + SessionLease.Duration), Is.False);
+        Assert.That(state.Renew(Tom, TabA, Now + PastALease), Is.False);
         Assert.That(state.Leave(Tom, TabA), Is.False);
     }
 
@@ -163,7 +166,7 @@ public sealed class RoomStateTests
 
         Assert.That(state.RemoveExpired(Now + SessionLease.Duration), Is.Empty);
         Assert.That(state.Cats, Has.Count.EqualTo(1));
-        Assert.That(state.RemoveExpired(Now + SessionLease.RenewEvery + SessionLease.Duration), Is.EqualTo(new[] { Tom }));
+        Assert.That(state.RemoveExpired(Now + SessionLease.RenewEvery + PastALease), Is.EqualTo(new[] { Tom }));
     }
 
     [Test]
@@ -174,10 +177,11 @@ public sealed class RoomStateTests
         state.Join(Tom, "Tom", FurColor.Grey, TabB, Now + TimeSpan.FromSeconds(10));
 
         Assert.That(state.Renew(Tom, TabA, Now + TimeSpan.FromSeconds(60)), Is.False);
+        Assert.That(state.Has(Tom), Is.True, "the cat is still here, in the new tab's hands");
 
         // The new tab's lease started when it took over, and only it counts.
         Assert.That(state.RemoveExpired(Now + SessionLease.Duration), Is.Empty);
-        Assert.That(state.RemoveExpired(Now + TimeSpan.FromSeconds(10) + SessionLease.Duration), Is.EqualTo(new[] { Tom }));
+        Assert.That(state.RemoveExpired(Now + TimeSpan.FromSeconds(10) + PastALease), Is.EqualTo(new[] { Tom }));
     }
 
     [Test]
@@ -187,5 +191,6 @@ public sealed class RoomStateTests
 
         Assert.That(state.Renew(Tom, TabA, Now), Is.False);
         Assert.That(state.Cats, Is.Empty);
+        Assert.That(state.Has(Tom), Is.False);
     }
 }

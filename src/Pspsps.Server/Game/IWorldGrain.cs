@@ -12,7 +12,8 @@ public interface IWorldGrain : IGrainWithStringKey
     Task Leave(Guid playerId, string session);
 
     /// <summary>
-    /// Renews these sessions' leases. The world counts out sessions whose lease runs out
+    /// Renews these sessions' leases, counting back in (within the cap) any it forgot, as when this world came back
+    /// empty after its pod died. The world counts out sessions whose lease runs out
     /// (<see cref="Pspsps.Domain.SessionLease"/>), as when the pod holding their connections died.
     /// </summary>
     Task Renew(IReadOnlyList<PlayerSession> sessions);

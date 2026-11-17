@@ -15,7 +15,7 @@ public sealed class RoomState(RoomDefinition room)
 
     // Which session (a browser tab's connection) controls each cat, and when it last renewed its lease: a player is one
     // cat, in their newest tab.
-    private readonly Dictionary<Guid, Lease> _leases = [];
+    private readonly Dictionary<Guid, SessionLease> _leases = [];
     private readonly Queue<ChatLine> _chat = new();
 
     public RoomDefinition Room { get; } = room;
@@ -34,7 +34,7 @@ public sealed class RoomState(RoomDefinition room)
     {
         if (_cats.TryGetValue(playerId, out var existing))
         {
-            _leases[playerId] = new Lease(session, now);
+            _leases[playerId] = SessionLease.Start(session, now);
             return existing;
         }
 
@@ -45,7 +45,7 @@ public sealed class RoomState(RoomDefinition room)
 
         var cat = new CatInRoom(playerId, displayName, furColor, Room.Spawn);
         _cats.Add(playerId, cat);
-        _leases[playerId] = new Lease(session, now);
+        _leases[playerId] = SessionLease.Start(session, now);
         return cat;
     }
 
@@ -75,7 +75,7 @@ public sealed class RoomState(RoomDefinition room)
             return false;
         }
 
-        _leases[playerId] = new Lease(session, now);
+        _leases[playerId] = _leases[playerId].Renew(now);
         return true;
     }
 
@@ -85,7 +85,7 @@ public sealed class RoomState(RoomDefinition room)
     /// </summary>
     public IReadOnlyList<Guid> RemoveExpired(DateTimeOffset now)
     {
-        var expired = _leases.Where(l => SessionLease.HasExpired(l.Value.RenewedAt, now)).Select(l => l.Key).ToList();
+        var expired = _leases.Where(l => l.Value.HasExpired(now)).Select(l => l.Key).ToList();
         foreach (var playerId in expired)
         {
             _leases.Remove(playerId);
@@ -133,11 +133,12 @@ public sealed class RoomState(RoomDefinition room)
         return line;
     }
 
+    /// <summary>Whether the player's cat is here, whichever session controls it.</summary>
+    public bool Has(Guid playerId) => _cats.ContainsKey(playerId);
+
     private bool Controls(Guid playerId, string session) =>
         _leases.TryGetValue(playerId, out var lease) && lease.Session == session;
 
     private CatInRoom Get(Guid playerId) =>
         _cats.TryGetValue(playerId, out var cat) ? cat : throw new DomainException("You aren't in this room.");
-
-    private readonly record struct Lease(string Session, DateTimeOffset RenewedAt);
 }

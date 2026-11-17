@@ -11,9 +11,11 @@ public interface IRoomGrain : IGrainWithStringKey
 
     /// <summary>
     /// Renews the leases of the cats these sessions control. The room takes out cats whose lease runs out
-    /// (<see cref="Pspsps.Domain.SessionLease"/>), as when the pod holding their connections died.
+    /// (<see cref="Pspsps.Domain.SessionLease"/>), as when the pod holding their connections died. Returns the sessions
+    /// whose cat isn't here any more (its lease ran out, or this room came back empty after its pod died); a cat another
+    /// session took over isn't lost.
     /// </summary>
-    Task Renew(IReadOnlyList<PlayerSession> sessions);
+    Task<IReadOnlyList<string>> Renew(IReadOnlyList<PlayerSession> sessions);
 
     Task Move(Guid playerId, double x, double z);
 

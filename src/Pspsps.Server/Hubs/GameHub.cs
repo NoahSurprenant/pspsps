@@ -11,18 +11,18 @@ namespace Pspsps.Server.Hubs;
 
 /// <summary>
 /// The browser's one realtime connection. Thin: it finds the player and forwards to the world and room grains, which
-/// may live on any pod. Each connection is in at most one world and one room, and this pod renews its leases there
-/// (<see cref="SessionHeartbeat"/>).
+/// may live on any pod. Each connection is in at most one world and one room; where it is, is kept by this pod's
+/// <see cref="SessionHeartbeat"/>, which renews its leases there.
 /// </summary>
 [Authorize]
 public sealed class GameHub(IGrainFactory grains, IPlayerService players, SessionHeartbeat heartbeat, GameMetrics metrics)
     : Hub<IGameClient>
 {
-    private const string WorldItem = "world";
-    private const string RoomItem = "room";
-
     /// <summary>What a replaced tab is told; the client shows the same words.</summary>
     public const string ReplacedMessage = "You've joined from another tab.";
+
+    /// <summary>What a call that finishes after its connection closed answers (nobody reads it).</summary>
+    public const string ClosedMessage = "This connection has closed.";
 
     public async Task<IReadOnlyList<WorldSummary>> GetWorlds()
     {
@@ -39,7 +39,9 @@ public sealed class GameHub(IGrainFactory grains, IPlayerService players, Sessio
     public async Task<RoomSnapshot> EnterWorld(string worldId)
     {
         var world = WorldCatalog.Find(worldId) ?? throw new HubException("That world doesn't exist.");
-        await LeaveWorld();
+        var was = Here;
+        MoveTo(null);
+        await Leave(was);
 
         // Entering a world makes this tab the player's one; the tab it replaces is told, and stops.
         var replaced = await Session.Claim(Context.ConnectionId);
@@ -48,44 +50,69 @@ public sealed class GameHub(IGrainFactory grains, IPlayerService players, Sessio
             await Clients.Client(replaced).SessionReplaced();
         }
 
-        if (!await grains.GetGrain<IWorldGrain>(world.Id).TryEnter(PlayerId, Context.ConnectionId))
+        var worldGrain = grains.GetGrain<IWorldGrain>(world.Id);
+        if (!await worldGrain.TryEnter(PlayerId, Context.ConnectionId))
         {
             throw new HubException($"{world.Name} is full. Try another world.");
         }
 
-        Context.Items[WorldItem] = world.Id;
-        TrackLeases();
+        if (!MoveTo(new ConnectionPlace(PlayerId, world.Id, null)))
+        {
+            await worldGrain.Leave(PlayerId, Context.ConnectionId);
+            throw new HubException(ClosedMessage);
+        }
+
         metrics.EnteredWorld(world.Id);
         return await JoinRoom(world.Id, RoomCatalog.Default.Id);
     }
 
     public async Task<RoomSnapshot> GoToRoom(string roomId)
     {
-        var worldId = Context.Items[WorldItem] as string ?? throw new HubException("Pick a world first.");
+        var place = Here ?? throw new HubException("Pick a world first.");
         await EnsureCurrentTab();
         var room = RoomCatalog.Find(roomId) ?? throw new HubException("That room doesn't exist.");
-        await LeaveRoom();
-        return await JoinRoom(worldId, room.Id);
+        if (place.RoomKey is { } key)
+        {
+            MoveTo(place with { RoomKey = null });
+            await LeaveRoom(key);
+        }
+
+        return await JoinRoom(place.WorldId, room.Id);
     }
 
     public Task Move(double x, double z) => InRoom(room => room.Move(PlayerId, x, z));
 
     public async Task Say(string text)
     {
-        await InRoom(room => room.Say(PlayerId, text));
-        metrics.Said(RoomKey.Parse((string)Context.Items[RoomItem]!).WorldId);
+        var place = await InRoom(room => room.Say(PlayerId, text));
+        metrics.Said(place.WorldId);
     }
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
-        await LeaveWorld();
-        await Session.Release(Context.ConnectionId);
+        // Forgotten first, whatever happens next: a leave that fails falls back to the leases running out.
+        var place = heartbeat.Close(Context.ConnectionId);
+        try
+        {
+            await Leave(place);
+        }
+        finally
+        {
+            await Session.Release(Context.ConnectionId);
+        }
+
         await base.OnDisconnectedAsync(exception);
     }
 
     private Guid PlayerId => Context.User?.GetPlayerId() ?? throw new HubException("Sign in first.");
 
     private IPlayerSessionGrain Session => grains.GetGrain<IPlayerSessionGrain>(PlayerId);
+
+    private ConnectionPlace? Here => heartbeat.PlaceOf(Context.ConnectionId);
+
+    // The one way the connection's place changes, so what the hub reads and what the heartbeat renews can't differ.
+    // False once the connection has closed: the caller undoes what it did.
+    private bool MoveTo(ConnectionPlace? place) => heartbeat.Track(Context.ConnectionId, place);
 
     private async Task EnsureCurrentTab()
     {
@@ -95,59 +122,68 @@ public sealed class GameHub(IGrainFactory grains, IPlayerService players, Sessio
         }
     }
 
-    // Tells this pod's heartbeat where the connection is now, so it renews the right leases.
-    private void TrackLeases() =>
-        heartbeat.Track(Context.ConnectionId, PlayerId, Context.Items[WorldItem] as string, Context.Items[RoomItem] as string);
-
     private async Task<RoomSnapshot> JoinRoom(string worldId, string roomId)
     {
         var profile = await players.FindAsync(PlayerId, Context.ConnectionAborted)
             ?? throw new HubException("Your cat wasn't found. Sign in again.");
         var key = RoomKey.For(worldId, roomId);
+        var room = grains.GetGrain<IRoomGrain>(key);
 
         // In the group before joining, so nothing said in between is missed; the browser treats repeats as updates.
         await Groups.AddToGroupAsync(Context.ConnectionId, key);
+        RoomSnapshot snapshot;
         try
         {
             var card = new PlayerCard(profile.Id, profile.DisplayName, profile.FurColor.ToString());
-            var snapshot = await grains.GetGrain<IRoomGrain>(key).Join(card, Context.ConnectionId);
-            Context.Items[RoomItem] = key;
-            TrackLeases();
-            return snapshot;
+            snapshot = await room.Join(card, Context.ConnectionId);
         }
         catch (GameRuleException e)
         {
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, key);
             throw new HubException(e.Message);
         }
+
+        if (!MoveTo(new ConnectionPlace(PlayerId, worldId, key)))
+        {
+            await room.Leave(PlayerId, Context.ConnectionId);
+            throw new HubException(ClosedMessage);
+        }
+
+        return snapshot;
     }
 
-    private async Task LeaveRoom()
+    private async Task LeaveRoom(string key)
     {
-        if (Context.Items[RoomItem] is string key)
+        await Groups.RemoveFromGroupAsync(Context.ConnectionId, key);
+        await grains.GetGrain<IRoomGrain>(key).Leave(PlayerId, Context.ConnectionId);
+    }
+
+    // Leaves the room and the world the connection was in. The world is left even when leaving the room fails.
+    private async Task Leave(ConnectionPlace? place)
+    {
+        if (place is null)
         {
-            Context.Items.Remove(RoomItem);
-            TrackLeases();
-            await Groups.RemoveFromGroupAsync(Context.ConnectionId, key);
-            await grains.GetGrain<IRoomGrain>(key).Leave(PlayerId, Context.ConnectionId);
+            return;
+        }
+
+        try
+        {
+            if (place.RoomKey is { } key)
+            {
+                await LeaveRoom(key);
+            }
+        }
+        finally
+        {
+            metrics.LeftWorld(place.WorldId);
+            await grains.GetGrain<IWorldGrain>(place.WorldId).Leave(PlayerId, Context.ConnectionId);
         }
     }
 
-    private async Task LeaveWorld()
+    private async Task<ConnectionPlace> InRoom(Func<IRoomGrain, Task> action)
     {
-        await LeaveRoom();
-        if (Context.Items[WorldItem] is string worldId)
-        {
-            Context.Items.Remove(WorldItem);
-            TrackLeases();
-            metrics.LeftWorld(worldId);
-            await grains.GetGrain<IWorldGrain>(worldId).Leave(PlayerId, Context.ConnectionId);
-        }
-    }
-
-    private async Task InRoom(Func<IRoomGrain, Task> action)
-    {
-        var key = Context.Items[RoomItem] as string ?? throw new HubException("You aren't in a room.");
+        var place = Here ?? throw new HubException("You aren't in a room.");
+        var key = place.RoomKey ?? throw new HubException("You aren't in a room.");
         await EnsureCurrentTab();
         try
         {
@@ -157,5 +193,7 @@ public sealed class GameHub(IGrainFactory grains, IPlayerService players, Sessio
         {
             throw new HubException(e.Message);
         }
+
+        return place;
     }
 }

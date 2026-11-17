@@ -43,7 +43,8 @@ public sealed class GameHubTests
         _world.TryEnter(Tom.Id, Connection).Returns(true);
         _players = Substitute.For<IPlayerService>();
         _players.FindAsync(Tom.Id, Arg.Any<CancellationToken>()).Returns(Tom);
-        _heartbeat = new SessionHeartbeat(_grains, TimeProvider.System, NullLogger<SessionHeartbeat>.Instance);
+        _heartbeat = new SessionHeartbeat(
+            _grains, Substitute.For<IHubContext<GameHub, IGameClient>>(), TimeProvider.System, NullLogger<SessionHeartbeat>.Instance);
     }
 
     [TearDown]
@@ -95,6 +96,7 @@ public sealed class GameHubTests
             // Refusing to finish is fine too.
         }
 
+        await _world.Received(1).Leave(Tom.Id, Connection);
         await _heartbeat.RenewAsync();
         await _world.DidNotReceiveWithAnyArgs().Renew(default!);
         await _room.DidNotReceiveWithAnyArgs().Renew(default!);

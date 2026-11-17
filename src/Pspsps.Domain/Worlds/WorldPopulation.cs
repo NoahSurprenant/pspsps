@@ -2,13 +2,13 @@ namespace Pspsps.Domain.Worlds;
 
 /// <summary>
 /// Who is in one world, against its population cap. Lives in memory only (the world's actor holds it). Counts players,
-/// not tabs: a player with two tabs open counts once. Each tab's session holds a lease, like a cat in a room, so the
-/// tabs of a pod that died stop counting once their leases run out.
+/// not tabs: a player with two tabs open counts once. Each tab's session holds a <see cref="SessionLease"/>, like a cat
+/// in a room, so the tabs of a pod that died stop counting once their leases run out.
 /// </summary>
 public sealed class WorldPopulation(WorldDefinition world)
 {
-    // Each player's sessions (browser tabs' connections) in this world, and when each last renewed its lease.
-    private readonly Dictionary<Guid, Dictionary<string, DateTimeOffset>> _players = [];
+    // Each player's sessions (browser tabs' connections) in this world, by session.
+    private readonly Dictionary<Guid, Dictionary<string, SessionLease>> _players = [];
 
     public WorldDefinition World { get; } = world;
 
@@ -32,7 +32,7 @@ public sealed class WorldPopulation(WorldDefinition world)
             _players.Add(playerId, sessions);
         }
 
-        sessions[session] = now;
+        sessions[session] = sessions.TryGetValue(session, out var lease) ? lease.Renew(now) : SessionLease.Start(session, now);
         return true;
     }
 
@@ -45,17 +45,12 @@ public sealed class WorldPopulation(WorldDefinition world)
         }
     }
 
-    /// <summary>Renews <paramref name="session"/>'s lease; false when it isn't counted. A renewal never counts it back in.</summary>
-    public bool Renew(Guid playerId, string session, DateTimeOffset now)
-    {
-        if (!_players.TryGetValue(playerId, out var sessions) || !sessions.ContainsKey(session))
-        {
-            return false;
-        }
-
-        sessions[session] = now;
-        return true;
-    }
+    /// <summary>
+    /// Renews <paramref name="session"/>'s lease. A session the world doesn't know (the world's actor came back empty
+    /// after its pod died, or the lease ran out while the tab was still open) is counted back in, within the cap: the tab
+    /// is live, since its pod renews it. False when it couldn't be, because the world is full.
+    /// </summary>
+    public bool Renew(Guid playerId, string session, DateTimeOffset now) => TryEnter(playerId, session, now);
 
     /// <summary>Counts out every session that stopped renewing its lease. Returns how many it counted out.</summary>
     public int RemoveExpired(DateTimeOffset now)
@@ -63,13 +58,10 @@ public sealed class WorldPopulation(WorldDefinition world)
         var removed = 0;
         foreach (var (playerId, sessions) in _players.ToList())
         {
-            foreach (var (session, renewedAt) in sessions.ToList())
+            foreach (var lease in sessions.Values.Where(l => l.HasExpired(now)).ToList())
             {
-                if (SessionLease.HasExpired(renewedAt, now))
-                {
-                    sessions.Remove(session);
-                    removed++;
-                }
+                sessions.Remove(lease.Session);
+                removed++;
             }
 
             if (sessions.Count == 0)

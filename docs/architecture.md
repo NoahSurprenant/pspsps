@@ -30,12 +30,17 @@ Both are Orleans grains, the actors of this design:
 Each grain exists exactly once in the whole cluster, on whichever pod Orleans placed it, and handles one call at a
 time, so its state needs no locks. Room state lives only in memory: an empty room deactivates and forgets everything.
 
-A tab's session (its connection) holds a lease on its world and room. The pod holding the connection renews it every
-30 seconds (`SessionHeartbeat`: one call per world and per room, idle tabs included), and the world and room grains
-check every 30 seconds for leases older than 90 seconds (`SessionLease`, with the rules in `WorldPopulation` and
-`RoomState`). A tab that closes leaves at once; a pod that dies without closing its connections stops renewing them, so
-within two minutes their cats leave their rooms (the others see them go) and their tabs stop counting in their worlds.
-The browsers reconnect to another pod and enter again, as new sessions.
+A tab's session (its connection) holds a lease on its world and room. The pod holding the connection keeps where each
+of its connections is (`SessionHeartbeat`, the hub's one record of it) and renews their leases every 30 seconds, idle
+tabs included, with one call per world and per room. The world and room grains check every 30 seconds for leases
+strictly older than 100 seconds (`SessionLease`, used by `WorldPopulation` and `RoomState`), so a lease survives two
+missed renewals. A tab that closes leaves at once; a pod that dies without closing its connections stops renewing
+them, so within about two minutes their cats leave their rooms (the others see them go) and their tabs stop counting in
+their worlds. The browsers reconnect to another pod and enter again, as new sessions.
+
+The other way round, when a world or room grain's pod dies, the grain comes back empty on another pod. A world counts
+the live tabs back in as their renewals arrive. A room answers a renewal with the tabs whose cats it no longer has;
+those tabs are told (`RoomLost`) and walk back in, entering the world again and then going to the room they were in.
 
 A move goes like this:
 

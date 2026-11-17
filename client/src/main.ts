@@ -1,5 +1,6 @@
 import { Engine } from "@babylonjs/core";
 import { GameConnection, fetchMe, fetchProviders, messageOf, playAsGuest, signOut } from "./net";
+import { walkBackIn } from "./rejoin";
 import { Room } from "./room";
 import { RoomScene } from "./scene";
 import { Overlay } from "./ui";
@@ -48,13 +49,10 @@ const connection = new GameConnection({
     room = undefined;
     overlay.showReplaced(() => window.location.reload());
   },
-  reconnected: () => {
-    // The server dropped us from the room with the old connection: walk back in.
-    const current = room?.snapshot;
-    if (current) {
-      void enter(current.worldId).then(() => current.roomId === room?.snapshot.roomId ? undefined : goTo(current.roomId));
-    }
-  },
+  // The server dropped us from the room with the old connection: walk back in.
+  reconnected: () => rejoin(),
+  // The room no longer has our cat: walk back in the same way.
+  roomLost: () => rejoin(),
 });
 
 scene.onFloorClicked((x, z) => {
@@ -72,6 +70,20 @@ function show(snapshot: RoomSnapshot): void {
     (text) => connection.say(text).catch((error: unknown) => overlay.toast(messageOf(error))),
     () => window.location.reload(),
   );
+}
+
+function rejoin(): void {
+  const current = room?.snapshot;
+  if (current) {
+    void walkBackIn(
+      current,
+      async (worldId) => {
+        await enter(worldId);
+        return room?.snapshot.roomId;
+      },
+      goTo,
+    );
+  }
 }
 
 async function enter(worldId: string): Promise<void> {

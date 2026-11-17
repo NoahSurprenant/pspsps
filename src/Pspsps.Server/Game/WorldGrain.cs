@@ -1,15 +1,18 @@
 using Orleans.Runtime;
 using Pspsps.Domain;
 using Pspsps.Domain.Worlds;
+using Pspsps.Server.Telemetry;
 
 namespace Pspsps.Server.Game;
 
 /// <summary>
-/// Holds a world's <see cref="WorldPopulation"/> in memory and counts out sessions whose lease ran out. Kept alive: its
-/// counts exist only in memory.
+/// Holds a world's <see cref="WorldPopulation"/> in memory and counts out sessions whose lease ran out; renewals count
+/// live ones back in. Kept alive: its counts exist only in memory.
 /// </summary>
 [KeepAlive]
-internal sealed class WorldGrain([FromKeyedServices(TimeProviderNames.Grains)] TimeProvider time) : Grain, IWorldGrain
+internal sealed class WorldGrain(
+    [FromKeyedServices(TimeProviderNames.Grains)] TimeProvider time,
+    GameMetrics metrics) : Grain, IWorldGrain
 {
     private WorldPopulation _population = null!;
 
@@ -49,7 +52,12 @@ internal sealed class WorldGrain([FromKeyedServices(TimeProviderNames.Grains)] T
 
     private Task RemoveExpired()
     {
-        _population.RemoveExpired(time.GetUtcNow());
+        var expired = _population.RemoveExpired(time.GetUtcNow());
+        if (expired > 0)
+        {
+            metrics.LeasesExpired("world", expired);
+        }
+
         return Task.CompletedTask;
     }
 }

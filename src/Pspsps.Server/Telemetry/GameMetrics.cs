@@ -26,8 +26,8 @@ public sealed class GameMetrics
         _activeRooms = meter.CreateUpDownCounter<long>("pspsps.rooms.active", "{room}",
             "Rooms with at least one cat, hosted on this pod.");
         _chatLines = meter.CreateCounter<long>("pspsps.chat.lines", "{line}", "Chat lines said, by world.");
-        _expiredLeases = meter.CreateCounter<long>("pspsps.leases.expired", "{cat}",
-            "Cats taken out of rooms because their connection stopped renewing its lease (its pod died).");
+        _expiredLeases = meter.CreateCounter<long>("pspsps.leases.expired", "{lease}",
+            "Leases that ran out because nothing renewed them (their pod died), by scope: room (a cat) or world (a tab).");
         _hubCallDuration = meter.CreateHistogram<double>("pspsps.hub.call.duration", "s",
             "How long hub method calls take, by method and outcome.",
             advice: new InstrumentAdvice<double> { HistogramBucketBoundaries = [0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5] });
@@ -41,7 +41,9 @@ public sealed class GameMetrics
 
     public void RoomDeactivated() => _activeRooms.Add(-1);
 
-    public void LeaseExpired() => _expiredLeases.Add(1);
+    /// <summary>Counts <paramref name="count"/> leases that ran out in a <paramref name="scope"/>: "room" or "world".</summary>
+    public void LeasesExpired(string scope, int count) =>
+        _expiredLeases.Add(count, new KeyValuePair<string, object?>("scope", scope));
 
     public void Said(string worldId) => _chatLines.Add(1, new KeyValuePair<string, object?>("world", worldId));
 

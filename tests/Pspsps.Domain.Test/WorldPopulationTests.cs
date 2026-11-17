@@ -12,6 +12,9 @@ public sealed class WorldPopulationTests
     private const string TabA = "tom-tab-a";
     private const string TabB = "tom-tab-b";
 
+    // Leases run out once strictly older than their duration.
+    private static readonly TimeSpan PastALease = SessionLease.Duration + TimeSpan.FromTicks(1);
+
     [Test]
     public void TryEnter_CountsPlayersNotTabs()
     {
@@ -59,24 +62,12 @@ public sealed class WorldPopulationTests
         population.TryEnter(Felix, "felix-tab", Now);
         population.Renew(Tom, TabB, Now + SessionLease.RenewEvery);
 
-        Assert.That(population.RemoveExpired(Now + SessionLease.Duration - TimeSpan.FromTicks(1)), Is.Zero);
-        Assert.That(population.RemoveExpired(Now + SessionLease.Duration), Is.EqualTo(2));
+        Assert.That(population.RemoveExpired(Now + SessionLease.Duration), Is.Zero);
+        Assert.That(population.RemoveExpired(Now + PastALease), Is.EqualTo(2));
 
         // Tom stays in on his renewed tab; Felix is out, which frees his place.
         Assert.That(population.Count, Is.EqualTo(1));
-        Assert.That(population.TryEnter(Guid.NewGuid(), "garfield-tab", Now + SessionLease.Duration), Is.True);
-    }
-
-    [Test]
-    public void Renew_NeverCountsATabBackIn()
-    {
-        var population = new WorldPopulation(World);
-        population.TryEnter(Tom, TabA, Now);
-        population.RemoveExpired(Now + SessionLease.Duration);
-
-        Assert.That(population.Renew(Tom, TabA, Now + SessionLease.Duration), Is.False);
-        Assert.That(population.Renew(Felix, "felix-tab", Now), Is.False);
-        Assert.That(population.Count, Is.Zero);
+        Assert.That(population.TryEnter(Guid.NewGuid(), "garfield-tab", Now + PastALease), Is.True);
     }
 
     [Test]
@@ -89,6 +80,6 @@ public sealed class WorldPopulationTests
         Assert.That(population.Renew(Felix, "felix-tab", Now), Is.True);
         Assert.That(population.Renew(Guid.NewGuid(), "garfield-tab", Now), Is.False, "full");
         Assert.That(population.Count, Is.EqualTo(2));
-        Assert.That(population.RemoveExpired(Now + SessionLease.Duration), Is.Zero);
+        Assert.That(population.RemoveExpired(Now + SessionLease.Duration), Is.Zero, "counted back in with fresh leases");
     }
 }

@@ -42,7 +42,7 @@ The ASP.NET Core, HTTP client, runtime, process, Npgsql, EF Core, health check a
 | `pspsps.world.connections` | Browser tabs in a world, by `world` |
 | `pspsps.rooms.active` | Rooms with a cat in them, hosted here |
 | `pspsps.chat.lines` | Chat lines said, by `world` |
-| `pspsps.leases.expired` | Cats taken out of rooms hosted here because their connection stopped renewing its lease (its pod died) |
+| `pspsps.leases.expired` | Leases that ran out because nothing renewed them (their pod died), by `scope`: `room` (a cat, counted where the room is hosted) or `world` (a tab) |
 | `pspsps.hub.call.duration` | Hub method calls, by `method` and `outcome` (`ok`, `refused`, `error`) |
 
 ## Health
