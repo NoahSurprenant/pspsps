@@ -1,5 +1,7 @@
 using Pspsps.Domain.Fishing;
+using Pspsps.Domain.Homes;
 using Pspsps.Domain.Players;
+using Pspsps.Domain.Rooms;
 using Pspsps.Domain.Shop;
 
 namespace Pspsps.Domain.Test;
@@ -7,6 +9,9 @@ namespace Pspsps.Domain.Test;
 public sealed class ShopTests
 {
     private static readonly DateTimeOffset Now = new(2026, 11, 17, 12, 0, 0, TimeSpan.Zero);
+
+    /// <summary>The shop, where its catalogue stands: the one place things are bought.</summary>
+    private static readonly RoomDefinition InTheShop = RoomCatalog.Find(RoomCatalog.ShopId)!;
 
     [Test]
     public void Catalogue_HasHatsCollarsAndEveryFur_WithUniqueIdsAndPositivePrices()
@@ -56,7 +61,7 @@ public sealed class ShopTests
     {
         var player = WithCoins(100);
 
-        var bought = player.Buy("party-hat", Now);
+        var bought = player.Buy("party-hat", InTheShop, Now);
 
         Assert.Multiple(() =>
         {
@@ -73,7 +78,7 @@ public sealed class ShopTests
     {
         var player = WithCoins(30);
 
-        player.Buy("party-hat", Now);
+        player.Buy("party-hat", InTheShop, Now);
 
         Assert.That(player.Coins, Is.Zero);
     }
@@ -83,7 +88,7 @@ public sealed class ShopTests
     {
         var player = WithCoins(29);
 
-        var refused = Assert.Throws<DomainException>(() => player.Buy("party-hat", Now));
+        var refused = Assert.Throws<DomainException>(() => player.Buy("party-hat", InTheShop, Now));
 
         Assert.That(refused?.Message, Is.EqualTo("The Party hat costs 30 coins. You have 29."));
         Assert.That(player.Coins, Is.EqualTo(29));
@@ -94,10 +99,10 @@ public sealed class ShopTests
     public void Buy_RefusesWhatThePlayerHasAlready_AndChargesNothing()
     {
         var player = WithCoins(100);
-        player.Buy("bow", Now);
+        player.Buy("bow", InTheShop, Now);
 
-        var twice = Assert.Throws<DomainException>(() => player.Buy("bow", Now));
-        var bornWith = Assert.Throws<DomainException>(() => player.Buy("fur-grey", Now));
+        var twice = Assert.Throws<DomainException>(() => player.Buy("bow", InTheShop, Now));
+        var bornWith = Assert.Throws<DomainException>(() => player.Buy("fur-grey", InTheShop, Now));
 
         Assert.That(twice?.Message, Is.EqualTo("You already have the Bow."));
         Assert.That(bornWith?.Message, Is.EqualTo("You already have the Grey fur."));
@@ -112,7 +117,7 @@ public sealed class ShopTests
     {
         var player = WithCoins(100);
 
-        var refused = Assert.Throws<DomainException>(() => player.Buy(itemId, Now));
+        var refused = Assert.Throws<DomainException>(() => player.Buy(itemId, InTheShop, Now));
 
         Assert.That(refused?.Message, Is.EqualTo("That isn't in the shop."));
         Assert.That(player.Coins, Is.EqualTo(100));
@@ -122,10 +127,10 @@ public sealed class ShopTests
     public void Wear_PutsOnOneHatAndOneCollar_ANewOneReplacingTheOld()
     {
         var player = WithCoins(200);
-        player.Buy("party-hat", Now);
-        player.Buy("beanie", Now);
-        player.Buy("red-collar", Now);
-        player.Buy("bell-collar", Now);
+        player.Buy("party-hat", InTheShop, Now);
+        player.Buy("beanie", InTheShop, Now);
+        player.Buy("red-collar", InTheShop, Now);
+        player.Buy("bell-collar", InTheShop, Now);
 
         player.Wear("party-hat");
         player.Wear("red-collar");
@@ -139,7 +144,7 @@ public sealed class ShopTests
     public void Wear_AFur_ChangesTheCoat_AndTheOldOneCanBeWornAgain()
     {
         var player = WithCoins(200);
-        player.Buy("fur-tuxedo", Now);
+        player.Buy("fur-tuxedo", InTheShop, Now);
 
         player.Wear("fur-tuxedo");
         Assert.That(player.FurColor, Is.EqualTo(FurColor.Tuxedo));
@@ -171,8 +176,8 @@ public sealed class ShopTests
     public void TakeOff_TakesOffTheHatOrCollarWorn_AndKeepsIt()
     {
         var player = WithCoins(100);
-        player.Buy("bow", Now);
-        player.Buy("blue-collar", Now);
+        player.Buy("bow", InTheShop, Now);
+        player.Buy("blue-collar", InTheShop, Now);
         player.Wear("bow");
         player.Wear("blue-collar");
 
@@ -187,7 +192,7 @@ public sealed class ShopTests
     public void EveryChangeOfOutfit_CountsUp_SoARoomCanTellANewerOneFromAnOlder()
     {
         var player = WithCoins(100);
-        player.Buy("bow", Now);
+        player.Buy("bow", InTheShop, Now);
         Assert.That(player.OutfitVersion, Is.Zero, "buying puts nothing on");
 
         player.Wear("bow");
@@ -203,7 +208,7 @@ public sealed class ShopTests
     public void TakeOff_RefusesWhatIsntWorn_AndTheFur()
     {
         var player = WithCoins(100);
-        player.Buy("bow", Now);
+        player.Buy("bow", InTheShop, Now);
 
         var notWorn = Assert.Throws<DomainException>(() => player.TakeOff("bow"));
         var fur = Assert.Throws<DomainException>(() => player.TakeOff("fur-grey"));
@@ -228,10 +233,10 @@ public sealed class ShopTests
 
         for (var i = 0; i < ShopCatalog.MaxOfEachFurniture; i++)
         {
-            player.Buy("plant", Now);
+            player.Buy("plant", InTheShop, Now);
         }
 
-        var more = Assert.Throws<DomainException>(() => player.Buy("plant", Now));
+        var more = Assert.Throws<DomainException>(() => player.Buy("plant", InTheShop, Now));
 
         Assert.Multiple(() =>
         {
@@ -273,6 +278,52 @@ public sealed class ShopTests
 
         Assert.That(furniture.Min(f => f.Price) / averageCatch, Is.InRange(1.0, 4.0), "catches for the cheapest piece");
         Assert.That(furniture.Max(f => f.Price) / averageCatch, Is.InRange(15.0, 40.0), "catches for the dearest piece");
+    }
+
+    [Test]
+    public void TheShop_IsTheOneRoomWithTheCatalogue_ThroughADoorFromTownSquare_AndBack()
+    {
+        var square = RoomCatalog.Find("town-square")!;
+        var toShop = square.GetDoor(RoomCatalog.ShopId);
+        var back = InTheShop.GetDoor(toShop.ToDoor!);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(RoomCatalog.All.Where(r => r.HasCatalogue).Select(r => r.Id), Is.EqualTo(new[] { RoomCatalog.ShopId }));
+            Assert.That(InTheShop.Props.Count(p => p.Kind == PropKinds.CatalogueStand), Is.EqualTo(1), "one stand to buy at");
+            Assert.That(toShop.ToRoom, Is.EqualTo(RoomCatalog.ShopId));
+            Assert.That((back.ToRoom, back.ToDoor), Is.EqualTo(("town-square", (string?)RoomCatalog.ShopId)));
+            Assert.That(Home.Layout.HasCatalogue, Is.False, "a home sells nothing");
+        });
+    }
+
+    [TestCase("town-square")]
+    [TestCase("cafe")]
+    public void Buy_AnywhereButTheShop_IsRefused_AndNothingIsSpent(string roomId)
+    {
+        var player = WithCoins(100);
+
+        var refused = Assert.Throws<DomainException>(() => player.Buy("party-hat", RoomCatalog.Find(roomId), Now));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(refused!.Message, Is.EqualTo(Player.BuyInTheShop));
+            Assert.That(player.Coins, Is.EqualTo(100));
+            Assert.That(player.Owns("party-hat"), Is.False);
+        });
+    }
+
+    [Test]
+    public void Buy_FromAHome_OrFromNoRoom_IsRefused()
+    {
+        var player = WithCoins(100);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(() => player.Buy("plant", Home.Layout, Now), Throws.TypeOf<DomainException>().With.Message.EqualTo(Player.BuyInTheShop));
+            Assert.That(() => player.Buy("plant", null, Now), Throws.TypeOf<DomainException>().With.Message.EqualTo(Player.BuyInTheShop));
+            Assert.That(player.Coins, Is.EqualTo(100));
+        });
     }
 
     private static Player WithCoins(int coins)

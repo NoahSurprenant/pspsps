@@ -1,3 +1,4 @@
+using Pspsps.Domain.Rooms;
 using Pspsps.Domain.Shop;
 
 namespace Pspsps.Domain.Players;
@@ -98,13 +99,23 @@ public sealed class Player
     /// <summary>How many of the shop item <paramref name="itemId"/> the player has (0 when none).</summary>
     public int CountOf(string itemId) => _items.FirstOrDefault(i => i.ItemId == itemId)?.Count ?? 0;
 
+    /// <summary>What a purchase from anywhere but the shop is told.</summary>
+    public const string BuyInTheShop = "Things are bought from the catalogue in the Cat Shop, off Town Square.";
+
     /// <summary>
     /// Buys the shop item <paramref name="itemId"/>: the player pays its price from their coins, and has it from then on.
-    /// Refused when they can't afford it, or have it already: one of anything a cat wears, and up to
-    /// <see cref="ShopCatalog.MaxOfEachFurniture"/> of a piece of furniture. Buying doesn't put it on, or out.
+    /// Only from the shop's catalogue: <paramref name="room"/>, the room the player's cat is in (null when in none), must
+    /// have it (<see cref="RoomDefinition.HasCatalogue"/>). Refused when they can't afford it, or have it already: one of
+    /// anything a cat wears, and up to <see cref="ShopCatalog.MaxOfEachFurniture"/> of a piece of furniture. Buying
+    /// doesn't put it on, or out.
     /// </summary>
-    public ShopItem Buy(string itemId, DateTimeOffset now)
+    public ShopItem Buy(string itemId, RoomDefinition? room, DateTimeOffset now)
     {
+        if (room is not { HasCatalogue: true })
+        {
+            throw new DomainException(BuyInTheShop);
+        }
+
         var item = ShopCatalog.Find(itemId) ?? throw new DomainException("That isn't in the shop.");
         var owned = _items.FirstOrDefault(i => i.ItemId == item.Id);
         if (owned is not null && !item.IsFurniture)

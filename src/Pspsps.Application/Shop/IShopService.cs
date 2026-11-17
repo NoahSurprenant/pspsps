@@ -9,10 +9,12 @@ public interface IShopService
     Task<Wardrobe> GetAsync(Guid playerId, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Buys the item with the player's coins. Their coins never go below zero, however many purchases and catches land
-    /// at once: a purchase decided on coins that changed meanwhile is decided again.
+    /// Buys the item with the player's coins, from the catalogue in the room <paramref name="roomId"/> (of the world's
+    /// rooms; null when the cat is in none, or in a home): anywhere but the shop is refused. Their coins never go below
+    /// zero, however many purchases and catches land at once: a purchase decided on coins that changed meanwhile is
+    /// decided again.
     /// </summary>
-    Task<Wardrobe> BuyAsync(Guid playerId, string itemId, CancellationToken cancellationToken);
+    Task<Wardrobe> BuyAsync(Guid playerId, string? roomId, string itemId, CancellationToken cancellationToken);
 
     /// <summary>Puts on a hat, collar or fur the player has.</summary>
     Task<Wardrobe> WearAsync(Guid playerId, string itemId, CancellationToken cancellationToken);

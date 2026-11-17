@@ -10,6 +10,7 @@ using Pspsps.Application.Players;
 using Pspsps.Application.Shop;
 using Pspsps.Domain;
 using Pspsps.Domain.Players;
+using Pspsps.Domain.Rooms;
 using Pspsps.Domain.Shop;
 using Pspsps.Infrastructure.Persistence;
 using Pspsps.Server.Game;
@@ -30,7 +31,7 @@ public sealed class ShopTests
         var guest = await Game.Get<IPlayerService>().CreateGuestAsync(CancellationToken.None);
         await GiveCoinsAsync(guest.Id, 100);
 
-        var bought = await Shop.BuyAsync(guest.Id, "party-hat", CancellationToken.None);
+        var bought = await Shop.BuyAsync(guest.Id, RoomCatalog.ShopId, "party-hat", CancellationToken.None);
         var saved = await Shop.GetAsync(guest.Id, CancellationToken.None);
 
         Assert.Multiple(() =>
@@ -48,9 +49,9 @@ public sealed class ShopTests
     {
         var guest = await Game.Get<IPlayerService>().CreateGuestAsync(CancellationToken.None);
         await GiveCoinsAsync(guest.Id, 500);
-        await Shop.BuyAsync(guest.Id, "top-hat", CancellationToken.None);
-        await Shop.BuyAsync(guest.Id, "green-collar", CancellationToken.None);
-        await Shop.BuyAsync(guest.Id, "fur-tuxedo", CancellationToken.None);
+        await Shop.BuyAsync(guest.Id, RoomCatalog.ShopId, "top-hat", CancellationToken.None);
+        await Shop.BuyAsync(guest.Id, RoomCatalog.ShopId, "green-collar", CancellationToken.None);
+        await Shop.BuyAsync(guest.Id, RoomCatalog.ShopId, "fur-tuxedo", CancellationToken.None);
 
         await Shop.WearAsync(guest.Id, "top-hat", CancellationToken.None);
         await Shop.WearAsync(guest.Id, "green-collar", CancellationToken.None);
@@ -69,10 +70,10 @@ public sealed class ShopTests
     {
         var guest = await Game.Get<IPlayerService>().CreateGuestAsync(CancellationToken.None);
         await GiveCoinsAsync(guest.Id, 40);
-        await Shop.BuyAsync(guest.Id, "red-collar", CancellationToken.None);
+        await Shop.BuyAsync(guest.Id, RoomCatalog.ShopId, "red-collar", CancellationToken.None);
 
-        var poor = Assert.ThrowsAsync<DomainException>(() => Shop.BuyAsync(guest.Id, "beanie", CancellationToken.None));
-        var twice = Assert.ThrowsAsync<DomainException>(() => Shop.BuyAsync(guest.Id, "red-collar", CancellationToken.None));
+        var poor = Assert.ThrowsAsync<DomainException>(() => Shop.BuyAsync(guest.Id, RoomCatalog.ShopId, "beanie", CancellationToken.None));
+        var twice = Assert.ThrowsAsync<DomainException>(() => Shop.BuyAsync(guest.Id, RoomCatalog.ShopId, "red-collar", CancellationToken.None));
         var unknown = Assert.ThrowsAsync<DomainException>(() => Shop.WearAsync(Guid.NewGuid(), "red-collar", CancellationToken.None));
 
         var saved = await Shop.GetAsync(guest.Id, CancellationToken.None);
@@ -92,10 +93,10 @@ public sealed class ShopTests
         // 100 coins; another tab buys the beanie (60) just before this purchase of the bow (45) saves: both read 100.
         var guest = await Game.Get<IPlayerService>().CreateGuestAsync(CancellationToken.None);
         await GiveCoinsAsync(guest.Id, 100);
-        await using var db = RacingContext(ct => Shop.BuyAsync(guest.Id, "beanie", ct));
+        await using var db = RacingContext(ct => Shop.BuyAsync(guest.Id, RoomCatalog.ShopId, "beanie", ct));
 
         var refused = Assert.ThrowsAsync<DomainException>(() =>
-            new ShopService(db, TimeProvider.System).BuyAsync(guest.Id, "bow", CancellationToken.None));
+            new ShopService(db, TimeProvider.System).BuyAsync(guest.Id, RoomCatalog.ShopId, "bow", CancellationToken.None));
         var saved = await Shop.GetAsync(guest.Id, CancellationToken.None);
 
         Assert.Multiple(() =>
@@ -111,10 +112,10 @@ public sealed class ShopTests
     {
         var guest = await Game.Get<IPlayerService>().CreateGuestAsync(CancellationToken.None);
         await GiveCoinsAsync(guest.Id, 100);
-        await using var db = RacingContext(ct => Shop.BuyAsync(guest.Id, "bow", ct));
+        await using var db = RacingContext(ct => Shop.BuyAsync(guest.Id, RoomCatalog.ShopId, "bow", ct));
 
         var refused = Assert.ThrowsAsync<DomainException>(() =>
-            new ShopService(db, TimeProvider.System).BuyAsync(guest.Id, "bow", CancellationToken.None));
+            new ShopService(db, TimeProvider.System).BuyAsync(guest.Id, RoomCatalog.ShopId, "bow", CancellationToken.None));
         var saved = await Shop.GetAsync(guest.Id, CancellationToken.None);
 
         Assert.That(refused!.Message, Is.EqualTo("You already have the Bow."));
@@ -129,7 +130,7 @@ public sealed class ShopTests
         await GiveCoinsAsync(guest.Id, 50);
         await using var db = RacingContext(ct => Game.Get<IPlayerService>().EarnCoinsAsync(guest.Id, 20, ct));
 
-        var bought = await new ShopService(db, TimeProvider.System).BuyAsync(guest.Id, "bow", CancellationToken.None);
+        var bought = await new ShopService(db, TimeProvider.System).BuyAsync(guest.Id, RoomCatalog.ShopId, "bow", CancellationToken.None);
         var saved = await Shop.GetAsync(guest.Id, CancellationToken.None);
 
         Assert.That(bought.Coins, Is.EqualTo(25));
@@ -149,7 +150,7 @@ public sealed class ShopTests
         {
             try
             {
-                await Shop.BuyAsync(guest.Id, item.Id, CancellationToken.None);
+                await Shop.BuyAsync(guest.Id, RoomCatalog.ShopId, item.Id, CancellationToken.None);
                 return true;
             }
             catch (DomainException)
@@ -233,7 +234,10 @@ public sealed class ShopTests
         await tomHub.InvokeAsync<RoomSnapshot>("EnterWorld", "siamese");
         await felixHub.InvokeAsync<RoomSnapshot>("EnterWorld", "siamese");
 
+        // Bought in the shop, worn back in Town Square, where Felix is: a cat wears what it has anywhere.
+        await tomHub.InvokeAsync<RoomSnapshot>("GoToRoom", RoomCatalog.ShopId);
         var shop = await tomHub.InvokeAsync<ShopView>("Buy", "party-hat");
+        await tomHub.InvokeAsync<RoomSnapshot>("GoToRoom", "town-square");
         Assert.That((shop.Coins, shop.Hat), Is.EqualTo((0, (string?)null)));
         var worn = await tomHub.InvokeAsync<ShopView>("Wear", "party-hat");
         Assert.That(worn.Hat, Is.EqualTo("party-hat"));
@@ -262,11 +266,61 @@ public sealed class ShopTests
     {
         var (_, hub) = await Game.ConnectGuestAsync();
         await using var connection = hub;
+        await hub.InvokeAsync<RoomSnapshot>("EnterWorld", "tabby");
+        await hub.InvokeAsync<RoomSnapshot>("GoToRoom", RoomCatalog.ShopId);
 
         var refused = Assert.ThrowsAsync<HubException>(() => hub.InvokeAsync<ShopView>("Buy", "crown"));
 
         Assert.That(refused!.Message, Does.Contain("The Crown costs 1000 coins. You have 0."));
         var shop = await hub.InvokeAsync<ShopView>("GetShop");
         Assert.That(shop.Items, Has.Count.EqualTo(ShopCatalog.All.Count));
+    }
+
+    [Test]
+    public async Task Buying_AnywhereButTheShop_IsRefused_AndNothingIsSpent()
+    {
+        var (tom, cookie) = await Game.SignInGuestAsync();
+        await GiveCoinsAsync(tom.Id, 100);
+        await using var hub = await Game.ConnectAsync(cookie);
+
+        var nowhere = Assert.ThrowsAsync<HubException>(() => hub.InvokeAsync<ShopView>("Buy", "party-hat"));
+        await hub.InvokeAsync<RoomSnapshot>("EnterWorld", "tabby");
+        var inTheSquare = Assert.ThrowsAsync<HubException>(() => hub.InvokeAsync<ShopView>("Buy", "party-hat"));
+        await hub.InvokeAsync<RoomSnapshot>("GoHome");
+        var atHome = Assert.ThrowsAsync<HubException>(() => hub.InvokeAsync<ShopView>("Buy", "plant"));
+        var shop = await hub.InvokeAsync<ShopView>("GetShop");
+
+        Assert.Multiple(() =>
+        {
+            foreach (var refused in new[] { nowhere, inTheSquare, atHome })
+            {
+                Assert.That(refused!.Message, Does.Contain(Player.BuyInTheShop));
+            }
+
+            Assert.That(shop.Coins, Is.EqualTo(100));
+            Assert.That(shop.Owned, Does.Not.Contain("party-hat").And.Not.Contain("plant"));
+        });
+    }
+
+    [Test]
+    public async Task Buying_InTheShop_ThroughItsDoorFromTownSquare_Works()
+    {
+        var (tom, cookie) = await Game.SignInGuestAsync();
+        await GiveCoinsAsync(tom.Id, 100);
+        await using var hub = await Game.ConnectAsync(cookie);
+        await hub.InvokeAsync<RoomSnapshot>("EnterWorld", "tabby");
+        var door = RoomCatalog.Find("town-square")!.GetDoor(RoomCatalog.ShopId);
+        await hub.InvokeAsync("Move", door.Spot.X, door.Spot.Z);
+        var inside = await hub.InvokeAsync<RoomSnapshot>("GoThroughDoor", door.Id);
+
+        var bought = await hub.InvokeAsync<ShopView>("Buy", "party-hat");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(inside.RoomId, Is.EqualTo(RoomCatalog.ShopId));
+            Assert.That(inside.Props, Has.Some.Property(nameof(PropView.Kind)).EqualTo(PropKinds.CatalogueStand));
+            Assert.That(bought.Coins, Is.EqualTo(70));
+            Assert.That(bought.Owned, Does.Contain("party-hat"));
+        });
     }
 }

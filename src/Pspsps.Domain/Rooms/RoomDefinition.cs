@@ -13,6 +13,12 @@ public sealed record RoomDefinition(
     /// <summary>The room's decoration, which cats walk through (<see cref="PropPlacement"/> has where props may stand).</summary>
     public IReadOnlyList<Prop> Props { get; init; } = [];
 
+    /// <summary>
+    /// Whether the shop's catalogue stands here (a <see cref="PropKinds.CatalogueStand"/> among the props): the only kind
+    /// of room where things are bought (<see cref="Players.Player.Buy"/>).
+    /// </summary>
+    public bool HasCatalogue => Props.Any(p => p.Kind == PropKinds.CatalogueStand);
+
     /// <summary>The nearest spot on the floor to <paramref name="target"/>.</summary>
     public Position Clamp(Position target) => new(
         Math.Clamp(target.X, -Width / 2, Width / 2),
