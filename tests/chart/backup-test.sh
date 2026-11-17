@@ -18,7 +18,7 @@ root="$(cd "$(dirname "$0")/../.." && pwd)"
 backups="$(mktemp -d)"
 small=""
 cleanup() {
-  docker rm -f backup-term > /dev/null 2>&1 || true
+  docker rm -f backup-term backup-connect > /dev/null 2>&1 || true
   if [ -n "$small" ]; then sudo umount "$small" 2>/dev/null || true; rmdir "$small" 2>/dev/null || true; fi
   rm -rf "$backups" 2>/dev/null || sudo rm -rf "$backups"
 }
@@ -37,7 +37,8 @@ backup_args() { # backup_args <keep> [password]
   echo --network host --user 70:70 --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges \
     -v "$root/charts/pspsps/files/backup.sh:/scripts/backup.sh:ro" -v "${BACKUP_VOLUME:-$backups}:/backups" \
     -e PGHOST=localhost -e PGPORT=5432 -e PGUSER="$user" -e PGDATABASE="$db" -e "PGPASSWORD=${2:-$PGPASSWORD}" \
-    -e BACKUP_DIR=/backups -e "BACKUP_KEEP=$1" -e BACKUP_STALE_SECONDS=3600
+    -e BACKUP_DIR=/backups -e "BACKUP_KEEP=$1" -e BACKUP_STALE_SECONDS=3600 \
+    -e "BACKUP_CONNECT_SECONDS=${CONNECT_SECONDS:-30}"
 }
 # The paths and values here have no spaces, so word splitting of backup_args is safe.
 # shellcheck disable=SC2046
@@ -97,6 +98,45 @@ for bad in 0 1 00 01 08 -1 x ""; do
   [ "$(dumps | tail -n 1)" = "$newest" ] || fail "BACKUP_KEEP='$bad' wrote a dump"
 done
 
+echo "== A new pod's network can take a moment to be allowed: the run waits for the database"
+pg_down() { docker stop "$PG_CONTAINER" > /dev/null; }
+pg_up() {
+  docker start "$PG_CONTAINER" > /dev/null
+  timeout 60 bash -c \
+    "until docker exec '$PG_CONTAINER' pg_isready -q -h 127.0.0.1 -U '$user' -d '$db'; do sleep 0.5; done"
+}
+before="$(dumps)"
+pg_down
+sleep 1
+# shellcheck disable=SC2046
+docker run -d --name backup-connect $(CONNECT_SECONDS=60 backup_args 10) \
+  "$PG_IMAGE" /bin/sh /scripts/backup.sh > /dev/null
+sleep 6
+if [ "$(docker inspect -f '{{.State.Running}}' backup-connect)" != true ]; then
+  docker logs backup-connect
+  fail "the run gave up while the database was unreachable"
+fi
+pg_up
+status="$(timeout 60 docker wait backup-connect)" || fail "the run kept waiting after the database came back"
+docker logs backup-connect
+docker rm backup-connect > /dev/null
+[ "$status" -eq 0 ] || fail "a run that could reach the database within the window failed"
+[ "$(count)" -eq $(( $(echo "$before" | wc -l) + 1 )) ] || fail "the run that waited wrote no dump"
+newest="$(dumps | tail -n 1)"
+before="$(dumps)"
+
+echo "== ...and gives up after BACKUP_CONNECT_SECONDS with nothing changed"
+pg_down
+sleep 1
+start=$(date +%s)
+if CONNECT_SECONDS=6 backup 2; then fail "a run succeeded with the database down"; fi
+took=$(( $(date +%s) - start ))
+pg_up
+[ "$took" -ge 6 ] || fail "the run gave up after ${took}s, before BACKUP_CONNECT_SECONDS (6)"
+[ "$took" -le 30 ] || fail "the run took ${took}s to give up with BACKUP_CONNECT_SECONDS 6"
+[ "$(dumps)" = "$before" ] || fail "a run that never reached the database changed the dumps"
+[ "$(partials)" -eq 0 ] || fail "a run that never reached the database left a .partial"
+
 echo "== TERM during a dump (the deadline, a deleted pod) stops it and leaves no .partial"
 # pg_dump waits for its table locks: hold one, so the dump is still going when TERM arrives.
 docker exec -d "$PG_CONTAINER" psql -U "$user" -d "$db" -c \
@@ -111,7 +151,7 @@ status="$(timeout 20 docker wait backup-term)" || fail "the run ignored TERM"
 docker logs backup-term
 [ "$status" -ne 0 ] || fail "a run stopped by TERM exited 0"
 [ "$(partials)" -eq 0 ] || fail "a run stopped by TERM left its .partial"
-[ "$(dumps | tail -n 1)" = "$newest" ] && [ "$(count)" -eq 2 ] || fail "a run stopped by TERM changed the dumps"
+[ "$(dumps)" = "$before" ] || fail "a run stopped by TERM changed the dumps"
 docker rm backup-term > /dev/null
 sql "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE query LIKE '%backup_test_lock%' AND pid <> pg_backend_pid();" > /dev/null
 
