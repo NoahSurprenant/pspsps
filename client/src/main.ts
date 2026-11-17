@@ -1,14 +1,15 @@
+import { DoorWalks, doorAt } from "./doors";
 import { addressNote, linkUrl, loginUrl } from "./link";
 import { GameConnection, fetchMe, fetchProviders, messageOf, playAsGuest, signOut } from "./net";
 import { lazily } from "./lazy";
-import { PendingEvents } from "./pending";
+import { loadRoom, PendingEvents } from "./pending";
 import { comeBack } from "./rejoin";
 import { catchBubble, FishingState, gotAwayMessage, paid, pondEdge, reelMessage, type Fishing } from "./fishing";
 import { Room } from "./room";
 import type { CatAnimation } from "./cat";
 import type { RoomScene } from "./scene";
 import { Overlay, type Note } from "./ui";
-import type { Player, RoomSnapshot } from "./types";
+import type { DoorView, Player, RoomSnapshot } from "./types";
 
 const overlay = new Overlay(required<HTMLElement>("#ui"));
 // The 3D scene, made on the way into the first room: Babylon (most of the page's script) loads only then, so the
@@ -32,13 +33,22 @@ const stage = lazily(async (): Promise<RoomScene> => {
   }
   window.addEventListener("resize", () => engine.resize());
   made.onFloorClicked((x, z) => {
-    if (room) {
-      // Walking off reels the line in (the server drops it), with nothing on it.
-      fishing.drop();
-      connection.move(x, z).catch((error: unknown) => overlay.toast(messageOf(error)));
+    if (!room) {
+      return;
     }
+    // Walking onto a door goes through it.
+    const door = doorAt(room.snapshot.doors, x, z);
+    if (door) {
+      void goThrough(door);
+      return;
+    }
+    doorWalks.callOff();
+    // Walking off reels the line in (the server drops it), with nothing on it.
+    fishing.drop();
+    connection.move(x, z).catch((error: unknown) => overlay.toast(messageOf(error)));
   });
   made.onPondClicked(() => void fish());
+  made.onDoorClicked((door) => void goThrough(door));
   scene = made;
   return made;
 });
@@ -49,6 +59,8 @@ let room: Room | undefined;
 let me: Player | undefined;
 // Where the player's fishing line is.
 const fishing = new FishingState((state) => overlay.setFishing(state));
+// The walk to a door, which goes through it once the cat gets there.
+const doorWalks = new DoorWalks();
 // Room events that arrive while the next room loads, for it once its snapshot shows.
 const loading = new PendingEvents<(room: Room) => void>();
 
@@ -61,6 +73,8 @@ declare global {
       fishing(): Fishing;
       /** The animation a cat in the room is playing ("idle", "walk", ...), once the cat is drawn. */
       animation(playerId: string): CatAnimation | undefined;
+      /** Where a spot on the floor is drawn on the canvas, in CSS pixels, to click it; undefined with no room showing. */
+      screenPoint(x: number, z: number): { x: number; y: number } | undefined;
     };
   }
 }
@@ -69,6 +83,7 @@ window.pspsps = {
   coins: () => me?.coins ?? 0,
   fishing: () => fishing.state,
   animation: (playerId) => scene?.animationOf(playerId),
+  screenPoint: (x, z) => scene?.screenPoint(x, z),
 };
 
 const connection = new GameConnection({
@@ -139,6 +154,7 @@ async function fish(): Promise<void> {
   if (cast === undefined) {
     return;
   }
+  doorWalks.callOff();
   try {
     const spot = pondEdge(pond, cat);
     await connection.move(spot.x, spot.z);
@@ -151,6 +167,32 @@ async function fish(): Promise<void> {
     fishing.castDone(cast);
   } catch (error) {
     fishing.castFailed(cast);
+    overlay.toast(messageOf(error));
+  }
+}
+
+/**
+ * Walks the player's cat onto a door and, once it is drawn standing there, through it: the server checks the cat is on
+ * it. Called off by any other walk meanwhile.
+ */
+async function goThrough(door: DoorView): Promise<void> {
+  const view = scene;
+  if (!room || !me || !view) {
+    return;
+  }
+  const walk = doorWalks.start();
+  // Walking off reels the line in, as any walk does.
+  fishing.drop();
+  try {
+    await connection.move(door.x, door.z);
+    const there = await view.reached(me.id, door.x, door.z);
+    if (there && doorWalks.isGoing(walk)) {
+      doorWalks.callOff();
+      // A door that refuses the cat (or a full room past it, which sends it back in) keeps it in this room.
+      const here = room;
+      pick(() => load(() => connection.goThroughDoor(door.id), here));
+    }
+  } catch (error) {
     overlay.toast(messageOf(error));
   }
 }
@@ -240,23 +282,21 @@ async function goTo(roomId: string): Promise<void> {
  * Leaves the room showing and loads the next. The server sends the new room's events (our own join among them) from
  * just before it takes the snapshot, so they are held until the snapshot shows and then replayed onto it, in order;
  * the room's updates are idempotent, so those already in the snapshot change nothing.
+ * A load that fails leaves the page in `stay` (with what it said meanwhile) when the server kept the cat there.
  */
-async function load(request: () => Promise<RoomSnapshot>): Promise<void> {
+async function load(request: () => Promise<RoomSnapshot>, stay?: Room): Promise<void> {
   room = undefined;
-  loading.start();
-  let shown: Room;
   try {
     // The 3D scene before the room (the first room loads it): had it failed after, the server would have the cat in a
     // room the page can't show.
-    const view = await stage();
-    shown = show(await request(), view);
+    await loadRoom(loading, async () => {
+      const view = await stage();
+      return show(await request(), view);
+    }, stay);
   } catch (error) {
-    loading.cancel();
+    // Still in `stay` if the server kept the cat there (a door that refused it); in no room otherwise.
+    room = stay;
     overlay.toast(messageOf(error));
-    return;
-  }
-  for (const apply of loading.finish()) {
-    apply(shown);
   }
 }
 

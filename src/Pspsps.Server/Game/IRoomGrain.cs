@@ -3,11 +3,21 @@ namespace Pspsps.Server.Game;
 /// <summary>One room of one world, keyed by <see cref="RoomKey"/>. One activation in the whole cluster.</summary>
 public interface IRoomGrain : IGrainWithStringKey
 {
-    /// <summary>Puts the player's cat in the room, controlled by <paramref name="session"/> (the tab's connection).</summary>
-    Task<RoomSnapshot> Join(PlayerCard player, string session);
+    /// <summary>
+    /// Puts the player's cat in the room, controlled by <paramref name="session"/> (the tab's connection): at the
+    /// spawn point, or just inside the door <paramref name="throughDoor"/> when it came in through one.
+    /// </summary>
+    Task<RoomSnapshot> Join(PlayerCard player, string session, string? throughDoor);
 
     /// <summary>Takes the cat out, unless another session (a newer tab) controls it now.</summary>
     Task Leave(Guid playerId, string session);
+
+    /// <summary>
+    /// Takes the cat out through the door <paramref name="doorId"/>, if <paramref name="session"/> controls it and it
+    /// stands on that door; returns where the door leads. Refused (a <see cref="GameRuleException"/>, the cat stays)
+    /// when it isn't on the door.
+    /// </summary>
+    Task<DoorTarget> LeaveThrough(Guid playerId, string session, string doorId);
 
     /// <summary>
     /// Renews the leases of the cats these sessions control. The room takes out cats whose lease runs out

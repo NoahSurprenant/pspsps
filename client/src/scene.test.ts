@@ -6,7 +6,7 @@ import type { RoomSnapshot } from "./types";
 
 const room: RoomSnapshot = {
   worldId: "tabby", roomId: "town-square", roomName: "Town Square", width: 20, depth: 12, cats: [], chat: [], rooms: [],
-  pond: null,
+  pond: null, doors: [],
 };
 
 /** A promise and the hands to settle it. */

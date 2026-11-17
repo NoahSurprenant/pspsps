@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PendingEvents } from "./pending";
+import { loadRoom, PendingEvents } from "./pending";
 import { Room } from "./room";
 import type { CatView, ChatView, RoomSnapshot } from "./types";
 
@@ -8,7 +8,7 @@ const felix: CatView = { playerId: "felix", displayName: "Felix", furColor: "Tux
 const hello: ChatView = { playerId: "felix", text: "hello", at: "2026-11-17T12:00:00Z" };
 
 function snapshot(cats: CatView[], chat: ChatView[] = []): RoomSnapshot {
-  return { worldId: "tabby", roomId: "town-square", roomName: "Town Square", width: 24, depth: 16, cats, chat, rooms: [], pond: null };
+  return { worldId: "tabby", roomId: "town-square", roomName: "Town Square", width: 24, depth: 16, cats, chat, rooms: [], pond: null, doors: [] };
 }
 
 describe("PendingEvents", () => {
@@ -60,5 +60,50 @@ describe("PendingEvents", () => {
     expect([...room.cats.keys()]).toEqual(["tom", "felix"]);
     expect(room.chat).toEqual([hello]);
     expect(room.cats.get("felix")?.pose).toBe("sleep");
+  });
+});
+
+describe("loadRoom", () => {
+  it("replays what was held onto the room that loads", async () => {
+    const pending = new PendingEvents<(room: string[]) => void>();
+    const next: string[] = [];
+
+    const shown = await loadRoom(pending, async () => {
+      pending.hold((room) => room.push("joined"));
+      return next;
+    }, undefined);
+
+    expect(shown).toBe(next);
+    expect(next).toEqual(["joined"]);
+    expect(pending.hold(() => {})).toBe(false);
+  });
+
+  // A door that refuses the cat keeps it where it was: the room still showing goes on, with what it said meanwhile.
+  it("goes back to the room it stays in when loading is refused, with what was held", async () => {
+    const pending = new PendingEvents<(room: string[]) => void>();
+    const here: string[] = [];
+
+    const refused = loadRoom(pending, async () => {
+      pending.hold((room) => room.push("moved"));
+      throw new Error("Walk up to the door to go through it.");
+    }, here);
+
+    await expect(refused).rejects.toThrow("Walk up to the door to go through it.");
+    expect(here).toEqual(["moved"]);
+    expect(pending.hold(() => {})).toBe(false);
+  });
+
+  it("drops what was held when loading fails with no room to stay in", async () => {
+    const pending = new PendingEvents<(room: string[]) => void>();
+    let applied = false;
+
+    const failed = loadRoom(pending, async () => {
+      pending.hold(() => (applied = true));
+      throw new Error("Cat Café is full.");
+    }, undefined);
+
+    await expect(failed).rejects.toThrow("Cat Café is full.");
+    expect(applied).toBe(false);
+    expect(pending.hold(() => {})).toBe(false);
   });
 });

@@ -58,12 +58,17 @@ declare global {
           cats: Map<string, { x: number; z: number; pose: string | null }>;
           chat: { playerId: string; text: string }[];
           emotes: Map<string, { playerId: string; emote: string }>;
-          snapshot: { worldId: string };
+          snapshot: {
+            worldId: string;
+            roomId: string;
+            doors: { id: string; x: number; z: number; radius: number; toRoomId: string }[];
+          };
         }
         | undefined;
       coins(): number;
       fishing(): "idle" | "casting" | "waiting" | "bite" | "reeling";
       animation(playerId: string): string | undefined;
+      screenPoint(x: number, z: number): { x: number; y: number } | undefined;
     };
   }
 }
@@ -78,6 +83,9 @@ export const pondBlue: [number, number, number] = [0x5f, 0xb3, 0xd9];
 
 /** A cat's eyes (#ffc85a, client/src/cat.ts), whatever its fur: nothing else in a room is this yellow. */
 export const catEyes: [number, number, number] = [0xff, 0xc8, 0x5a];
+
+/** A door's mat (#c8553d, client/src/scene.ts). */
+export const doorMatRed: [number, number, number] = [0xc8, 0x55, 0x3d];
 
 /** How many pixels (every <step>th; by default a sample) are within a small distance of <rgb>. */
 export function pixelsNear(png: Buffer, rgb: [number, number, number], step = 7): number {

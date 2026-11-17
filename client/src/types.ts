@@ -42,6 +42,18 @@ export interface RoomSnapshot {
   rooms: RoomLink[];
   /** The room's pond, if it has one. */
   pond: PondView | null;
+  /** The doors out of the room. */
+  doors: DoorView[];
+}
+
+/** A door out of a room: a round spot on the floor to walk onto, and the room it leads to. */
+export interface DoorView {
+  id: string;
+  x: number;
+  z: number;
+  radius: number;
+  toRoomId: string;
+  toRoomName: string;
 }
 
 export interface PondView {

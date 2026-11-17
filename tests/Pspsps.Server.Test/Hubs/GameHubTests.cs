@@ -157,7 +157,126 @@ public sealed class GameHubTests
             // Refusing to finish is the point.
         }
 
-        await _cafe.DidNotReceiveWithAnyArgs().Join(default!, default!);
+        await _cafe.DidNotReceiveWithAnyArgs().Join(default!, default!, default);
+    }
+
+    [Test]
+    public async Task GoThroughDoor_JoinsTheRoomItLeadsTo_ByTheMatchingDoor_AndRenewsThere()
+    {
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+        _room.LeaveThrough(Tom.Id, Connection, "cafe").Returns(new DoorTarget("cafe", "town-square"));
+        RenewalsFindEveryCat();
+
+        await hub.GoThroughDoor("cafe");
+
+        await _cafe.Received(1).Join(Arg.Is<PlayerCard>(c => c.PlayerId == Tom.Id), Connection, "town-square");
+        await hub.Groups.Received(1).RemoveFromGroupAsync(Connection, "tabby/town-square");
+        await hub.Groups.Received(1).AddToGroupAsync(Connection, "tabby/cafe");
+        await _heartbeat.RenewAsync();
+        await _cafe.ReceivedWithAnyArgs(1).Renew(default!);
+        await _room.DidNotReceiveWithAnyArgs().Renew(default!);
+    }
+
+    [Test]
+    public async Task GoThroughDoor_WhenTheCatIsNotOnTheDoor_IsRefused_AndStaysInItsRoom()
+    {
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+        _room.LeaveThrough(Tom.Id, Connection, "cafe")
+            .ThrowsAsync(new GameRuleException("Walk up to the door to go through it."));
+        RenewalsFindEveryCat();
+
+        var refused = Assert.ThrowsAsync<HubException>(() => hub.GoThroughDoor("cafe"));
+
+        Assert.That(refused!.Message, Is.EqualTo("Walk up to the door to go through it."));
+        await _cafe.DidNotReceiveWithAnyArgs().Join(default!, default!, default);
+        await _room.DidNotReceiveWithAnyArgs().Leave(default, default!);
+        // Back in the room's group (it left it before asking, and joined it first on entering), so it hears the room again.
+        await hub.Groups.Received(1).RemoveFromGroupAsync(Connection, "tabby/town-square");
+        await hub.Groups.Received(2).AddToGroupAsync(Connection, "tabby/town-square");
+        // Still in the square: its lease is renewed, and the cat can walk there.
+        await _heartbeat.RenewAsync();
+        await _room.ReceivedWithAnyArgs(1).Renew(default!);
+        await hub.Move(1, 1);
+        await _room.Received(1).Move(Tom.Id, 1, 1);
+    }
+
+    [Test]
+    public async Task GoThroughDoor_LeavesTheRoomsGroupBeforeTheRoomLetsTheCatOut()
+    {
+        // The room tells its group the cat left: this tab, loading the next room, mustn't get that, nor anything else the
+        // old room says after.
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+        _room.LeaveThrough(Tom.Id, Connection, "cafe").Returns(new DoorTarget("cafe", "town-square"));
+
+        await hub.GoThroughDoor("cafe");
+
+        Received.InOrder(() =>
+        {
+            hub.Groups.RemoveFromGroupAsync(Connection, "tabby/town-square");
+            _room.LeaveThrough(Tom.Id, Connection, "cafe");
+        });
+    }
+
+    [Test]
+    public async Task GoThroughDoor_WhenTheRoomCannotAnswer_StaysInItsRoom_SoALostCatIsNoticed()
+    {
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+        _room.LeaveThrough(Tom.Id, Connection, "cafe").ThrowsAsync(new TimeoutException());
+        RenewalsFindEveryCat();
+
+        Assert.ThrowsAsync<TimeoutException>(() => hub.GoThroughDoor("cafe"));
+
+        // Renewed there: had the cat gone after all, the room says so and the tab walks back in.
+        await _heartbeat.RenewAsync();
+        await _room.ReceivedWithAnyArgs(1).Renew(default!);
+        await hub.Groups.Received(2).AddToGroupAsync(Connection, "tabby/town-square");
+    }
+
+    [Test]
+    public async Task GoThroughDoor_IntoAFullRoom_ComesBackInByTheSameDoor_AndSaysWhy()
+    {
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+        _room.LeaveThrough(Tom.Id, Connection, "cafe").Returns(new DoorTarget("cafe", "town-square"));
+        _cafe.Join(default!, default!, default).ThrowsAsyncForAnyArgs(new GameRuleException("Cat Café is full."));
+        RenewalsFindEveryCat();
+
+        var full = Assert.ThrowsAsync<HubException>(() => hub.GoThroughDoor("cafe"));
+
+        Assert.That(full!.Message, Is.EqualTo("Cat Café is full."));
+        await _room.Received(1).Join(Arg.Is<PlayerCard>(c => c.PlayerId == Tom.Id), Connection, "cafe");
+        await _heartbeat.RenewAsync();
+        await _room.ReceivedWithAnyArgs(1).Renew(default!);
+        await _cafe.DidNotReceiveWithAnyArgs().Renew(default!);
+    }
+
+    [Test]
+    public async Task GoThroughDoor_RefusedAfterTheTabClosed_StillTakesTheCatOut()
+    {
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+        var answer = new TaskCompletionSource<DoorTarget>();
+        _room.LeaveThrough(Tom.Id, Connection, "cafe").Returns(answer.Task);
+
+        // The tab closes while the room is still answering; the disconnect finds the connection between rooms.
+        var going = hub.GoThroughDoor("cafe");
+        await hub.OnDisconnectedAsync(null);
+        answer.SetException(new GameRuleException("Walk up to the door to go through it."));
+        try
+        {
+            await going;
+        }
+        catch (HubException)
+        {
+            // Refusing is the point; which message doesn't matter, nobody reads it.
+        }
+
+        await _room.Received(1).Leave(Tom.Id, Connection);
+        await _world.Received(1).Leave(Tom.Id, Connection);
     }
 
     [Test]
@@ -211,6 +330,14 @@ public sealed class GameHubTests
         Assert.That(await hub.Reel(), Is.EqualTo(missed));
         await _players.DidNotReceiveWithAnyArgs().EarnCoinsAsync(default, default, default);
         await room.DidNotReceiveWithAnyArgs().CatFished(default!);
+    }
+
+    // The world and rooms answer every renewal with nobody lost.
+    private void RenewalsFindEveryCat()
+    {
+        _world.Renew(default!).ReturnsForAnyArgs(Task.FromResult<IReadOnlyList<string>>([]));
+        _room.Renew(default!).ReturnsForAnyArgs(Task.FromResult<IReadOnlyList<string>>([]));
+        _cafe.Renew(default!).ReturnsForAnyArgs(Task.FromResult<IReadOnlyList<string>>([]));
     }
 
     private GameHub Hub()

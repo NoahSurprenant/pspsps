@@ -43,11 +43,13 @@ public sealed class RoomState(RoomDefinition room)
     public bool IsFull => _cats.Count >= Room.Capacity;
 
     /// <summary>
-    /// Puts a cat at the room's spawn point, controlled by <paramref name="session"/>, whose lease starts
-    /// <paramref name="now"/>. A cat already here (the player's other tab) keeps its spot and passes to the new session;
-    /// a line the other tab cast is reeled in, with nothing on it (the new tab never cast it).
+    /// Puts a cat at the room's spawn point, or just inside the door <paramref name="throughDoor"/> when it comes in
+    /// through one, controlled by <paramref name="session"/>, whose lease starts <paramref name="now"/>. A cat already
+    /// here (the player's other tab) keeps its spot and passes to the new session; a line the other tab cast is reeled
+    /// in, with nothing on it (the new tab never cast it).
     /// </summary>
-    public CatInRoom Join(Guid playerId, string displayName, FurColor furColor, string session, DateTimeOffset now)
+    public CatInRoom Join(
+        Guid playerId, string displayName, FurColor furColor, string session, DateTimeOffset now, string? throughDoor = null)
     {
         if (_cats.TryGetValue(playerId, out var existing))
         {
@@ -65,7 +67,8 @@ public sealed class RoomState(RoomDefinition room)
             throw new DomainException($"{Room.Name} is full.");
         }
 
-        var cat = new CatInRoom(playerId, displayName, furColor, Room.Spawn);
+        var arrival = throughDoor is null ? Room.Spawn : Room.GetDoor(throughDoor).Arrival;
+        var cat = new CatInRoom(playerId, displayName, furColor, arrival);
         _cats.Add(playerId, cat);
         _leases[playerId] = SessionLease.Start(session, now);
         return cat;
@@ -87,6 +90,29 @@ public sealed class RoomState(RoomDefinition room)
         _lines.Remove(playerId);
         _lastCasts.Remove(playerId);
         return _cats.Remove(playerId);
+    }
+
+    /// <summary>
+    /// Takes the cat out through the door <paramref name="doorId"/>, when <paramref name="session"/> controls it and it
+    /// stands on that door; returns the door, which says where it leads. Refused, and the cat stays, when it isn't on the
+    /// door: a cat only goes through a door it walked up to.
+    /// </summary>
+    public Door LeaveThrough(Guid playerId, string session, string doorId)
+    {
+        var cat = Get(playerId);
+        if (!Controls(playerId, session))
+        {
+            throw new DomainException("You aren't in this room.");
+        }
+
+        var door = Room.GetDoor(doorId);
+        if (!door.InReach(cat.Position))
+        {
+            throw new DomainException("Walk up to the door to go through it.");
+        }
+
+        Leave(playerId, session);
+        return door;
     }
 
     /// <summary>

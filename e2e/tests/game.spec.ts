@@ -317,3 +317,29 @@ test("a bite not reeled in gets away, and the cat can fish again", async ({ page
   await expect(page.getByRole("button", { name: "🎣 Fish" })).toBeVisible();
   expect(await page.evaluate(() => window.pspsps?.fishing())).toBe("idle");
 });
+
+test("a guest walks through the café door and comes in by the café's door back", async ({ page }) => {
+  const me = await enterWorld(page, "Tabby");
+  const door = await page.evaluate(() => window.pspsps?.room()?.snapshot.doors.find((d) => d.toRoomId === "cafe"));
+  if (!door) throw new Error("Town Square has no door to the café");
+
+  // Click the door's mat where it is drawn: the cat walks onto it, then through.
+  const canvas = await page.locator("#game").boundingBox();
+  if (!canvas) throw new Error("no canvas");
+  const mat = await page.evaluate(({ x, z }) => window.pspsps?.screenPoint(x, z), door);
+  if (!mat) throw new Error("the door isn't drawn");
+  await page.mouse.click(canvas.x + mat.x, canvas.y + mat.y);
+
+  await expect(page.locator(".room-bar strong")).toHaveText("Cat Café");
+  // In the café, just inside its door back to the square: by it, not on it, and not at the spawn point.
+  const back = await page.evaluate(() => window.pspsps?.room()?.snapshot.doors.find((d) => d.toRoomId === "town-square"));
+  if (!back) throw new Error("the café has no door back");
+  const cat = (await cats(page))[me];
+  if (!cat) throw new Error("the cat isn't in the café");
+  const fromDoor = Math.hypot(cat.x - back.x, cat.z - back.z);
+  expect(fromDoor).toBeGreaterThan(back.radius);
+  expect(fromDoor).toBeLessThan(back.radius + 1);
+  expect(cat).not.toMatchObject({ x: 0, z: 3 });
+  // The room bar still goes anywhere, the quick way.
+  await expect(page.getByRole("button", { name: "Town Square" })).toBeVisible();
+});
