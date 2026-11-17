@@ -76,8 +76,19 @@ try
 
     await using (var scope = app.Services.CreateAsyncScope())
     {
+        var db = scope.ServiceProvider.GetRequiredService<PspspsDbContext>();
+        // Waits for the database first (DatabaseStartup says why); if it never answers, the migration fails with the
+        // real error.
+        var wait = TimeSpan.FromSeconds(app.Configuration.GetValue("Database:StartupWaitSeconds", 120));
+        if (!await DatabaseStartup.WaitAsync(
+            db.Database.CanConnectAsync, wait, TimeSpan.FromSeconds(2), TimeProvider.System,
+            (delay, ct) => Task.Delay(delay, ct), app.Lifetime.ApplicationStopping))
+        {
+            Log.Warning("The database didn't answer within {Seconds}s; migrating anyway", wait.TotalSeconds);
+        }
+
         // EF Core takes a database lock while migrating, so pods starting together don't race.
-        await scope.ServiceProvider.GetRequiredService<PspspsDbContext>().Database.MigrateAsync();
+        await db.Database.MigrateAsync();
     }
 
     // Forwarded headers first: everything after sees the real client address and scheme.
