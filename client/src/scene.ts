@@ -102,14 +102,15 @@ export class RoomScene {
     // The pond: a flat disc of water just above the floor. Clicking it fishes, rather than walking into it.
     let pond: AbstractMesh | undefined;
     if (room.pond) {
-      // A very flat cylinder, whose top faces up with its own normals (as the cats' parts do), drawn with an outline like
-      // the rest of the room. A disc turned flat drew as a dark shape or not at all.
-      pond = CreateCylinder("pond", { diameter: room.pond.radius * 2, height: 0.04, tessellation: 48 }, this.scene);
-      pond.position.set(room.pond.x, 0.02, room.pond.z);
+      // Two flat cylinders: the water, and a little larger and just below it, its dark edge. Not renderOutline: on
+      // something this flat the outline pass painted over the whole of it.
+      const edge = CreateCylinder("pond-edge", { diameter: room.pond.radius * 2 + 0.16, height: 0.02, tessellation: 48 }, this.scene);
+      edge.position.set(room.pond.x, 0.01, room.pond.z);
+      edge.material = flat(this.scene, "pond-edge", "#2a2230");
+      edge.isPickable = false;
+      pond = CreateCylinder("pond", { diameter: room.pond.radius * 2, height: 0.02, tessellation: 48 }, this.scene);
+      pond.position.set(room.pond.x, 0.025, room.pond.z);
       pond.material = flat(this.scene, "pond", "#5fb3d9");
-      pond.renderOutline = true;
-      pond.outlineWidth = 0.04;
-      pond.outlineColor = Color3.FromHexString("#2a2230");
     }
 
     this.scene.onPointerDown = (_event, pick) => {
