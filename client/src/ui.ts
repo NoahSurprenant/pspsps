@@ -2,7 +2,7 @@ import { emoteBar, emoteForKey, isTyping } from "./emotes";
 import type { Fishing } from "./fishing";
 import { canGoTo, friendButtons, friendStatus, sections, whereIs, type FriendAction, type Here } from "./friends";
 import { coatOf } from "./fur";
-import type { Emote, Friend, Player, PlayerCard, RoomSnapshot, WorldSummary } from "./types";
+import type { DoorView, Emote, Friend, Player, PlayerCard, RoomSnapshot, WorldSummary } from "./types";
 
 /** A message for the player on a panel; an error shows in red. */
 export interface Note {
@@ -95,7 +95,7 @@ export class Overlay {
   }
 
   showRoom(
-    room: RoomSnapshot, goTo: (roomId: string) => void, say: (text: string) => void, emote: (emote: Emote) => void,
+    room: RoomSnapshot, say: (text: string) => void, emote: (emote: Emote) => void, throughDoor: (door: DoorView) => void,
     leave: () => void, coins: number, fishing?: FishingControls,
   ): void {
     this.fishing = fishing;
@@ -122,12 +122,14 @@ export class Overlay {
     );
     this.replace(
       el("div", { className: "room-bar" },
+        // No buttons to other rooms: the doors are the way around.
         el("strong", { text: room.roomName }),
-        ...room.rooms.map((link) => button(link.name, () => goTo(link.id))),
         el("span", { className: "coins", id: "coins", text: coinText(coins) }),
         ...(this.onFriends ? [button("Friends", this.onFriends)] : []),
         button("Worlds", leave, "quiet"),
       ),
+      // The doors are drawn on the canvas, which the keyboard can't reach: a button for each, unseen until it has focus.
+      doorLinks(room.doors, throughDoor),
       el("div", { className: "dock" },
         el("div", { className: "toast", id: "toast" }),
         ...(fishing ? [el("div", { className: "fishing", id: "fishing" })] : []),
@@ -355,6 +357,15 @@ function el<K extends keyof HTMLElementTagNameMap>(
   if (options.id) element.id = options.id;
   element.append(...children);
   return element;
+}
+
+/** A button through each door, for the keyboard: the doors themselves are drawn on the canvas. */
+function doorLinks(doors: DoorView[], throughDoor: (door: DoorView) => void): HTMLElement {
+  const nav = el("nav", { className: "doors" },
+    ...doors.map((door) => button(`Through the door to ${door.toRoomName}`, () => throughDoor(door))),
+  );
+  nav.setAttribute("aria-label", "Doors");
+  return nav;
 }
 
 function coinText(coins: number): string {
