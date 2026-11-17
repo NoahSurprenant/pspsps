@@ -78,14 +78,14 @@ public sealed class GameHubTests
     [Test]
     public async Task EnterWorld_FinishingAfterTheConnectionClosed_IsNotRenewed()
     {
-        var profile = new TaskCompletionSource<PlayerProfile?>();
-        _players.FindAsync(Tom.Id, Arg.Any<CancellationToken>()).Returns(profile.Task);
+        var admitted = new TaskCompletionSource<bool>();
+        _world.TryEnter(Tom.Id, Connection).Returns(admitted.Task);
         var hub = Hub();
 
-        // The tab closes while entering is still waiting; the disconnect runs first, then entering finishes.
+        // The tab closes while the world is still answering; the disconnect runs first, then entering finishes.
         var entering = hub.EnterWorld("tabby");
         await hub.OnDisconnectedAsync(null);
-        profile.SetResult(Tom);
+        admitted.SetResult(true);
         try
         {
             await entering;
