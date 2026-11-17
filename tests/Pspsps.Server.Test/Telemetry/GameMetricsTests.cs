@@ -72,6 +72,21 @@ public sealed class GameMetricsTests
     }
 
     [Test]
+    public void Emotes_AreCountedByWorldAndEmote()
+    {
+        var metrics = new GameMetrics(_services.GetRequiredService<IMeterFactory>());
+
+        metrics.Emoted("calico", "wave");
+        metrics.Emoted("tabby", "sleep");
+
+        Assert.That(_measurements.Select(m => (m.Instrument, m.Value, m.Tags["world"], m.Tags["emote"])), Is.EqualTo(new[]
+        {
+            ("pspsps.emotes", 1.0, (object?)"calico", (object?)"wave"),
+            ("pspsps.emotes", 1.0, (object?)"tabby", (object?)"sleep"),
+        }));
+    }
+
+    [Test]
     public async Task HubFilter_RecordsEachCallWithItsOutcome()
     {
         var filter = new HubCallMetricsFilter(new GameMetrics(_services.GetRequiredService<IMeterFactory>()));
