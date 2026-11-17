@@ -88,6 +88,8 @@ jobs:
     name: End-to-end (Playwright)
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    outputs:
+      screenshots: ${{ format('- [Sign-in]({0})\n- [World list]({1})\n- [Town Square]({2})', steps.sheet_sign_in.outputs.artifact-url, steps.sheet_worlds.outputs.artifact-url, steps.sheet_town_square.outputs.artifact-url) }}
     # The shipped image, run against PostgreSQL, driven by Chromium (software WebGL).
     services:
       postgres:
@@ -113,14 +115,69 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 24
-      - working-directory: e2e
+      - name: Install the end-to-end tests
+        working-directory: e2e
         run: |
           npm ci
           npx playwright install --with-deps chromium
           npm run typecheck
-          npm test
+      - name: End-to-end tests
+        working-directory: e2e
+        run: npm test
         env:
           E2E_BASE_URL: http://localhost:8080
+      # Lighthouse on the sign-in screen and, signed in as a guest, the world list, with the phone and the desktop
+      # settings (e2e/lighthouserc.cjs has the scores asked for). All four run; the step fails if any did.
+      - name: Lighthouse
+        if: ${{ !cancelled() }}
+        working-directory: e2e
+        env:
+          E2E_BASE_URL: http://localhost:8080
+        run: |
+          export CHROME_PATH="$(node -e 'console.log(require("@playwright/test").chromium.executablePath())')"
+          cookie="$(curl -s -o /dev/null -D - -X POST http://localhost:8080/auth/guest | sed -n 's/^[Ss]et-[Cc]ookie: \(pspsps=[^;]*\).*/\1/p')"
+          test -n "$cookie"
+          failed=0
+          for preset in mobile desktop; do
+            for session in signed-out signed-in; do
+              echo "::group::Lighthouse, $preset, $session"
+              LIGHTHOUSE_PRESET=$preset LIGHTHOUSE_COOKIE="$([ $session = signed-in ] && echo "$cookie")" \
+                npx --yes @lhci/cli@0.16.1 autorun || failed=1
+              echo "::endgroup::"
+            done
+          done
+          exit $failed
+      # Each screen's sizes side by side, even when a test failed (the pictures may show why), uploaded unzipped so
+      # each opens in the browser; the screenshots job links them on the PR.
+      - name: Make the screenshot contact sheets
+        id: sheets
+        if: ${{ !cancelled() && hashFiles('e2e/screenshots/*/*.png') != '' }}
+        working-directory: e2e
+        run: node contact-sheets.mjs
+      - name: Upload the sign-in screenshots
+        id: sheet_sign_in
+        if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+        uses: actions/upload-artifact@v7
+        with:
+          path: e2e/screenshots/sign-in.png
+          archive: false
+          retention-days: 30
+      - name: Upload the world list screenshots
+        id: sheet_worlds
+        if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+        uses: actions/upload-artifact@v7
+        with:
+          path: e2e/screenshots/worlds.png
+          archive: false
+          retention-days: 30
+      - name: Upload the Town Square screenshots
+        id: sheet_town_square
+        if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+        uses: actions/upload-artifact@v7
+        with:
+          path: e2e/screenshots/town-square.png
+          archive: false
+          retention-days: 30
       - name: Server log
         if: failure()
         run: docker logs pspsps
@@ -130,3 +187,30 @@ jobs:
           name: playwright-report
           path: e2e/playwright-report
           retention-days: 7
+
+  # On a PR, one comment with the screenshot contact sheets, which each run updates in place.
+  screenshots:
+    name: Screenshots comment
+    needs: e2e
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Comment on the PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          LINKS: ${{ needs.e2e.outputs.screenshots }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          marker="<!-- pspsps-screenshots -->"
+          body="$(printf '%s\n### Screenshots at every screen size (%s)\n\n%b\n' "$marker" "${SHA:0:7}" "$LINKS")"
+          existing=$(gh api "repos/${{ github.repository }}/issues/$PR/comments" --paginate \
+            -q ".[] | select(.body | startswith(\"$marker\")) | .id" | head -1)
+          if [ -n "$existing" ]; then
+            gh api -X PATCH "repos/${{ github.repository }}/issues/comments/$existing" -f body="$body" > /dev/null
+          else
+            gh pr comment "$PR" -R "${{ github.repository }}" --body "$body"
+          fi
