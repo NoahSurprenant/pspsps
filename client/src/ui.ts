@@ -148,7 +148,7 @@ export class Overlay {
     }
   }
 
-  /** Shows where the line is: a Fish button, waiting for a bite, or a bite to reel in now. */
+  /** Shows where the line is: a Fish button, casting, waiting for a bite, a bite to reel in now, or reeling in. */
   setFishing(state: Fishing): void {
     const box = this.root.querySelector<HTMLElement>("#fishing");
     const controls = this.fishing;
@@ -160,6 +160,12 @@ export class Overlay {
     switch (state) {
       case "idle":
         box.replaceChildren(button("🎣 Fish", controls.fish));
+        break;
+      case "casting":
+        box.replaceChildren(el("span", { text: "Casting…" }));
+        break;
+      case "reeling":
+        box.replaceChildren(el("span", { text: "Reeling in…" }));
         break;
       case "waiting":
         box.replaceChildren(el("span", { text: "Waiting for a bite…" }), button("Reel in", controls.reel, "quiet"));

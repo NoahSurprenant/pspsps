@@ -51,6 +51,15 @@ describe("catchBubble", () => {
 });
 
 describe("FishingState", () => {
+  /** Starts a cast that must start. */
+  function started(fishing: FishingState): number {
+    const cast = fishing.startCast();
+    if (cast === undefined) {
+      throw new Error("The cast didn't start.");
+    }
+    return cast;
+  }
+
   function track(): { fishing: FishingState; seen: Fishing[] } {
     const seen: Fishing[] = [];
     return { fishing: new FishingState((state) => seen.push(state)), seen };
@@ -61,7 +70,7 @@ describe("FishingState", () => {
 
     const cast = fishing.startCast();
     expect(cast).toBeDefined();
-    fishing.castDone(cast!);
+    fishing.castDone(cast ?? 0);
     fishing.bite();
     expect(fishing.startReel()).toBe(true);
     fishing.reeled();
@@ -80,7 +89,7 @@ describe("FishingState", () => {
 
   it("doesn't wait for a bite on a line dropped while casting", () => {
     const { fishing } = track();
-    const cast = fishing.startCast()!;
+    const cast = started(fishing);
 
     // A floor click while the cast was on its way: the cat walked off, and the server dropped the line.
     fishing.drop();
@@ -91,9 +100,9 @@ describe("FishingState", () => {
 
   it("ignores an old cast finishing during a newer one", () => {
     const { fishing } = track();
-    const first = fishing.startCast()!;
+    const first = started(fishing);
     fishing.drop();
-    const second = fishing.startCast()!;
+    const second = started(fishing);
 
     fishing.castFailed(first);
     expect(fishing.state).toBe("casting");
@@ -103,7 +112,7 @@ describe("FishingState", () => {
 
   it("goes back to idle when the cast fails", () => {
     const { fishing } = track();
-    const cast = fishing.startCast()!;
+    const cast = started(fishing);
 
     fishing.castFailed(cast);
 
@@ -112,7 +121,7 @@ describe("FishingState", () => {
 
   it("reels once: a double click or Space and a click send one Reel", () => {
     const { fishing } = track();
-    fishing.castDone(fishing.startCast()!);
+    fishing.castDone(started(fishing));
     fishing.bite();
 
     expect(fishing.startReel()).toBe(true);
@@ -123,7 +132,7 @@ describe("FishingState", () => {
   it("reels in early while waiting, but not with no line out", () => {
     const { fishing } = track();
     expect(fishing.startReel()).toBe(false);
-    const cast = fishing.startCast()!;
+    const cast = started(fishing);
     expect(fishing.startReel()).toBe(false);
 
     fishing.castDone(cast);

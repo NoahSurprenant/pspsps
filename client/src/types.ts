@@ -58,6 +58,8 @@ export interface ReelView {
   coins: number;
   /** The player's coins after it; 0 when nothing was caught (nothing changed). */
   totalCoins: number;
+  /** Whether something was caught (and paid): a catch can be worth no coins. */
+  isCatch: boolean;
 }
 
 /** A catch, shown to the room. */

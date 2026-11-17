@@ -60,7 +60,7 @@ declare global {
         }
         | undefined;
       coins(): number;
-      fishing(): "idle" | "waiting" | "bite";
+      fishing(): "idle" | "casting" | "waiting" | "bite" | "reeling";
     };
   }
 }
