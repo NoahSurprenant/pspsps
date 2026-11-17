@@ -1,3 +1,4 @@
+import { Engine } from "@babylonjs/core";
 import { GameConnection, fetchMe, fetchProviders, messageOf, playAsGuest, signOut } from "./net";
 import { Room } from "./room";
 import { RoomScene } from "./scene";
@@ -5,7 +6,9 @@ import { Overlay } from "./ui";
 import type { Player, RoomSnapshot } from "./types";
 
 const overlay = new Overlay(required<HTMLElement>("#ui"));
-const scene = new RoomScene(required<HTMLCanvasElement>("#game"));
+const engine = new Engine(required<HTMLCanvasElement>("#game"), true, { stencil: true });
+window.addEventListener("resize", () => engine.resize());
+const scene = new RoomScene(engine);
 
 let room: Room | undefined;
 
