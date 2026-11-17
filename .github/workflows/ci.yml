@@ -57,6 +57,33 @@ jobs:
           helm template pspsps charts/pspsps --set cluster.enabled=true --set cluster.kubeApi.cidr=10.0.0.1/32
           --set ingressRoute.enabled=true --set ingressRoute.host=pspsps.example
           --set ingress.enabled=true --set ingress.host=pspsps.example > /dev/null
+      - run: helm lint charts/pspsps --set backup.enabled=true
+      - run: >-
+          helm template pspsps charts/pspsps --set backup.enabled=true --set backup.persistence.existingClaim=dumps
+          --set backup.timeZone=Etc/UTC > /dev/null
+
+  backup:
+    name: Backup and restore
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # The chart's backup script against PostgreSQL set up like the chart's (its image, user and database), then the
+    # restores in docs/backups.md.
+    steps:
+      - uses: actions/checkout@v7
+      - uses: azure/setup-helm@v5
+      - name: Start the chart's PostgreSQL image
+        run: |
+          image=$(helm template pspsps charts/pspsps --show-only templates/postgres.yaml \
+            | sed -n 's/^ *image: *//p' | head -n 1)
+          echo "PG_IMAGE=$image" >> "$GITHUB_ENV"
+          docker run -d --name postgres -p 5432:5432 \
+            -e POSTGRES_USER=pspsps -e POSTGRES_PASSWORD=backup -e POSTGRES_DB=pspsps "$image"
+          # Over TCP: initdb's first server listens on the socket only.
+          timeout 60 bash -c 'until docker exec postgres pg_isready -q -h 127.0.0.1 -U pspsps -d pspsps; do sleep 1; done'
+      - run: tests/chart/backup-test.sh
+        env:
+          PG_CONTAINER: postgres
+          PGPASSWORD: backup
 
   e2e:
     name: End-to-end (Playwright)

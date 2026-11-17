@@ -48,4 +48,5 @@ and run `cd e2e && npm ci && npx playwright install chromium && E2E_BASE_URL=htt
 Every push to master publishes a signed image (`ghcr.io/noahsurprenant/pspsps:master`) and, when the chart changed, a
 signed Helm chart (`oci://ghcr.io/noahsurprenant/charts/pspsps`). The chart runs the server and PostgreSQL by
 default; `cluster.enabled` makes it several server pods joined through Redis. Its `values.yaml` documents every
-setting, including the Secret it reads.
+setting, including the Secret it reads. `backup.enabled` adds a scheduled `pg_dump` of the database; restoring one is
+in [docs/backups.md](docs/backups.md).
