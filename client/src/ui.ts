@@ -16,6 +16,17 @@ export class Overlay {
     );
   }
 
+  /** This tab stopped: the player opened the game in another one. */
+  showReplaced(playHere: () => void): void {
+    this.root.replaceChildren(
+      panel(
+        el("h1", { text: "pspsps" }),
+        el("p", { text: "You've joined from another tab." }),
+        button("Play here instead", playHere, "primary"),
+      ),
+    );
+  }
+
   showWorlds(player: Player, worlds: WorldSummary[], enter: (worldId: string) => void, signOut: () => void): void {
     this.root.replaceChildren(
       panel(

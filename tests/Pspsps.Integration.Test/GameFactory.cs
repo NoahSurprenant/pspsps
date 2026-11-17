@@ -22,22 +22,34 @@ public sealed class GameFactory(string connectionString) : WebApplicationFactory
     /// <summary>Signs in a new guest and opens their hub connection (long polling through the test server).</summary>
     public async Task<(PlayerProfile Player, HubConnection Hub)> ConnectGuestAsync()
     {
+        var (player, cookie) = await SignInGuestAsync();
+        return (player, await ConnectAsync(cookie));
+    }
+
+    /// <summary>Signs in a new guest; returns them and their cookie.</summary>
+    public async Task<(PlayerProfile Player, string Cookie)> SignInGuestAsync()
+    {
         using var client = CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = false });
         using var response = await client.PostAsync(new Uri("/auth/guest", UriKind.Relative), null);
         response.EnsureSuccessStatusCode();
         var cookie = response.Headers.GetValues("Set-Cookie").Single(c => c.StartsWith("pspsps=", StringComparison.Ordinal));
         var player = (await response.Content.ReadFromJsonAsync<PlayerProfile>(JsonOptions.Web))!;
+        return (player, cookie.Split(';')[0]);
+    }
 
+    /// <summary>Opens a hub connection with <paramref name="cookie"/>: another tab of the same player, say.</summary>
+    public async Task<HubConnection> ConnectAsync(string cookie)
+    {
         var hub = new HubConnectionBuilder()
             .WithUrl(new Uri(Server.BaseAddress, "/hubs/game"), options =>
             {
                 options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling;
                 options.HttpMessageHandlerFactory = _ => Server.CreateHandler();
-                options.Headers["Cookie"] = cookie.Split(';')[0];
+                options.Headers["Cookie"] = cookie;
             })
             .AddJsonProtocol(options => options.PayloadSerializerOptions = JsonOptions.Web)
             .Build();
         await hub.StartAsync();
-        return (player, hub);
+        return hub;
     }
 }
