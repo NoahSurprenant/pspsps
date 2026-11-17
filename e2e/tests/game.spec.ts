@@ -1,5 +1,5 @@
 import { PNG } from "pngjs";
-import { cats, emotes, enterWorld, expect, newPlayer, test, watchErrors } from "./game";
+import { cats, emotes, enterWorld, expect, newPlayer, pixelsNear, pondBlue, test, watchErrors } from "./game";
 
 test("the sign-in page loads without errors", async ({ page }) => {
   await page.goto("/");
@@ -27,7 +27,7 @@ test("a guest picks a world and the room draws", async ({ page }) => {
     .toBeGreaterThan(20);
   // Town Square's pond is water-blue (#5fb3d9), seen from above: a disc facing away from the camera would show only
   // its dark outline.
-  await expect.poll(async () => pixelsNear(await page.locator("#game").screenshot(), [0x5f, 0xb3, 0xd9]), { timeout: 15_000 })
+  await expect.poll(async () => pixelsNear(await page.locator("#game").screenshot(), pondBlue), { timeout: 15_000 })
     .toBeGreaterThan(50);
 });
 
@@ -151,17 +151,6 @@ test("a cat that arrives later sees a sleeping cat asleep", async ({ page: tom, 
 });
 
 /** How many distinct colours a PNG has (sampled), to tell a drawn room from a flat background. */
-/** How many pixels (sampled) are within a small distance of <rgb>. */
-function pixelsNear(png: Buffer, rgb: [number, number, number]): number {
-  const image = PNG.sync.read(png);
-  let near = 0;
-  for (let i = 0; i < image.data.length; i += 4 * 7) {
-    const d = Math.abs(image.data[i]! - rgb[0]) + Math.abs(image.data[i + 1]! - rgb[1]) + Math.abs(image.data[i + 2]! - rgb[2]);
-    if (d < 30) near++;
-  }
-  return near;
-}
-
 function colours(png: Buffer): number {
   const image = PNG.sync.read(png);
   const seen = new Set<number>();

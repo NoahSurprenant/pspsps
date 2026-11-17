@@ -1,7 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, test, type Browser, type BrowserContext, type Page } from "@playwright/test";
-import { watchErrors } from "./game";
+import { pixelsNear, pondBlue, watchErrors } from "./game";
 
 // Every screen at every size: nothing scrolls sideways, every part is on screen and none sits on another, and on phones
 // the controls are big enough to tap and the text boxes big enough not to zoom the page when tapped.
@@ -34,6 +34,8 @@ interface Screen {
   open(page: Page): Promise<void>;
   /** The parts that must each be wholly on screen and not on top of one another. */
   parts: string[];
+  /** Anything else the screen must show at every size: what is missing. */
+  shows?(page: Page): Promise<string[]>;
 }
 
 const SCREENS: Screen[] = [
@@ -65,6 +67,9 @@ const SCREENS: Screen[] = [
       await page.waitForTimeout(500);
     },
     parts: [".room-bar", ".emote-bar", ".chat-bar", ".fishing"],
+    // The pond, drawn: from further off (a narrow screen backs the camera away) the floor once hid it.
+    shows: async (page) =>
+      pixelsNear(await page.locator("#game").screenshot(), pondBlue) > 20 ? [] : ["the pond is not drawn"],
   },
 ];
 
@@ -86,6 +91,7 @@ for (const screen of SCREENS) {
           ...await offScreenOrOverlapping(page, screen.parts),
           ...(size.phone ? await smallTapTargets(page) : []),
           ...(size.phone ? await smallInputs(page) : []),
+          ...(screen.shows ? await screen.shows(page) : []),
         ];
         expect(problems, `${screen.name} at ${size.width}x${size.height}`).toEqual([]);
         expect(errors, "console errors and uncaught exceptions").toEqual([]);

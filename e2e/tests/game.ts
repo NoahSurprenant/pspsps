@@ -1,4 +1,5 @@
 import { expect, test as base, type Browser, type Page } from "@playwright/test";
+import { PNG } from "pngjs";
 
 /** A page that fails its test on any console error or uncaught exception (the "No camera defined" kind). */
 export const test = base.extend<{ page: Page }>({
@@ -63,4 +64,18 @@ declare global {
       fishing(): "idle" | "casting" | "waiting" | "bite" | "reeling";
     };
   }
+}
+
+/** Town Square's pond water (#5fb3d9). */
+export const pondBlue: [number, number, number] = [0x5f, 0xb3, 0xd9];
+
+/** How many pixels (sampled) are within a small distance of <rgb>. */
+export function pixelsNear(png: Buffer, rgb: [number, number, number]): number {
+  const image = PNG.sync.read(png);
+  let near = 0;
+  for (let i = 0; i < image.data.length; i += 4 * 7) {
+    const d = Math.abs(image.data[i]! - rgb[0]) + Math.abs(image.data[i + 1]! - rgb[1]) + Math.abs(image.data[i + 2]! - rgb[2]);
+    if (d < 30) near++;
+  }
+  return near;
 }
