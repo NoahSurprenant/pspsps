@@ -1,9 +1,10 @@
 import type { AssetContainer } from "@babylonjs/core/assetContainer";
-import { NullEngine, Scene, StandardMaterial, TransformNode } from "@babylonjs/core";
+import { NullEngine, PointerEventTypes, Scene, StandardMaterial, TransformNode, Vector3, type IPointerEvent, type PickingInfo } from "@babylonjs/core";
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { loadCatModel } from "./cat";
 import catGlb from "./models/cat.glb?inline";
+import { lookOf } from "./looks";
 import { catPlayerIdOf, RoomScene } from "./scene";
 import type { RoomSnapshot } from "./types";
 
@@ -120,8 +121,16 @@ describe("RoomScene", () => {
     expect(meshes.filter((mesh) => mesh.name.startsWith("anchor-")).every((anchor) => !anchor.isPickable)).toBe(true);
   });
 
-  // Props are decoration: drawn together in one go, never in the way of a tap on the floor, the pond or a door.
-  it("draws the room's props and backdrop as one mesh that never takes the pointer, and keeps the pond and mats their colours", () => {
+  // While old and new servers run side by side in a rolling deploy, an old one sends a room with no props at all.
+  it("shows a room whose snapshot has no props", () => {
+    const view = new RoomScene(new NullEngine(), () => new Promise<AssetContainer>(() => {}));
+
+    expect(() => view.show({ ...room, props: null })).not.toThrow();
+  });
+
+  // Props are decoration: drawn together in one go, and a tap on one walks the cat beside it (props, the pond and the
+  // doors are kept apart, so it never takes a tap meant for them).
+  it("draws the room's props and backdrop as one mesh that takes taps, and keeps the pond and mats their colours", () => {
     const view = new RoomScene(new NullEngine(), () => new Promise<AssetContainer>(() => {}));
     view.show({
       ...room,
@@ -137,13 +146,53 @@ describe("RoomScene", () => {
     const scene = (view as unknown as { scene: Scene }).scene;
     const mesh = (name: string) => scene.getMeshByName(name);
     expect(scene.meshes.filter((m) => m.name === "decor")).toHaveLength(1);
-    expect(mesh("decor")?.isPickable).toBe(false);
+    expect(mesh("decor")?.isPickable).toBe(true);
     expect(mesh("floor")?.isPickable).toBe(true);
     expect(mesh("pond")?.isPickable).toBe(true);
     expect(mesh("door-cafe-mat")?.isPickable).toBe(true);
     const colour = (name: string) => (mesh(name)?.material as StandardMaterial | null)?.emissiveColor.toHexString();
     expect(colour("pond")).toBe("#5FB3D9");
     expect(colour("door-cafe-mat")).toBe("#C8553D");
+  });
+
+  it("walks the cat beside a prop tapped, and nowhere for a tap on the wall or the backdrop", () => {
+    const view = new RoomScene(new NullEngine(), () => new Promise<AssetContainer>(() => {}));
+    const walks: [number, number][] = [];
+    view.onFloorClicked((x, z) => walks.push([x, z]));
+    view.show({ ...room, props: [{ kind: "tree", x: 6, z: -3, radius: 1, facing: 0 }] });
+    const scene = (view as unknown as { scene: Scene }).scene;
+    const tap = (x: number, y: number, z: number) => scene.onPointerDown?.(
+      {} as IPointerEvent,
+      { hit: true, pickedMesh: scene.getMeshByName("decor"), pickedPoint: new Vector3(x, y, z) } as PickingInfo,
+      PointerEventTypes.POINTERDOWN);
+
+    tap(6.5, 2.5, -3);
+    tap(0, 2, 6.2);
+
+    expect(walks).toHaveLength(1);
+    const [[x, z] = [0, 0]] = walks;
+    expect(x).toBeGreaterThan(7);
+    expect(z).toBeCloseTo(-3);
+  });
+
+  // The paintings are the same every time (seeded), so a room seen again reuses them rather than painting them anew.
+  it("paints a room's floor, wall and street once, however often it shows", () => {
+    const look = lookOf("town-square");
+    const painters = [vi.spyOn(look, "paintFloor"), vi.spyOn(look, "paintWall"), vi.spyOn(look.ground ?? { paint: () => {} }, "paint")];
+    try {
+      const view = new RoomScene(new NullEngine(), () => new Promise<AssetContainer>(() => {}));
+      const square = { ...room, roomId: "town-square", width: 24, depth: 16 };
+      view.show(square);
+      // Painted by now: just then, or by a room shown before.
+      const painted = painters.map((painter) => painter.mock.calls.length);
+      view.show({ ...room, roomId: "cafe", width: 14, depth: 10 });
+      view.show(square);
+
+      expect(painters.map((painter) => painter.mock.calls.length)).toEqual(painted);
+      expect(painted[0]).toBe(1);
+    } finally {
+      painters.forEach((painter) => painter.mockRestore());
+    }
   });
 });
 

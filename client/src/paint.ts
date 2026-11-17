@@ -201,6 +201,12 @@ function steppingStones(brush: Brush, at: (x: number, z: number) => [number, num
   }
 }
 
+/**
+ * How far a shop window's middle keeps from a door's: half its awning (0.95 m) and half the door's frame (0.95 m), so
+ * neither runs into the other.
+ */
+const windowClearOfDoor = 1.9;
+
 /** The square's back wall: the ground floors of the houses behind it, shopfronts with striped awnings. */
 export function paintTownSquareWall(brush: Brush, width: number, height: number, scale: number, doors: readonly DoorView[]): void {
   const x = (metres: number) => (metres + width / 2) * scale;
@@ -217,7 +223,7 @@ export function paintTownSquareWall(brush: Brush, width: number, height: number,
     const step = (house.to - house.from) / windows;
     for (let i = 0; i < windows; i++) {
       const middle = house.from + step * (i + 0.5);
-      if (middle < -width / 2 + 0.8 || middle > width / 2 - 0.8 || doors.some((door) => Math.abs(door.x - middle) < 1.6)) {
+      if (middle < -width / 2 + 0.8 || middle > width / 2 - 0.8 || doors.some((door) => Math.abs(door.x - middle) < windowClearOfDoor)) {
         continue;
       }
       shopWindow(brush, x(middle), y, scale, house.roof);

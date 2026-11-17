@@ -1,6 +1,6 @@
 import { NullEngine, Scene, VertexBuffer } from "@babylonjs/core";
 import { describe, expect, it } from "vitest";
-import { buildParts, outline, propKinds, propParts, type Part } from "./props";
+import { besideProp, buildParts, outline, propKinds, propParts, type Part } from "./props";
 import type { PropView } from "./types";
 
 /** Every vertex of <prop>, drawn on its own (outline included). */
@@ -52,7 +52,7 @@ describe("props", () => {
     expect(propParts({ kind: "statue", x: 0, z: 0, radius: 1, facing: 0 })).toEqual([]);
   });
 
-  it("merges everything into one mesh, with one material, that never takes the pointer", () => {
+  it("merges everything into one mesh, with one material", () => {
     const scene = new Scene(new NullEngine());
     const parts = ["tree", "bench", "lamp"].flatMap((kind, i) => propParts({ kind, x: i * 3, z: 0, radius: 1, facing: 0 }));
 
@@ -60,7 +60,6 @@ describe("props", () => {
 
     expect(scene.meshes).toEqual([mesh]);
     expect(scene.materials).toHaveLength(1);
-    expect(mesh?.isPickable).toBe(false);
     expect(mesh?.useVertexColors).toBe(true);
   });
 
@@ -74,5 +73,42 @@ describe("props", () => {
 
   it("builds nothing from no parts", () => {
     expect(buildParts(new Scene(new NullEngine()), "decor", [])).toBeUndefined();
+  });
+});
+
+describe("besideProp", () => {
+  const floor = { width: 20, depth: 12 };
+  const bench = { kind: "bench", x: 4, z: -2, radius: 1, facing: 0 };
+  const tree = { kind: "tree", x: 4, z: -4.5, radius: 1.2, facing: 0 };
+
+  // A tap on a prop (its seat, a tree's crown) walks the cat to the floor beside it, on the side tapped.
+  it("walks to just outside the prop tapped, on the side of the tap", () => {
+    const spot = besideProp([bench], floor, 4.6, -2) ?? { x: Number.NaN, z: Number.NaN };
+
+    expect(spot.z).toBeCloseTo(-2);
+    expect(spot.x).toBeGreaterThan(4 + 1);
+    expect(spot.x).toBeLessThan(4 + 1.5);
+  });
+
+  it("walks round to the front from a tap on the prop's middle", () => {
+    const spot = besideProp([bench], floor, 4, -2) ?? { x: Number.NaN, z: Number.NaN };
+
+    expect(spot.x).toBeCloseTo(4);
+    expect(spot.z).toBeLessThan(-2 - 1);
+  });
+
+  it("never stops on another prop or off the floor", () => {
+    // Tapped on the front of the bench: straight ahead is the tree, so the cat goes another way.
+    const spot = besideProp([bench, tree], floor, 4, -2.6) ?? { x: Number.NaN, z: Number.NaN };
+
+    for (const prop of [bench, tree]) {
+      expect(Math.hypot(spot.x - prop.x, spot.z - prop.z)).toBeGreaterThan(prop.radius);
+    }
+    expect(Math.abs(spot.x)).toBeLessThanOrEqual(10);
+    expect(Math.abs(spot.z)).toBeLessThanOrEqual(6);
+  });
+
+  it("is nothing for a tap on no prop (the wall, the backdrop)", () => {
+    expect(besideProp([bench], floor, 0, 6)).toBeUndefined();
   });
 });

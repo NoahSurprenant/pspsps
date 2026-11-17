@@ -41,24 +41,11 @@ public static class PropPlacement
                 problems.Add($"{name} is partly off the floor");
             }
 
-            foreach (var door in room.Doors)
+            foreach (var stop in stops)
             {
-                if (prop.Spot.DistanceTo(door.Spot) < prop.Radius + door.Radius + CatRoom)
+                if (prop.Spot.DistanceTo(stop.Spot) < prop.Radius + stop.Clear)
                 {
-                    problems.Add($"{name} is on the door {door.Id}");
-                }
-            }
-
-            if (room.Pond is { } pond && prop.Spot.DistanceTo(pond.Center) < prop.Radius + pond.Radius + Pond.Reach)
-            {
-                problems.Add($"{name} is in the pond or where cats fish from");
-            }
-
-            foreach (var (label, stop) in stops)
-            {
-                if (prop.Spot.DistanceTo(stop) < prop.Radius + CatRoom)
-                {
-                    problems.Add($"{name} is on {label}");
+                    problems.Add($"{name} {stop.On}");
                 }
             }
 
@@ -86,19 +73,26 @@ public static class PropPlacement
         return problems;
     }
 
+    /// <summary>
+    /// A place cats walk to (its <c>Label</c> in a walk's name), how far from its middle a prop must keep beyond its own
+    /// size (<c>Clear</c>), and what a prop nearer is (<c>On</c>).
+    /// </summary>
+    private readonly record struct Stop(string Label, Position Spot, double Clear, string On);
+
     /// <summary>The places cats walk between: the spawn point, each door and the spot just inside it, and the pond.</summary>
-    private static List<(string Label, Position Spot)> Stops(RoomDefinition room)
+    private static List<Stop> Stops(RoomDefinition room)
     {
-        var stops = new List<(string Label, Position Spot)> { ("the spawn point", room.Spawn) };
+        var stops = new List<Stop> { new("the spawn point", room.Spawn, CatRoom, "is on the spawn point") };
         foreach (var door in room.Doors)
         {
-            stops.Add(($"the door {door.Id}", door.Spot));
-            stops.Add(($"the way in by the door {door.Id}", door.Arrival));
+            stops.Add(new($"the door {door.Id}", door.Spot, door.Radius + CatRoom, $"is on the door {door.Id}"));
+            var wayIn = $"the way in by the door {door.Id}";
+            stops.Add(new(wayIn, door.Arrival, CatRoom, $"is on {wayIn}"));
         }
 
         if (room.Pond is { } pond)
         {
-            stops.Add(("the pond", pond.Center));
+            stops.Add(new("the pond", pond.Center, pond.Radius + Pond.Reach, "is in the pond or where cats fish from"));
         }
 
         return stops;

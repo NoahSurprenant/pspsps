@@ -16,6 +16,10 @@ public sealed class PropPlacementTests
 
     private static Prop Bench(double x, double z, double radius = 1) => new(PropKinds.Bench, new Position(x, z), radius);
 
+    /// <summary>The problems with the room's props, each without the prop's name ("test: the bench at (x, z)").</summary>
+    private static string[] ProblemsWith(params Prop[] props) =>
+        [.. PropPlacement.Problems(RoomWith(props)).Select(p => p[(p.IndexOf(") ", StringComparison.Ordinal) + 2)..])];
+
     [Test]
     public void EveryRoomsProps_KeepClearOfTheDoorsThePondTheSpawnPointAndTheWalksBetweenThem()
     {
@@ -38,63 +42,93 @@ public sealed class PropPlacementTests
     }
 
     [Test]
+    public void AProblem_NamesTheRoomAndTheProp()
+    {
+        Assert.That(PropPlacement.Problems(RoomWith(Bench(9.5, -4))),
+            Is.EqualTo(new[] { "test: the bench at (9.5, -4) is partly off the floor" }));
+    }
+
+    [Test]
     public void APropOutOfTheWay_IsFine()
     {
-        Assert.That(PropPlacement.Problems(RoomWith(Bench(7, -4))), Is.Empty);
+        Assert.That(ProblemsWith(Bench(7, -4)), Is.Empty);
     }
 
     [Test]
     public void APropPartlyOffTheFloor_IsAProblem()
     {
-        Assert.That(PropPlacement.Problems(RoomWith(Bench(9.5, -4))), Has.One.Contains("off the floor"));
+        Assert.That(ProblemsWith(Bench(9.5, -4)), Is.EqualTo(new[] { "is partly off the floor" }));
     }
 
     [Test]
     public void APropOnADoor_IsAProblem()
     {
-        Assert.That(PropPlacement.Problems(RoomWith(Bench(7.5, 4.5, radius: 0.5))), Has.Some.Contains("on the door out"));
+        Assert.That(ProblemsWith(Bench(7.5, 4.5, radius: 0.5)), Is.EqualTo(new[] { "is on the door out" }));
+    }
+
+    [Test]
+    public void APropRightOnADoor_IsSaidToBeOnItOnce()
+    {
+        Assert.That(ProblemsWith(Bench(6.2, 4.2, radius: 0.3)), Has.Exactly(1).EqualTo("is on the door out"));
     }
 
     [Test]
     public void APropWhereCatsFish_IsAProblem_NotJustOneInTheWater()
     {
         // Clear of the water (1.5) by more than its own size, but within reach of a line from the edge.
-        Assert.That(PropPlacement.Problems(RoomWith(Bench(-5, -2.2, radius: 0.5))),
-            Has.Some.Contains("in the pond or where cats fish from"));
+        Assert.That(ProblemsWith(Bench(-5, -2.2, radius: 0.5)), Is.EqualTo(new[] { "is in the pond or where cats fish from" }));
     }
 
     [Test]
-    public void APropOnTheSpawnPoint_IsAProblem()
+    public void APropOnTheSpawnPoint_IsAProblem_AndOnTheWalksFromIt()
     {
-        Assert.That(PropPlacement.Problems(RoomWith(Bench(0.5, -3.5, radius: 0.3))), Has.Some.Contains("on the spawn point"));
+        Assert.That(ProblemsWith(Bench(0.5, -3.5, radius: 0.3)), Is.EqualTo(new[]
+        {
+            "is on the spawn point",
+            "is on the walk from the spawn point to the door out",
+            "is on the walk from the spawn point to the way in by the door out",
+            "is on the walk from the spawn point to the pond",
+        }));
     }
 
     [Test]
     public void APropOnTheWayInByADoor_IsAProblem()
     {
-        Assert.That(PropPlacement.Problems(RoomWith(Bench(Out.Arrival.X, Out.Arrival.Z - 0.5, radius: 0.3))),
-            Has.Some.Contains("on the way in by the door out"));
+        Assert.That(ProblemsWith(Bench(Out.Arrival.X, Out.Arrival.Z - 0.5, radius: 0.3)), Is.EqualTo(new[]
+        {
+            "is on the way in by the door out",
+            "is on the walk from the spawn point to the door out",
+            "is on the walk from the spawn point to the way in by the door out",
+            "is on the walk from the door out to the way in by the door out",
+            "is on the walk from the way in by the door out to the pond",
+        }));
     }
 
     [Test]
     public void APropOnTheWalkFromTheSpawnPointToTheDoor_IsAProblem()
     {
         // Halfway along the straight walk from (0, -3) to (6, 4), and away from both ends.
-        Assert.That(PropPlacement.Problems(RoomWith(Bench(3, 0.5, radius: 0.5))),
-            Has.Some.Contains("on the walk from the spawn point to the door out"));
+        Assert.That(ProblemsWith(Bench(3, 0.5, radius: 0.5)), Is.EqualTo(new[]
+        {
+            "is on the walk from the spawn point to the door out",
+            "is on the walk from the spawn point to the way in by the door out",
+        }));
     }
 
     [Test]
     public void APropOnTheWalkFromTheSpawnPointToThePond_IsAProblem()
     {
-        Assert.That(PropPlacement.Problems(RoomWith(Bench(-2.5, -1, radius: 0.3))),
-            Has.Some.Contains("on the walk from the spawn point to the pond"));
+        Assert.That(ProblemsWith(Bench(-2.5, -1, radius: 0.3)), Is.EqualTo(new[]
+        {
+            "is in the pond or where cats fish from",
+            "is on the walk from the spawn point to the pond",
+        }));
     }
 
     [Test]
     public void PropsOnEachOther_AreAProblem()
     {
-        Assert.That(PropPlacement.Problems(RoomWith(Bench(7, -4), Bench(8, -4.5))), Has.Some.Contains("overlaps the bench"));
+        Assert.That(ProblemsWith(Bench(7, -4), Bench(8, -4.5)), Is.EqualTo(new[] { "overlaps the bench at (8, -4.5)" }));
     }
 
     [Test]
@@ -102,12 +136,12 @@ public sealed class PropPlacementTests
     {
         var statue = new Prop("statue", new Position(7, -4), Radius: 1);
 
-        Assert.That(PropPlacement.Problems(RoomWith(statue)), Has.One.Contains("no kind of prop"));
+        Assert.That(ProblemsWith(statue), Is.EqualTo(new[] { "is no kind of prop the browser draws" }));
     }
 
     [Test]
     public void APropWithNoSize_IsAProblem()
     {
-        Assert.That(PropPlacement.Problems(RoomWith(Bench(7, -4, radius: 0))), Has.One.Contains("has no size"));
+        Assert.That(ProblemsWith(Bench(7, -4, radius: 0)), Is.EqualTo(new[] { "has no size" }));
     }
 }

@@ -24,6 +24,15 @@ describe("lookOf", () => {
     expect(look.backdrop({ width: 14, depth: 10, pond: null, doors: [] }, 4)).toEqual([]);
   });
 
+  // Hidden in the back wall, a part costs drawing and shows nothing.
+  it.each(Object.entries(plans))("builds nothing of %s's backdrop inside the back wall", (room, plan) => {
+    for (const part of lookOf(room).backdrop(plan, 4)) {
+      const [x, y, z] = part.at;
+      const inWall = Math.abs(x) < plan.width / 2 && y < 4 && z > plan.depth / 2 && z < plan.depth / 2 + 0.3;
+      expect(inWall, `${part.shape} at ${part.at.join(", ")}`).toBe(false);
+    }
+  });
+
   // The backdrop is scenery: nothing in it stands where cats walk, or hangs low enough over the floor to hide one.
   it.each(Object.entries(plans))("keeps %s's backdrop off the floor, or above the cats' heads", (room, plan) => {
     for (const part of lookOf(room).backdrop(plan, 4)) {

@@ -77,7 +77,9 @@ function townBackdrop(plan: Floorplan, wallHeight: number): Part[] {
     const windows = Math.max(1, Math.round(width / 1.9));
     for (let w = 0; w < windows; w++) {
       const x = house.from + 0.05 + (width / windows) * (w + 0.5);
-      const floors = [1.7, wallHeight + 1.1, wallHeight + 2.7].filter((y) => y + 0.6 < house.height);
+      // The ground floor shows only past the square's ends: the back wall hides it, and its painted front stands for it.
+      const besideTheSquare = Math.abs(x) - 0.4 >= plan.width / 2;
+      const floors = [...(besideTheSquare ? [1.7] : []), wallHeight + 1.1, wallHeight + 2.7].filter((y) => y + 0.6 < house.height);
       for (const y of floors) {
         parts.push({ shape: "box", width: 0.8, height: 1.0, depth: 0.06, at: [x, y, front - 0.02], colour: paints.glass });
       }

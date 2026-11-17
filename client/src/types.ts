@@ -44,8 +44,8 @@ export interface RoomSnapshot {
   pond: PondView | null;
   /** The doors out of the room. */
   doors: DoorView[];
-  /** The room's decoration, which cats walk through. */
-  props: PropView[];
+  /** The room's decoration, which cats walk through; null from a server older than props (during a deploy). */
+  props: PropView[] | null;
 }
 
 /** A door out of a room: a round spot on the floor to walk onto, and the room it leads to. */

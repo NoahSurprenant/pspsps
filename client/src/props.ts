@@ -46,7 +46,7 @@ export const palette = {
   butter: "#f6e27a",
   cream: "#f4e9d8",
   sage: "#8fb9a8",
-  mustard: "#e0b54a",
+  mustard: "#cc9a3a",
   teal: "#4f7f86",
   silver: "#c9ccd1",
   rose: "#f2a7c3",
@@ -209,10 +209,7 @@ function scaled(part: Part, by: number): Part {
   }
 }
 
-/**
- * Builds <parts> into one mesh with one flat material, each part outlined in ink (unless it says otherwise). Never takes
- * the pointer: a tap on a prop walks the cat there, as on the floor beneath it.
- */
+/** Builds <parts> into one mesh with one flat material, each part outlined in ink (unless it says otherwise). */
 export function buildParts(scene: Scene, name: string, parts: readonly Part[]): Mesh | undefined {
   const pieces: VertexData[] = [];
   for (const part of parts) {
@@ -229,7 +226,6 @@ export function buildParts(scene: Scene, name: string, parts: readonly Part[]): 
   const mesh = new Mesh(name, scene);
   merged.applyToMesh(mesh);
   mesh.useVertexColors = true;
-  mesh.isPickable = false;
   const material = new StandardMaterial(name, scene);
   // Unlit: each vertex's colour as it is.
   material.disableLighting = true;
@@ -246,7 +242,7 @@ function piece(part: Part, grow: number, hex: string): VertexData {
   const turn = part.turn ?? [0, 0, 0];
   data.transform(Matrix.Compose(Vector3.One(), Quaternion.FromEulerAngles(...turn), new Vector3(...part.at)));
   const colour = Color3.FromHexString(hex);
-  const top = grow > 0 ? colour : Color3.Lerp(colour, Color3.White(), 0.18);
+  const top = grow > 0 ? colour : Color3.FromHexString(topOf(hex));
   const normals = data.normals ?? [];
   const count = (data.positions?.length ?? 0) / 3;
   const colours = new Float32Array(count * 4);
@@ -286,4 +282,41 @@ function insideOut(data: VertexData): VertexData {
     [indices[i + 1], indices[i + 2]] = [indices[i + 2] ?? 0, indices[i + 1] ?? 0];
   }
   return data;
+}
+
+/** The colour a part's top is drawn in: its own a little lighter, so a box reads as a box. */
+export function topOf(hex: string): string {
+  return Color3.Lerp(Color3.FromHexString(hex), Color3.White(), 0.18).toHexString().toLowerCase();
+}
+
+/** How far past a prop's edge a cat sent beside it stands. */
+const besideGap = 0.4;
+
+/**
+ * Where a tap at (x, z) on a prop (the foot of the point tapped: on a tree's crown, the floor under it) walks the cat:
+ * to the floor just beside the prop, on the side tapped, or (tapped in the middle, or that side is taken) in front of
+ * it, or round it; never onto another prop or off the floor. Nothing when no prop stands there.
+ */
+export function besideProp(props: readonly PropView[], floor: { width: number; depth: number }, x: number, z: number):
+  { x: number; z: number } | undefined {
+  const prop = props.find((p) => Math.hypot(x - p.x, z - p.z) <= p.radius);
+  if (!prop) {
+    return undefined;
+  }
+  const tapped = Math.hypot(x - prop.x, z - prop.z);
+  const ways: [number, number][] = tapped > 0.05 ? [[(x - prop.x) / tapped, (z - prop.z) / tapped]] : [];
+  for (let i = 0; i < 8; i++) {
+    // The front first (towards the camera), then round both sides to the back.
+    const angle = -Math.PI / 2 + Math.ceil(i / 2) * (Math.PI / 4) * (i % 2 === 0 ? -1 : 1);
+    ways.push([Math.cos(angle), Math.sin(angle)]);
+  }
+  const reach = prop.radius + besideGap;
+  for (const [dx, dz] of ways) {
+    const spot = { x: prop.x + dx * reach, z: prop.z + dz * reach };
+    const onFloor = Math.abs(spot.x) <= floor.width / 2 && Math.abs(spot.z) <= floor.depth / 2;
+    if (onFloor && props.every((p) => Math.hypot(spot.x - p.x, spot.z - p.z) > p.radius)) {
+      return spot;
+    }
+  }
+  return undefined;
 }

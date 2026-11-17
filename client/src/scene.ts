@@ -2,6 +2,7 @@
 import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
 import type { AssetContainer } from "@babylonjs/core/assetContainer";
 import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
+import type { ICanvas } from "@babylonjs/core/Engines/ICanvas";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { DynamicTexture } from "@babylonjs/core/Materials/Textures/dynamicTexture";
 import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
@@ -24,7 +25,7 @@ import { animationFor, Cat, facing, loadCatModel, MeowClip, type CatAnimation } 
 import { lazily } from "./lazy";
 import { lookOf } from "./looks";
 import { floorPixelsPerMetre, streetTile, textureSize, wallPixelsPerMetre, type Brush, type Floorplan } from "./paint";
-import { buildParts, propParts, type Part } from "./props";
+import { besideProp, buildParts, ink, propParts, type Part } from "./props";
 import { CatLook } from "./look";
 import catModelUrl from "./models/cat.glb?url";
 import type { CatView, DoorView, Emote, RoomSnapshot } from "./types";
@@ -165,14 +166,14 @@ export class RoomScene {
     const plan: Floorplan = { width: room.width, depth: room.depth, pond: room.pond, doors: room.doors };
     const floor = CreateGround("floor", { width: room.width, height: room.depth }, this.scene);
     floor.material = look.paintFloor
-      ? painted(this.scene, "floor", textureSize(room.width, room.depth, floorPixelsPerMetre),
+      ? painted(this.scene, "floor", `${room.roomId}/floor/${JSON.stringify(plan)}`, textureSize(room.width, room.depth, floorPixelsPerMetre),
         (brush, scale) => look.paintFloor?.(brush, plan, scale))
       : flat(this.scene, "floor", look.floorColour);
     // The floor's dark edge: a little larger and just below it. Not renderOutline, whose pass, from far off (a narrow
     // screen backs the camera away), covered whatever lay flat on the floor, the pond.
     const rim = CreateGround("floor-edge", { width: room.width + 0.08, height: room.depth + 0.08 }, this.scene);
     rim.position.y = -0.01;
-    rim.material = flat(this.scene, "floor-edge", "#2a2230");
+    rim.material = flat(this.scene, "floor-edge", ink);
     rim.isPickable = false;
     if (look.ground) {
       // The ground round the room, below the floor's edge: out past where the camera sees in front and to the sides,
@@ -182,7 +183,7 @@ export class RoomScene {
       ground.position.set(0, -0.03, (room.depth / 2 + 40 - 200) / 2);
       const { colour, paint } = look.ground;
       ground.material = paint
-        ? painted(this.scene, "ground", textureSize(streetTile, streetTile, floorPixelsPerMetre), paint,
+        ? painted(this.scene, "ground", `${room.roomId}/ground`, textureSize(streetTile, streetTile, floorPixelsPerMetre), paint,
           { u: width / streetTile, v: depth / streetTile })
         : flat(this.scene, "ground", colour);
       ground.isPickable = false;
@@ -196,12 +197,15 @@ export class RoomScene {
     if (look.paintWall) {
       const front = CreatePlane("back-wall-front", { width: room.width, height: wallHeight }, this.scene);
       front.position.set(0, wallHeight / 2, room.depth / 2 - 0.01);
-      front.material = painted(this.scene, "back-wall-front", textureSize(room.width, wallHeight, wallPixelsPerMetre),
+      front.material = painted(this.scene, "back-wall-front",
+        `${room.roomId}/wall/${room.width}/${JSON.stringify(room.doors)}`, textureSize(room.width, wallHeight, wallPixelsPerMetre),
         (brush, scale) => look.paintWall?.(brush, room.width, wallHeight, scale, room.doors));
       front.isPickable = false;
     }
-    // The wall, the props and the backdrop: one mesh, drawn in one go. Cats walk through props.
-    buildParts(this.scene, "decor", [wall, ...room.props.flatMap(propParts), ...look.backdrop(plan, wallHeight)]);
+    // The wall, the props and the backdrop: one mesh, drawn in one go. Cats walk through props; a tap on one walks the
+    // cat beside it (a tap on the wall or the backdrop does nothing).
+    const props = room.props ?? [];
+    const decor = buildParts(this.scene, "decor", [wall, ...props.flatMap(propParts), ...look.backdrop(plan, wallHeight)]);
 
     // The pond: a flat disc of water just above the floor. Clicking it fishes, rather than walking into it.
     let pond: AbstractMesh | undefined;
@@ -210,7 +214,7 @@ export class RoomScene {
       // renderOutline: on something this flat the outline pass painted over the whole of it.
       const edge = CreateCylinder("pond-edge", { diameter: room.pond.radius * 2 + 0.16, height: 0.02, tessellation: 48 }, this.scene);
       edge.position.set(room.pond.x, 0.01, room.pond.z);
-      edge.material = flat(this.scene, "pond-edge", "#2a2230");
+      edge.material = flat(this.scene, "pond-edge", ink);
       edge.isPickable = false;
       pond = CreateCylinder("pond", { diameter: room.pond.radius * 2, height: 0.02, tessellation: 48 }, this.scene);
       pond.position.set(room.pond.x, 0.03, room.pond.z);
@@ -236,6 +240,11 @@ export class RoomScene {
         this.pondClicked();
       } else if (pick.hit && pick.pickedMesh === floor && pick.pickedPoint) {
         this.floorClicked(pick.pickedPoint.x, pick.pickedPoint.z);
+      } else if (pick.hit && decor && pick.pickedMesh === decor && pick.pickedPoint) {
+        const spot = besideProp(props, room, pick.pickedPoint.x, pick.pickedPoint.z);
+        if (spot) {
+          this.floorClicked(spot.x, spot.z);
+        }
       }
     };
     this.scene.onBeforeRenderObservable.add(() => this.step(this.engine.getDeltaTime() / 1000));
@@ -268,7 +277,7 @@ export class RoomScene {
     anchor.isPickable = false;
 
     const label = new TextBlock(`name-${cat.playerId}`, cat.displayName);
-    label.color = "#2a2230";
+    label.color = ink;
     label.fontSize = 14;
     label.fontWeight = "bold";
     label.outlineColor = "white";
@@ -400,7 +409,6 @@ export class RoomScene {
    */
   private drawDoor(door: DoorView, depth: number): AbstractMesh[] {
     const name = `door-${door.id}`;
-    const ink = "#2a2230";
     const matWidth = door.radius * 2;
     const matDepth = door.radius * 1.4;
     const edge = CreateBox(`${name}-mat-edge`, { width: matWidth + 0.16, depth: matDepth + 0.16, height: 0.02 }, this.scene);
@@ -479,13 +487,13 @@ export class RoomScene {
     box.adaptHeightToChildren = true;
     box.cornerRadius = 12;
     box.thickness = 2;
-    box.color = "#2a2230";
+    box.color = ink;
     box.background = "white";
     const line = new TextBlock(`bubble-text-${playerId}`, text);
     line.resizeToFit = true;
     line.textWrapping = false;
     line.fontSize = 15;
-    line.color = "#2a2230";
+    line.color = ink;
     line.paddingLeft = line.paddingRight = "10px";
     line.paddingTop = line.paddingBottom = "6px";
     box.addControl(line);
@@ -514,20 +522,32 @@ function flat(scene: Scene, name: string, hex: string): StandardMaterial {
   return material;
 }
 
+// The rooms' paintings, by what they show (<key> and size): each painter is seeded, so a painting is the same every
+// time, and a room seen again reuses it rather than painting it anew. A few megabytes for the rooms there are.
+const paintings = new Map<string, ICanvas>();
+
 /**
  * A flat material painted by <paint> onto a canvas <size.width> by <size.height> pixels (<size.scale> to the metre),
- * shown as it is, unlit; once across its mesh, or <repeat> times each way.
+ * shown as it is, unlit; once across its mesh, or <repeat> times each way. The painting is kept by <key> and painted
+ * only the first time.
  */
-function painted(scene: Scene, name: string, size: { width: number; height: number; scale: number },
+function painted(scene: Scene, name: string, key: string, size: { width: number; height: number; scale: number },
   paint: (brush: Brush, scale: number) => void, repeat?: { u: number; v: number }): StandardMaterial {
-  const texture = new DynamicTexture(name, { width: size.width, height: size.height }, scene, true);
+  const sized = `${key}@${size.width}x${size.height}`;
+  let canvas = paintings.get(sized);
+  if (!canvas) {
+    canvas = scene.getEngine().createCanvas(size.width, size.height);
+    paint(canvas.getContext("2d") as unknown as Brush, size.scale);
+    paintings.set(sized, canvas);
+  }
+  // The texture draws from the kept canvas, and leaves it be when the room's scene is disposed.
+  const texture = new DynamicTexture(name, canvas, scene, true);
   if (repeat) {
     // A dynamic texture clamps at its edges unless told otherwise.
     texture.wrapU = texture.wrapV = DynamicTexture.WRAP_ADDRESSMODE;
     texture.uScale = repeat.u;
     texture.vScale = repeat.v;
   }
-  paint(texture.getContext() as unknown as Brush, size.scale);
   texture.update();
   const material = new StandardMaterial(name, scene);
   material.disableLighting = true;

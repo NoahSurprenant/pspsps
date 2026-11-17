@@ -1,6 +1,8 @@
 // Babylon by module: the animation runtime (AnimationGroup.start) and the glTF 2.0 loader, for their side effects.
 import "@babylonjs/core/Animations/animatable";
 import "@babylonjs/loaders/glTF/2.0/glTFLoader";
+// For its side effect: the outline renderer, which draws the cat's dark edges (renderOutline does nothing without it).
+import "@babylonjs/core/Rendering/outlineRenderer";
 import { GLTFLoaderAnimationStartMode } from "@babylonjs/loaders/glTF/glTFFileLoader.pure";
 import type { AnimationGroup } from "@babylonjs/core/Animations/animationGroup";
 import type { AssetContainer } from "@babylonjs/core/assetContainer";

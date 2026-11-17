@@ -3,7 +3,7 @@ import {
   floorPixel, largestTexture, paintCafeFloor, paintCafeWall, paints, paintStreet, paintTownSquareFloor, paintTownSquareWall,
   seeded, textureSize, type Brush, type Floorplan,
 } from "./paint";
-import { palette } from "./props";
+import { palette, topOf } from "./props";
 import { lookOf } from "./looks";
 import { doorMatColour } from "./scene";
 
@@ -13,13 +13,15 @@ const square: Floorplan = {
 };
 
 /** A brush that draws nothing and remembers every call and every colour it was given. */
-function recordingBrush(): { brush: Brush; calls: { name: string; args: unknown[] }[]; colours: Set<string> } {
-  const calls: { name: string; args: unknown[] }[] = [];
+interface Call { name: string; args: unknown[]; fillStyle: unknown }
+
+function recordingBrush(): { brush: Brush; calls: Call[]; colours: Set<string> } {
+  const calls: Call[] = [];
   const colours = new Set<string>();
   const state: Record<string | symbol, unknown> = {};
   const brush = new Proxy(state, {
     get: (target, key) => key in target ? target[key] : (...args: unknown[]) => {
-      calls.push({ name: String(key), args });
+      calls.push({ name: String(key), args, fillStyle: target.fillStyle });
       return { width: 0 };
     },
     set: (target, key, value) => {
@@ -82,6 +84,22 @@ describe("the painters", () => {
     expect(circles.map((c) => c.args[2])).toContain((2.5 + 0.6) * 10);
   });
 
+  // A shop window's awning reaches 0.95 m either side of its middle, and so does a door's frame: a window nearer a door
+  // than both together would run into it.
+  it("paints no shop window into a door's frame", () => {
+    // The pink house's second window is at x = 1.125: a door 1.7 m from it.
+    const door = { id: "cafe", x: 2.825, z: 7, radius: 0.8, toRoomId: "cafe", toRoomName: "Cat Café" };
+    const { brush, calls } = recordingBrush();
+    paintTownSquareWall(brush, 24, 4, 10, [door]);
+
+    const windows = calls.filter((c) => c.name === "fillRect" && c.fillStyle === paints.glass)
+      .map((c) => (Number(c.args[0]) + Number(c.args[2]) / 2) / 10 - 12);
+    expect(windows.length).toBeGreaterThan(4);
+    for (const middle of windows) {
+      expect(Math.abs(middle - door.x), `the window at ${middle}`).toBeGreaterThanOrEqual(1.9);
+    }
+  });
+
   it("paints the same floor every time", () => {
     const [first, second] = [recordingBrush(), recordingBrush()];
     paintTownSquareFloor(first.brush, square, 10, { x: 0, z: 3.4 });
@@ -110,6 +128,9 @@ describe("the painters", () => {
       [look.sky, look.floorColour, look.wallColour, look.ground?.colour].forEach((colour) => colour && used.add(colour));
       look.backdrop(square, 4).forEach((part) => used.add(part.colour));
     }
+
+    // A built part's top is drawn a little lighter than its sides: those colours count too.
+    for (const colour of [...used]) used.add(topOf(colour));
 
     expect(used.size).toBeGreaterThan(30);
     for (const colour of used) {
