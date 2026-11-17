@@ -22,8 +22,15 @@ public sealed class FakeExternalSignIn : IStartupFilter
 
     public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) => app =>
     {
-        app.Map(Path, branch => branch.Run(async http =>
+        // Not app.Map: that moves the path into PathBase, and the cookie would only be sent back under Path.
+        app.Use(async (http, nextMiddleware) =>
         {
+            if (http.Request.Path != Path)
+            {
+                await nextMiddleware(http);
+                return;
+            }
+
             var query = http.Request.Query;
             var identity = new ClaimsIdentity(
                 [new Claim(ClaimTypes.NameIdentifier, query["key"].ToString()), new Claim(ClaimTypes.Name, "Linked Cat")],
@@ -32,7 +39,7 @@ public sealed class FakeExternalSignIn : IStartupFilter
             var intent = new ExternalSignInIntent(query["provider"].ToString(), link);
             await http.SignInAsync(AuthSetup.ExternalScheme, new ClaimsPrincipal(identity), intent.ToProperties());
             http.Response.Redirect(ExternalSignInIntent.CallbackPath);
-        }));
+        });
         next(app);
     };
 }
