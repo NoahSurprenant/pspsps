@@ -90,8 +90,9 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.existingSecret }}
                   key: POSTGRES_PASSWORD
-            # Defaults for PostgreSQL's own tools (the probes below, psql through kubectl exec): the OS user, postgres, has
-            # no role, and a connection as it logs a FATAL. Read when the volume was first created, like the two above.
+            # Defaults for PostgreSQL's own tools (the probes below, psql through kubectl exec), read on every run: the OS
+            # user, postgres, has no role, and a connection as it logs a FATAL. They name the role and database
+            # POSTGRES_USER and POSTGRES_DB created with the volume, so changing them later needs the role renamed too.
             - name: PGUSER
               value: {{ $p.username | quote }}
             - name: PGDATABASE
