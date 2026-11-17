@@ -1,5 +1,7 @@
+using System.Collections.Concurrent;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Pspsps.Application.Friends;
 using Pspsps.Application.Homes;
@@ -9,6 +11,7 @@ using Pspsps.Domain;
 using Pspsps.Domain.Homes;
 using Pspsps.Domain.Rooms;
 using Pspsps.Domain.Shop;
+using Pspsps.Infrastructure.Persistence;
 using Pspsps.Server.Game;
 using static Pspsps.Integration.Test.PlayerServiceTests;
 
@@ -253,6 +256,32 @@ public sealed class HomesTests
         var there = await felixHub.InvokeAsync<RoomSnapshot>("VisitHome", tom.Id);
 
         Assert.That(there.RoomName, Is.EqualTo("Tommy's home"));
+    }
+
+    [Test]
+    public async Task WhoMayVisit_IsDecidedWithoutReadingTheFurniture()
+    {
+        // Every card, friends list, visit and send-out asks who may come in: never the rows of every piece in the home.
+        var tom = await NewPlayerAsync();
+        var felix = await NewPlayerAsync();
+        await BefriendAsync(tom, felix);
+        await Homes.PlaceAsync(tom, ShopCatalog.StarterFurniture, 2, -1, 0, CancellationToken.None);
+        var statements = new ConcurrentQueue<string>();
+        await using var db = new PspspsDbContext(new DbContextOptionsBuilder<PspspsDbContext>()
+            .UseNpgsql(PostgresFixture.ConnectionString)
+            .UseSnakeCaseNamingConvention()
+            .AddInterceptors(new ShopTests.Statements(statements))
+            .Options);
+        var homes = new HomeService(db, TimeProvider.System);
+
+        var open = await homes.OpenToAsync(felix, [tom], CancellationToken.None);
+        await homes.VisitAsync(felix, tom, CancellationToken.None);
+        var leaving = await homes.MustLeaveAsync(tom, [felix], CancellationToken.None);
+
+        Assert.That(open, Is.EquivalentTo(new[] { tom }));
+        Assert.That(leaving, Is.Empty);
+        Assert.That(statements, Is.Not.Empty);
+        Assert.That(statements, Has.None.Contains("home_furniture"));
     }
 
     // The message the hub sends when a cat is sent out of a home.

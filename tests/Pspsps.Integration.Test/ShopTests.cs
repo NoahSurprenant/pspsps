@@ -197,7 +197,7 @@ public sealed class ShopTests
         Assert.That(statements, Has.None.Contains("player_items"));
     }
 
-    private sealed class Statements(ConcurrentQueue<string> seen) : DbCommandInterceptor
+    internal sealed class Statements(ConcurrentQueue<string> seen) : DbCommandInterceptor
     {
         public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
             DbCommand command, CommandEventData eventData, InterceptionResult<DbDataReader> result,

@@ -105,6 +105,12 @@ describe("furniture in the shop", () => {
     expect(shopRow(withSofa(5), sofa)).toEqual({ item: sofa, status: "You have 5, as many as a cat can keep" });
   });
 
+  it("keeps as many of a piece as the server says a cat can", () => {
+    const fewer = { ...withSofa(3), maxOfEachFurniture: 3 } as Shop;
+
+    expect(shopRow(fewer, sofa)).toEqual({ item: sofa, status: "You have 3, as many as a cat can keep" });
+  });
+
   it("never wears furniture, and lists it in its own part after the fur", () => {
     expect(isWorn(withSofa(1), sofa)).toBe(false);
     expect(shopSections(withSofa(1)).map((s) => s.title)).toEqual(["Hats", "Collars", "Fur", "Furniture"]);

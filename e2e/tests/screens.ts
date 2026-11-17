@@ -131,6 +131,9 @@ export const SCREENS: Screen[] = [
       await tapFloor(page, 2.5, 2.5);
       await expect(page.getByRole("button", { name: "Turn the Cat bed" })).toBeVisible();
       await expect(page.getByRole("button", { name: "Cat bed · 0 left" })).toBeDisabled();
+      // Its heading and Done at the top of the panel, in view however short the screen: not scrolled off.
+      await expect(page.getByRole("heading", { name: "Decorating" })).toBeInViewport({ ratio: 1 });
+      await expect(page.getByRole("button", { name: "Done decorating" })).toBeInViewport({ ratio: 1 });
     },
   },
 ];

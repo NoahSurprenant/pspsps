@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
-import serverCatalog from "../../src/Pspsps.Domain/Shop/ShopCatalog.cs?raw";
 import {
-  countOf, decoratingHint, furnitureLeft, isOwnHome, newer, pieceAt, propOf, propsOf, visitorChoices, visitorsMessage,
+  canVisitFromCard, countOf, decoratingHint, furnitureLeft, isOwnHome, newer, pieceAt, propOf, propsOf, visitorChoices,
+  visitorsMessage,
 } from "./home";
-import { maxOfEachFurniture } from "./shop";
 import type { FurnitureView, HomeView, Shop, ShopItem } from "./types";
 
 const items: ShopItem[] = [
@@ -52,12 +51,6 @@ describe("countOf and furnitureLeft", () => {
     ]);
   });
 
-  // The client's limit is the server's (src/Pspsps.Domain/Shop/ShopCatalog.cs).
-  it("keeps as many of a piece as the server does", () => {
-    const max = /MaxOfEachFurniture = (\d+);/.exec(serverCatalog)?.[1];
-
-    expect(Number(max)).toBe(maxOfEachFurniture);
-  });
 });
 
 describe("pieceAt", () => {
@@ -80,6 +73,17 @@ describe("decoratingHint", () => {
 
   it("sends a player with no furniture to the shop", () => {
     expect(decoratingHint({}, [], { ...home, furniture: [] })).toBe("You have no furniture yet. Buy some in the shop.");
+  });
+});
+
+describe("canVisitFromCard", () => {
+  const card = { playerId: "felix", displayName: "Felix", furColor: "Black" as const, friendState: "Friends" as const, canVisitHome: true };
+
+  it("offers a home that lets the player in, unless the player is in it already", () => {
+    expect(canVisitFromCard(card, undefined)).toBe(true);
+    expect(canVisitFromCard(card, "tom")).toBe(true);
+    expect(canVisitFromCard(card, "felix")).toBe(false);
+    expect(canVisitFromCard({ ...card, canVisitHome: false }, undefined)).toBe(false);
   });
 });
 
