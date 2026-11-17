@@ -79,8 +79,12 @@ export class RoomScene {
     const camera = new ArcRotateCamera("camera", -Math.PI / 2, 0.95, 1, Vector3.Zero(), this.scene);
     camera.fov = fieldOfView;
     // Back far enough for the screen's shape, now and whenever it changes (a phone turned on its side).
+    // The near and far planes close around the room, which keeps the depth buffer fine enough to tell the pond from
+    // the floor under it however far back the camera is (with the defaults, 1 to 10,000, a narrow screen lost it).
     const fit = () => {
       camera.radius = cameraRadius(this.engine.getAspectRatio(camera), room.width, room.depth);
+      camera.minZ = camera.radius / 3;
+      camera.maxZ = camera.radius * 3;
     };
     fit();
     this.engine.onResizeObservable.add(fit);
