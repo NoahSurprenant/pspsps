@@ -1,5 +1,6 @@
 import {
-  ArcRotateCamera, Color3, Color4, Engine, MeshBuilder, Scene, StandardMaterial, Vector3, type AbstractMesh, type TransformNode,
+  ArcRotateCamera, Color3, Color4, MeshBuilder, Scene, StandardMaterial, Vector3, type AbstractEngine, type AbstractMesh,
+  type TransformNode,
 } from "@babylonjs/core";
 import { AdvancedDynamicTexture, Rectangle, TextBlock } from "@babylonjs/gui";
 import { buildCat } from "./cat";
@@ -7,6 +8,7 @@ import type { CatView, RoomSnapshot } from "./types";
 
 const walkSpeed = 4; // metres per second
 const bubbleSeconds = 6;
+const sky = Color4.FromHexString("#bfe3f2ff");
 
 interface CatOnScreen {
   root: TransformNode;
@@ -17,19 +19,23 @@ interface CatOnScreen {
 
 /** Draws one room at a time and walks the cats in it. Knows nothing about the network. */
 export class RoomScene {
-  private readonly engine: Engine;
   private scene: Scene;
-  private gui: AdvancedDynamicTexture;
+  private gui: AdvancedDynamicTexture | undefined;
   private readonly cats = new Map<string, CatOnScreen>();
   private floorClicked: (x: number, z: number) => void = () => {};
 
-  constructor(canvas: HTMLCanvasElement) {
-    this.engine = new Engine(canvas, true, { stencil: true });
+  constructor(private readonly engine: AbstractEngine) {
     this.scene = new Scene(this.engine);
-    this.gui = AdvancedDynamicTexture.CreateFullscreenUI("ui", true, this.scene);
+    this.scene.clearColor = sky;
     // One loop for the page; it draws whichever room is showing.
-    this.engine.runRenderLoop(() => this.scene.render());
-    window.addEventListener("resize", () => this.engine.resize());
+    this.engine.runRenderLoop(() => this.renderFrame());
+  }
+
+  /** Draws one frame of whatever is showing. Until a room shows there is no camera: the canvas keeps its sky. */
+  renderFrame(): void {
+    if (this.scene.activeCamera) {
+      this.scene.render();
+    }
   }
 
   onFloorClicked(handler: (x: number, z: number) => void): void {
@@ -41,7 +47,7 @@ export class RoomScene {
     this.cats.clear();
     this.scene.dispose();
     this.scene = new Scene(this.engine);
-    this.scene.clearColor = Color4.FromHexString("#bfe3f2ff");
+    this.scene.clearColor = sky;
     this.gui = AdvancedDynamicTexture.CreateFullscreenUI("ui", true, this.scene);
 
     // A fixed, angled camera: the player never steers it, like a painted backdrop.
@@ -94,7 +100,7 @@ export class RoomScene {
     label.fontWeight = "bold";
     label.outlineColor = "white";
     label.outlineWidth = 3;
-    this.gui.addControl(label);
+    this.gui?.addControl(label);
     label.linkWithMesh(anchor);
     label.linkOffsetY = -6;
 
@@ -110,7 +116,7 @@ export class RoomScene {
     if (!cat) {
       return;
     }
-    for (const control of [...this.gui.getDescendants()]) {
+    for (const control of [...(this.gui?.getDescendants() ?? [])]) {
       if (control.name === `name-${playerId}` || control.name === `bubble-${playerId}`) {
         control.dispose();
       }
@@ -141,7 +147,7 @@ export class RoomScene {
     line.paddingLeft = line.paddingRight = "10px";
     line.paddingTop = line.paddingBottom = "6px";
     box.addControl(line);
-    this.gui.addControl(box);
+    this.gui?.addControl(box);
     box.linkWithMesh(cat.anchor);
     box.linkOffsetY = -42;
     cat.bubble = { box, until: performance.now() + bubbleSeconds * 1000 };
