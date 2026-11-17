@@ -53,6 +53,7 @@ jobs:
       - uses: azure/setup-helm@v5
       - run: helm lint charts/pspsps
       - run: helm template pspsps charts/pspsps > /dev/null
+      - run: charts/pspsps/tests/render-test.sh
       - run: >-
           helm template pspsps charts/pspsps --set cluster.enabled=true --set cluster.kubeApi.cidr=10.0.0.1/32
           --set ingressRoute.enabled=true --set ingressRoute.host=pspsps.example
