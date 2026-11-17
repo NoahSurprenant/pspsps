@@ -219,7 +219,8 @@ test("a guest fishes at the pond and is paid in coins", async ({ page }) => {
   // The bite comes 3-9 s later, at a moment only the server knows; then there are 1.5 s to reel.
   const reel = page.getByRole("button", { name: "Reel!" });
   await expect(reel).toBeVisible({ timeout: 15_000 });
-  await reel.click();
+  // A double click reels in once: a second Reel would answer "Cast your line first." over the catch.
+  await reel.dblclick();
 
   await expect(page.locator("#toast")).toHaveText(/^You caught an? .+! \+\d+ coins?$/);
   const coins = await page.evaluate(() => window.pspsps?.coins() ?? 0);
