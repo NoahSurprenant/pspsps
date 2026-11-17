@@ -58,6 +58,12 @@ lets the cat out only if it stands on that door (`RoomState.LeaveThrough`), and 
 the matching door (`Door.Arrival`), off it, so it doesn't walk straight back out. The room bar's buttons
 (`GoToRoom`) are the quick way round, and arrive at the spawn point.
 
+A room's props (`Prop`: benches, trees, café tables) are in the catalogue too, and go to the browser with the room;
+they are decoration, which cats walk through. `PropPlacement` keeps them out of the way: on the floor, off the doors,
+the pond and where cats fish from, the spawn point, and the straight walks between all of these. The browser draws
+each kind in the room's flat, outlined style, all of a room's props in one mesh, and paints the floors and back walls
+in code on the way into a room (`client/src/looks.ts`): no image files.
+
 Chat goes the same way, through the room's chat filter (`ChatFilter`, a rule of `RoomState.Say`): word lists that
 either star a word out or refuse the whole line, seeing through accents, look-alike letters, digits for letters,
 punctuation inside a word, letters stretched three or more times and spaced-out single letters, but never spelling a

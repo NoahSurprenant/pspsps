@@ -1,5 +1,5 @@
 import type { AssetContainer } from "@babylonjs/core/assetContainer";
-import { NullEngine, Scene, TransformNode } from "@babylonjs/core";
+import { NullEngine, Scene, StandardMaterial, TransformNode } from "@babylonjs/core";
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { loadCatModel } from "./cat";
@@ -9,7 +9,7 @@ import type { RoomSnapshot } from "./types";
 
 const room: RoomSnapshot = {
   worldId: "tabby", roomId: "town-square", roomName: "Town Square", width: 20, depth: 12, cats: [], chat: [], rooms: [],
-  pond: null, doors: [],
+  pond: null, doors: [], props: [],
 };
 
 /** A promise and the hands to settle it. */
@@ -118,6 +118,32 @@ describe("RoomScene", () => {
     expect(pickable("garfield")).toEqual([true]);
     expect(pickable("tom")).toEqual([false]);
     expect(meshes.filter((mesh) => mesh.name.startsWith("anchor-")).every((anchor) => !anchor.isPickable)).toBe(true);
+  });
+
+  // Props are decoration: drawn together in one go, never in the way of a tap on the floor, the pond or a door.
+  it("draws the room's props and backdrop as one mesh that never takes the pointer, and keeps the pond and mats their colours", () => {
+    const view = new RoomScene(new NullEngine(), () => new Promise<AssetContainer>(() => {}));
+    view.show({
+      ...room,
+      pond: { x: -5, z: -2, radius: 2 },
+      doors: [{ id: "cafe", x: 6, z: 5, radius: 0.8, toRoomId: "cafe", toRoomName: "Cat Café" }],
+      props: [
+        { kind: "bench", x: 6, z: -3, radius: 1, facing: 0 },
+        { kind: "tree", x: -8, z: 4, radius: 1.4, facing: 0 },
+        { kind: "statue", x: 0, z: -4, radius: 1, facing: 0 },
+      ],
+    });
+
+    const scene = (view as unknown as { scene: Scene }).scene;
+    const mesh = (name: string) => scene.getMeshByName(name);
+    expect(scene.meshes.filter((m) => m.name === "decor")).toHaveLength(1);
+    expect(mesh("decor")?.isPickable).toBe(false);
+    expect(mesh("floor")?.isPickable).toBe(true);
+    expect(mesh("pond")?.isPickable).toBe(true);
+    expect(mesh("door-cafe-mat")?.isPickable).toBe(true);
+    const colour = (name: string) => (mesh(name)?.material as StandardMaterial | null)?.emissiveColor.toHexString();
+    expect(colour("pond")).toBe("#5FB3D9");
+    expect(colour("door-cafe-mat")).toBe("#C8553D");
   });
 });
 

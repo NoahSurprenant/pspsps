@@ -26,6 +26,7 @@ public sealed class GameHubTests
         var felixRoom = await felixHub.InvokeAsync<RoomSnapshot>("EnterWorld", "tabby");
 
         Assert.That(tomRoom.RoomId, Is.EqualTo("town-square"));
+        Assert.That(tomRoom.Props, Is.EqualTo(RoomCatalog.Default.Props.Select(PropView.From)), "the square's props, to draw");
         Assert.That(felixRoom.Cats.Select(c => c.PlayerId), Is.EquivalentTo(new[] { tom.Id, felix.Id }));
         Assert.That(await tomSees.Next<CatView>("CatJoined", c => c.PlayerId == felix.Id), Is.Not.Null);
 

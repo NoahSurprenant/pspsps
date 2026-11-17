@@ -8,7 +8,7 @@ const felix: CatView = { playerId: "felix", displayName: "Felix", furColor: "Tux
 const hello: ChatView = { playerId: "felix", text: "hello", at: "2026-11-17T12:00:00Z" };
 
 function snapshot(cats: CatView[], chat: ChatView[] = []): RoomSnapshot {
-  return { worldId: "tabby", roomId: "town-square", roomName: "Town Square", width: 24, depth: 16, cats, chat, rooms: [], pond: null, doors: [] };
+  return { worldId: "tabby", roomId: "town-square", roomName: "Town Square", width: 24, depth: 16, cats, chat, rooms: [], pond: null, doors: [], props: [] };
 }
 
 describe("PendingEvents", () => {

@@ -44,6 +44,8 @@ export interface RoomSnapshot {
   pond: PondView | null;
   /** The doors out of the room. */
   doors: DoorView[];
+  /** The room's decoration, which cats walk through. */
+  props: PropView[];
 }
 
 /** A door out of a room: a round spot on the floor to walk onto, and the room it leads to. */
@@ -54,6 +56,18 @@ export interface DoorView {
   radius: number;
   toRoomId: string;
   toRoomName: string;
+}
+
+/**
+ * A piece of a room's decoration (Contracts.cs, PropView): what it is, where it stands, the circle round there it is
+ * drawn inside, and which way it faces (radians about the vertical; 0 faces the front, where the camera is).
+ */
+export interface PropView {
+  kind: string;
+  x: number;
+  z: number;
+  radius: number;
+  facing: number;
 }
 
 export interface PondView {

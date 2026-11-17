@@ -46,27 +46,37 @@ const CHECKS: Record<Screen["name"], Checks> = {
   "town-square": {
     parts: [".room-bar", ".emote-bar", ".chat-bar", ".fishing"],
     // The pond and the café door's mat, drawn: from further off (a narrow screen backs the camera away) the floor's
-    // outline once hid the pond. Waited for, as software WebGL can be slow to draw the first frames, and seen with the
-    // controls hidden.
-    shows: async (page) => {
-      await page.locator("#ui").evaluate((ui) => (ui.style.visibility = "hidden"));
-      try {
-        const missing: string[] = [];
-        for (const [what, rgb, least] of [["the pond", pondBlue, 20], ["the door's mat", doorMatRed, 2]] as const) {
-          try {
-            await expect.poll(async () => pixelsNear(await page.locator("#game").screenshot(), rgb), { timeout: 15_000 })
-              .toBeGreaterThan(least);
-          } catch {
-            missing.push(`${what} is not drawn`);
-          }
-        }
-        return missing;
-      } finally {
-        await page.locator("#ui").evaluate((ui) => (ui.style.visibility = ""));
-      }
-    },
+    // outline once hid the pond, and props must never cover them.
+    shows: (page) => drawn(page, [["the pond", pondBlue, 20], ["the door's mat", doorMatRed, 2]]),
+  },
+  cafe: {
+    parts: [".room-bar", ".emote-bar", ".chat-bar"],
+    // The door back to the square's mat, among the café's tables and chairs.
+    shows: (page) => drawn(page, [["the door's mat", doorMatRed, 2]]),
   },
 };
+
+/**
+ * Which of <things> (what, its colour, the fewest sampled pixels of it) are not drawn on the canvas. Waited for, as
+ * software WebGL can be slow to draw the first frames, and seen with the controls hidden.
+ */
+async function drawn(page: Page, things: [string, [number, number, number], number][]): Promise<string[]> {
+  await page.locator("#ui").evaluate((ui) => (ui.style.visibility = "hidden"));
+  try {
+    const missing: string[] = [];
+    for (const [what, rgb, least] of things) {
+      try {
+        await expect.poll(async () => pixelsNear(await page.locator("#game").screenshot(), rgb), { timeout: 15_000 })
+          .toBeGreaterThan(least);
+      } catch {
+        missing.push(`${what} is not drawn`);
+      }
+    }
+    return missing;
+  } finally {
+    await page.locator("#ui").evaluate((ui) => (ui.style.visibility = ""));
+  }
+}
 
 for (const screen of SCREENS) {
   const checks = CHECKS[screen.name];

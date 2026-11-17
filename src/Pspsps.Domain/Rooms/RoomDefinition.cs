@@ -2,13 +2,16 @@ namespace Pspsps.Domain.Rooms;
 
 /// <summary>
 /// A room's layout: a rectangular floor centred on the origin, where cats arrive, how many fit, a pond to fish in if it
-/// has one, and the doors out of it.
+/// has one, the doors out of it, and its props.
 /// </summary>
 public sealed record RoomDefinition(
     string Id, string Name, double Width, double Depth, Position Spawn, int Capacity, Pond? Pond = null)
 {
     /// <summary>The doors out of this room, each to a door of another room.</summary>
     public IReadOnlyList<Door> Doors { get; init; } = [];
+
+    /// <summary>The room's decoration, which cats walk through (<see cref="PropPlacement"/> has where props may stand).</summary>
+    public IReadOnlyList<Prop> Props { get; init; } = [];
 
     /// <summary>The nearest spot on the floor to <paramref name="target"/>.</summary>
     public Position Clamp(Position target) => new(

@@ -3,24 +3,28 @@ import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
 import type { AssetContainer } from "@babylonjs/core/assetContainer";
 import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import { DynamicTexture } from "@babylonjs/core/Materials/Textures/dynamicTexture";
 import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
 import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
 import { CreateCylinder } from "@babylonjs/core/Meshes/Builders/cylinderBuilder";
 import { CreateGround } from "@babylonjs/core/Meshes/Builders/groundBuilder";
+import { CreatePlane } from "@babylonjs/core/Meshes/Builders/planeBuilder";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Node as BabylonNode } from "@babylonjs/core/node";
 import { Scene } from "@babylonjs/core/scene";
-// For their side effects: picking what a pointer touches, and the meshes' drawn outlines (renderOutline).
+// For its side effects: picking what a pointer touches.
 import "@babylonjs/core/Culling/ray";
-import "@babylonjs/core/Rendering/outlineRenderer";
 import { AdvancedDynamicTexture } from "@babylonjs/gui/2D/advancedDynamicTexture";
 import { Rectangle } from "@babylonjs/gui/2D/controls/rectangle";
 import { TextBlock } from "@babylonjs/gui/2D/controls/textBlock";
 import { cameraPitch, cameraRadius, fieldOfView } from "./view";
 import { animationFor, Cat, facing, loadCatModel, MeowClip, type CatAnimation } from "./cat";
 import { lazily } from "./lazy";
+import { lookOf } from "./looks";
+import { floorPixelsPerMetre, streetTile, textureSize, wallPixelsPerMetre, type Brush, type Floorplan } from "./paint";
+import { buildParts, propParts, type Part } from "./props";
 import { CatLook } from "./look";
 import catModelUrl from "./models/cat.glb?url";
 import type { CatView, DoorView, Emote, RoomSnapshot } from "./types";
@@ -33,6 +37,8 @@ const anchorHeight = 1.4;
 export const doorMatColour = "#c8553d";
 /** How close (in metres) a cat drawn walking somewhere counts as there. */
 const there = 0.05;
+/** How tall a room's back wall is, in metres. */
+const wallHeight = 4;
 
 // The cat model's bytes: fetched once, on the way into the first room; every room reads them into its own scene. A
 // fetch that failed is tried again by the next room.
@@ -154,21 +160,48 @@ export class RoomScene {
     this.scene.onDisposeObservable.add(() => this.engine.onResizeObservable.removeCallback(fit));
     camera.inputs.clear();
 
+    const look = lookOf(room.roomId);
+    this.scene.clearColor = Color4.FromHexString(`${look.sky}ff`);
+    const plan: Floorplan = { width: room.width, depth: room.depth, pond: room.pond, doors: room.doors };
     const floor = CreateGround("floor", { width: room.width, height: room.depth }, this.scene);
-    floor.material = flat(this.scene, "floor", room.roomId === "cafe" ? "#d9b38c" : "#9fd38a");
+    floor.material = look.paintFloor
+      ? painted(this.scene, "floor", textureSize(room.width, room.depth, floorPixelsPerMetre),
+        (brush, scale) => look.paintFloor?.(brush, plan, scale))
+      : flat(this.scene, "floor", look.floorColour);
     // The floor's dark edge: a little larger and just below it. Not renderOutline, whose pass, from far off (a narrow
     // screen backs the camera away), covered whatever lay flat on the floor, the pond.
     const rim = CreateGround("floor-edge", { width: room.width + 0.08, height: room.depth + 0.08 }, this.scene);
     rim.position.y = -0.01;
     rim.material = flat(this.scene, "floor-edge", "#2a2230");
     rim.isPickable = false;
-    const back = CreateBox("back-wall", { width: room.width, height: 4, depth: 0.3 }, this.scene);
-    back.position.set(0, 2, room.depth / 2 + 0.15);
-    back.material = flat(this.scene, "wall", room.roomId === "cafe" ? "#f2d6c2" : "#f4efe4");
-    back.isPickable = false;
-    back.renderOutline = true;
-    back.outlineWidth = 0.04;
-    back.outlineColor = Color3.FromHexString("#2a2230");
+    if (look.ground) {
+      // The ground round the room, below the floor's edge: out past where the camera sees in front and to the sides,
+      // and behind the backdrop (the sky shows over it).
+      const [width, depth] = [400, 200 + room.depth / 2 + 40];
+      const ground = CreateGround("ground", { width, height: depth }, this.scene);
+      ground.position.set(0, -0.03, (room.depth / 2 + 40 - 200) / 2);
+      const { colour, paint } = look.ground;
+      ground.material = paint
+        ? painted(this.scene, "ground", textureSize(streetTile, streetTile, floorPixelsPerMetre), paint,
+          { u: width / streetTile, v: depth / streetTile })
+        : flat(this.scene, "ground", colour);
+      ground.isPickable = false;
+    }
+    // The back wall, outlined like the props (and with them), its front painted: a plane just in front of it (the
+    // doorways stand in front of that).
+    const wall: Part = {
+      shape: "box", width: room.width, height: wallHeight, depth: 0.3, at: [0, wallHeight / 2, room.depth / 2 + 0.15],
+      colour: look.wallColour,
+    };
+    if (look.paintWall) {
+      const front = CreatePlane("back-wall-front", { width: room.width, height: wallHeight }, this.scene);
+      front.position.set(0, wallHeight / 2, room.depth / 2 - 0.01);
+      front.material = painted(this.scene, "back-wall-front", textureSize(room.width, wallHeight, wallPixelsPerMetre),
+        (brush, scale) => look.paintWall?.(brush, room.width, wallHeight, scale, room.doors));
+      front.isPickable = false;
+    }
+    // The wall, the props and the backdrop: one mesh, drawn in one go. Cats walk through props.
+    buildParts(this.scene, "decor", [wall, ...room.props.flatMap(propParts), ...look.backdrop(plan, wallHeight)]);
 
     // The pond: a flat disc of water just above the floor. Clicking it fishes, rather than walking into it.
     let pond: AbstractMesh | undefined;
@@ -478,5 +511,27 @@ function flat(scene: Scene, name: string, hex: string): StandardMaterial {
   const material = new StandardMaterial(name, scene);
   material.disableLighting = true;
   material.emissiveColor = Color3.FromHexString(hex);
+  return material;
+}
+
+/**
+ * A flat material painted by <paint> onto a canvas <size.width> by <size.height> pixels (<size.scale> to the metre),
+ * shown as it is, unlit; once across its mesh, or <repeat> times each way.
+ */
+function painted(scene: Scene, name: string, size: { width: number; height: number; scale: number },
+  paint: (brush: Brush, scale: number) => void, repeat?: { u: number; v: number }): StandardMaterial {
+  const texture = new DynamicTexture(name, { width: size.width, height: size.height }, scene, true);
+  if (repeat) {
+    // A dynamic texture clamps at its edges unless told otherwise.
+    texture.wrapU = texture.wrapV = DynamicTexture.WRAP_ADDRESSMODE;
+    texture.uScale = repeat.u;
+    texture.vScale = repeat.v;
+  }
+  paint(texture.getContext() as unknown as Brush, size.scale);
+  texture.update();
+  const material = new StandardMaterial(name, scene);
+  material.disableLighting = true;
+  material.emissiveColor = Color3.White();
+  material.diffuseTexture = texture;
   return material;
 }

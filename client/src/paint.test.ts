@@ -1,0 +1,122 @@
+import { describe, expect, it } from "vitest";
+import {
+  floorPixel, largestTexture, paintCafeFloor, paintCafeWall, paints, paintStreet, paintTownSquareFloor, paintTownSquareWall,
+  seeded, textureSize, type Brush, type Floorplan,
+} from "./paint";
+import { palette } from "./props";
+import { lookOf } from "./looks";
+import { doorMatColour } from "./scene";
+
+const square: Floorplan = {
+  width: 24, depth: 16, pond: { x: -7, z: -3, radius: 2.5 },
+  doors: [{ id: "cafe", x: 7, z: 7, radius: 0.8, toRoomId: "cafe", toRoomName: "Cat Café" }],
+};
+
+/** A brush that draws nothing and remembers every call and every colour it was given. */
+function recordingBrush(): { brush: Brush; calls: { name: string; args: unknown[] }[]; colours: Set<string> } {
+  const calls: { name: string; args: unknown[] }[] = [];
+  const colours = new Set<string>();
+  const state: Record<string | symbol, unknown> = {};
+  const brush = new Proxy(state, {
+    get: (target, key) => key in target ? target[key] : (...args: unknown[]) => {
+      calls.push({ name: String(key), args });
+      return { width: 0 };
+    },
+    set: (target, key, value) => {
+      if (key === "fillStyle" || key === "strokeStyle") colours.add(String(value).toLowerCase());
+      target[key] = value;
+      return true;
+    },
+  }) as unknown as Brush;
+  return { brush, calls, colours };
+}
+
+const hex = (colour: string) => [1, 3, 5].map((i) => Number.parseInt(colour.slice(i, i + 2), 16));
+/** The end-to-end tests' measure (e2e/tests/game.ts, pixelsNear): how far apart two colours are. */
+const distance = (a: string, b: string) => hex(a).reduce((sum, value, i) => sum + Math.abs(value - (hex(b)[i] ?? 0)), 0);
+
+describe("textureSize", () => {
+  it("paints a metre the same number of pixels each way", () => {
+    const size = textureSize(24, 16, 64);
+
+    expect(size).toEqual({ width: 1536, height: 1024, scale: 64 });
+  });
+
+  it("paints a big surface coarser, never wider than the largest texture", () => {
+    const size = textureSize(60, 4, 80);
+
+    expect(size.width).toBe(largestTexture);
+    expect(size.scale).toBeCloseTo(largestTexture / 60);
+    expect(size.height).toBe(Math.round(4 * size.scale));
+  });
+});
+
+describe("floorPixel", () => {
+  // The texture's top is the back of the room, its left the room's left, as the camera sees it.
+  it("puts the floor's back left corner at the top left, and its front right at the bottom right", () => {
+    expect(floorPixel(square, 10, -12, 8)).toEqual([0, 0]);
+    expect(floorPixel(square, 10, 12, -8)).toEqual([240, 160]);
+    expect(floorPixel(square, 10, 0, 0)).toEqual([120, 80]);
+  });
+});
+
+describe("seeded", () => {
+  it("gives the same numbers for the same seed, all from 0 up to 1", () => {
+    const [a, b] = [seeded(16), seeded(16)];
+    const numbers = Array.from({ length: 1000 }, () => a());
+
+    expect(numbers).toEqual(Array.from({ length: 1000 }, () => b()));
+    expect(numbers.every((n) => n >= 0 && n < 1)).toBe(true);
+    expect(new Set(numbers).size).toBeGreaterThan(990);
+  });
+});
+
+describe("the painters", () => {
+  // The pond's water and its edge are drawn over the floor, in the scene: its sand must be painted where they are.
+  it("paints Town Square's sand round the pond, centred where the pond is drawn", () => {
+    const { brush, calls } = recordingBrush();
+    paintTownSquareFloor(brush, square, 10, { x: 0, z: 3.4 });
+
+    const [x, y] = floorPixel(square, 10, -7, -3);
+    const circles = calls.filter((c) => c.name === "arc" && c.args[0] === x && c.args[1] === y);
+    expect(circles.map((c) => c.args[2])).toContain((2.5 + 0.6) * 10);
+  });
+
+  it("paints the same floor every time", () => {
+    const [first, second] = [recordingBrush(), recordingBrush()];
+    paintTownSquareFloor(first.brush, square, 10, { x: 0, z: 3.4 });
+    paintTownSquareFloor(second.brush, square, 10, { x: 0, z: 3.4 });
+
+    expect(first.calls).toEqual(second.calls);
+  });
+
+  // The end-to-end layout test finds the pond and the door mats by their colours, and the cats' eyes by theirs: nothing
+  // painted or built in a room may come near them.
+  it("never paints or builds in the pond's blue, a door mat's red or a cat's eye yellow", () => {
+    const used = new Set<string>([...Object.values(palette), ...Object.values(paints)]);
+    for (const paint of [
+      (b: Brush) => paintTownSquareFloor(b, square, 10, { x: 0, z: 3.4 }),
+      (b: Brush) => paintTownSquareWall(b, 24, 4, 10, square.doors),
+      (b: Brush) => paintCafeFloor(b, { ...square, width: 14, depth: 10, pond: null }, 10),
+      (b: Brush) => paintCafeWall(b, 14, 4, 10, []),
+      (b: Brush) => paintStreet(b, 10),
+    ]) {
+      const { brush, colours } = recordingBrush();
+      paint(brush);
+      colours.forEach((colour) => used.add(colour));
+    }
+    for (const room of ["town-square", "cafe", "elsewhere"]) {
+      const look = lookOf(room);
+      [look.sky, look.floorColour, look.wallColour, look.ground?.colour].forEach((colour) => colour && used.add(colour));
+      look.backdrop(square, 4).forEach((part) => used.add(part.colour));
+    }
+
+    expect(used.size).toBeGreaterThan(30);
+    for (const colour of used) {
+      expect(colour, colour).toMatch(/^#[0-9a-f]{6}$/i);
+      for (const [name, kept] of [["the pond's blue", "#5fb3d9"], ["a door mat's red", doorMatColour], ["a cat's eye yellow", "#ffc85a"]] as const) {
+        expect(distance(colour, kept), `${colour} is near ${name}`).toBeGreaterThanOrEqual(60);
+      }
+    }
+  });
+});

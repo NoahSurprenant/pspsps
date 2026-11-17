@@ -23,8 +23,9 @@ internal sealed class RoomGrain(
     private string _key = "";
     private RoomState _state = null!;
 
-    // The room's doors as the browser sees them: catalogue data, the same for every join.
+    // The room's doors and props as the browser sees them: catalogue data, the same for every join.
     private IReadOnlyList<DoorView> _doors = [];
+    private IReadOnlyList<PropView> _props = [];
 
     // Counted in pspsps.rooms.active once a cat joins, not on activation: a renewal can wake an empty room for a moment.
     private bool _counted;
@@ -42,6 +43,7 @@ internal sealed class RoomGrain(
         var room = RoomCatalog.Find(roomId) ?? throw new InvalidOperationException($"No room '{roomId}'.");
         _state = new RoomState(room);
         _doors = [.. room.Doors.Select(DoorView.From)];
+        _props = [.. room.Props.Select(PropView.From)];
         this.RegisterGrainTimer(
             static (grain, _) => grain.RemoveExpired(),
             this,
@@ -82,7 +84,8 @@ internal sealed class RoomGrain(
             [.. _state.RecentChat.Select(ChatView.From)],
             [.. RoomCatalog.All.Where(r => r.Id != _state.Room.Id).Select(r => new RoomLink(r.Id, r.Name))],
             _state.Room.Pond is { } pond ? new PondView(pond.Center.X, pond.Center.Z, pond.Radius) : null,
-            _doors);
+            _doors,
+            _props);
     }
 
     public async Task Leave(Guid playerId, string session)
