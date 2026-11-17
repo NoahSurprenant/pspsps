@@ -16,7 +16,7 @@ public sealed class FakeProviderHandler(
     IOptionsMonitor<RemoteAuthenticationOptions> options, ILoggerFactory logger, UrlEncoder encoder)
     : RemoteAuthenticationHandler<RemoteAuthenticationOptions>(options, logger, encoder)
 {
-    public const string Scheme = "FakeProvider";
+    public const string SchemeName = "FakeProvider";
     public const string CallbackPath = "/signin-fake";
 
     public static Uri Url(string? provider = null, Guid? linkToPlayer = null) => new(

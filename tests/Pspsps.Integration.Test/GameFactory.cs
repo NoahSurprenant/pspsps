@@ -21,7 +21,7 @@ public sealed class GameFactory(string connectionString) : WebApplicationFactory
         {
             services.AddSingleton<IStartupFilter, FakeExternalSignIn>();
             services.AddAuthentication().AddRemoteScheme<RemoteAuthenticationOptions, FakeProviderHandler>(
-                FakeProviderHandler.Scheme, null, options =>
+                FakeProviderHandler.SchemeName, null, options =>
                 {
                     options.CallbackPath = FakeProviderHandler.CallbackPath;
                     options.Events = new RemoteAuthenticationEvents();
