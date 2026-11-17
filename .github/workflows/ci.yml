@@ -89,8 +89,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     outputs:
-      # Empty unless the contact sheets were uploaded, so a run without them leaves the PR's last links alone.
-      screenshots: ${{ steps.sheet_town_square.outputs.artifact-url && format('- [Sign-in]({0})\n- [World list]({1})\n- [Town Square]({2})', steps.sheet_sign_in.outputs.artifact-url, steps.sheet_worlds.outputs.artifact-url, steps.sheet_town_square.outputs.artifact-url) || '' }}
+      # Empty unless all three contact sheets were uploaded, so a run without them leaves the PR's last links alone.
+      screenshots: ${{ steps.sheet_sign_in.outputs.artifact-url && steps.sheet_worlds.outputs.artifact-url && steps.sheet_town_square.outputs.artifact-url && format('- [Sign-in]({0})\n- [World list]({1})\n- [Town Square]({2})', steps.sheet_sign_in.outputs.artifact-url, steps.sheet_worlds.outputs.artifact-url, steps.sheet_town_square.outputs.artifact-url) || '' }}
     # The shipped image, run against PostgreSQL, driven by Chromium (software WebGL).
     services:
       postgres:
@@ -143,7 +143,7 @@ jobs:
             for session in signed-out signed-in; do
               echo "::group::Lighthouse, $preset, $session"
               LIGHTHOUSE_PRESET=$preset LIGHTHOUSE_COOKIE="$([ $session = signed-in ] && echo "$cookie")" \
-                npx --yes @lhci/cli@0.16.1 autorun || failed=1
+                npx lhci autorun || failed=1
               echo "::endgroup::"
             done
           done
@@ -217,7 +217,7 @@ jobs:
           marker="<!-- pspsps-screenshots -->"
           body="$(printf '%s\n### Screenshots at every screen size (%s)\n\n%b\n' "$marker" "${SHA:0:7}" "$LINKS")"
           existing=$(gh api "repos/${{ github.repository }}/issues/$PR/comments" --paginate \
-            -q ".[] | select(.body | startswith(\"$marker\")) | .id" | head -1)
+            -q ".[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$marker\"))) | .id" | head -1)
           if [ -n "$existing" ]; then
             gh api -X PATCH "repos/${{ github.repository }}/issues/comments/$existing" -f body="$body" > /dev/null
           else
