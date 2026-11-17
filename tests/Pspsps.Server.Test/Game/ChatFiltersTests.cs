@@ -127,10 +127,13 @@ public sealed class ChatFiltersTests
 
     private string FilePath => Path.Combine(_root, "chat-filter", "chat-filter.json");
 
+    // Whole or not at all, as a ConfigMap changes: the file watcher must never catch it half written.
     private void WriteFile(string json)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
-        File.WriteAllText(FilePath, json);
+        var draft = Path.Combine(_root, "draft.json");
+        File.WriteAllText(draft, json);
+        File.Move(draft, FilePath, overwrite: true);
     }
 
     private ChatFilters Start()
