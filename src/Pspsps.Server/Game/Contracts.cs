@@ -46,3 +46,7 @@ public sealed record WorldSummary(string Id, string Name, int Population, int Ca
 /// <summary>Raised by grains for anything the player did wrong; the hub shows the message.</summary>
 [GenerateSerializer]
 public sealed class GameRuleException(string message) : Exception(message);
+
+/// <summary>One browser tab's session (its connection ID) of a player, as the pod holding it renews its lease.</summary>
+[GenerateSerializer, Immutable]
+public sealed record PlayerSession([property: Id(0)] Guid PlayerId, [property: Id(1)] string Session);

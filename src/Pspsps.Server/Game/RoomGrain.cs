@@ -1,3 +1,4 @@
+using Orleans.Runtime;
 using Pspsps.Domain;
 using Pspsps.Domain.Players;
 using Pspsps.Domain.Rooms;
@@ -7,10 +8,14 @@ namespace Pspsps.Server.Game;
 
 /// <summary>
 /// Holds a room's <see cref="RoomState"/> in memory and broadcasts every change. Calls run one at a time. Kept alive while
-/// cats are in it (idle cats are still there), deactivated by the last one leaving.
+/// cats are in it (idle cats are still there), deactivated by the last one leaving. Takes out cats whose session stopped
+/// renewing its lease (<see cref="SessionLease"/>).
 /// </summary>
 [KeepAlive]
-internal sealed class RoomGrain(IRoomBroadcaster broadcaster, TimeProvider time, GameMetrics metrics) : Grain, IRoomGrain
+internal sealed class RoomGrain(
+    IRoomBroadcaster broadcaster,
+    [FromKeyedServices(TimeProviderNames.Grains)] TimeProvider time,
+    GameMetrics metrics) : Grain, IRoomGrain
 {
     private string _key = "";
     private RoomState _state = null!;
@@ -21,6 +26,10 @@ internal sealed class RoomGrain(IRoomBroadcaster broadcaster, TimeProvider time,
         var (_, roomId) = RoomKey.Parse(_key);
         var room = RoomCatalog.Find(roomId) ?? throw new InvalidOperationException($"No room '{roomId}'.");
         _state = new RoomState(room);
+        this.RegisterGrainTimer(
+            static (grain, _) => grain.RemoveExpired(),
+            this,
+            new GrainTimerCreationOptions { DueTime = SessionLease.RenewEvery, Period = SessionLease.RenewEvery });
         metrics.RoomActivated();
         return Task.CompletedTask;
     }
@@ -34,7 +43,7 @@ internal sealed class RoomGrain(IRoomBroadcaster broadcaster, TimeProvider time,
     public async Task<RoomSnapshot> Join(PlayerCard player, string session)
     {
         var fur = Enum.Parse<FurColor>(player.FurColor);
-        var cat = Rule(() => _state.Join(player.PlayerId, player.DisplayName, fur, session));
+        var cat = Rule(() => _state.Join(player.PlayerId, player.DisplayName, fur, session, time.GetUtcNow()));
         await broadcaster.CatJoined(_key, CatView.From(cat));
 
         var (worldId, _) = RoomKey.Parse(_key);
@@ -62,6 +71,17 @@ internal sealed class RoomGrain(IRoomBroadcaster broadcaster, TimeProvider time,
         }
     }
 
+    public Task Renew(IReadOnlyList<PlayerSession> sessions)
+    {
+        var now = time.GetUtcNow();
+        foreach (var session in sessions)
+        {
+            _state.Renew(session.PlayerId, session.Session, now);
+        }
+
+        return Task.CompletedTask;
+    }
+
     public async Task Move(Guid playerId, double x, double z)
     {
         var position = Rule(() => _state.Move(playerId, new Position(x, z)));
@@ -72,6 +92,21 @@ internal sealed class RoomGrain(IRoomBroadcaster broadcaster, TimeProvider time,
     {
         var line = Rule(() => _state.Say(playerId, text, time.GetUtcNow()));
         await broadcaster.ChatSaid(_key, ChatView.From(line));
+    }
+
+    // Cats whose pod died without closing their connections: nothing renews their leases.
+    private async Task RemoveExpired()
+    {
+        foreach (var playerId in _state.RemoveExpired(time.GetUtcNow()))
+        {
+            metrics.LeaseExpired();
+            await broadcaster.CatLeft(_key, playerId);
+        }
+
+        if (_state.Cats.Count == 0)
+        {
+            DeactivateOnIdle();
+        }
     }
 
     // DomainException stays in this pod; callers get a GameRuleException, which Orleans knows how to copy.

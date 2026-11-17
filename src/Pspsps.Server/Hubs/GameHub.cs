@@ -11,10 +11,12 @@ namespace Pspsps.Server.Hubs;
 
 /// <summary>
 /// The browser's one realtime connection. Thin: it finds the player and forwards to the world and room grains, which
-/// may live on any pod. Each connection is in at most one world and one room.
+/// may live on any pod. Each connection is in at most one world and one room, and this pod renews its leases there
+/// (<see cref="SessionHeartbeat"/>).
 /// </summary>
 [Authorize]
-public sealed class GameHub(IGrainFactory grains, IPlayerService players, GameMetrics metrics) : Hub<IGameClient>
+public sealed class GameHub(IGrainFactory grains, IPlayerService players, SessionHeartbeat heartbeat, GameMetrics metrics)
+    : Hub<IGameClient>
 {
     private const string WorldItem = "world";
     private const string RoomItem = "room";
@@ -46,12 +48,13 @@ public sealed class GameHub(IGrainFactory grains, IPlayerService players, GameMe
             await Clients.Client(replaced).SessionReplaced();
         }
 
-        if (!await grains.GetGrain<IWorldGrain>(world.Id).TryEnter(PlayerId))
+        if (!await grains.GetGrain<IWorldGrain>(world.Id).TryEnter(PlayerId, Context.ConnectionId))
         {
             throw new HubException($"{world.Name} is full. Try another world.");
         }
 
         Context.Items[WorldItem] = world.Id;
+        TrackLeases();
         metrics.EnteredWorld(world.Id);
         return await JoinRoom(world.Id, RoomCatalog.Default.Id);
     }
@@ -92,6 +95,10 @@ public sealed class GameHub(IGrainFactory grains, IPlayerService players, GameMe
         }
     }
 
+    // Tells this pod's heartbeat where the connection is now, so it renews the right leases.
+    private void TrackLeases() =>
+        heartbeat.Track(Context.ConnectionId, PlayerId, Context.Items[WorldItem] as string, Context.Items[RoomItem] as string);
+
     private async Task<RoomSnapshot> JoinRoom(string worldId, string roomId)
     {
         var profile = await players.FindAsync(PlayerId, Context.ConnectionAborted)
@@ -105,6 +112,7 @@ public sealed class GameHub(IGrainFactory grains, IPlayerService players, GameMe
             var card = new PlayerCard(profile.Id, profile.DisplayName, profile.FurColor.ToString());
             var snapshot = await grains.GetGrain<IRoomGrain>(key).Join(card, Context.ConnectionId);
             Context.Items[RoomItem] = key;
+            TrackLeases();
             return snapshot;
         }
         catch (GameRuleException e)
@@ -119,6 +127,7 @@ public sealed class GameHub(IGrainFactory grains, IPlayerService players, GameMe
         if (Context.Items[RoomItem] is string key)
         {
             Context.Items.Remove(RoomItem);
+            TrackLeases();
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, key);
             await grains.GetGrain<IRoomGrain>(key).Leave(PlayerId, Context.ConnectionId);
         }
@@ -130,8 +139,9 @@ public sealed class GameHub(IGrainFactory grains, IPlayerService players, GameMe
         if (Context.Items[WorldItem] is string worldId)
         {
             Context.Items.Remove(WorldItem);
+            TrackLeases();
             metrics.LeftWorld(worldId);
-            await grains.GetGrain<IWorldGrain>(worldId).Leave(PlayerId);
+            await grains.GetGrain<IWorldGrain>(worldId).Leave(PlayerId, Context.ConnectionId);
         }
     }
 

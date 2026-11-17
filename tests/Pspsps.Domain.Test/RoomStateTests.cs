@@ -18,7 +18,7 @@ public sealed class RoomStateTests
     {
         var state = new RoomState(Room);
 
-        var cat = state.Join(Tom, "Tom", FurColor.Grey, TabA);
+        var cat = state.Join(Tom, "Tom", FurColor.Grey, TabA, Now);
 
         Assert.That(cat.Position, Is.EqualTo(new Position(1, 2)));
         Assert.That(state.Cats, Has.Count.EqualTo(1));
@@ -28,10 +28,10 @@ public sealed class RoomStateTests
     public void Join_FromAnotherTab_TakesTheCatOverWhereItStands()
     {
         var state = new RoomState(Room);
-        state.Join(Tom, "Tom", FurColor.Grey, TabA);
+        state.Join(Tom, "Tom", FurColor.Grey, TabA, Now);
         state.Move(Tom, new Position(3, 0));
 
-        var again = state.Join(Tom, "Tom", FurColor.Grey, TabB);
+        var again = state.Join(Tom, "Tom", FurColor.Grey, TabB, Now);
 
         Assert.That(again.Position, Is.EqualTo(new Position(3, 0)));
         Assert.That(state.Cats, Has.Count.EqualTo(1));
@@ -41,17 +41,17 @@ public sealed class RoomStateTests
     public void Join_RefusesAFullRoom()
     {
         var state = new RoomState(Room);
-        state.Join(Tom, "Tom", FurColor.Grey, TabA);
-        state.Join(Felix, "Felix", FurColor.Tuxedo, "felix-tab");
+        state.Join(Tom, "Tom", FurColor.Grey, TabA, Now);
+        state.Join(Felix, "Felix", FurColor.Tuxedo, "felix-tab", Now);
 
-        Assert.Throws<DomainException>(() => state.Join(Guid.NewGuid(), "Garfield", FurColor.Orange, "garfield-tab"));
+        Assert.Throws<DomainException>(() => state.Join(Guid.NewGuid(), "Garfield", FurColor.Orange, "garfield-tab", Now));
     }
 
     [Test]
     public void Move_StopsAtTheWalls()
     {
         var state = new RoomState(Room);
-        state.Join(Tom, "Tom", FurColor.Grey, TabA);
+        state.Join(Tom, "Tom", FurColor.Grey, TabA, Now);
 
         var position = state.Move(Tom, new Position(100, -100));
 
@@ -64,7 +64,7 @@ public sealed class RoomStateTests
     public void Move_RefusesNonsense(double x, double z)
     {
         var state = new RoomState(Room);
-        state.Join(Tom, "Tom", FurColor.Grey, TabA);
+        state.Join(Tom, "Tom", FurColor.Grey, TabA, Now);
 
         Assert.Throws<DomainException>(() => state.Move(Tom, new Position(x, z)));
     }
@@ -82,7 +82,7 @@ public sealed class RoomStateTests
     public void Say_TrimsAndKeepsOnlyTheLatestLines()
     {
         var state = new RoomState(Room);
-        state.Join(Tom, "Tom", FurColor.Grey, TabA);
+        state.Join(Tom, "Tom", FurColor.Grey, TabA, Now);
 
         Assert.That(state.Say(Tom, "  meow  ", Now).Text, Is.EqualTo("meow"));
         for (var i = 0; i < RoomState.ChatHistory + 5; i++)
@@ -99,7 +99,7 @@ public sealed class RoomStateTests
     public void Say_RefusesEmptyLines(string text)
     {
         var state = new RoomState(Room);
-        state.Join(Tom, "Tom", FurColor.Grey, TabA);
+        state.Join(Tom, "Tom", FurColor.Grey, TabA, Now);
 
         Assert.Throws<DomainException>(() => state.Say(Tom, text, Now));
     }
@@ -108,7 +108,7 @@ public sealed class RoomStateTests
     public void Say_RefusesLongLines()
     {
         var state = new RoomState(Room);
-        state.Join(Tom, "Tom", FurColor.Grey, TabA);
+        state.Join(Tom, "Tom", FurColor.Grey, TabA, Now);
 
         Assert.Throws<DomainException>(() => state.Say(Tom, new string('a', RoomState.MaxChatLength + 1), Now));
     }
@@ -117,8 +117,8 @@ public sealed class RoomStateTests
     public void Leave_FromAReplacedTab_LeavesTheNewTabsCat()
     {
         var state = new RoomState(Room);
-        state.Join(Tom, "Tom", FurColor.Grey, TabA);
-        state.Join(Tom, "Tom", FurColor.Grey, TabB);
+        state.Join(Tom, "Tom", FurColor.Grey, TabA, Now);
+        state.Join(Tom, "Tom", FurColor.Grey, TabB, Now);
 
         Assert.That(state.Leave(Tom, TabA), Is.False);
         Assert.That(state.Cats, Has.Count.EqualTo(1));
@@ -130,10 +130,62 @@ public sealed class RoomStateTests
     public void Leave_RemovesTheCat()
     {
         var state = new RoomState(Room);
-        state.Join(Tom, "Tom", FurColor.Grey, TabA);
+        state.Join(Tom, "Tom", FurColor.Grey, TabA, Now);
 
         Assert.That(state.Leave(Tom, TabA), Is.True);
         Assert.That(state.Leave(Tom, TabA), Is.False);
+        Assert.That(state.Cats, Is.Empty);
+    }
+
+    [Test]
+    public void RemoveExpired_TakesOutCatsWhoseLeaseRanOut()
+    {
+        var state = new RoomState(Room);
+        state.Join(Tom, "Tom", FurColor.Grey, TabA, Now);
+        state.Join(Felix, "Felix", FurColor.Tuxedo, "felix-tab", Now + TimeSpan.FromSeconds(30));
+
+        Assert.That(state.RemoveExpired(Now + SessionLease.Duration - TimeSpan.FromTicks(1)), Is.Empty);
+        Assert.That(state.RemoveExpired(Now + SessionLease.Duration), Is.EqualTo(new[] { Tom }));
+        Assert.That(state.Cats.Select(c => c.PlayerId), Is.EqualTo(new[] { Felix }));
+
+        // Gone for good: its session can't renew it or take it out again.
+        Assert.That(state.Renew(Tom, TabA, Now + SessionLease.Duration), Is.False);
+        Assert.That(state.Leave(Tom, TabA), Is.False);
+    }
+
+    [Test]
+    public void Renew_KeepsTheCatIn()
+    {
+        var state = new RoomState(Room);
+        state.Join(Tom, "Tom", FurColor.Grey, TabA, Now);
+
+        Assert.That(state.Renew(Tom, TabA, Now + SessionLease.RenewEvery), Is.True);
+
+        Assert.That(state.RemoveExpired(Now + SessionLease.Duration), Is.Empty);
+        Assert.That(state.Cats, Has.Count.EqualTo(1));
+        Assert.That(state.RemoveExpired(Now + SessionLease.RenewEvery + SessionLease.Duration), Is.EqualTo(new[] { Tom }));
+    }
+
+    [Test]
+    public void Renew_FromAReplacedTab_DoesNotKeepTheCatIn()
+    {
+        var state = new RoomState(Room);
+        state.Join(Tom, "Tom", FurColor.Grey, TabA, Now);
+        state.Join(Tom, "Tom", FurColor.Grey, TabB, Now + TimeSpan.FromSeconds(10));
+
+        Assert.That(state.Renew(Tom, TabA, Now + TimeSpan.FromSeconds(60)), Is.False);
+
+        // The new tab's lease started when it took over, and only it counts.
+        Assert.That(state.RemoveExpired(Now + SessionLease.Duration), Is.Empty);
+        Assert.That(state.RemoveExpired(Now + TimeSpan.FromSeconds(10) + SessionLease.Duration), Is.EqualTo(new[] { Tom }));
+    }
+
+    [Test]
+    public void Renew_RefusesACatThatIsNotHere()
+    {
+        var state = new RoomState(Room);
+
+        Assert.That(state.Renew(Tom, TabA, Now), Is.False);
         Assert.That(state.Cats, Is.Empty);
     }
 }

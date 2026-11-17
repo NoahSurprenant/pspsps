@@ -55,18 +55,20 @@ public sealed class GameMetricsTests
     }
 
     [Test]
-    public void RoomsAndChat_AreCounted()
+    public void RoomsChatAndExpiredLeases_AreCounted()
     {
         var metrics = new GameMetrics(_services.GetRequiredService<IMeterFactory>());
 
         metrics.RoomActivated();
         metrics.Said("calico");
+        metrics.LeaseExpired();
         metrics.RoomDeactivated();
 
         Assert.That(_measurements.Select(m => (m.Instrument, m.Value)), Is.EqualTo(new[]
         {
             ("pspsps.rooms.active", 1.0),
             ("pspsps.chat.lines", 1.0),
+            ("pspsps.leases.expired", 1.0),
             ("pspsps.rooms.active", -1.0),
         }));
     }

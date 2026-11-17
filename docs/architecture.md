@@ -21,7 +21,7 @@ A **world** is a separate copy of every room, with its own population cap: playe
 
 Both are Orleans grains, the actors of this design:
 
-- `WorldGrain` (key: world ID) counts who is in the world, against its cap.
+- `WorldGrain` (key: world ID) holds the world's `WorldPopulation`: who is in it, against its cap.
 - `RoomGrain` (key: `world/room`) holds the room's `RoomState`: who is in it, where they stand, what they said lately.
 - `PlayerSessionGrain` (key: player ID) knows the player's current tab. A player is one cat, played from their newest
   tab: entering a world from a second tab takes the cat over where it stands, the first tab is told ("You've joined
@@ -29,6 +29,13 @@ Both are Orleans grains, the actors of this design:
 
 Each grain exists exactly once in the whole cluster, on whichever pod Orleans placed it, and handles one call at a
 time, so its state needs no locks. Room state lives only in memory: an empty room deactivates and forgets everything.
+
+A tab's session (its connection) holds a lease on its world and room. The pod holding the connection renews it every
+30 seconds (`SessionHeartbeat`: one call per world and per room, idle tabs included), and the world and room grains
+check every 30 seconds for leases older than 90 seconds (`SessionLease`, with the rules in `WorldPopulation` and
+`RoomState`). A tab that closes leaves at once; a pod that dies without closing its connections stops renewing them, so
+within two minutes their cats leave their rooms (the others see them go) and their tabs stop counting in their worlds.
+The browsers reconnect to another pod and enter again, as new sessions.
 
 A move goes like this:
 
@@ -45,7 +52,8 @@ enforces this.
 - **Domain** (`src/Pspsps.Domain`): the game's rules, no frameworks. Aggregates in the DDD sense: `Player` owns its
   logins, coins and fur. A private constructor for EF Core, named static factories (`CreateGuest`,
   `CreateWithLogin`), private setters, collections exposed read-only, and methods that refuse invalid changes with a
-  `DomainException`. Also the in-memory room rules (`RoomState`) and the world and room catalogues.
+  `DomainException`. Also the in-memory world and room rules (`WorldPopulation`, `RoomState`,
+  `SessionLease`) and the world and room catalogues.
 - **Application** (`src/Pspsps.Application`): use cases (`PlayerService`) and the ports they need
   (`IApplicationDbContext`).
 - **Infrastructure** (`src/Pspsps.Infrastructure`): EF Core on PostgreSQL (snake_case names), the migrations, and the
@@ -72,8 +80,3 @@ cd src/Pspsps.Infrastructure && dotnet ef migrations add <Name> --output-dir Mig
 ```
 
 Never edit a migration that is already on master; add a new one. The server applies migrations on startup.
-
-## Known gaps
-
-- If a pod dies without its connections closing cleanly, their cats stay in rooms on other pods until the room
-  empties. A per-connection heartbeat to the room grains will fix this.
