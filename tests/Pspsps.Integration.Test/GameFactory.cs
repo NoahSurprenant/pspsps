@@ -4,10 +4,12 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 using Orleans.Runtime;
 using Pspsps.Application.Players;
+using Pspsps.Infrastructure.Persistence;
 using Pspsps.Server.Auth;
 
 namespace Pspsps.Integration.Test;
@@ -35,6 +37,7 @@ public sealed class GameFactory(string connectionString) : WebApplicationFactory
         builder.ConfigureTestServices(services =>
         {
             services.AddSingleton<IStartupFilter, FakeExternalSignIn>();
+            services.ConfigureDbContext<PspspsDbContext>(options => options.AddInterceptors(BeforeSaving));
             services.AddAuthentication().AddRemoteScheme<RemoteAuthenticationOptions, FakeProviderHandler>(
                 FakeProviderHandler.SchemeName, null, options =>
                 {
@@ -48,6 +51,9 @@ public sealed class GameFactory(string connectionString) : WebApplicationFactory
     }
 
     public FakeTimeProvider GrainClock { get; } = new(DateTimeOffset.UtcNow);
+
+    /// <summary>Lets a test act in the server just before it saves a change to a player.</summary>
+    public BeforeSaving BeforeSaving { get; } = new();
 
     public T Get<T>()
         where T : notnull => Services.CreateScope().ServiceProvider.GetRequiredService<T>();

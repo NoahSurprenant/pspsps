@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { catchBubble, pondEdge, reelMessage } from "./fishing";
+import { catchBubble, FishingState, paid, pondEdge, reelMessage, type Fishing } from "./fishing";
+import type { Player } from "./types";
 
 const pond = { x: -7, z: -3, radius: 2.5 };
 
@@ -29,16 +30,16 @@ describe("pondEdge", () => {
 
 describe("reelMessage", () => {
   it("names the catch and the coins", () => {
-    expect(reelMessage({ outcome: "caught", fishId: "koi", fishName: "Golden koi", coins: 100, totalCoins: 140 }))
+    expect(reelMessage({ outcome: "caught", fishId: "koi", fishName: "Golden koi", coins: 100, totalCoins: 140, isCatch: true }))
       .toBe("You caught a golden koi! +100 coins");
-    expect(reelMessage({ outcome: "caught", fishId: "boot", fishName: "Old boot", coins: 1, totalCoins: 1 }))
+    expect(reelMessage({ outcome: "caught", fishId: "boot", fishName: "Old boot", coins: 1, totalCoins: 1, isCatch: true }))
       .toBe("You caught an old boot! +1 coin");
   });
 
   it("says why nothing was caught", () => {
-    expect(reelMessage({ outcome: "too-early", fishId: null, fishName: null, coins: 0, totalCoins: 0 }))
+    expect(reelMessage({ outcome: "too-early", fishId: null, fishName: null, coins: 0, totalCoins: 0, isCatch: false }))
       .toBe("Too soon! It swam off.");
-    expect(reelMessage({ outcome: "too-late", fishId: null, fishName: null, coins: 0, totalCoins: 0 }))
+    expect(reelMessage({ outcome: "too-late", fishId: null, fishName: null, coins: 0, totalCoins: 0, isCatch: false }))
       .toBe("Too slow! It got away.");
   });
 });
@@ -46,5 +47,112 @@ describe("reelMessage", () => {
 describe("catchBubble", () => {
   it("shows the fish", () => {
     expect(catchBubble("Goldfish")).toBe("🐟 Goldfish!");
+  });
+});
+
+describe("FishingState", () => {
+  function track(): { fishing: FishingState; seen: Fishing[] } {
+    const seen: Fishing[] = [];
+    return { fishing: new FishingState((state) => seen.push(state)), seen };
+  }
+
+  it("goes idle, casting, waiting, bite, reeling, idle", () => {
+    const { fishing, seen } = track();
+
+    const cast = fishing.startCast();
+    expect(cast).toBeDefined();
+    fishing.castDone(cast!);
+    fishing.bite();
+    expect(fishing.startReel()).toBe(true);
+    fishing.reeled();
+
+    expect(seen).toEqual(["casting", "waiting", "bite", "reeling", "idle"]);
+    expect(fishing.state).toBe("idle");
+  });
+
+  it("casts once while a cast is in flight", () => {
+    const { fishing } = track();
+
+    expect(fishing.startCast()).toBeDefined();
+    expect(fishing.startCast()).toBeUndefined();
+    expect(fishing.state).toBe("casting");
+  });
+
+  it("doesn't wait for a bite on a line dropped while casting", () => {
+    const { fishing } = track();
+    const cast = fishing.startCast()!;
+
+    // A floor click while the cast was on its way: the cat walked off, and the server dropped the line.
+    fishing.drop();
+    fishing.castDone(cast);
+
+    expect(fishing.state).toBe("idle");
+  });
+
+  it("ignores an old cast finishing during a newer one", () => {
+    const { fishing } = track();
+    const first = fishing.startCast()!;
+    fishing.drop();
+    const second = fishing.startCast()!;
+
+    fishing.castFailed(first);
+    expect(fishing.state).toBe("casting");
+    fishing.castDone(second);
+    expect(fishing.state).toBe("waiting");
+  });
+
+  it("goes back to idle when the cast fails", () => {
+    const { fishing } = track();
+    const cast = fishing.startCast()!;
+
+    fishing.castFailed(cast);
+
+    expect(fishing.state).toBe("idle");
+  });
+
+  it("reels once: a double click or Space and a click send one Reel", () => {
+    const { fishing } = track();
+    fishing.castDone(fishing.startCast()!);
+    fishing.bite();
+
+    expect(fishing.startReel()).toBe(true);
+    expect(fishing.startReel()).toBe(false);
+    expect(fishing.state).toBe("reeling");
+  });
+
+  it("reels in early while waiting, but not with no line out", () => {
+    const { fishing } = track();
+    expect(fishing.startReel()).toBe(false);
+    const cast = fishing.startCast()!;
+    expect(fishing.startReel()).toBe(false);
+
+    fishing.castDone(cast);
+    expect(fishing.startReel()).toBe(true);
+  });
+
+  it("only bites a line that is waiting", () => {
+    const { fishing } = track();
+    fishing.bite();
+    expect(fishing.state).toBe("idle");
+
+    fishing.startCast();
+    fishing.bite();
+    expect(fishing.state).toBe("casting");
+  });
+});
+
+describe("paid", () => {
+  const player: Player = { id: "p1", displayName: "Kitty 1234", furColor: "Grey", coins: 40, isGuest: true };
+
+  it("keeps the coins a catch paid, so the next world picked shows them", () => {
+    const after = paid(player, { outcome: "caught", fishId: "koi", fishName: "Golden koi", coins: 100, totalCoins: 140, isCatch: true });
+
+    expect(after).toEqual({ ...player, coins: 140 });
+    expect(player.coins).toBe(40);
+  });
+
+  it("changes nothing when nothing was caught", () => {
+    expect(paid(player, { outcome: "too-late", fishId: null, fishName: null, coins: 0, totalCoins: 0, isCatch: false }))
+      .toBe(player);
   });
 });

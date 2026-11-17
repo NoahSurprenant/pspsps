@@ -234,6 +234,26 @@ public sealed class PlayerServiceTests
         Assert.That(db.ChangeTracker.HasChanges(), Is.False, "the new player is still waiting to be saved");
     }
 
+    [Test]
+    public async Task EarnCoins_TwoEarningsForOnePlayerAtOnce_BothCount()
+    {
+        // Another tab (on another pod, say) pays the same cat between this earning's read and its save.
+        var guest = await Game.Get<IPlayerService>().CreateGuestAsync(CancellationToken.None);
+        await GiveCoinsAsync(guest.Id, 3);
+        await using var db = RacingContext(async ct =>
+            await Game.Get<IPlayerService>().EarnCoinsAsync(guest.Id, 5, ct));
+
+        var paid = await new PlayerService(db, TimeProvider.System, Random.Shared)
+            .EarnCoinsAsync(guest.Id, 7, CancellationToken.None);
+        var saved = await Game.Get<IPlayerService>().FindAsync(guest.Id, CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(paid.Coins, Is.EqualTo(15));
+            Assert.That(saved?.Coins, Is.EqualTo(15), "one earning overwrote the other");
+        });
+    }
+
 
     /// <summary>A provider user ID no other test uses: the tests share one database.</summary>
     internal static string NewKey() => Guid.NewGuid().ToString("N");

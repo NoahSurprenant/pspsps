@@ -60,7 +60,7 @@ public sealed class FishingTests
         await hub.InvokeAsync("Cast");
         var reel = await hub.InvokeAsync<ReelView>("Reel");
 
-        Assert.That(reel, Is.EqualTo(new ReelView("too-early", null, null, 0, 0)));
+        Assert.That(reel, Is.EqualTo(new ReelView("too-early", null, null, 0, 0, IsCatch: false)));
         var saved = await Game.Get<IPlayerService>().FindAsync(tom.Id, CancellationToken.None);
         Assert.That(saved!.Coins, Is.Zero);
     }
@@ -75,6 +75,69 @@ public sealed class FishingTests
         var far = Assert.ThrowsAsync<HubException>(() => hub.InvokeAsync("Cast"));
         Assert.That(far!.Message, Does.Contain("Walk up to the pond to fish."));
         var noLine = Assert.ThrowsAsync<HubException>(() => hub.InvokeAsync<ReelView>("Reel"));
+        Assert.That(noLine!.Message, Does.Contain("Cast your line first."));
+    }
+
+    [Test]
+    public async Task ACatch_IsSavedBeforeTheRoomSeesIt_AndEvenWhenTheTabClosesWhilePaying()
+    {
+        var (tom, tomHub) = await Game.ConnectGuestAsync();
+        var (_, felixHub) = await Game.ConnectGuestAsync();
+        await using var tomConnection = tomHub;
+        await using var felixConnection = felixHub;
+        var bit = new TaskCompletionSource();
+        tomHub.On("FishBit", () => bit.TrySetResult());
+        var felixSees = new Recorder(felixHub);
+        await tomHub.InvokeAsync<RoomSnapshot>("EnterWorld", WorldId);
+        await felixHub.InvokeAsync<RoomSnapshot>("EnterWorld", WorldId);
+        await tomHub.InvokeAsync("Move", PondEdgeX, PondEdgeZ);
+        await tomHub.InvokeAsync("Cast");
+        await WaitForTheBite(bit);
+
+        // Just before the catch is saved: has the room been shown it already? Then Tom's tab closes (a refresh, say).
+        bool? shownBeforeSaving = null;
+        Game.BeforeSaving.Once(tom.Id, async () =>
+        {
+            shownBeforeSaving = await felixSees.Saw<CatchView>("CatFished", c => c.PlayerId == tom.Id, TimeSpan.FromSeconds(1));
+            await Task.WhenAny(tomHub.StopAsync(), Task.Delay(TimeSpan.FromSeconds(2)));
+        });
+        var reeling = tomHub.InvokeAsync<ReelView>("Reel");
+        // Its answer may never come back: the tab has gone.
+        await ((Task)reeling).ContinueWith(_ => { }, TaskScheduler.Default);
+
+        var shown = await felixSees.Next<CatchView>("CatFished", c => c.PlayerId == tom.Id);
+        var saved = await Game.Get<IPlayerService>().FindAsync(tom.Id, CancellationToken.None);
+        Assert.Multiple(() =>
+        {
+            Assert.That(shownBeforeSaving, Is.False, "the room saw the catch before it was paid");
+            Assert.That(saved!.Coins, Is.EqualTo(shown.Coins), "the catch was paid although the tab closed");
+        });
+    }
+
+    [Test]
+    public async Task ANewTabTakingTheCatOver_ReelsTheOldTabsLineIn_AndNobodyGetsItsBite()
+    {
+        var (_, cookie) = await Game.SignInGuestAsync();
+        await using var oldTab = await Game.ConnectAsync(cookie);
+        await using var newTab = await Game.ConnectAsync(cookie);
+        var oldBit = new TaskCompletionSource();
+        var newBit = new TaskCompletionSource();
+        oldTab.On("FishBit", () => oldBit.TrySetResult());
+        newTab.On("FishBit", () => newBit.TrySetResult());
+        await oldTab.InvokeAsync<RoomSnapshot>("EnterWorld", WorldId);
+        await oldTab.InvokeAsync("Move", PondEdgeX, PondEdgeZ);
+        await oldTab.InvokeAsync("Cast");
+
+        await newTab.InvokeAsync<RoomSnapshot>("EnterWorld", WorldId);
+        Game.GrainClock.Advance(FishingLine.LongestWait + FishingLine.BiteWindow);
+
+        await Task.WhenAny(oldBit.Task, newBit.Task, Task.Delay(TimeSpan.FromSeconds(1)));
+        Assert.Multiple(() =>
+        {
+            Assert.That(oldBit.Task.IsCompleted, Is.False, "the replaced tab was told of a bite");
+            Assert.That(newBit.Task.IsCompleted, Is.False, "the new tab was told of a bite for a line it never cast");
+        });
+        var noLine = Assert.ThrowsAsync<HubException>(() => newTab.InvokeAsync<ReelView>("Reel"));
         Assert.That(noLine!.Message, Does.Contain("Cast your line first."));
     }
 
