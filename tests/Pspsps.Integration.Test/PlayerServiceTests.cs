@@ -129,33 +129,98 @@ public sealed class PlayerServiceTests
     }
 
     [Test]
-    public async Task LinkLogin_ALoginTakenWhileLinking_IsTakenAndNothingIsLeftToSave()
+    public async Task LinkLogin_ALoginTakenWhileLinking_IsTakenAndOnlyTheLinkIsForgotten()
     {
         // Another browser signs in with the same account between the owner check and the save: the save hits the
         // login's primary key. The interceptor puts that sign-in exactly there.
         var key = NewKey();
         var guest = await Game.Get<IPlayerService>().CreateGuestAsync(CancellationToken.None);
-        var options = new DbContextOptionsBuilder<PspspsDbContext>()
-            .UseNpgsql(PostgresFixture.ConnectionString)
-            .UseSnakeCaseNamingConvention()
-            .AddInterceptors(new SignInJustBeforeSaving(LoginProvider.Discord, key))
-            .Options;
-        await using var db = new PspspsDbContext(options);
+        var bystander = await Game.Get<IPlayerService>().CreateGuestAsync(CancellationToken.None);
+        await using var db = RacingContext(ct =>
+            Game.Get<IPlayerService>().SignInWithLoginAsync(LoginProvider.Discord, key, "Quick Cat", ct));
+        // Another change waiting in the same scope: the refused link mustn't take it with it.
+        (await db.Players.SingleAsync(p => p.Id == bystander.Id)).EarnCoins(7);
 
         var result = await new PlayerService(db, TimeProvider.System, Random.Shared)
             .LinkLoginAsync(guest.Id, LoginProvider.Discord, key, CancellationToken.None);
+        var leftToSave = db.ChangeTracker.Entries().Where(e => e.State != EntityState.Unchanged)
+            .Select(e => e.Entity).ToList();
+        await db.SaveChangesAsync();
         var guestAfter = await Game.Get<IPlayerService>().FindAsync(guest.Id, CancellationToken.None);
+        var bystanderAfter = await Game.Get<IPlayerService>().FindAsync(bystander.Id, CancellationToken.None);
         var owner = await Game.Get<IPlayerService>()
             .SignInWithLoginAsync(LoginProvider.Discord, key, "Quick Cat", CancellationToken.None);
 
         Assert.Multiple(() =>
         {
             Assert.That(result, Is.EqualTo(LinkLoginOutcome.TakenByAnotherPlayer));
-            Assert.That(db.ChangeTracker.HasChanges(), Is.False, "the refused login is still waiting to be saved");
+            Assert.That(leftToSave, Has.Count.EqualTo(1).And.All.InstanceOf<Player>()
+                .And.All.Property(nameof(Player.Id)).EqualTo(bystander.Id));
             Assert.That(guestAfter, Is.EqualTo(guest));
+            Assert.That(bystanderAfter?.Coins, Is.EqualTo(7));
             Assert.That(owner.Id, Is.Not.EqualTo(guest.Id));
         });
     }
+
+    [Test]
+    public async Task LinkLogin_TheSameLinkWonByItsOwnTwin_IsLinked()
+    {
+        // The same callback twice at once (a double request): the other one saves first.
+        var key = NewKey();
+        var guest = await Game.Get<IPlayerService>().CreateGuestAsync(CancellationToken.None);
+        await using var db = RacingContext(async ct =>
+            await Game.Get<IPlayerService>().LinkLoginAsync(guest.Id, LoginProvider.Google, key, ct));
+
+        var result = await new PlayerService(db, TimeProvider.System, Random.Shared)
+            .LinkLoginAsync(guest.Id, LoginProvider.Google, key, CancellationToken.None);
+        var guestAfter = await Game.Get<IPlayerService>().FindAsync(guest.Id, CancellationToken.None);
+
+        Assert.That(result, Is.EqualTo(LinkLoginOutcome.Linked));
+        Assert.That(guestAfter, Is.EqualTo(guest with { IsGuest = false }));
+    }
+
+    [Test]
+    public async Task LinkLogin_TwoAccountsFromOneProviderAtOnce_OnlyOneIsLinked()
+    {
+        // Two tabs link the same guest to two different Discord accounts: both pass the in-memory rule, and the
+        // database's one-login-per-provider index decides.
+        var guest = await Game.Get<IPlayerService>().CreateGuestAsync(CancellationToken.None);
+        var first = NewKey();
+        var second = NewKey();
+        await using var db = RacingContext(async ct =>
+            await Game.Get<IPlayerService>().LinkLoginAsync(guest.Id, LoginProvider.Discord, first, ct));
+
+        var result = await new PlayerService(db, TimeProvider.System, Random.Shared)
+            .LinkLoginAsync(guest.Id, LoginProvider.Discord, second, CancellationToken.None);
+        var withFirst = await Game.Get<IPlayerService>()
+            .SignInWithLoginAsync(LoginProvider.Discord, first, "Tom", CancellationToken.None);
+        var withSecond = await Game.Get<IPlayerService>()
+            .SignInWithLoginAsync(LoginProvider.Discord, second, "Tom", CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result, Is.EqualTo(LinkLoginOutcome.Refused));
+            Assert.That(withFirst.Id, Is.EqualTo(guest.Id));
+            Assert.That(withSecond.Id, Is.Not.EqualTo(guest.Id), "the second account was linked as well");
+        });
+    }
+
+    [Test]
+    public async Task SignInWithLogin_ALoginLinkedWhileSigningIn_SignsInToThatCat()
+    {
+        // A guest links the account while another browser signs in with it for the first time.
+        var key = NewKey();
+        var guest = await Game.Get<IPlayerService>().CreateGuestAsync(CancellationToken.None);
+        await using var db = RacingContext(async ct =>
+            await Game.Get<IPlayerService>().LinkLoginAsync(guest.Id, LoginProvider.Google, key, ct));
+
+        var signedIn = await new PlayerService(db, TimeProvider.System, Random.Shared)
+            .SignInWithLoginAsync(LoginProvider.Google, key, "Tom", CancellationToken.None);
+
+        Assert.That(signedIn, Is.EqualTo(guest with { IsGuest = false }));
+        Assert.That(db.ChangeTracker.HasChanges(), Is.False, "the new player is still waiting to be saved");
+    }
+
 
     /// <summary>A provider user ID no other test uses: the tests share one database.</summary>
     internal static string NewKey() => Guid.NewGuid().ToString("N");
@@ -175,13 +240,27 @@ public sealed class PlayerServiceTests
         await db.SaveChangesAsync();
     }
 
-    /// <summary>Signs in with a login in another context just before this one saves.</summary>
-    private sealed class SignInJustBeforeSaving(LoginProvider provider, string key) : SaveChangesInterceptor
+    /// <summary>A context of its own whose first save runs <paramref name="first"/> (in another context) just before.</summary>
+    private static PspspsDbContext RacingContext(Func<CancellationToken, Task> first) =>
+        new(new DbContextOptionsBuilder<PspspsDbContext>()
+            .UseNpgsql(PostgresFixture.ConnectionString)
+            .UseSnakeCaseNamingConvention()
+            .AddInterceptors(new JustBeforeTheFirstSave(first))
+            .Options);
+
+    private sealed class JustBeforeTheFirstSave(Func<CancellationToken, Task> first) : SaveChangesInterceptor
     {
+        private bool _done;
+
         public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(
             DbContextEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default)
         {
-            await Game.Get<IPlayerService>().SignInWithLoginAsync(provider, key, "Quick Cat", cancellationToken);
+            if (!_done)
+            {
+                _done = true;
+                await first(cancellationToken);
+            }
+
             return result;
         }
     }
