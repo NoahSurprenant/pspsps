@@ -74,7 +74,8 @@ Discord and Google sign in through OAuth into a short external cookie; `/auth/ca
 for that login and swaps it for the game's own cookie, which holds only the player ID. Guests get a player with a
 generated name and the same cookie. A provider is offered only when its client ID is configured.
 
-A guest keeps their cat with "Save your cat": `/auth/link/{provider}` starts the same OAuth sign-in, marked (in the
+A guest keeps their cat with "Save your cat": a POST to `/auth/link/{provider}` from the game's own page (other sites
+are refused by `Sec-Fetch-Site` or `Origin`) starts the same OAuth sign-in, marked (in the
 protected `AuthenticationProperties`) with the player who asked, and `/auth/callback` then adds the login to that
 player (`Player.LinkLogin`) instead of finding or creating one, if the game cookie is still that player's. The cat,
 its ID and coins stay; it stops being a guest. A login that already has another cat is refused (`?link=taken`), never

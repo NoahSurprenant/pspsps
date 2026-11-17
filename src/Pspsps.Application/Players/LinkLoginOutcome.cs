@@ -9,9 +9,12 @@ public enum LinkLoginOutcome
     /// <summary>The login belongs to another cat. Nothing changed: the player chooses, nothing is merged.</summary>
     TakenByAnotherPlayer,
 
-    /// <summary>The player's own rules refused it: the cat already has a login from that provider.</summary>
+    /// <summary>The cat already has a login from that provider (one per provider).</summary>
     Refused,
 
     /// <summary>The signed-in player no longer exists.</summary>
     PlayerNotFound,
+
+    /// <summary>The login itself isn't valid (no provider user ID, an unknown provider).</summary>
+    InvalidLogin,
 }

@@ -95,6 +95,15 @@ public sealed class PlayerTests
     }
 
     [Test]
+    public void HasLoginFrom_IsPerProvider()
+    {
+        var player = Player.CreateWithLogin(LoginProvider.Discord, "80351110224678912", "Whiskers", FurColor.Black, Now);
+
+        Assert.That(player.HasLoginFrom(LoginProvider.Discord), Is.True);
+        Assert.That(player.HasLoginFrom(LoginProvider.Google), Is.False);
+    }
+
+    [Test]
     public void LinkLogin_RefusesAnEmptyProviderKeyAndStaysAGuest()
     {
         var player = Player.CreateGuest("Kitty 1234", FurColor.Calico, Now);

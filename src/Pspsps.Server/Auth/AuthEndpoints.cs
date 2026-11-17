@@ -17,12 +17,18 @@ public static class AuthEndpoints
                 ? Results.Challenge(new ExternalSignInIntent(scheme).ToProperties(), [scheme])
                 : Results.NotFound());
 
-        // "Save your cat": sign in with Discord or Google and add that login to the signed-in player, guest or not.
-        app.MapGet("/auth/link/{provider}", (string provider, ClaimsPrincipal user) =>
+        // "Save your cat": sign in with Discord or Google and add that login to the signed-in player, guest or not. A
+        // POST from the game's own button: another site can't start a link for a signed-in player.
+        app.MapPost("/auth/link/{provider}", (string provider, HttpRequest request, ClaimsPrincipal user) =>
         {
+            if (!SameOriginRequest.IsFromThisSite(request))
+            {
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
             if (user.GetPlayerId() is not { } playerId)
             {
-                return Results.Redirect(ExternalSignInFailure.LinkFailed);
+                return Results.Redirect(AuthRedirects.LinkFailed);
             }
 
             return SchemeFor(providers, provider) is { } scheme
@@ -37,7 +43,7 @@ public static class AuthEndpoints
             await http.SignOutAsync(AuthSetup.ExternalScheme);
             var key = external.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
             var intent = ExternalSignInIntent.From(external.Properties);
-            if (!external.Succeeded || key is null || intent is null
+            if (!external.Succeeded || string.IsNullOrWhiteSpace(key) || intent is null
                 || !Enum.TryParse<LoginProvider>(intent.Scheme, out var provider))
             {
                 return Results.Redirect(
@@ -52,7 +58,7 @@ public static class AuthEndpoints
             var name = external.Principal!.FindFirstValue(ClaimTypes.Name);
             var player = await players.SignInWithLoginAsync(provider, key, name, ct);
             await http.SignInAsync(AuthSetup.GameScheme, PlayerClaims.For(player), AuthSetup.Persistent());
-            return Results.Redirect("/");
+            return Results.Redirect(AuthRedirects.Home);
         });
 
         app.MapPost("/auth/guest", async (HttpContext http, IPlayerService players, CancellationToken ct) =>
@@ -89,16 +95,16 @@ public static class AuthEndpoints
     {
         if (user.GetPlayerId() != playerId)
         {
-            return ExternalSignInFailure.LinkFailed;
+            return AuthRedirects.LinkFailed;
         }
 
         var outcome = await players.LinkLoginAsync(playerId, provider, key, ct);
         return outcome switch
         {
-            LinkLoginOutcome.Linked => "/?link=linked",
-            LinkLoginOutcome.TakenByAnotherPlayer => "/?link=taken",
-            LinkLoginOutcome.Refused => "/?link=refused",
-            _ => ExternalSignInFailure.LinkFailed,
+            LinkLoginOutcome.Linked => AuthRedirects.Linked,
+            LinkLoginOutcome.TakenByAnotherPlayer => AuthRedirects.Taken,
+            LinkLoginOutcome.Refused => AuthRedirects.Refused,
+            _ => AuthRedirects.LinkFailed,
         };
     }
 }

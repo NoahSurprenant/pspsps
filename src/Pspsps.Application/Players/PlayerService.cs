@@ -55,13 +55,18 @@ internal sealed class PlayerService(IApplicationDbContext db, TimeProvider time,
             return LinkLoginOutcome.PlayerNotFound;
         }
 
+        if (player.HasLoginFrom(provider))
+        {
+            return LinkLoginOutcome.Refused;
+        }
+
         try
         {
             player.LinkLogin(provider, providerKey);
         }
         catch (DomainException)
         {
-            return LinkLoginOutcome.Refused;
+            return LinkLoginOutcome.InvalidLogin;
         }
 
         try
@@ -98,15 +103,15 @@ internal sealed class PlayerService(IApplicationDbContext db, TimeProvider time,
         return player is null ? null : PlayerProfile.From(player);
     }
 
+    /// <summary>The player (at most one) who signs in with this login.</summary>
+    private IQueryable<Player> Owning(LoginProvider provider, string providerKey) =>
+        db.Players.Where(p => p.Logins.Any(l => l.Provider == provider && l.ProviderKey == providerKey));
+
     private Task<Player?> OwnerAsync(LoginProvider provider, string providerKey, CancellationToken cancellationToken) =>
-        db.Players.FirstOrDefaultAsync(
-            p => p.Logins.Any(l => l.Provider == provider && l.ProviderKey == providerKey), cancellationToken);
+        Owning(provider, providerKey).FirstOrDefaultAsync(cancellationToken);
 
     private Task<Guid?> OwnerIdAsync(LoginProvider provider, string providerKey, CancellationToken cancellationToken) =>
-        db.Players
-            .Where(p => p.Logins.Any(l => l.Provider == provider && l.ProviderKey == providerKey))
-            .Select(p => (Guid?)p.Id)
-            .FirstOrDefaultAsync(cancellationToken);
+        Owning(provider, providerKey).Select(p => (Guid?)p.Id).FirstOrDefaultAsync(cancellationToken);
 
     private string RandomCatName() =>
         "Kitty " + random.Next(1000, 10000).ToString(CultureInfo.InvariantCulture);

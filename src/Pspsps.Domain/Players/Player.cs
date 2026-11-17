@@ -56,7 +56,7 @@ public sealed class Player
             throw new DomainException("That sign-in provider doesn't exist.");
         }
 
-        if (_logins.Any(l => l.Provider == provider))
+        if (HasLoginFrom(provider))
         {
             throw new DomainException($"This cat already has a {provider} login.");
         }
@@ -64,6 +64,9 @@ public sealed class Player
         _logins.Add(new PlayerLogin(provider, providerKey));
         IsGuest = false;
     }
+
+    /// <summary>Whether the cat already signs in with an account from <paramref name="provider"/> (one per provider).</summary>
+    public bool HasLoginFrom(LoginProvider provider) => _logins.Any(l => l.Provider == provider);
 
     public void Rename(string displayName) => DisplayName = DisplayNameRules.Normalize(displayName);
 

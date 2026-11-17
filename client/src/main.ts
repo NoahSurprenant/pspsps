@@ -1,5 +1,5 @@
 import { Engine } from "@babylonjs/core";
-import { addressNote, linkUrl } from "./link";
+import { addressNote, linkUrl, loginUrl } from "./link";
 import { GameConnection, fetchMe, fetchProviders, messageOf, playAsGuest, signOut } from "./net";
 import { PendingEvents } from "./pending";
 import { comeBack } from "./rejoin";
@@ -160,7 +160,7 @@ async function pickWorld(player: Player, providers?: string[], note?: Note): Pro
     worlds,
     (worldId) => void enter(worldId),
     () => void signOut().then(() => window.location.reload()),
-    { providers: saveWith, link: (provider) => window.location.assign(linkUrl(provider)) },
+    { providers: saveWith, link: (provider) => postTo(linkUrl(provider)) },
     note,
   );
 }
@@ -182,10 +182,19 @@ async function start(): Promise<void> {
   const providers = await fetchProviders();
   overlay.showSignIn(
     providers,
-    (provider) => window.location.assign(`/auth/login/${encodeURIComponent(provider)}`),
+    (provider) => window.location.assign(loginUrl(provider)),
     () => void playAsGuest().then((guest) => pickWorld(guest, providers)).catch((error: unknown) => overlay.toast(messageOf(error))),
     note,
   );
+}
+
+/** Leaves the page with a form post to `url` (the browser marks it as from this site), as a submit button would. */
+function postTo(url: string): void {
+  const form = document.createElement("form");
+  form.method = "post";
+  form.action = url;
+  document.body.append(form);
+  form.submit();
 }
 
 function required<T extends Element>(selector: string): T {

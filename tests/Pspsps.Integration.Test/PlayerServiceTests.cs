@@ -119,6 +119,19 @@ public sealed class PlayerServiceTests
         Assert.That(result, Is.EqualTo(LinkLoginOutcome.Refused));
     }
 
+    [TestCase(" ")]
+    [TestCase("")]
+    public async Task LinkLogin_AnEmptyProviderKeyIsInvalidNotRefused(string key)
+    {
+        var guest = await Game.Get<IPlayerService>().CreateGuestAsync(CancellationToken.None);
+
+        var result = await Game.Get<IPlayerService>()
+            .LinkLoginAsync(guest.Id, LoginProvider.Google, key, CancellationToken.None);
+
+        Assert.That(result, Is.EqualTo(LinkLoginOutcome.InvalidLogin));
+        Assert.That(await Game.Get<IPlayerService>().FindAsync(guest.Id, CancellationToken.None), Is.EqualTo(guest));
+    }
+
     [Test]
     public async Task LinkLogin_ToAPlayerThatDoesNotExistIsNotFound()
     {
