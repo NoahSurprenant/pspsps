@@ -12,6 +12,14 @@ const scene = new RoomScene(engine);
 
 let room: Room | undefined;
 
+// Read-only: the end-to-end tests (e2e/) read the room here, since the cats and chat are drawn on a canvas.
+declare global {
+  interface Window {
+    pspsps?: { room(): Room | undefined };
+  }
+}
+window.pspsps = { room: () => room };
+
 const connection = new GameConnection({
   catJoined: (cat) => {
     room?.join(cat);

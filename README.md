@@ -39,6 +39,10 @@ dotnet test Pspsps.slnx        # the integration tests start PostgreSQL with Tes
 cd client && npm run lint && npm test
 ```
 
+End-to-end tests (`e2e/`, Playwright) drive the running game in Chromium: a guest picks a world and the room draws,
+and two players see each other walk, chat and leave. CI runs them against the Docker image; locally, start the server
+and run `cd e2e && npm ci && npx playwright install chromium && E2E_BASE_URL=http://localhost:5080 npm test`.
+
 ## Deploying
 
 Every push to master publishes a signed image (`ghcr.io/noahsurprenant/pspsps:master`) and, when the chart changed, a
