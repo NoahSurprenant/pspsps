@@ -1,11 +1,14 @@
 using System.Net.Http.Json;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 using Orleans.Runtime;
 using Pspsps.Application.Players;
+using Pspsps.Server.Auth;
 
 namespace Pspsps.Integration.Test;
 
@@ -20,6 +23,20 @@ public sealed class GameFactory(string connectionString) : WebApplicationFactory
     {
         builder.UseEnvironment("Testing");
         builder.UseSetting("ConnectionStrings:Pspsps", connectionString);
+        // Discord as a configured provider: /auth/login and /auth/link challenge it (a redirect, never a request to it).
+        builder.UseSetting("Authentication:Discord:ClientId", "test-client");
+        builder.UseSetting("Authentication:Discord:ClientSecret", "test-secret");
+        builder.ConfigureTestServices(services =>
+        {
+            services.AddSingleton<IStartupFilter, FakeExternalSignIn>();
+            services.AddAuthentication().AddRemoteScheme<RemoteAuthenticationOptions, FakeProviderHandler>(
+                FakeProviderHandler.SchemeName, null, options =>
+                {
+                    options.CallbackPath = FakeProviderHandler.CallbackPath;
+                    options.Events = new RemoteAuthenticationEvents();
+                    AuthSetup.ConfigureExternal(options);
+                });
+        });
         builder.ConfigureServices(services =>
             services.AddKeyedSingleton<TimeProvider>(TimeProviderNames.Grains, GrainClock));
     }

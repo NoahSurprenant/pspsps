@@ -17,8 +17,13 @@ root="$(cd "$(dirname "$0")/../.." && pwd)"
 
 backups="$(mktemp -d)"
 small=""
+# A port whose packets are dropped: a network that doesn't answer at all.
+blackhole=5499
 cleanup() {
-  docker rm -f backup-term > /dev/null 2>&1 || true
+  docker rm -f backup-term backup-connect backup-wait-term > /dev/null 2>&1 || true
+  # A failure while the database was stopped must not leave it down.
+  docker start "$PG_CONTAINER" > /dev/null 2>&1 || true
+  sudo iptables -D INPUT -p tcp --dport "$blackhole" -j DROP 2> /dev/null || true
   if [ -n "$small" ]; then sudo umount "$small" 2>/dev/null || true; rmdir "$small" 2>/dev/null || true; fi
   rm -rf "$backups" 2>/dev/null || sudo rm -rf "$backups"
 }
@@ -36,8 +41,10 @@ pg() { docker exec -i "$PG_CONTAINER" "$@"; }
 backup_args() { # backup_args <keep> [password]
   echo --network host --user 70:70 --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges \
     -v "$root/charts/pspsps/files/backup.sh:/scripts/backup.sh:ro" -v "${BACKUP_VOLUME:-$backups}:/backups" \
-    -e PGHOST=localhost -e PGPORT=5432 -e PGUSER="$user" -e PGDATABASE="$db" -e "PGPASSWORD=${2:-$PGPASSWORD}" \
-    -e BACKUP_DIR=/backups -e "BACKUP_KEEP=$1" -e BACKUP_STALE_SECONDS=3600
+    -e "PGHOST=${PG_HOST:-localhost}" -e "PGPORT=${PG_PORT:-5432}" -e PGUSER="$user" -e PGDATABASE="$db" \
+    -e "PGPASSWORD=${2:-$PGPASSWORD}" -e "PGSSLMODE=${PG_SSLMODE:-prefer}" \
+    -e BACKUP_DIR=/backups -e "BACKUP_KEEP=$1" -e BACKUP_STALE_SECONDS=3600 \
+    -e "BACKUP_CONNECT_SECONDS=${CONNECT_SECONDS-30}"
 }
 # The paths and values here have no spaces, so word splitting of backup_args is safe.
 # shellcheck disable=SC2046
@@ -97,6 +104,96 @@ for bad in 0 1 00 01 08 -1 x ""; do
   [ "$(dumps | tail -n 1)" = "$newest" ] || fail "BACKUP_KEEP='$bad' wrote a dump"
 done
 
+echo "== A new pod's network can take a moment to be allowed: the run waits for the database"
+pg_down() { docker stop "$PG_CONTAINER" > /dev/null; }
+pg_up() {
+  docker start "$PG_CONTAINER" > /dev/null
+  "$root/tests/chart/pg-wait.sh" "$PG_CONTAINER" "$user" "$db"
+}
+before="$(dumps)"
+pg_down
+sleep 1
+# shellcheck disable=SC2046
+docker run -d --name backup-connect $(CONNECT_SECONDS=60 backup_args 10) \
+  "$PG_IMAGE" /bin/sh /scripts/backup.sh > /dev/null
+sleep 6
+if [ "$(docker inspect -f '{{.State.Running}}' backup-connect)" != true ]; then
+  docker logs backup-connect
+  fail "the run gave up while the database was unreachable"
+fi
+pg_up
+status="$(timeout 60 docker wait backup-connect)" || fail "the run kept waiting after the database came back"
+docker logs backup-connect
+docker rm backup-connect > /dev/null
+[ "$status" -eq 0 ] || fail "a run that could reach the database within the window failed"
+[ "$(count)" -eq $(( $(echo "$before" | wc -l) + 1 )) ] || fail "the run that waited wrote no dump"
+newest="$(dumps | tail -n 1)"
+before="$(dumps)"
+
+echo "== ...and gives up after BACKUP_CONNECT_SECONDS with nothing changed, saying why"
+pg_down
+sleep 1
+start=$(date +%s)
+if out="$(CONNECT_SECONDS=6 backup 2 2>&1)"; then pg_up; fail "a run succeeded with the database down"; fi
+took=$(( $(date +%s) - start ))
+echo "$out"
+pg_up
+[ "$took" -ge 6 ] || fail "the run gave up after ${took}s, before BACKUP_CONNECT_SECONDS (6)"
+[ "$took" -le 16 ] || fail "the run took ${took}s to give up with BACKUP_CONNECT_SECONDS 6"
+grep -q 'Connection refused' <<< "$out" || fail "the run didn't say why it couldn't connect"
+[ "$(dumps)" = "$before" ] || fail "a run that never reached the database changed the dumps"
+[ "$(partials)" -eq 0 ] || fail "a run that never reached the database left a .partial"
+
+echo "== A network that drops packets: the run still gives up on time, saying why"
+sudo iptables -I INPUT -p tcp --dport "$blackhole" -j DROP
+start=$(date +%s)
+if out="$(PG_HOST=127.0.0.1 PG_PORT=$blackhole CONNECT_SECONDS=6 backup 2 2>&1)"; then
+  fail "a run succeeded against a dropped port"
+fi
+took=$(( $(date +%s) - start ))
+echo "$out"
+[ "$took" -ge 6 ] || fail "the run gave up after ${took}s, before BACKUP_CONNECT_SECONDS (6)"
+# The window, then one last attempt with its own 5 s connect timeout, then a little slack.
+[ "$took" -le 14 ] || fail "the run took ${took}s to give up on a dropped port with BACKUP_CONNECT_SECONDS 6"
+grep -q 'timeout expired' <<< "$out" || fail "the run didn't say the connection timed out"
+[ "$(dumps)" = "$before" ] || fail "a run against a dropped port changed the dumps"
+
+echo "== TERM while waiting for the database stops the run at once"
+# shellcheck disable=SC2046
+docker run -d --name backup-wait-term $(PG_HOST=127.0.0.1 PG_PORT=$blackhole CONNECT_SECONDS=60 backup_args 2) \
+  "$PG_IMAGE" /bin/sh /scripts/backup.sh > /dev/null
+sleep 1 # inside an attempt that would wait 5 s for an answer
+start=$(date +%s)
+docker kill --signal TERM backup-wait-term > /dev/null
+status="$(timeout 20 docker wait backup-wait-term)" || fail "the waiting run ignored TERM"
+took=$(( $(date +%s) - start ))
+docker logs backup-wait-term
+docker rm backup-wait-term > /dev/null
+[ "$status" -ne 0 ] || fail "a waiting run stopped by TERM exited 0"
+[ "$took" -le 2 ] || fail "a waiting run took ${took}s to stop on TERM"
+[ "$(dumps)" = "$before" ] && [ "$(partials)" -eq 0 ] || fail "a waiting run stopped by TERM left something behind"
+sudo iptables -D INPUT -p tcp --dport "$blackhole" -j DROP
+
+echo "== Settings that can't make a connection fail at once"
+start=$(date +%s)
+# An sslmode libpq doesn't know: pg_isready makes no attempt (exit 3).
+if out="$(PG_SSLMODE=not-a-mode CONNECT_SECONDS=30 backup 2 2>&1)"; then
+  fail "a run with PGSSLMODE=not-a-mode succeeded"
+fi
+took=$(( $(date +%s) - start ))
+echo "$out"
+[ "$took" -le 5 ] || fail "a run with bad connection settings waited ${took}s"
+[ "$(dumps)" = "$before" ] || fail "a run with bad connection settings changed the dumps"
+
+echo "== Bad BACKUP_CONNECT_SECONDS is refused before anything changes"
+for bad in 0 01 x -1 ""; do
+  if out="$(CONNECT_SECONDS="$bad" backup 2 2>&1)"; then fail "BACKUP_CONNECT_SECONDS='$bad' was accepted"; fi
+  echo "$out"
+  grep -q "BACKUP_CONNECT_SECONDS must be a whole number of at least 1, not '$bad'" <<< "$out" \
+    || fail "BACKUP_CONNECT_SECONDS='$bad' wasn't refused as such"
+  [ "$(dumps)" = "$before" ] || fail "BACKUP_CONNECT_SECONDS='$bad' changed the dumps"
+done
+
 echo "== TERM during a dump (the deadline, a deleted pod) stops it and leaves no .partial"
 # pg_dump waits for its table locks: hold one, so the dump is still going when TERM arrives.
 docker exec -d "$PG_CONTAINER" psql -U "$user" -d "$db" -c \
@@ -111,7 +208,7 @@ status="$(timeout 20 docker wait backup-term)" || fail "the run ignored TERM"
 docker logs backup-term
 [ "$status" -ne 0 ] || fail "a run stopped by TERM exited 0"
 [ "$(partials)" -eq 0 ] || fail "a run stopped by TERM left its .partial"
-[ "$(dumps | tail -n 1)" = "$newest" ] && [ "$(count)" -eq 2 ] || fail "a run stopped by TERM changed the dumps"
+[ "$(dumps)" = "$before" ] || fail "a run stopped by TERM changed the dumps"
 docker rm backup-term > /dev/null
 sql "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE query LIKE '%backup_test_lock%' AND pid <> pg_backend_pid();" > /dev/null
 

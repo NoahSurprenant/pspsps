@@ -177,3 +177,34 @@ test("a second tab takes over and the first says so", async ({ page: first, cont
 
   expect(secondErrors, "the second tab's console errors and uncaught exceptions").toEqual([]);
 });
+
+test("coming back from saving the cat says how it went, once", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Play as a guest" }).click();
+  await expect(page.getByRole("heading", { name: /^Hi, Kitty \d{4}!$/ })).toBeVisible();
+
+  // Where /auth/callback sends a guest whose login already has another cat: still the guest, told why.
+  await page.goto("/?link=taken");
+  await expect(page.getByRole("heading", { name: /^Hi, Kitty \d{4}!$/ })).toBeVisible();
+  await expect(page.getByText("That account already has its own cat")).toBeVisible();
+  await expect(page).toHaveURL(/\/$/);
+
+  await page.reload();
+  await expect(page.getByRole("heading", { name: /^Hi, Kitty \d{4}!$/ })).toBeVisible();
+  await expect(page.getByText("That account already has its own cat")).toBeHidden();
+});
+
+test("the panel fits a phone's screen", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 667 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Play as a guest" }).click();
+  await expect(page.getByRole("heading", { name: /^Hi, Kitty \d{4}!$/ })).toBeVisible();
+  // The longest note: the panel is as wide as it gets.
+  await page.goto("/?link=taken");
+  await expect(page.getByText("That account already has its own cat")).toBeVisible();
+
+  const panel = await page.locator(".panel").boundingBox();
+  if (!panel) throw new Error("no panel");
+  expect(panel.x).toBeGreaterThanOrEqual(0);
+  expect(panel.x + panel.width).toBeLessThanOrEqual(375);
+});
