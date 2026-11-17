@@ -158,3 +158,46 @@ button:disabled {
   padding: 0.35rem 0.8rem;
   font-size: 0.9rem;
 }
+
+.coins {
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+/* Bottom left, clear of the emote and chat bars in the middle. */
+.fishing {
+  position: absolute;
+  bottom: 1rem;
+  left: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem 0.35rem 0.9rem;
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+}
+
+.fishing[data-state="idle"] {
+  padding-left: 0.35rem;
+}
+
+.fishing button.reel {
+  animation: tug 0.4s ease-in-out infinite alternate;
+}
+
+/* A glow, not a size change: the button stays put under the pointer (and for tools that wait for it to settle). */
+@keyframes tug {
+  from {
+    box-shadow: 0 0 0 0 rgba(240, 160, 75, 0.9);
+  }
+  to {
+    box-shadow: 0 0 0 0.6rem rgba(240, 160, 75, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fishing button.reel {
+    animation: none;
+  }
+}

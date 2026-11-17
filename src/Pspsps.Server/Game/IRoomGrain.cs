@@ -22,4 +22,10 @@ public interface IRoomGrain : IGrainWithStringKey
     Task Say(Guid playerId, string text);
 
     Task Emote(Guid playerId, string emote);
+
+    /// <summary>Casts the cat's line; at the bite the room tells the tab controlling the cat then (FishBit), and only it.</summary>
+    Task Cast(Guid playerId);
+
+    /// <summary>Reels the line in. Nothing is shown to the room here: the hub pays a catch first, then shows it.</summary>
+    Task<ReelView> Reel(Guid playerId);
 }

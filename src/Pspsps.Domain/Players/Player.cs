@@ -80,15 +80,14 @@ public sealed class Player
         FurColor = furColor;
     }
 
-    public void EarnCoins(int amount)
-    {
-        if (amount <= 0)
-        {
-            throw new DomainException("Coins earned must be more than zero.");
-        }
+    public void EarnCoins(int amount) => Coins = checked(Coins + Earning(amount));
 
-        Coins = checked(Coins + amount);
-    }
+    /// <summary>
+    /// What earning <paramref name="amount"/> adds to a player's coins: the rule for an earning that the database applies
+    /// in one statement (coins = coins + this), so two earnings at once can't overwrite each other.
+    /// </summary>
+    public static int Earning(int amount) =>
+        amount > 0 ? amount : throw new DomainException("Coins earned must be more than zero.");
 
     public void SpendCoins(int amount)
     {

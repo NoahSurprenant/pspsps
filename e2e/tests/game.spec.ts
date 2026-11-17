@@ -207,3 +207,63 @@ test("the panel fits a phone's screen", async ({ page }) => {
   expect(panel.x).toBeGreaterThanOrEqual(0);
   expect(panel.x + panel.width).toBeLessThanOrEqual(375);
 });
+
+test("a guest fishes at the pond and is paid in coins", async ({ page }) => {
+  await enterWorld(page, "Tabby");
+  await expect(page.locator("#coins")).toHaveText("🪙 0");
+
+  // Fish walks the cat to the pond's edge and casts.
+  await page.getByRole("button", { name: "🎣 Fish" }).click();
+  await expect(page.getByText("Waiting for a bite…")).toBeVisible();
+
+  // The bite comes 3-9 s later, at a moment only the server knows; then there are 1.5 s to reel.
+  const reel = page.getByRole("button", { name: "Reel!" });
+  await expect(reel).toBeVisible({ timeout: 15_000 });
+  // A double click reels in once: a second Reel would answer "Cast your line first." over the catch.
+  await reel.dblclick();
+
+  await expect(page.locator("#toast")).toHaveText(/^You caught an? .+! \+\d+ coins?$/);
+  const coins = await page.evaluate(() => window.pspsps?.coins() ?? 0);
+  expect(coins).toBeGreaterThan(0);
+  await expect(page.locator("#coins")).toHaveText(`🪙 ${coins}`);
+  expect(await page.evaluate(() => window.pspsps?.fishing())).toBe("idle");
+});
+
+test("reeling in before the bite loses the fish", async ({ page }) => {
+  await enterWorld(page, "Tabby");
+
+  await page.getByRole("button", { name: "🎣 Fish" }).click();
+  await expect(page.getByText("Waiting for a bite…")).toBeVisible();
+  await page.getByRole("button", { name: "Reel in" }).click();
+
+  await expect(page.locator("#toast")).toHaveText("Too soon! It swam off.");
+  expect(await page.evaluate(() => window.pspsps?.coins())).toBe(0);
+  await expect(page.getByRole("button", { name: "🎣 Fish" })).toBeVisible();
+});
+
+test("Space at a bite reels in, without also pressing the button that has focus", async ({ page }) => {
+  const me = await enterWorld(page, "Tabby");
+
+  await page.getByRole("button", { name: "🎣 Fish" }).click();
+  await expect(page.getByText("Waiting for a bite…")).toBeVisible();
+  // The last button clicked keeps the focus: Space at the bite mustn't wave as well.
+  await page.getByRole("button", { name: "Wave" }).focus();
+  await expect(page.getByRole("button", { name: "Reel!" })).toBeVisible({ timeout: 15_000 });
+  await page.keyboard.press("Space");
+
+  await expect(page.locator("#toast")).toHaveText(/^You caught an? .+! \+\d+ coins?$/);
+  // An emote would be back from the server by now.
+  await page.waitForTimeout(1_000);
+  expect((await emotes(page))[me]).toBeUndefined();
+});
+
+test("a bite not reeled in gets away, and the cat can fish again", async ({ page }) => {
+  await enterWorld(page, "Tabby");
+
+  await page.getByRole("button", { name: "🎣 Fish" }).click();
+  await expect(page.getByRole("button", { name: "Reel!" })).toBeVisible({ timeout: 15_000 });
+
+  await expect(page.locator("#toast")).toHaveText("It got away!", { timeout: 5_000 });
+  await expect(page.getByRole("button", { name: "🎣 Fish" })).toBeVisible();
+  expect(await page.evaluate(() => window.pspsps?.fishing())).toBe("idle");
+});

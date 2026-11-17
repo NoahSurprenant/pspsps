@@ -1,5 +1,10 @@
 {{- $fullname := include "pspsps.fullname" . -}}
 {{- $chatFilter := .Values.chatFilter.existingConfigMap | default (ternary (printf "%s-chat-filter" $fullname) "" (not (empty .Values.chatFilter.lists))) -}}
+{{- $wait := int .Values.server.databaseStartupWaitSeconds -}}
+{{- if or (lt $wait 1) (gt $wait 120) }}
+{{- /* The startup probe below is sized for at most 120 s of waiting. */}}
+{{- fail "server.databaseStartupWaitSeconds must be from 1 to 120" }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -86,6 +91,8 @@ spec:
                 fieldRef:
                   fieldPath: status.podIP
             {{- end }}
+            - name: Database__StartupWaitSeconds
+              value: {{ $wait | quote }}
             - name: DOTNET_SHUTDOWNTIMEOUTSECONDS
               value: "45"
             {{- if $chatFilter }}
@@ -125,7 +132,9 @@ spec:
               path: /health/live
               port: http
             periodSeconds: 2
-            failureThreshold: 90
+            # 240 s: the longest database wait (120 s, plus one 5 s attempt), then the migration's retries (7 connects
+            # of at most 5 s, about 40 s of backoff) before /health/live answers.
+            failureThreshold: 120
           livenessProbe:
             httpGet:
               path: /health/live
