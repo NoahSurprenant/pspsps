@@ -87,6 +87,7 @@ public sealed class ChatFiltersTests
     {
         WriteFile(Darn);
         var filters = Start();
+        Assert.That(filters.Current.Apply("darn"), Is.EqualTo("****"));
 
         WriteFile("""{ "ChatFilter": { "Lists": [ """);
         Reload();
@@ -104,11 +105,20 @@ public sealed class ChatFiltersTests
         Assert.That(filters.Current.Apply("darn"), Is.EqualTo("****"));
 
         WriteFile("""{ "ChatFilter": { "Lists": [ """);
-        // Long enough for the file watcher's own reload, which empties the file's settings when it can't parse it.
-        await Task.Delay(TimeSpan.FromSeconds(2));
+
+        // The file watcher's own reload empties the file's settings when it can't parse it. Then other sources reload
+        // (appsettings.json here) while the file is still broken: each one is a configuration change.
+        var file = Providers.Single(provider => provider.Source.Path == ChatFilterSetup.FilePath);
+        for (var waited = 0; waited < 50 && file.TryGet("ChatFilter:Lists:0:Words:0", out _); waited++)
+        {
+            await Task.Delay(100);
+        }
+
+        Assert.That(filters.Current.Apply("darn"), Is.EqualTo("****"));
+        var other = Providers.Single(provider => provider.Source.Path == "appsettings.json");
         for (var i = 0; i < 3; i++)
         {
-            Reload();
+            other.Load();
             Assert.That(filters.Current.Apply("darn"), Is.EqualTo("****"), $"after reload {i + 1}");
         }
 
@@ -194,6 +204,9 @@ public sealed class ChatFiltersTests
     }
 
     private void Reload() => ((IConfigurationRoot)_app!.Configuration).Reload();
+
+    private IEnumerable<FileConfigurationProvider> Providers =>
+        ((IConfigurationRoot)_app!.Configuration).Providers.OfType<FileConfigurationProvider>();
 
     /// <summary>Every warning (and worse) logged, as text.</summary>
     private sealed class LogRecorder : ILoggerProvider, ILogger
