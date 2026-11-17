@@ -160,6 +160,59 @@ public sealed class GameHubTests
         await _cafe.DidNotReceiveWithAnyArgs().Join(default!, default!);
     }
 
+    [Test]
+    public async Task Reel_PaysACatchFirst_WithATokenTheTabClosingCannotCancel_ThenShowsItToTheRoom()
+    {
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+        // The tab is closing as it reels (a refresh).
+        hub.Context.ConnectionAborted.Returns(new CancellationToken(canceled: true));
+        _room.Reel(Tom.Id).Returns(new ReelView("caught", "koi", "Golden koi", 100, 0, IsCatch: true));
+        _players.EarnCoinsAsync(Tom.Id, 100, Arg.Any<CancellationToken>()).Returns(Tom with { Coins = 140 });
+        var room = Substitute.For<IGameClient>();
+        _clients.Group("tabby/town-square").Returns(room);
+
+        var reel = await hub.Reel();
+
+        Assert.That(reel, Is.EqualTo(new ReelView("caught", "koi", "Golden koi", 100, 140, IsCatch: true)));
+        Received.InOrder(() =>
+        {
+            _players.EarnCoinsAsync(Tom.Id, 100, CancellationToken.None);
+            room.CatFished(new CatchView(Tom.Id, "koi", "Golden koi", 100));
+        });
+    }
+
+    [Test]
+    public async Task Reel_WhenTheCatchCannotBePaid_ShowsItToNobody_AndTellsThePlayer()
+    {
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+        _room.Reel(Tom.Id).Returns(new ReelView("caught", "koi", "Golden koi", 100, 0, IsCatch: true));
+        _players.EarnCoinsAsync(Tom.Id, 100, Arg.Any<CancellationToken>()).ThrowsAsync(new TimeoutException());
+        var room = Substitute.For<IGameClient>();
+        _clients.Group("tabby/town-square").Returns(room);
+
+        var refused = Assert.ThrowsAsync<HubException>(() => hub.Reel());
+
+        Assert.That(refused!.Message, Is.EqualTo(GameHub.CatchNotPaidMessage));
+        await room.DidNotReceiveWithAnyArgs().CatFished(default!);
+    }
+
+    [Test]
+    public async Task Reel_NothingCaught_PaysAndShowsNothing()
+    {
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+        var missed = new ReelView("too-late", null, null, 0, 0, IsCatch: false);
+        _room.Reel(Tom.Id).Returns(missed);
+        var room = Substitute.For<IGameClient>();
+        _clients.Group("tabby/town-square").Returns(room);
+
+        Assert.That(await hub.Reel(), Is.EqualTo(missed));
+        await _players.DidNotReceiveWithAnyArgs().EarnCoinsAsync(default, default, default);
+        await room.DidNotReceiveWithAnyArgs().CatFished(default!);
+    }
+
     private GameHub Hub()
     {
         var context = Substitute.For<HubCallerContext>();
@@ -168,7 +221,7 @@ public sealed class GameHubTests
         context.Items.Returns(new ConnectionItems());
         context.ConnectionAborted.Returns(CancellationToken.None);
         var metrics = new GameMetrics(_services.GetRequiredService<IMeterFactory>());
-        return new GameHub(_grains, _players, _heartbeat, metrics)
+        return new GameHub(_grains, _players, _heartbeat, metrics, NullLogger<GameHub>.Instance)
         {
             Context = context,
             Groups = Substitute.For<IGroupManager>(),
