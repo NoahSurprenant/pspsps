@@ -31,8 +31,8 @@ export interface GameEvents {
   friendsChanged(playerId: string): void;
   /** The owner of the home our cat is in changed its furniture, or who may visit. */
   homeChanged(home: HomeView): void;
-  /** Our cat was sent out of the home it was in (its owner no longer lets it in): go back to Town Square. */
-  sentOut(message: string): void;
+  /** Our cat was sent out of <ownerId>'s home (its owner no longer lets it in): go back to Town Square. */
+  sentOut(ownerId: string, message: string): void;
 }
 
 export async function fetchMe(): Promise<Player | null> {
@@ -103,7 +103,7 @@ export class GameConnection {
     this.hub.on("WorldLost", (message: string) => events.worldLost(message));
     this.hub.on("FriendsChanged", (playerId: string) => events.friendsChanged(playerId));
     this.hub.on("HomeChanged", (home: HomeView) => events.homeChanged(home));
-    this.hub.on("SentOut", (message: string) => events.sentOut(message));
+    this.hub.on("SentOut", (ownerId: string, message: string) => events.sentOut(ownerId, message));
     this.hub.on("SessionReplaced", () => {
       void this.hub.stop().then(() => events.replaced());
     });

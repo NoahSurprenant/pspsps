@@ -52,8 +52,8 @@ public interface IGameClient
     Task HomeChanged(HomeView home);
 
     /// <summary>
-    /// This tab's cat was sent out of the home it was in (its owner no longer lets it in): go back to Town Square.
-    /// <paramref name="message"/> says why.
+    /// This tab's cat was sent out of <paramref name="ownerId"/>'s home (its owner no longer lets it in): go back to Town
+    /// Square, unless the tab has gone elsewhere meanwhile. <paramref name="message"/> says why.
     /// </summary>
-    Task SentOut(string message);
+    Task SentOut(Guid ownerId, string message);
 }

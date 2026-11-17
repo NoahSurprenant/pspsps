@@ -68,6 +68,8 @@ const stage = lazily(async (): Promise<RoomScene> => {
 });
 
 let room: Room | undefined;
+// The room the page showed last, for walking back in after a room lost while it shows none.
+let lastShown: RoomSnapshot | undefined;
 // Decorating the player's own home: what is picked or selected, and the furniture they have (the shop, as last read).
 let decorating: Decorating | undefined;
 let decoratingShop: Shop | undefined;
@@ -177,10 +179,10 @@ const connection = new GameConnection({
   friendsChanged: (playerId) => void friendsChanged(playerId),
   homeChanged: (home) => onRoom((here) => applyHome(home, here)),
   // The home's owner stopped letting us in: back to Town Square, in the world we came from.
-  sentOut: (message) => {
+  sentOut: (ownerId, message) => {
     overlay.toast(message);
     // Gone after whatever is loading now (the home itself, just come into): the tap that loads it would drop this.
-    sentOutOfHome = message;
+    sentOutOfHome = { ownerId, message };
     leaveHomeIfSentOut();
   },
 });
@@ -269,6 +271,7 @@ async function reel(): Promise<void> {
 function show(snapshot: RoomSnapshot, view: RoomScene): Room {
   const shown = new Room(snapshot);
   room = shown;
+  lastShown = snapshot;
   // Decorating is for the home it started in.
   decorating = undefined;
   decoratingShop = undefined;
@@ -314,24 +317,27 @@ function pick(go: () => Promise<void>): void {
   });
 }
 
-// Why the cat was last sent out of a home, until the page goes back to Town Square.
-let sentOutOfHome: string | undefined;
+// The home the cat was last sent out of, and why, until a room shows with nothing loading.
+let sentOutOfHome: { ownerId: string; message: string } | undefined;
 
-/** Back to Town Square, in the world the cat is in, once nothing else is loading, if a home sent the cat out. */
+/**
+ * Back to Town Square, in the world the cat is in, once a room shows and nothing else is loading, if the home showing
+ * is the one that sent the cat out. Any other room (the player's own home, say) stays.
+ */
 function leaveHomeIfSentOut(): void {
-  const message = sentOutOfHome;
-  if (message === undefined || picking) {
+  const out = sentOutOfHome;
+  if (out === undefined || picking || !room) {
     return;
   }
   sentOutOfHome = undefined;
-  // Not if the page has gone somewhere else meanwhile (the world list, say).
-  if (room?.snapshot.home) {
-    pick(() => goTo("town-square").then(() => overlay.toast(message)));
+  if (room.snapshot.home?.ownerId === out.ownerId) {
+    pick(() => goTo("town-square").then(() => overlay.toast(out.message)));
   }
 }
 
 function rejoin(reason: "roomLost" | "reconnected"): void {
-  const current = room?.snapshot;
+  // A room lost while the page shows none (a way back that failed after a load cleared it): the one it showed last.
+  const current = room?.snapshot ?? (reason === "roomLost" && !picking ? lastShown : undefined);
   if (current) {
     void comeBack(
       reason,
@@ -389,11 +395,13 @@ async function load(request: () => Promise<RoomSnapshot>, stay?: Room): Promise<
     room = stay;
     overlay.toast(messageOf(error));
   }
+  leaveHomeIfSentOut();
 }
 
 /** The world list; `providers` when they're already known (a guest who just signed in from the sign-in panel). */
 async function pickWorld(player: Player, providers?: string[], note?: Note): Promise<void> {
   me = player;
+  lastShown = undefined;
   await connection.start();
   // A guest can save their cat with any provider the server offers.
   const [saveWith, worlds] = await Promise.all([

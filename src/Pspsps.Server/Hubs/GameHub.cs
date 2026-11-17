@@ -167,34 +167,34 @@ public sealed partial class GameHub(
         }
 
         await LeaveRoom(key);
-        await GoBackInto(from, key);
+        await GoBackInto(from);
     }
 
-    // Back into the room <from> the cat just left, unless it was another room <than> or a home that no longer lets the cat
-    // in. A room that can't take it back (it filled up meanwhile) leaves it in none: the browser keeps the room it showed,
-    // and the next renewal's RoomLost walks it back in.
-    private async Task GoBackInto(ConnectionPlace from, string than)
+    // Back into the room <from> the cat just left (its spawn point), when a move on failed. Never straight back into
+    // another player's home, which may not let it in any more, and never left in no room: when it can't go back, the
+    // connection keeps the room it left as its place, whose next renewal finds the cat gone and sends RoomLost, and the
+    // browser walks back in by the way it always does (a home through its own checks, or to Town Square).
+    private async Task GoBackInto(ConnectionPlace from)
     {
-        if (from.RoomKey is not { } was || was == than || heartbeat.IsClosed(Context.ConnectionId))
+        if (from.RoomKey is not { } was || heartbeat.IsClosed(Context.ConnectionId))
         {
             return;
         }
 
         try
         {
-            if (RoomKey.HomeOwner(was) is { } owner && owner != PlayerId)
+            if (RoomKey.HomeOwner(was) is not { } owner || owner == PlayerId)
             {
-                await homes.VisitAsync(PlayerId, owner, CancellationToken.None);
+                await JoinRoom(from.WorldId, was, throughDoor: null);
+                return;
             }
-
-            await JoinRoom(from.WorldId, was, throughDoor: null);
         }
-        catch (Exception e) when (e is DomainException or HubException)
+        catch (Exception e) when (e is not OperationCanceledException)
         {
             LogNotBackIn(logger, e, PlayerId, was);
-            // Renewing a room it isn't in tells the tab, at the next renewal, to walk back in.
-            MoveTo(from);
         }
+
+        MoveTo(from);
     }
 
     /// <summary>Puts out a piece of the player's furniture in their home, at (x, z) or, with no spot, wherever it fits.</summary>
@@ -248,7 +248,7 @@ public sealed partial class GameHub(
         catch (HubException) when (!heartbeat.IsClosed(Context.ConnectionId))
         {
             // The room is full (or its owner doesn't let the cat in): back into the room it left, and told why.
-            await GoBackInto(place, key);
+            await GoBackInto(place);
             throw;
         }
     }

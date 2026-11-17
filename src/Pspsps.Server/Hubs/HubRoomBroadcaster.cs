@@ -28,6 +28,7 @@ internal sealed class HubRoomBroadcaster(IHubContext<GameHub, IGameClient> hub) 
     public async Task SentOut(string roomKey, string session, string message)
     {
         await hub.Groups.RemoveFromGroupAsync(session, roomKey);
-        await hub.Clients.Client(session).SentOut(message);
+        // Which home: a tab that has gone into another meanwhile stays there.
+        await hub.Clients.Client(session).SentOut(RoomKey.HomeOwner(roomKey) ?? Guid.Empty, message);
     }
 }
