@@ -19,6 +19,7 @@ internal sealed class Recorder
         hub.On<ChatView>("ChatSaid", c => _events.Writer.TryWrite(("ChatSaid", c)));
         hub.On<EmoteView>("CatEmoted", e => _events.Writer.TryWrite(("CatEmoted", e)));
         hub.On<CatchView>("CatFished", c => _events.Writer.TryWrite(("CatFished", c)));
+        hub.On<OutfitView>("CatDressed", o => _events.Writer.TryWrite(("CatDressed", o)));
         hub.On<Guid>("FriendsChanged", id => _events.Writer.TryWrite(("FriendsChanged", id)));
     }
 

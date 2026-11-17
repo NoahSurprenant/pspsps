@@ -39,6 +39,12 @@ public interface IRoomGrain : IGrainWithStringKey
     /// <summary>Casts the cat's line; at the bite the room tells the tab controlling the cat then (FishBit), and only it.</summary>
     Task Cast(Guid playerId);
 
+    /// <summary>
+    /// The player changed what their cat wears: if the cat is here, it wears that from now on, and the room is shown it
+    /// (CatDressed). Nothing when it isn't, or already wears a newer outfit (OutfitView.Version).
+    /// </summary>
+    Task Dress(OutfitView outfit);
+
     /// <summary>Reels the line in. Nothing is shown to the room here: the hub pays a catch first, then shows it.</summary>
     Task<ReelView> Reel(Guid playerId);
 }

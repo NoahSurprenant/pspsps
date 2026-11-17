@@ -1,9 +1,12 @@
+using Pspsps.Domain.Shop;
+
 namespace Pspsps.Domain.Players;
 
 /// <summary>A cat: the aggregate root for everything a player keeps between visits.</summary>
 public sealed class Player
 {
     private readonly List<PlayerLogin> _logins = [];
+    private readonly List<OwnedItem> _items = [];
 
     private Player()
     {
@@ -17,6 +20,8 @@ public sealed class Player
         FurColor = furColor;
         IsGuest = isGuest;
         CreatedAt = now;
+        // The coat a cat is born with is its own: wearing another one later, it can always go back to it.
+        _items.Add(new OwnedItem(ShopCatalog.FurOf(furColor).Id, now));
     }
 
     public Guid Id { get; private set; }
@@ -33,6 +38,21 @@ public sealed class Player
     public DateTimeOffset CreatedAt { get; private set; }
 
     public IReadOnlyCollection<PlayerLogin> Logins => _logins.AsReadOnly();
+
+    /// <summary>The hat the cat wears (a <see cref="ShopCatalog"/> item ID), if any.</summary>
+    public string? Hat { get; private set; }
+
+    /// <summary>The collar the cat wears (a <see cref="ShopCatalog"/> item ID), if any.</summary>
+    public string? Collar { get; private set; }
+
+    /// <summary>
+    /// Counts every change to what the cat wears (fur, hat, collar), so a room told of two changes out of order (or told
+    /// one by a tab that read the player before the other) keeps the newer.
+    /// </summary>
+    public int OutfitVersion { get; private set; }
+
+    /// <summary>What the player has from the shop: what they bought, and the coat they were born with.</summary>
+    public IReadOnlyCollection<OwnedItem> Items => _items.AsReadOnly();
 
     public static Player CreateGuest(string displayName, FurColor furColor, DateTimeOffset now) =>
         new(displayName, furColor, isGuest: true, now);
@@ -70,14 +90,83 @@ public sealed class Player
 
     public void Rename(string displayName) => DisplayName = DisplayNameRules.Normalize(displayName);
 
-    public void ChangeFurColor(FurColor furColor)
+    /// <summary>Whether the player has the shop item <paramref name="itemId"/>.</summary>
+    public bool Owns(string itemId) => _items.Any(i => i.ItemId == itemId);
+
+    /// <summary>
+    /// Buys the shop item <paramref name="itemId"/>: the player pays its price from their coins, and has it from then on.
+    /// Refused when they have it already or can't afford it. Buying doesn't put it on.
+    /// </summary>
+    public ShopItem Buy(string itemId, DateTimeOffset now)
     {
-        if (!Enum.IsDefined(furColor))
+        var item = ShopCatalog.Find(itemId) ?? throw new DomainException("That isn't in the shop.");
+        if (Owns(item.Id))
         {
-            throw new DomainException("That fur color doesn't exist.");
+            throw new DomainException($"You already have the {item.Name}.");
         }
 
-        FurColor = furColor;
+        if (item.Price > Coins)
+        {
+            throw new DomainException($"The {item.Name} costs {item.Price} coins. You have {Coins}.");
+        }
+
+        SpendCoins(item.Price);
+        _items.Add(new OwnedItem(item.Id, now));
+        return item;
+    }
+
+    /// <summary>
+    /// Puts on an item the player has: a hat in place of the one worn, a collar in place of the collar, a fur in place of
+    /// the coat.
+    /// </summary>
+    public ShopItem Wear(string itemId)
+    {
+        var item = ShopCatalog.Find(itemId) ?? throw new DomainException("That isn't in the shop.");
+        if (!Owns(item.Id))
+        {
+            throw new DomainException($"Buy the {item.Name} first.");
+        }
+
+        switch (item.Kind)
+        {
+            case ItemKind.Hat:
+                Hat = item.Id;
+                break;
+            case ItemKind.Collar:
+                Collar = item.Id;
+                break;
+            case ItemKind.Fur:
+                FurColor = item.Fur ?? throw new InvalidOperationException($"Fur item '{item.Id}' has no fur.");
+                break;
+            default:
+                throw new InvalidOperationException($"Item '{item.Id}' is of no known kind.");
+        }
+
+        OutfitVersion++;
+        return item;
+    }
+
+    /// <summary>Takes off the hat or collar <paramref name="itemId"/>. A cat always wears a fur: that is changed, not taken off.</summary>
+    public void TakeOff(string itemId)
+    {
+        if (Hat is not null && Hat == itemId)
+        {
+            Hat = null;
+            OutfitVersion++;
+        }
+        else if (Collar is not null && Collar == itemId)
+        {
+            Collar = null;
+            OutfitVersion++;
+        }
+        else if (ShopCatalog.Find(itemId) is { Kind: ItemKind.Fur })
+        {
+            throw new DomainException("A cat always has its fur. Put on another to change it.");
+        }
+        else
+        {
+            throw new DomainException("You aren't wearing that.");
+        }
     }
 
     public void EarnCoins(int amount) => Coins = checked(Coins + Earning(amount));

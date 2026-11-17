@@ -13,6 +13,7 @@ import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Scene } from "@babylonjs/core/scene";
 import { coatOf, type Coat } from "./fur";
 import type { FurColor, Pose } from "./types";
+import { makeWearable } from "./wearables";
 
 /** The cat's clips (src/models/cat.glb, made by scripts/cat-model.mjs). */
 export const catAnimations = ["idle", "walk", "sit", "sleep", "wave", "meow"] as const;
@@ -121,6 +122,15 @@ export async function loadCatModel(scene: Scene, bytes: Uint8Array): Promise<Ass
 
 // The model is about 1.25 m wide; cats are a little smaller.
 const modelScale = 0.75;
+// The dark outline round the coat and what the cat wears, in the model's units.
+const outlineWidth = 0.025 / modelScale;
+
+/** What a cat wears: its fur, and the hat and collar it has on (the shop's item IDs), if any. */
+export interface Outfit {
+  fur: FurColor;
+  hat: string | null;
+  collar: string | null;
+}
 
 /**
  * A modelled cat (a cube cat) in flat, unlit colours with dark outlines, for the hand-drawn look, that walks, idles,
@@ -137,11 +147,17 @@ export class Cat {
   readonly anchors: { headTop: TransformNode; neck: TransformNode };
   private readonly groups: Map<CatAnimation, AnimationGroup>;
   private readonly materials: ReadonlyMap<CatColour, StandardMaterial>;
-  private readonly coat: Coat;
+  private coat: Coat;
+  private fur: FurColor;
   private playing: CatAnimation | undefined;
+  // What it has on, and the node drawing each.
+  private readonly worn: { hat?: { id: string; node: TransformNode }; collar?: { id: string; node: TransformNode } } = {};
 
   /** Hangs a new cat of <fur>, made from <model>, off <parent> (which places and turns it). */
-  constructor(scene: Scene, model: AssetContainer, parent: TransformNode, name: string, fur: FurColor) {
+  constructor(
+    private readonly scene: Scene, model: AssetContainer, parent: TransformNode, private readonly name: string, fur: FurColor,
+  ) {
+    this.fur = fur;
     this.coat = coatOf(fur);
     const made = model.instantiateModelsToScene((source) => `${name}-${source}`, false, { doNotInstantiate: true });
     const top = made.rootNodes[0] as TransformNode;
@@ -166,7 +182,7 @@ export class Cat {
       mesh.isPickable = false;
       if (colour === "coat" || colour === "accent") {
         mesh.renderOutline = true;
-        mesh.outlineWidth = 0.025 / modelScale;
+        mesh.outlineWidth = outlineWidth;
         mesh.outlineColor = Color3.FromHexString(darkFeatures);
       } else {
         // The eyes, pupils, mouth and soles are drawn from both sides, as the original model has them: some of their
@@ -200,6 +216,22 @@ export class Cat {
     return this.playing;
   }
 
+  /** What the cat wears now, as drawn: a hat or collar the client can't draw counts as not worn. */
+  get wearing(): { fur: FurColor; hat: string | undefined; collar: string | undefined } {
+    return { fur: this.fur, hat: this.worn.hat?.id, collar: this.worn.collar?.id };
+  }
+
+  /** Changes what the cat wears: its coat, and the hat on its head and the collar round its neck (or none). */
+  dress(outfit: Outfit): void {
+    if (outfit.fur !== this.fur) {
+      this.fur = outfit.fur;
+      this.coat = coatOf(outfit.fur);
+      this.paint();
+    }
+    this.put("hat", outfit.hat, this.anchors.headTop);
+    this.put("collar", outfit.collar, this.anchors.neck);
+  }
+
   /** Plays <animation> from its start, unless it is playing already and not to <restart>. */
   play(animation: CatAnimation, restart = false): void {
     if (animation === this.playing && !restart) {
@@ -210,8 +242,26 @@ export class Cat {
     }
     this.groups.get(animation)?.start(loops(animation));
     this.playing = animation;
+    this.paint();
+  }
+
+  // The model's colours, for its coat, and its eyes shut while it sleeps.
+  private paint(): void {
     for (const [colour, material] of this.materials) {
-      material.emissiveColor = Color3.FromHexString(colourOf(colour, this.coat, animation === "sleep"));
+      material.emissiveColor = Color3.FromHexString(colourOf(colour, this.coat, this.playing === "sleep"));
+    }
+  }
+
+  // Puts <id> on in <slot> (taking off what was there), or nothing when null.
+  private put(slot: "hat" | "collar", id: string | null, anchor: TransformNode): void {
+    if (this.worn[slot]?.id === (id ?? undefined)) {
+      return;
+    }
+    this.worn[slot]?.node.dispose();
+    this.worn[slot] = undefined;
+    const node = id === null ? undefined : makeWearable(this.scene, id, `${this.name}-${slot}`, anchor, outlineWidth);
+    if (id !== null && node) {
+      this.worn[slot] = { id, node };
     }
   }
 }

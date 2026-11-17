@@ -275,6 +275,22 @@ public sealed class PlayerServiceTests
         });
     }
 
+    [Test]
+    public async Task LinkLogin_WhenTheCoinsChangeAtEveryTry_GivesUp_AsAnOutcome_AndChangesNothing()
+    {
+        // A catch lands as every save of the link is about to write: the coins it read are never the coins there are.
+        var guest = await Game.Get<IPlayerService>().CreateGuestAsync(CancellationToken.None);
+        await using var db = RacingContext(
+            async ct => await Game.Get<IPlayerService>().EarnCoinsAsync(guest.Id, 1, ct), times: int.MaxValue);
+
+        var result = await new PlayerService(db, TimeProvider.System, Random.Shared)
+            .LinkLoginAsync(guest.Id, LoginProvider.Google, NewKey(), CancellationToken.None);
+        var saved = await Game.Get<IPlayerService>().FindAsync(guest.Id, CancellationToken.None);
+
+        Assert.That(result, Is.EqualTo(LinkLoginOutcome.Busy));
+        Assert.That(saved?.IsGuest, Is.True);
+    }
+
     /// <summary>A provider user ID no other test uses: the tests share one database.</summary>
     internal static string NewKey() => Guid.NewGuid().ToString("N");
 
@@ -295,11 +311,11 @@ public sealed class PlayerServiceTests
 
     /// <summary>
     /// A context of its own whose first write (a save, or an update statement such as ExecuteUpdate's) runs
-    /// <paramref name="first"/> (in another context) just before.
+    /// <paramref name="first"/> (in another context) just before; its first <paramref name="times"/> writes, if more.
     /// </summary>
-    private static PspspsDbContext RacingContext(Func<CancellationToken, Task> first)
+    internal static PspspsDbContext RacingContext(Func<CancellationToken, Task> first, int times = 1)
     {
-        var race = new JustBeforeTheFirstWrite(first);
+        var race = new JustBeforeTheFirstWrite(first, times);
         return new(new DbContextOptionsBuilder<PspspsDbContext>()
             .UseNpgsql(PostgresFixture.ConnectionString)
             .UseSnakeCaseNamingConvention()
@@ -307,9 +323,9 @@ public sealed class PlayerServiceTests
             .Options);
     }
 
-    private sealed class JustBeforeTheFirstWrite(Func<CancellationToken, Task> first) : SaveChangesInterceptor
+    private sealed class JustBeforeTheFirstWrite(Func<CancellationToken, Task> first, int times) : SaveChangesInterceptor
     {
-        private bool _done;
+        private int _done;
 
         /// <summary>Catches writes that don't go through SaveChanges.</summary>
         public DbCommandInterceptor Statements => new UpdateStatements(this);
@@ -323,9 +339,9 @@ public sealed class PlayerServiceTests
 
         private async Task RunFirst(CancellationToken cancellationToken)
         {
-            if (!_done)
+            if (_done < times)
             {
-                _done = true;
+                _done++;
                 await first(cancellationToken);
             }
         }

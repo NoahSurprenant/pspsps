@@ -3,8 +3,8 @@ import { loadRoom, PendingEvents } from "./pending";
 import { Room } from "./room";
 import type { CatView, ChatView, RoomSnapshot } from "./types";
 
-const tom: CatView = { playerId: "tom", displayName: "Tom", furColor: "Grey", x: 0, z: 4, pose: null };
-const felix: CatView = { playerId: "felix", displayName: "Felix", furColor: "Tuxedo", x: 1, z: 1, pose: null };
+const tom: CatView = { playerId: "tom", displayName: "Tom", furColor: "Grey", x: 0, z: 4, pose: null, hat: null, collar: null };
+const felix: CatView = { playerId: "felix", displayName: "Felix", furColor: "Tuxedo", x: 1, z: 1, pose: null, hat: null, collar: null };
 const hello: ChatView = { playerId: "felix", text: "hello", at: "2026-11-17T12:00:00Z" };
 
 function snapshot(cats: CatView[], chat: ChatView[] = []): RoomSnapshot {

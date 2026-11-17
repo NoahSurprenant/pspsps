@@ -8,6 +8,9 @@ export interface Player {
   furColor: FurColor;
   coins: number;
   isGuest: boolean;
+  /** The hat and collar the cat wears (shop item IDs), if any. */
+  hat: string | null;
+  collar: string | null;
 }
 
 export interface CatView {
@@ -18,6 +21,40 @@ export interface CatView {
   z: number;
   /** Sitting or asleep (held until it walks), or null when standing. */
   pose: Pose | null;
+  /** The hat and collar it wears (shop item IDs), if any. */
+  hat: string | null;
+  collar: string | null;
+}
+
+/** What a cat wears, sent when it changes (Contracts.cs, OutfitView). */
+export interface OutfitView {
+  playerId: string;
+  furColor: FurColor;
+  hat: string | null;
+  collar: string | null;
+}
+
+/** Where a shop item goes: on the head, round the neck, or the coat itself. */
+export type ItemKind = "Hat" | "Collar" | "Fur";
+
+/** Something in the shop (Contracts.cs, ShopItemView); a fur item has its colour. */
+export interface ShopItem {
+  id: string;
+  name: string;
+  kind: ItemKind;
+  price: number;
+  furColor: FurColor | null;
+}
+
+/** The shop as the player sees it (Contracts.cs, ShopView): what's in it, their coins, what they have and wear. */
+export interface Shop {
+  items: ShopItem[];
+  coins: number;
+  /** The item IDs the player has. */
+  owned: string[];
+  furColor: FurColor;
+  hat: string | null;
+  collar: string | null;
 }
 
 export interface ChatView {
@@ -122,6 +159,9 @@ export interface PlayerCard {
   displayName: string;
   furColor: FurColor;
   friendState: FriendState;
+  /** The names of the hat and collar the cat wears, if any (not sent with a friends list). */
+  hatName?: string | null;
+  collarName?: string | null;
 }
 
 /** Where a friend is (Contracts.cs, FriendPlaceView). */

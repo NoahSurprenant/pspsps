@@ -41,6 +41,73 @@ public sealed class RoomStateTests
     }
 
     [Test]
+    public void Join_WearsWhatThePlayerWears_AndAnotherTabJoiningDressesTheCatAsThePlayerIsNow()
+    {
+        var state = new RoomState(Room);
+
+        var cat = state.Join(Tom, "Tom", FurColor.Grey, TabA, Now, hat: "party-hat");
+        Assert.That((cat.FurColor, cat.Hat, cat.Collar), Is.EqualTo((FurColor.Grey, "party-hat", (string?)null)));
+
+        var again = state.Join(Tom, "Tom", FurColor.Black, TabB, Now, hat: null, collar: "red-collar");
+        Assert.That((again.FurColor, again.Hat, again.Collar), Is.EqualTo((FurColor.Black, (string?)null, "red-collar")));
+        Assert.That(state.Cats.Single(), Is.EqualTo(again));
+    }
+
+    [Test]
+    public void Dress_ChangesWhatTheCatWears_WhereItStands_AndArrivalsSeeIt()
+    {
+        var state = new RoomState(Room);
+        state.Join(Tom, "Tom", FurColor.Grey, TabA, Now);
+        state.Move(Tom, new Position(3, 0));
+
+        var dressed = state.Dress(Tom, FurColor.Tuxedo, "crown", "bell-collar", version: 1);
+        // Walking and emoting keep it on.
+        state.Move(Tom, new Position(2, 0));
+        state.Emote(Tom, "sit", Now);
+
+        Assert.That(dressed, Is.EqualTo(new CatInRoom(
+            Tom, "Tom", FurColor.Tuxedo, new Position(3, 0), Hat: "crown", Collar: "bell-collar", OutfitVersion: 1)));
+        var cat = state.Cats.Single();
+        Assert.That((cat.FurColor, cat.Hat, cat.Collar, cat.Pose), Is.EqualTo((FurColor.Tuxedo, "crown", "bell-collar", CatPose.Sitting)));
+    }
+
+    [Test]
+    public void Join_FromAnotherTab_WithAnOlderOutfit_KeepsTheNewerOne()
+    {
+        // The other tab read the player before the crown went on; the room has had the crown since.
+        var state = new RoomState(Room);
+        state.Join(Tom, "Tom", FurColor.Grey, TabA, Now, outfitVersion: 1);
+        state.Dress(Tom, FurColor.Grey, "crown", null, version: 2);
+
+        var again = state.Join(Tom, "Tom", FurColor.Grey, TabB, Now, hat: null, outfitVersion: 1);
+
+        Assert.That((again.Hat, again.OutfitVersion), Is.EqualTo(("crown", 2)));
+        Assert.That(state.Cats.Single().Hat, Is.EqualTo("crown"));
+    }
+
+    [Test]
+    public void Dress_AnOlderOutfitThanTheCatsArrivingLate_IsIgnored()
+    {
+        var state = new RoomState(Room);
+        state.Join(Tom, "Tom", FurColor.Grey, TabA, Now);
+        state.Dress(Tom, FurColor.Grey, "top-hat", null, version: 3);
+
+        var late = state.Dress(Tom, FurColor.Grey, "crown", null, version: 2);
+
+        Assert.That(late, Is.Null);
+        Assert.That(state.Cats.Single().Hat, Is.EqualTo("top-hat"));
+    }
+
+    [Test]
+    public void Dress_ACatThatIsntHere_IsNothing()
+    {
+        var state = new RoomState(Room);
+
+        Assert.That(state.Dress(Tom, FurColor.Grey, "bow", null, version: 1), Is.Null);
+        Assert.That(state.Cats, Is.Empty);
+    }
+
+    [Test]
     public void Join_RefusesAFullRoom()
     {
         var state = new RoomState(Room);

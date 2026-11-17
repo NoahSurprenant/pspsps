@@ -1,13 +1,46 @@
+using Pspsps.Application.Shop;
 using Pspsps.Domain.Fishing;
 using Pspsps.Domain.Rooms;
+using Pspsps.Domain.Shop;
 
 namespace Pspsps.Server.Game;
 
 // What grains take and return, and what the hub sends to browsers. Orleans copies these between pods.
 
-/// <summary>Who a player is, as a room needs to know them.</summary>
+/// <summary>Who a player is, as a room needs to know them: their name, and what their cat wears (shop item IDs).</summary>
 [GenerateSerializer, Immutable]
-public sealed record PlayerCard([property: Id(0)] Guid PlayerId, [property: Id(1)] string DisplayName, [property: Id(2)] string FurColor);
+public sealed record PlayerCard(
+    [property: Id(0)] Guid PlayerId,
+    [property: Id(1)] string DisplayName,
+    [property: Id(2)] string FurColor,
+    [property: Id(3)] string? Hat = null,
+    [property: Id(4)] string? Collar = null,
+    [property: Id(5)] int OutfitVersion = 0);
+
+/// <summary>
+/// What a cat wears: its fur, and the hat and collar it has on (shop item IDs), if any, as of Version (the player's
+/// OutfitVersion: a room keeps the newer of two).
+/// </summary>
+[GenerateSerializer, Immutable]
+public sealed record OutfitView(
+    [property: Id(0)] Guid PlayerId,
+    [property: Id(1)] string FurColor,
+    [property: Id(2)] string? Hat,
+    [property: Id(3)] string? Collar,
+    [property: Id(4)] int Version = 0)
+{
+    public static OutfitView From(CatInRoom cat)
+    {
+        ArgumentNullException.ThrowIfNull(cat);
+        return new(cat.PlayerId, cat.FurColor.ToString(), cat.Hat, cat.Collar, cat.OutfitVersion);
+    }
+
+    public static OutfitView From(Wardrobe wardrobe)
+    {
+        ArgumentNullException.ThrowIfNull(wardrobe);
+        return new(wardrobe.PlayerId, wardrobe.FurColor.ToString(), wardrobe.Hat, wardrobe.Collar, wardrobe.OutfitVersion);
+    }
+}
 
 [GenerateSerializer, Immutable]
 public sealed record CatView(
@@ -16,10 +49,13 @@ public sealed record CatView(
     [property: Id(2)] string FurColor,
     [property: Id(3)] double X,
     [property: Id(4)] double Z,
-    [property: Id(5)] string? Pose)
+    [property: Id(5)] string? Pose,
+    [property: Id(6)] string? Hat,
+    [property: Id(7)] string? Collar)
 {
     public static CatView From(CatInRoom cat) =>
-        new(cat.PlayerId, cat.DisplayName, cat.FurColor.ToString(), cat.Position.X, cat.Position.Z, Emotes.NameOf(cat.Pose));
+        new(cat.PlayerId, cat.DisplayName, cat.FurColor.ToString(), cat.Position.X, cat.Position.Z, Emotes.NameOf(cat.Pose),
+            cat.Hat, cat.Collar);
 }
 
 [GenerateSerializer, Immutable]
@@ -149,10 +185,41 @@ public sealed record PlayerSession([property: Id(0)] Guid PlayerId, [property: I
 public sealed record PlayerPlace([property: Id(0)] string WorldId, [property: Id(1)] string RoomId);
 
 /// <summary>
-/// A player card: another cat, and where the player looking stands with them (FriendState: "None", "RequestSent",
-/// "RequestReceived" or "Friends"). What it wears comes with the shop.
+/// A player card: another cat, where the player looking stands with them (FriendState: "None", "RequestSent",
+/// "RequestReceived" or "Friends"), and the names of the hat and collar it wears, if any.
 /// </summary>
-public sealed record PlayerCardView(Guid PlayerId, string DisplayName, string FurColor, string FriendState);
+public sealed record PlayerCardView(
+    Guid PlayerId, string DisplayName, string FurColor, string FriendState, string? HatName = null, string? CollarName = null);
+
+/// <summary>Something in the shop (Kind: "Hat", "Collar" or "Fur"; a fur's colour in FurColor).</summary>
+public sealed record ShopItemView(string Id, string Name, string Kind, int Price, string? FurColor)
+{
+    public static ShopItemView From(ShopItem item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        return new(item.Id, item.Name, item.Kind.ToString(), item.Price, item.Fur?.ToString());
+    }
+}
+
+/// <summary>
+/// The shop as one player sees it: everything in it, in the catalogue's order, the player's coins, what they have (item
+/// IDs) and what their cat wears.
+/// </summary>
+public sealed record ShopView(
+    IReadOnlyList<ShopItemView> Items, int Coins, IReadOnlyList<string> Owned, string FurColor, string? Hat, string? Collar)
+{
+    public static ShopView From(Wardrobe wardrobe)
+    {
+        ArgumentNullException.ThrowIfNull(wardrobe);
+        return new(
+            [.. ShopCatalog.All.Select(ShopItemView.From)],
+            wardrobe.Coins,
+            wardrobe.Owned,
+            wardrobe.FurColor.ToString(),
+            wardrobe.Hat,
+            wardrobe.Collar);
+    }
+}
 
 /// <summary>
 /// One of the player's friends or friend requests (as <see cref="PlayerCardView"/>), and for a friend in a room, where:

@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using Pspsps.Application.Abstractions;
 using Pspsps.Domain;
@@ -8,13 +9,16 @@ namespace Pspsps.Application.Players;
 
 internal sealed class PlayerService(IApplicationDbContext db, TimeProvider time, Random random) : IPlayerService
 {
+    /// <summary>How many times a link is done again when the player's coins changed as it was saved.</summary>
+    private const int LinkAttempts = 5;
+
     public async Task<PlayerProfile> SignInWithLoginAsync(
         LoginProvider provider, string providerKey, string? profileName, CancellationToken cancellationToken)
     {
         var existing = await OwnerAsync(provider, providerKey, cancellationToken);
         if (existing is not null)
         {
-            return PlayerProfile.From(existing);
+            return existing;
         }
 
         var name = DisplayNameRules.FromProfile(profileName, fallback: RandomCatName());
@@ -35,13 +39,35 @@ internal sealed class PlayerService(IApplicationDbContext db, TimeProvider time,
                 throw;
             }
 
-            return PlayerProfile.From(winner);
+            return winner;
         }
 
         return PlayerProfile.From(player);
     }
 
+    // Coins are a concurrency token (a purchase must not spend coins that are gone): a link whose save finds them changed
+    // meanwhile (a catch paid as the guest saves their cat) is refused by the database, and simply done again.
     public async Task<LinkLoginOutcome> LinkLoginAsync(
+        Guid playerId, LoginProvider provider, string providerKey, CancellationToken cancellationToken)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                return await LinkOnceAsync(playerId, provider, providerKey, cancellationToken);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                // Forgotten already: the next try reads the player again.
+                if (attempt == LinkAttempts)
+                {
+                    return LinkLoginOutcome.Busy;
+                }
+            }
+        }
+    }
+
+    private async Task<LinkLoginOutcome> LinkOnceAsync(
         Guid playerId, LoginProvider provider, string providerKey, CancellationToken cancellationToken)
     {
         if (await OwnerIdAsync(provider, providerKey, cancellationToken) is { } owner)
@@ -73,6 +99,11 @@ internal sealed class PlayerService(IApplicationDbContext db, TimeProvider time,
         {
             await db.SaveChangesAsync(cancellationToken);
         }
+        catch (DbUpdateConcurrencyException)
+        {
+            db.Forget(player);
+            throw;
+        }
         catch (DbUpdateException saving) when (db.IsUniqueViolation(saving))
         {
             // Another request got there first: the same link (Linked), this login for another cat (taken), or another
@@ -99,8 +130,7 @@ internal sealed class PlayerService(IApplicationDbContext db, TimeProvider time,
 
     public async Task<PlayerProfile?> FindAsync(Guid playerId, CancellationToken cancellationToken)
     {
-        var player = await db.Players.AsNoTracking().FirstOrDefaultAsync(p => p.Id == playerId, cancellationToken);
-        return player is null ? null : PlayerProfile.From(player);
+        return await db.Players.Where(p => p.Id == playerId).Select(Profile).FirstOrDefaultAsync(cancellationToken);
     }
 
     // One statement adds the earning (coins = coins + n): two earnings at once (a tab replaced while its reel is paid, a
@@ -125,8 +155,13 @@ internal sealed class PlayerService(IApplicationDbContext db, TimeProvider time,
     private IQueryable<Player> Owning(LoginProvider provider, string providerKey) =>
         db.Players.Where(p => p.Logins.Any(l => l.Provider == provider && l.ProviderKey == providerKey));
 
-    private Task<Player?> OwnerAsync(LoginProvider provider, string providerKey, CancellationToken cancellationToken) =>
-        Owning(provider, providerKey).FirstOrDefaultAsync(cancellationToken);
+    private Task<PlayerProfile?> OwnerAsync(
+        LoginProvider provider, string providerKey, CancellationToken cancellationToken) =>
+        Owning(provider, providerKey).Select(Profile).FirstOrDefaultAsync(cancellationToken);
+
+    // A player as shown, read on its own: loading the whole aggregate would read every login and item it has as well.
+    private static readonly Expression<Func<Player, PlayerProfile>> Profile = p => new PlayerProfile(
+        p.Id, p.DisplayName, p.FurColor, p.Coins, p.IsGuest, p.Hat, p.Collar, p.OutfitVersion);
 
     private Task<Guid?> OwnerIdAsync(LoginProvider provider, string providerKey, CancellationToken cancellationToken) =>
         Owning(provider, providerKey).Select(p => (Guid?)p.Id).FirstOrDefaultAsync(cancellationToken);

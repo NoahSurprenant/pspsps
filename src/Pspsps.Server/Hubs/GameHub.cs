@@ -2,9 +2,11 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Pspsps.Application.Friends;
 using Pspsps.Application.Players;
+using Pspsps.Application.Shop;
 using Pspsps.Domain;
 using Pspsps.Domain.Friends;
 using Pspsps.Domain.Rooms;
+using Pspsps.Domain.Shop;
 using Pspsps.Domain.Worlds;
 using Pspsps.Server.Auth;
 using Pspsps.Server.Game;
@@ -22,6 +24,7 @@ public sealed partial class GameHub(
     IGrainFactory grains,
     IPlayerService players,
     IFriendService friends,
+    IShopService shop,
     SessionHeartbeat heartbeat,
     GameMetrics metrics,
     ILogger<GameHub> logger)
@@ -250,6 +253,21 @@ public sealed partial class GameHub(
     public Task<PlayerCardView> RemoveFriend(Guid playerId) =>
         ChangeFriendship(playerId, friends.UnfriendAsync);
 
+    /// <summary>The shop: everything in it, and the player's coins, things and what their cat wears.</summary>
+    public async Task<ShopView> GetShop() =>
+        ShopView.From(await PlayersRule(() => shop.GetAsync(PlayerId, Context.ConnectionAborted)));
+
+    /// <summary>Buys something with the player's coins (it isn't put on); the shop as it is after.</summary>
+    public async Task<ShopView> Buy(string itemId) =>
+        ShopView.From(await PlayersRule(() => shop.BuyAsync(PlayerId, itemId, Context.ConnectionAborted)));
+
+    /// <summary>Puts on a hat, collar or fur the player has: the room the cat is in sees it at once.</summary>
+    public Task<ShopView> Wear(string itemId) => Dress(() => shop.WearAsync(PlayerId, itemId, Context.ConnectionAborted));
+
+    /// <summary>Takes off the hat or collar the cat wears: the room the cat is in sees it at once.</summary>
+    public Task<ShopView> TakeOff(string itemId) =>
+        Dress(() => shop.TakeOffAsync(PlayerId, itemId, Context.ConnectionAborted));
+
     /// <summary>
     /// The player's friends and requests, each friend with where they are now: their session says which room, and that
     /// room confirms the cat is there. A friend between rooms or offline has no place.
@@ -276,15 +294,7 @@ public sealed partial class GameHub(
         }
 
         await EnsureCurrentTab();
-        PlayerRelation relation;
-        try
-        {
-            relation = await friends.VisitAsync(PlayerId, friendId, Context.ConnectionAborted);
-        }
-        catch (DomainException e)
-        {
-            throw new HubException(e.Message);
-        }
+        var relation = await PlayersRule(() => friends.VisitAsync(PlayerId, friendId, Context.ConnectionAborted));
 
         var target = await LocateAsync(friendId)
             ?? throw new HubException($"{relation.DisplayName} isn't in a room right now.");
@@ -384,7 +394,8 @@ public sealed partial class GameHub(
         RoomSnapshot snapshot;
         try
         {
-            var card = new PlayerCard(profile.Id, profile.DisplayName, profile.FurColor.ToString());
+            var card = new PlayerCard(
+                profile.Id, profile.DisplayName, profile.FurColor.ToString(), profile.Hat, profile.Collar, profile.OutfitVersion);
             snapshot = await room.Join(card, Context.ConnectionId, throughDoor);
         }
         catch (GameRuleException e)
@@ -416,15 +427,7 @@ public sealed partial class GameHub(
     private async Task<PlayerCardView> ChangeFriendship(
         Guid otherId, Func<Guid, Guid, CancellationToken, Task<PlayerRelation>> change)
     {
-        PlayerRelation relation;
-        try
-        {
-            relation = await change(PlayerId, otherId, Context.ConnectionAborted);
-        }
-        catch (DomainException e)
-        {
-            throw new HubException(e.Message);
-        }
+        var relation = await PlayersRule(() => change(PlayerId, otherId, Context.ConnectionAborted));
 
         // Saved by now: a tab that isn't told sees it the next time it opens the list or the card.
         try
@@ -440,7 +443,44 @@ public sealed partial class GameHub(
     }
 
     private static PlayerCardView CardOf(PlayerRelation relation) =>
-        new(relation.PlayerId, relation.DisplayName, relation.FurColor.ToString(), relation.State.ToString());
+        new(relation.PlayerId, relation.DisplayName, relation.FurColor.ToString(), relation.State.ToString(),
+            ShopCatalog.Find(relation.Hat)?.Name, ShopCatalog.Find(relation.Collar)?.Name);
+
+    // A use case's call: a rule it breaks (a DomainException) is the player's message.
+    private static async Task<T> PlayersRule<T>(Func<Task<T>> call)
+    {
+        try
+        {
+            return await call();
+        }
+        catch (DomainException e)
+        {
+            throw new HubException(e.Message);
+        }
+    }
+
+    // Saves a change to what the cat wears, then shows it in the room the cat is in: where the player's current tab has
+    // it (any tab can dress the cat), or failing that this tab's room. Saved by then: a room that isn't told shows it to
+    // whoever arrives next.
+    private async Task<ShopView> Dress(Func<Task<Wardrobe>> change)
+    {
+        var wardrobe = await PlayersRule(change);
+        var key = await LocateAsync(PlayerId) is { } place ? RoomKey.For(place.WorldId, place.RoomId) : Here?.RoomKey;
+
+        if (key is not null)
+        {
+            try
+            {
+                await grains.GetGrain<IRoomGrain>(key).Dress(OutfitView.From(wardrobe));
+            }
+            catch (Exception e)
+            {
+                LogDressNotShown(logger, e, PlayerId, key);
+            }
+        }
+
+        return ShopView.From(wardrobe);
+    }
 
     // Where the player's cat is, or null when it can't be told (a grain call that failed counts as offline).
     private async Task<PlayerPlace?> LocateAsync(Guid playerId)
@@ -517,6 +557,9 @@ public sealed partial class GameHub(
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't record that player {PlayerId} is in {RoomKey}; friends won't find them there")]
     private static partial void LogArrivalNotRecorded(ILogger logger, Exception exception, Guid playerId, string roomKey);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't show the room {RoomKey} what player {PlayerId} put on; it shows on their next arrival")]
+    private static partial void LogDressNotShown(ILogger logger, Exception exception, Guid playerId, string roomKey);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't tell player {PlayerId} their friendships changed")]
     private static partial void LogFriendsChangedNotSent(ILogger logger, Exception exception, Guid playerId);

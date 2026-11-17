@@ -13,6 +13,8 @@ public interface IRoomBroadcaster
 
     Task CatEmoted(string roomKey, EmoteView emote);
 
+    Task CatDressed(string roomKey, OutfitView outfit);
+
     /// <summary>Tells one tab (its connection) that its line has a bite: reel now.</summary>
     Task FishBit(string session);
 

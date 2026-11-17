@@ -95,7 +95,7 @@ declare global {
     pspsps?: {
       room():
         | {
-          cats: Map<string, { x: number; z: number; pose: string | null }>;
+          cats: Map<string, { x: number; z: number; pose: string | null; hat: string | null; collar: string | null }>;
           chat: { playerId: string; text: string }[];
           emotes: Map<string, { playerId: string; emote: string }>;
           snapshot: {
@@ -110,6 +110,7 @@ declare global {
       animation(playerId: string): string | undefined;
       screenPoint(x: number, z: number): { x: number; y: number } | undefined;
       catOnScreen(playerId: string): { x: number; y: number } | undefined;
+      wearing(playerId: string): { fur: string; hat: string | undefined; collar: string | undefined } | undefined;
     };
   }
 }
@@ -169,7 +170,7 @@ export async function clickCat(page: Page, playerId: string): Promise<void> {
  * Another player without a browser: a new guest on the game's hub, from Node. For setting up a screen (a friend
  * elsewhere, a request waiting) without drawing a room for them. Close it after.
  */
-export async function hubGuest(baseUrl: string): Promise<{ id: string; name: string; hub: HubConnection }> {
+export async function hubGuest(baseUrl: string): Promise<{ id: string; name: string; cookie: string; hub: HubConnection }> {
   const response = await fetch(new URL("/auth/guest", baseUrl), { method: "POST" });
   expect(response.ok).toBe(true);
   const cookie = response.headers.getSetCookie().find((c) => c.startsWith("pspsps="))?.split(";")[0];
@@ -180,5 +181,34 @@ export async function hubGuest(baseUrl: string): Promise<{ id: string; name: str
     .configureLogging(LogLevel.Warning)
     .build();
   await hub.start();
-  return { id, name: displayName, hub };
+  return { id, name: displayName, cookie, hub };
+}
+
+/**
+ * Fishes at <world>'s Town Square pond from a hub guest (no browser) until it has at least <coins>, as a player would:
+ * cast, wait for the bite (3-9 s, real time), reel at once. Returns the coins it has. About 14 coins a catch on average.
+ */
+export async function fishFor(hub: HubConnection, world: string, coins: number): Promise<number> {
+  let bite: () => void = () => {};
+  hub.on("FishBit", () => bite());
+  await hub.invoke("EnterWorld", world);
+  // The edge of Town Square's pond, at (-7, -3) with a radius of 2.5.
+  await hub.invoke("Move", -7, 0);
+  let total = 0;
+  while (total < coins) {
+    const bit = new Promise<void>((resolve, reject) => {
+      const late = setTimeout(() => reject(new Error("nothing bit within 15 s")), 15_000);
+      bite = () => {
+        clearTimeout(late);
+        resolve();
+      };
+    });
+    await hub.invoke("Cast");
+    await bit;
+    const reel = await hub.invoke<{ outcome: string; totalCoins: number | null }>("Reel");
+    total = reel.totalCoins ?? total;
+    // A cat waits a second after reeling before it casts again.
+    await new Promise((resolve) => setTimeout(resolve, 1_100));
+  }
+  return total;
 }
