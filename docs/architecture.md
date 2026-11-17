@@ -74,6 +74,16 @@ Discord and Google sign in through OAuth into a short external cookie; `/auth/ca
 for that login and swaps it for the game's own cookie, which holds only the player ID. Guests get a player with a
 generated name and the same cookie. A provider is offered only when its client ID is configured.
 
+A guest keeps their cat with "Save your cat": a POST to `/auth/link/{provider}` from the game's own page (other sites
+are refused by `Sec-Fetch-Site` or `Origin`) starts the same OAuth sign-in, marked (in the
+protected `AuthenticationProperties`) with the player who asked, and `/auth/callback` then adds the login to that
+player (`Player.LinkLogin`) instead of finding or creating one, if the game cookie is still that player's. The cat,
+its ID and coins stay; it stops being a guest. A login that already has another cat is refused (`?link=taken`), never
+merged, and the guest stays signed in as themselves (also when two requests race for the login). A second login from
+a provider the cat already has is `?link=refused` (a unique index on `player_logins (player_id, provider)` holds that
+rule when two links race). A provider sign-in that fails on the way back (Cancel on the consent screen, lost state)
+returns to `?link=failed` or `?signin=failed` instead of an error page, and logs a warning.
+
 The cookie is encrypted with ASP.NET Core Data Protection, whose keys are kept in PostgreSQL so every pod can read
 every cookie.
 

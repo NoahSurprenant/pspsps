@@ -1,10 +1,11 @@
 import { Engine } from "@babylonjs/core";
+import { addressNote, linkUrl, loginUrl } from "./link";
 import { GameConnection, fetchMe, fetchProviders, messageOf, playAsGuest, signOut } from "./net";
 import { PendingEvents } from "./pending";
 import { comeBack } from "./rejoin";
 import { Room } from "./room";
 import { RoomScene } from "./scene";
-import { Overlay } from "./ui";
+import { Overlay, type Note } from "./ui";
 import type { Player, RoomSnapshot } from "./types";
 
 const overlay = new Overlay(required<HTMLElement>("#ui"));
@@ -145,28 +146,55 @@ async function load(request: () => Promise<RoomSnapshot>): Promise<void> {
   }
 }
 
-async function pickWorld(player: Player): Promise<void> {
+/** The world list; `providers` when they're already known (a guest who just signed in from the sign-in panel). */
+async function pickWorld(player: Player, providers?: string[], note?: Note): Promise<void> {
   me = player;
   await connection.start();
-  overlay.showWorlds(player, await connection.getWorlds(), (worldId) => void enter(worldId), () => {
-    void signOut().then(() => window.location.reload());
-  });
+  // A guest can save their cat with any provider the server offers.
+  const [saveWith, worlds] = await Promise.all([
+    providers ?? (player.isGuest ? fetchProviders() : []),
+    connection.getWorlds(),
+  ]);
+  overlay.showWorlds(
+    player,
+    worlds,
+    (worldId) => void enter(worldId),
+    () => void signOut().then(() => window.location.reload()),
+    { providers: saveWith, link: (provider) => postTo(linkUrl(provider)) },
+    note,
+  );
 }
 
 async function start(): Promise<void> {
+  const search = window.location.search;
   const player = await fetchMe();
+  // How signing in or saving the cat went, said once: a reload doesn't say it again.
+  const note = addressNote(search, player !== null);
+  if (note) {
+    window.history.replaceState(null, "", window.location.pathname);
+  }
+
   if (player) {
-    await pickWorld(player);
+    await pickWorld(player, undefined, note);
     return;
   }
 
-  const failed = new URLSearchParams(window.location.search).get("signin") === "failed";
+  const providers = await fetchProviders();
   overlay.showSignIn(
-    await fetchProviders(),
-    (provider) => window.location.assign(`/auth/login/${encodeURIComponent(provider)}`),
-    () => void playAsGuest().then(pickWorld).catch((error: unknown) => overlay.toast(messageOf(error))),
-    failed ? "Signing in didn't work. Try again." : undefined,
+    providers,
+    (provider) => window.location.assign(loginUrl(provider)),
+    () => void playAsGuest().then((guest) => pickWorld(guest, providers)).catch((error: unknown) => overlay.toast(messageOf(error))),
+    note,
   );
+}
+
+/** Leaves the page with a form post to `url` (the browser marks it as from this site), as a submit button would. */
+function postTo(url: string): void {
+  const form = document.createElement("form");
+  form.method = "post";
+  form.action = url;
+  document.body.append(form);
+  form.submit();
 }
 
 function required<T extends Element>(selector: string): T {

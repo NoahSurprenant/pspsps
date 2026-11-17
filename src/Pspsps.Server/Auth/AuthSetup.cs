@@ -43,7 +43,7 @@ public static class AuthSetup
         {
             auth.AddDiscord(options =>
             {
-                options.SignInScheme = ExternalScheme;
+                ConfigureExternal(options);
                 options.ClientId = discord["ClientId"]!;
                 options.ClientSecret = discord["ClientSecret"] ?? "";
             });
@@ -55,7 +55,7 @@ public static class AuthSetup
         {
             auth.AddGoogle(options =>
             {
-                options.SignInScheme = ExternalScheme;
+                ConfigureExternal(options);
                 options.ClientId = google["ClientId"]!;
                 options.ClientSecret = google["ClientSecret"] ?? "";
             });
@@ -67,4 +67,15 @@ public static class AuthSetup
     }
 
     public static AuthenticationProperties Persistent() => new() { IsPersistent = true };
+
+    /// <summary>
+    /// What every Discord and Google sign-in shares: it lands in the external cookie, and a failure on the way back
+    /// returns to the game with a message.
+    /// </summary>
+    public static void ConfigureExternal(RemoteAuthenticationOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        options.SignInScheme = ExternalScheme;
+        options.Events.OnRemoteFailure = ExternalSignInFailure.OnRemoteFailure;
+    }
 }

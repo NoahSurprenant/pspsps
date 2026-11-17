@@ -102,8 +102,9 @@ namespace Pspsps.Infrastructure.Migrations
                             b1.HasKey("Provider", "ProviderKey")
                                 .HasName("pk_player_logins");
 
-                            b1.HasIndex("PlayerId")
-                                .HasDatabaseName("ix_player_logins_player_id");
+                            b1.HasIndex("PlayerId", "Provider")
+                                .IsUnique()
+                                .HasDatabaseName("ix_player_logins_player_id_provider");
 
                             b1.ToTable("player_logins", (string)null);
 

@@ -78,8 +78,7 @@ jobs:
           echo "PG_IMAGE=$image" >> "$GITHUB_ENV"
           docker run -d --name postgres -p 5432:5432 \
             -e POSTGRES_USER=pspsps -e POSTGRES_PASSWORD=backup -e POSTGRES_DB=pspsps "$image"
-          # Over TCP: initdb's first server listens on the socket only.
-          timeout 60 bash -c 'until docker exec postgres pg_isready -q -h 127.0.0.1 -U pspsps -d pspsps; do sleep 1; done'
+          tests/chart/pg-wait.sh postgres pspsps pspsps
       - run: tests/chart/backup-test.sh
         env:
           PG_CONTAINER: postgres
