@@ -1,7 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
-import { doorMatRed, pixelsNear, pondBlue, watchErrors } from "./game";
+import { doorMat, doorMatRed, pixelsNear, pondBlue, watchErrors } from "./game";
 import { contextFor, SCREENS, type Screen, type Size } from "./screens";
 
 // Every screen at every size: every control and line of text can be reached (on screen, or in a panel that scrolls),
@@ -35,6 +35,8 @@ interface Checks {
   parts: string[];
   /** Anything else the screen must show at every size, waited for before the screenshot: what is missing. */
   shows?(page: Page): Promise<string[]>;
+  /** Anything else that must be reachable with the controls showing: what isn't. */
+  reachable?(page: Page): Promise<string[]>;
 }
 
 const CHECKS: Record<Screen["name"], Checks> = {
@@ -66,6 +68,11 @@ const CHECKS: Record<Screen["name"], Checks> = {
         await page.locator("#ui").evaluate((ui) => (ui.style.visibility = ""));
       }
     },
+    // The door is the only way out of the room: its mat must be clickable, not under the room bar or the dock.
+    reachable: async (page) => {
+      const mat = await doorMat(page, "cafe");
+      return typeof mat === "string" ? [mat] : [];
+    },
   },
 };
 
@@ -87,6 +94,7 @@ for (const screen of SCREENS) {
 
         const problems = [
           ...missing,
+          ...(checks.reachable ? await checks.reachable(page) : []),
           ...await offScreen(page),
           ...await offScreenOrOverlapping(page, checks.parts),
           ...(size.phone ? await smallTapTargets(page) : []),
