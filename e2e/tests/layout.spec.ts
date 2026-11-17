@@ -1,7 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
-import { doorMat, doorMatRed, pixelsNear, pondBlue, watchErrors } from "./game";
+import { catalogueStand, doorMat, doorMatRed, pixelsNear, pondBlue, watchErrors } from "./game";
 import { contextFor, SCREENS, type Screen, type Size } from "./screens";
 
 // Every screen at every size: every control and line of text can be reached (on screen, or in a panel that scrolls),
@@ -44,17 +44,19 @@ const CHECKS: Record<Screen["name"], Checks> = {
   worlds: { parts: [".panel"] },
   // A sheet over the room: the room's parts are behind it (inert), so only the sheet itself must fit.
   "player-card": { parts: [".sheet"] },
+  "own-card": { parts: [".sheet"] },
   friends: { parts: [".sheet"] },
-  shop: { parts: [".sheet"] },
+  catalogue: { parts: [".sheet"] },
   "town-square": {
     parts: [".room-bar", ".emote-bar", ".chat-bar", ".fishing"],
-    // The pond and the café door's mat, drawn: from further off (a narrow screen backs the camera away) the floor's
-    // outline once hid the pond, and props must never cover them.
-    shows: (page) => drawn(page, [["the pond", pondBlue, 20], ["the door's mat", doorMatRed, 2]]),
-    // The door is the only way out of the room: its mat must be clickable, not under the room bar or the dock.
+    // The pond and the doors' mats, drawn: from further off (a narrow screen backs the camera away) the floor's outline
+    // once hid the pond, and props must never cover them.
+    shows: (page) => drawn(page, [["the pond", pondBlue, 20], ["the doors' mats", doorMatRed, 4]]),
+    // The doors (the café's and the shop's) are the only ways out of the room: their mats must be clickable, not under
+    // the room bar or the dock.
     reachable: async (page) => {
-      const mat = await doorMat(page, "cafe");
-      return typeof mat === "string" ? [mat] : [];
+      const mats = [await doorMat(page, "cafe"), await doorMat(page, "shop")];
+      return mats.filter((mat): mat is string => typeof mat === "string");
     },
   },
   // A home: its owner's controls (Decorate, who can visit) in the dock, and its door out to Town Square clickable.
@@ -68,6 +70,15 @@ const CHECKS: Record<Screen["name"], Checks> = {
   },
   // Decorating: the panel in place of the emotes and the chat, the room above it.
   decorating: { parts: [".room-bar", ".decorate"] },
+  // The shop: its door back to the square drawn and clickable, and its catalogue stand clickable too.
+  "shop-room": {
+    parts: [".room-bar", ".emote-bar", ".chat-bar"],
+    shows: (page) => drawn(page, [["the door's mat", doorMatRed, 2]]),
+    reachable: async (page) => {
+      const [mat, stand] = [await doorMat(page, "town-square"), await catalogueStand(page)];
+      return [mat, stand].filter((thing): thing is string => typeof thing === "string");
+    },
+  },
   cafe: {
     parts: [".room-bar", ".emote-bar", ".chat-bar"],
     // The door back to the square's mat, among the café's tables and chairs, drawn and clickable.

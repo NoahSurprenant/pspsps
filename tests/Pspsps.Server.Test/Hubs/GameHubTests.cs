@@ -656,18 +656,34 @@ public sealed class GameHubTests
     {
         var hub = Hub();
         await hub.EnterWorld("tabby");
-        _shop.BuyAsync(Tom.Id, "bow", Arg.Any<CancellationToken>()).Returns(Dressed(null, null));
+        _shop.BuyAsync(Tom.Id, Arg.Any<string?>(), "bow", Arg.Any<CancellationToken>()).Returns(Dressed(null, null));
 
         var shop = await hub.Buy("bow");
 
         Assert.That(shop.Owned, Does.Contain("bow"));
+        // From the catalogue of the room the tab's cat is in, which the shop's rule (the Domain's) decides on.
+        await _shop.Received().BuyAsync(Tom.Id, "town-square", "bow", Arg.Any<CancellationToken>());
         await _room.DidNotReceiveWithAnyArgs().Dress(default!);
+    }
+
+    [Test]
+    public async Task Buy_FromATabThatWasReplaced_IsRefused_AndNothingIsBought()
+    {
+        // This tab was in the shop; another tab took the cat over (and may have walked it anywhere): this one buys nothing.
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+        _session.IsCurrent(Connection).Returns(false);
+
+        var refused = Assert.ThrowsAsync<HubException>(() => hub.Buy("bow"));
+
+        Assert.That(refused!.Message, Is.EqualTo(GameHub.ReplacedMessage));
+        await _shop.DidNotReceiveWithAnyArgs().BuyAsync(default, default, default!, default);
     }
 
     [Test]
     public void Buy_WithoutTheCoins_IsThePlayersMessage()
     {
-        _shop.BuyAsync(Tom.Id, "crown", Arg.Any<CancellationToken>())
+        _shop.BuyAsync(Tom.Id, null, "crown", Arg.Any<CancellationToken>())
             .ThrowsAsync(new DomainException("The Crown costs 1000 coins. You have 15."));
         var hub = Hub();
 
@@ -685,7 +701,7 @@ public sealed class GameHubTests
 
         var card = await hub.GetPlayerCard(Felix);
 
-        Assert.That(card, Is.EqualTo(new PlayerCardView(Felix, "Felix", "Black", "None", "Top hat", "Bell collar")));
+        Assert.That(card, Is.EqualTo(new PlayerCardView(Felix, "Felix", "Black", "None", "Top hat", "Bell collar", Hat: "top-hat", Collar: "bell-collar")));
     }
 
     [Test]

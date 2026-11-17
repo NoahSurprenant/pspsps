@@ -241,12 +241,12 @@ public sealed record PlayerPlace([property: Id(0)] string WorldId, [property: Id
 
 /// <summary>
 /// A player card: another cat, where the player looking stands with them (FriendState: "None", "RequestSent",
-/// "RequestReceived" or "Friends"), the names of the hat and collar it wears, if any, and whether its home would let the
-/// player looking in now.
+/// "RequestReceived" or "Friends"), the names of the hat and collar it wears, if any, whether its home would let the
+/// player looking in now, and the hat and collar themselves (shop item IDs), for the card's picture of the cat.
 /// </summary>
 public sealed record PlayerCardView(
     Guid PlayerId, string DisplayName, string FurColor, string FriendState, string? HatName = null, string? CollarName = null,
-    bool CanVisitHome = false);
+    bool CanVisitHome = false, string? Hat = null, string? Collar = null);
 
 /// <summary>Something in the shop (Kind: "Hat", "Collar" or "Fur"; a fur's colour in FurColor).</summary>
 public sealed record ShopItemView(string Id, string Name, string Kind, int Price, string? FurColor)

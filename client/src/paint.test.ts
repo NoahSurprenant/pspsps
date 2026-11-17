@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  floorPixel, largestTexture, paintCafeFloor, paintCafeWall, paintHomeFloor, paintHomeWall, paints, paintStreet, paintTownSquareFloor, paintTownSquareWall,
+  floorPixel, largestTexture, paintCafeFloor, paintCafeWall, paintHomeFloor, paintHomeWall, paints, paintShopFloor, paintShopWall, paintStreet, paintTownSquareFloor, paintTownSquareWall,
   seeded, textureSize, type Brush, type Floorplan,
 } from "./paint";
 import { palette, topOf } from "./props";
@@ -134,6 +134,40 @@ describe("the painters", () => {
     }
   });
 
+  // The rug is the catalogue's: centred under the stand (src/Pspsps.Domain/Rooms/RoomCatalog.cs).
+  it("paints the shop's rug under the catalogue stand", () => {
+    const plan = { ...square, width: 13, depth: 9, pond: null, doors: [] };
+    const { brush, calls } = recordingBrush();
+    paintShopFloor(brush, plan, 10);
+
+    const [x, y] = floorPixel(plan, 10, 1.4, -0.6);
+    const rug = calls.filter((c) => c.name === "ellipse");
+    expect(rug.length).toBeGreaterThan(0);
+    for (const { args } of rug) {
+      expect([args[0], args[1]]).toEqual([x, y]);
+    }
+  });
+
+  // The shop's wall is laid out round its door, by the back wall on the left (src/Pspsps.Domain/Rooms/RoomCatalog.cs).
+  it("paints the shop's wall with nothing off its edges, and nothing framed over its doorway", () => {
+    const door = { id: "town-square", x: -4.9, z: 3.6, radius: 0.8, toRoomId: "town-square", toRoomName: "Town Square" };
+    const { brush, calls } = recordingBrush();
+    paintShopWall(brush, 13, 4, 10, [door]);
+
+    const framed = calls.filter((c) => c.name === "strokeRect" && Number(c.args[2]) > 8);
+    expect(framed.length).toBeGreaterThanOrEqual(3);
+    for (const { args } of calls.filter((c) => c.name === "fillRect" || c.name === "strokeRect")) {
+      const [x, , w] = args.map(Number);
+      expect(x, `${args.join(", ")}`).toBeGreaterThanOrEqual(0);
+      expect((x ?? 0) + (w ?? 0), `${args.join(", ")}`).toBeLessThanOrEqual(130 + 1e-9);
+    }
+    for (const { args } of framed.filter((c) => Number(c.args[1]) < 25)) {
+      const [x, , w] = args.map(Number);
+      const [from, to] = [(x ?? 0) / 10 - 6.5, ((x ?? 0) + (w ?? 0)) / 10 - 6.5];
+      expect(to <= door.x - 1 || from >= door.x + 1, `${from} to ${to}`).toBe(true);
+    }
+  });
+
   it("paints the same floor every time", () => {
     const [first, second] = [recordingBrush(), recordingBrush()];
     paintTownSquareFloor(first.brush, square, 10, { x: 0, z: 3.4 });
@@ -154,12 +188,14 @@ describe("the painters", () => {
       (b: Brush) => paintStreet(b, 10),
       (b: Brush) => paintHomeFloor(b, { ...square, width: 12, depth: 9, pond: null }, 10),
       (b: Brush) => paintHomeWall(b, 12, 4, 10, []),
+      (b: Brush) => paintShopFloor(b, { ...square, width: 13, depth: 9, pond: null }, 10),
+      (b: Brush) => paintShopWall(b, 13, 4, 10, []),
     ]) {
       const { brush, colours } = recordingBrush();
       paint(brush);
       colours.forEach((colour) => used.add(colour));
     }
-    for (const room of ["town-square", "cafe", "home", "elsewhere"]) {
+    for (const room of ["town-square", "cafe", "home", "shop", "elsewhere"]) {
       const look = lookOf(room);
       [look.sky, look.floorColour, look.wallColour, look.ground?.colour].forEach((colour) => colour && used.add(colour));
       look.backdrop(square, 4).forEach((part) => used.add(part.colour));

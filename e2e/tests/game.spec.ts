@@ -1,7 +1,7 @@
 import { PNG } from "pngjs";
 import {
   animation, catEyes, cats, clickCat, emotes, enterWorld, expect, fishFor, goHome, goThroughDoor, hubGuest, newPlayer,
-  pixelsNear, pondBlue, roomBarButtons, tapFloor, test, watchErrors,
+  pixelsNear, pondBlue, roomBarButtons, tapFloor, test, watchErrors, expectRoom, openCatalogue, partyHatPink, portrait, focusByTab,
 } from "./game";
 
 test("the sign-in page loads without errors", async ({ page }) => {
@@ -21,7 +21,7 @@ test("a guest picks a world and the room draws", async ({ page }) => {
 
   await page.getByRole("button", { name: /^Tabby · / }).click();
 
-  await expect(page.locator(".room-bar strong")).toHaveText("Town Square");
+  await expectRoom(page, "Town Square");
   // Before a room shows, the canvas is one flat sky; a drawn room has floor, wall, outlines and a cat. The HTML over
   // the canvas is hidden for the capture, so its text can't pass for a room.
   await page.locator("#ui").evaluate((ui) => (ui.style.visibility = "hidden"));
@@ -47,7 +47,7 @@ test("a world tapped while another is loading is ignored", async ({ page }) => {
   await page.getByRole("button", { name: /^Tabby · / }).click();
   await page.getByRole("button", { name: /^Calico · / }).click();
 
-  await expect(page.locator(".room-bar strong")).toHaveText("Town Square");
+  await expectRoom(page, "Town Square");
   await page.waitForTimeout(2000);
   expect(await page.evaluate(() => window.pspsps?.room()?.snapshot.worldId)).toBe("tabby");
 });
@@ -215,7 +215,7 @@ test("a second tab takes over and the first says so", async ({ page: first, cont
   // Same browser, same cookie: the same player. No sign-in this time; straight to the worlds.
   await second.goto("/");
   await second.getByRole("button", { name: /^Tabby · / }).click();
-  await expect(second.locator(".room-bar strong")).toHaveText("Town Square");
+  await expectRoom(second, "Town Square");
 
   await expect(first.getByText("You've joined from another tab.")).toBeVisible();
   await expect(first.getByRole("button", { name: "Play here instead" })).toBeVisible();
@@ -354,14 +354,14 @@ test("two cats befriend each other from their cards, and one goes to the other",
     // Felix moves to another world, and its café; Tom's friends list says so, and Tom goes to him.
     await felix.page.getByRole("button", { name: "Worlds" }).click();
     await felix.page.getByRole("button", { name: /^Calico · / }).click();
-    await expect(felix.page.locator(".room-bar strong")).toHaveText("Town Square");
+    await expectRoom(felix.page, "Town Square");
     await goThroughDoor(felix.page, "cafe", "Cat Café");
     await tom.getByRole("button", { name: "Friends", exact: true }).click();
     const list = tom.getByRole("dialog", { name: "Friends" });
     await expect(list.getByText("Cat Café, Calico")).toBeVisible();
     await list.getByRole("button", { name: `Go to ${felixName}` }).click();
 
-    await expect(tom.locator(".room-bar strong")).toHaveText("Cat Café");
+    await expectRoom(tom, "Cat Café");
     await expect.poll(async () => Object.keys(await cats(tom)).sort()).toEqual([tomId, felixId].sort());
     expect(await tom.evaluate(() => window.pspsps?.room()?.snapshot.worldId)).toBe("calico");
 
@@ -432,7 +432,7 @@ test("the friends list keeps the focus where it was when a request arrives", asy
 test("a guest walks through the café door and comes in by the café's door back", async ({ page }) => {
   const me = await enterWorld(page, "Tabby");
   // Doors are the way around: the room bar has no buttons to other rooms.
-  expect(await roomBarButtons(page)).toEqual(["Shop", "Friends", "Worlds"]);
+  expect(await roomBarButtons(page)).toEqual(["Friends", "Worlds"]);
 
   // Click the door's mat where it is drawn: the cat walks onto it, then through.
   await goThroughDoor(page, "cafe", "Cat Café");
@@ -445,25 +445,19 @@ test("a guest walks through the café door and comes in by the café's door back
   expect(fromDoor).toBeGreaterThan(back.radius);
   expect(fromDoor).toBeLessThan(back.radius + 1);
   expect(cat).not.toMatchObject({ x: 0, z: 3 });
-  expect(await roomBarButtons(page)).toEqual(["Shop", "Friends", "Worlds"]);
+  expect(await roomBarButtons(page)).toEqual(["Friends", "Worlds"]);
 });
 
 // The doors are drawn on the canvas, which the keyboard can't reach: each also has a button, shown once it has focus.
 test("a keyboard player goes through a door", async ({ page }) => {
   await enterWorld(page, "Tabby");
-  const door = page.getByRole("button", { name: "Through the door to Cat Café" });
-
-  for (let tab = 0; tab < 30 && !(await door.evaluate((button) => button === document.activeElement)); tab++) {
-    await page.keyboard.press("Tab");
-  }
-  await expect(door).toBeFocused();
-  await expect(door).toBeVisible();
+  await focusByTab(page, page.getByRole("button", { name: "Through the door to Cat Café" }));
   await page.keyboard.press("Enter");
 
-  await expect(page.locator(".room-bar strong")).toHaveText("Cat Café");
+  await expectRoom(page, "Cat Café");
 });
 
-test("a cat buys a party hat with its catch, and another cat sees it wearing it", async ({ page: tom, browser, baseURL }) => {
+test("a cat buys a party hat at the shop's catalogue, wears it from its own card, and another cat sees it", async ({ page: tom, browser, baseURL }) => {
   // The fishing is real (3-9 s a bite), from the hub: about two catches, rarely more than six.
   test.setTimeout(180_000);
   const base = baseURL ?? "http://localhost:8080";
@@ -481,25 +475,41 @@ test("a cat buys a party hat with its catch, and another cat sees it wearing it"
     await tom.context().addCookies([{ name: fisher.cookie.slice(0, split), value: fisher.cookie.slice(split + 1), url: base }]);
     await tom.goto("/");
     await tom.getByRole("button", { name: /^Siamese · / }).click();
-    await expect(tom.locator(".room-bar strong")).toHaveText("Town Square");
+    await expectRoom(tom, "Town Square");
     await expect(tom.locator("#coins")).toHaveText(`🪙 ${coins}`);
+    // No Shop button: the shop is a place.
+    expect(await roomBarButtons(tom)).toEqual(["Friends", "Worlds"]);
     await enterWorld(felix.page, "Siamese");
     await expect.poll(async () => Object.keys(await cats(felix.page))).toContain(fisher.id);
 
-    // Tom buys the party hat in the shop, then puts it on.
-    await tom.getByRole("button", { name: "Shop", exact: true }).click();
-    const shop = tom.getByRole("dialog", { name: "Shop" });
-    await expect(shop.getByText(`You have 🪙 ${coins}`)).toBeVisible();
-    await expect(shop.getByRole("button", { name: "Buy the Crown for 1000 coins" })).toBeDisabled();
-    await shop.getByRole("button", { name: "Buy the Party hat for 30 coins" }).click();
-    await expect(shop.getByText(`You have 🪙 ${coins - 30}`)).toBeVisible();
-    // The focus stays on the hat's row, now Wear.
-    const wear = shop.getByRole("button", { name: "Wear the Party hat" });
-    await expect(wear).toBeFocused();
-    await wear.click();
-    await expect(shop.getByRole("button", { name: "Take off the Party hat" })).toBeVisible();
-    await shop.getByRole("button", { name: "Close" }).click();
+    // Tom walks through the shop's door off the square, and taps the catalogue on its stand: his cat walks up to it, and
+    // the catalogue opens.
+    await goThroughDoor(tom, "shop", "Cat Shop");
+    await openCatalogue(tom);
+    const catalogue = tom.getByRole("dialog", { name: "Catalogue" });
+    await expect(catalogue.getByText(`You have 🪙 ${coins}`)).toBeVisible();
+    await expect(catalogue.getByRole("button", { name: "Buy the Crown for 1000 coins" })).toBeDisabled();
+    await catalogue.getByRole("button", { name: "Buy the Party hat for 30 coins" }).click();
+    await expect(catalogue.getByText(`You have 🪙 ${coins - 30}`)).toBeVisible();
+    // Bought, it's his: worn from his own card, not the catalogue.
+    await expect(catalogue.locator(".shop-item", { hasText: "Party hat" }).getByText("Yours")).toBeVisible();
+    await expect(catalogue.getByRole("button", { name: "Wear the Party hat" })).toHaveCount(0);
+    await catalogue.getByRole("button", { name: "Close" }).click();
     await expect(tom.locator("#coins")).toHaveText(`🪙 ${coins - 30}`);
+
+    // Back in the square, where Felix is, Tom taps his own cat: his card, with a picture of his cat, hatless still.
+    await goThroughDoor(tom, "town-square", "Town Square");
+    await clickCat(tom, fisher.id);
+    const card = tom.getByRole("dialog", { name: fisher.name });
+    await expect(card).toBeVisible();
+    expect(pixelsNear(await portrait(tom), partyHatPink, 1)).toBeLessThan(5);
+    await card.getByRole("button", { name: "Wear the Party hat" }).click();
+    await expect(card.getByRole("button", { name: "Take off the Party hat" })).toBeVisible();
+    await expect(card.getByText("Wearing: Party hat")).toBeVisible();
+    // The picture changes at once: the hat's pink on it.
+    await expect.poll(async () => pixelsNear(await portrait(tom), partyHatPink, 1)).toBeGreaterThan(40);
+    await expect(card.getByRole("img", { name: new RegExp(`^${fisher.name}: an? \\w+ cat wearing a party hat$`) })).toBeVisible();
+    await card.getByRole("button", { name: "Close" }).click();
 
     // Felix's screen has it on Tom's cat: in the room, and drawn on the model.
     await expect.poll(() => felix.page.evaluate((id) => window.pspsps?.room()?.cats.get(id)?.hat, fisher.id)).toBe("party-hat");
@@ -507,17 +517,46 @@ test("a cat buys a party hat with its catch, and another cat sees it wearing it"
     // And Tom's own.
     await expect.poll(() => tom.evaluate((id) => window.pspsps?.wearing(id)?.hat, fisher.id)).toBe("party-hat");
 
-    // Tom walks off the spawn point (where Felix stands), and Felix taps him: his card says what he wears.
-    const canvas = await tom.locator("#game").boundingBox();
-    if (!canvas) throw new Error("no canvas");
-    await tom.mouse.click(canvas.x + canvas.width / 2, canvas.y + canvas.height / 2);
-    await expect.poll(async () => (await cats(felix.page))[fisher.id]?.z).toBeLessThan(3);
+    // Felix taps Tom: his card says what he wears, and its picture shows the hat.
     await clickCat(felix.page, fisher.id);
-    await expect(felix.page.getByRole("dialog", { name: fisher.name }).getByText("Wearing: Party hat")).toBeVisible();
+    const tomsCard = felix.page.getByRole("dialog", { name: fisher.name });
+    await expect(tomsCard.getByText("Wearing: Party hat")).toBeVisible();
+    await expect.poll(async () => pixelsNear(await portrait(felix.page), partyHatPink, 1)).toBeGreaterThan(40);
     expect(felix.errors, "Felix's console errors and uncaught exceptions").toEqual([]);
   } finally {
     await felix.close();
   }
+});
+
+// Buying is the shop's: the server refuses a purchase from anywhere else, whatever a browser asks.
+test("buying anywhere but the shop is refused", async ({ baseURL }) => {
+  const tom = await hubGuest(baseURL ?? "http://localhost:8080");
+  try {
+    await tom.hub.invoke("EnterWorld", "tabby");
+    await expect(tom.hub.invoke("Buy", "party-hat")).rejects.toThrow("Things are bought from the catalogue in the Cat Shop, off Town Square.");
+    // In the shop the place is right: what is refused is the price (a new guest has no coins).
+    await tom.hub.invoke("GoToRoom", "shop");
+    await expect(tom.hub.invoke("Buy", "party-hat")).rejects.toThrow("The Party hat costs 30 coins. You have 0.");
+  } finally {
+    await tom.hub.stop();
+  }
+});
+
+// The cat, the stand and the doors are on the canvas, which the keyboard can't reach: each has a button, shown once it
+// has focus.
+test("a keyboard player opens its own card, and the catalogue in the shop", async ({ page }) => {
+  await enterWorld(page, "Tabby");
+  await expect(page.getByRole("button", { name: "Open the catalogue" })).toHaveCount(0);
+  await focusByTab(page, page.getByRole("button", { name: "Your cat" }));
+  await page.keyboard.press("Enter");
+  const name = await page.evaluate(async () => ((await (await fetch("/api/me")).json()) as { displayName: string }).displayName);
+  await expect(page.getByRole("dialog", { name })).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  await goThroughDoor(page, "shop", "Cat Shop");
+  await focusByTab(page, page.getByRole("button", { name: "Open the catalogue" }));
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("dialog", { name: "Catalogue" })).toBeVisible({ timeout: 15_000 });
 });
 
 test("a cat buys a plant with its catch, puts it out at home, and a friend visits and sees it", async ({ page: tom, browser, baseURL }) => {
@@ -544,11 +583,12 @@ test("a cat buys a plant with its catch, puts it out at home, and a friend visit
     await tom.context().addCookies([{ name: fisher.cookie.slice(0, split), value: fisher.cookie.slice(split + 1), url: base }]);
     await tom.goto("/");
     await tom.getByRole("button", { name: /^Tabby · / }).click();
-    await expect(tom.locator(".room-bar strong")).toHaveText("Town Square");
+    await expectRoom(tom, "Town Square");
 
-    // Tom buys a potted plant in the shop, with the coins he caught.
-    await tom.getByRole("button", { name: "Shop", exact: true }).click();
-    const shop = tom.getByRole("dialog", { name: "Shop" });
+    // Tom buys a potted plant from the catalogue in the shop, with the coins he caught.
+    await goThroughDoor(tom, "shop", "Cat Shop");
+    await openCatalogue(tom);
+    const shop = tom.getByRole("dialog", { name: "Catalogue" });
     await shop.getByRole("button", { name: "Buy the Potted plant for 35 coins" }).click();
     await expect(shop.getByText(`You have 🪙 ${coins - 35}`)).toBeVisible();
     await expect(shop.getByRole("button", { name: "Buy another Potted plant for 35 coins" })).toBeVisible();
@@ -556,7 +596,7 @@ test("a cat buys a plant with its catch, puts it out at home, and a friend visit
 
     // He goes home, decorates, and puts the plant out with a tap on the floor.
     await goHome(tom);
-    await expect(tom.locator(".room-bar strong")).toHaveText(`${fisher.name}'s home`);
+    await expectRoom(tom, `${fisher.name}'s home`);
     await tom.getByRole("button", { name: "Decorate" }).click();
     await tom.getByRole("button", { name: "Potted plant · 1 left" }).click();
     await tapFloor(tom, 2.5, 2.5);
@@ -573,7 +613,7 @@ test("a cat buys a plant with its catch, puts it out at home, and a friend visit
     // Felix visits Tom's home from his friends list, comes in by its door, and sees the plant where Tom put it.
     await felix.page.getByRole("button", { name: "Friends", exact: true }).click();
     await felix.page.getByRole("button", { name: `Visit home of ${fisher.name}` }).click();
-    await expect(felix.page.locator(".room-bar strong")).toHaveText(`${fisher.name}'s home`);
+    await expectRoom(felix.page, `${fisher.name}'s home`);
     await expect.poll(() => felix.page.evaluate(() => window.pspsps?.drawnProps().map((p) => p.kind))).toContain("plant");
     await expect.poll(async () => Object.keys(await cats(felix.page))).toContain(fisher.id);
     expect(await felix.page.evaluate(() => window.pspsps?.room()?.snapshot.worldId)).toBe("tabby");
@@ -601,11 +641,11 @@ test("a cat visiting a friend's home goes back to Town Square when they stop bei
     await tom.getByRole("button", { name: "Friends", exact: true }).click();
     await tom.getByRole("button", { name: `Accept ${felix.name}` }).click();
     await tom.getByRole("button", { name: `Visit home of ${felix.name}` }).click();
-    await expect(tom.locator(".room-bar strong")).toHaveText(`${felix.name}'s home`);
+    await expectRoom(tom, `${felix.name}'s home`);
 
     // Felix ends the friendship: his home is for friends, so Tom is sent back to Town Square, in Calico, and told.
     await felix.hub.invoke("RemoveFriend", tomId);
-    await expect(tom.locator(".room-bar strong")).toHaveText("Town Square");
+    await expectRoom(tom, "Town Square");
     await expect(tom.getByText(`You and ${felix.name} aren't friends any more`)).toBeVisible();
     expect(await tom.evaluate(() => window.pspsps?.room()?.snapshot.worldId)).toBe("calico");
   } finally {

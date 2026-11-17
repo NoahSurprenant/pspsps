@@ -56,14 +56,21 @@ Rooms are joined by doors, in the room catalogue (`RoomCatalog`): a door (`Door`
 that leads to a door of another room. The browser walks the cat onto it, then calls `GoThroughDoor`; the room's grain
 lets the cat out only if it stands on that door (`RoomState.LeaveThrough`), and the next room puts it just inside
 the matching door (`Door.Arrival`), off it, so it doesn't walk straight back out. Doors are the only way round in
-the browser (for the keyboard, each door also has a button, shown once it has focus). `GoToRoom` goes straight to a
+the browser (for the keyboard, each door also has a button, shown once it has focus: so do the player's own cat and,
+in the shop, the catalogue). `GoToRoom` goes straight to a
 room's spawn point: the browser uses it to rejoin its room after a reconnect, and a map of the world will use it.
 
 A room's props (`Prop`: benches, trees, café tables) are in the catalogue too, and go to the browser with the room;
 they are decoration, which cats walk through. `PropPlacement` keeps them out of the way: on the floor, off the doors,
 the pond and where cats fish from, the spawn point, and the straight walks between all of these. The browser draws
 each kind in the room's flat, outlined style, all of a room's props in one mesh, and paints the floors and back walls
-in code on the way into a room (`client/src/looks.ts`): no image files.
+in code on the way into a room (`client/src/looks.ts`): no image files. One prop is more than decoration: the shop's
+catalogue stand (Shop, below).
+
+The room bar is small, to leave the room in view: the coins, Friends and Worlds. The room's name is the page's title
+("Cat Café · pspsps"), which the tab and screen readers say. A tap on the room goes to the first of these along its
+ray, not the nearest: another cat (its card), a door, the pond, the player's own cat (their own card), the catalogue
+stand, a prop (the cat walks beside it), the floor. So a door just behind the player's own cat still takes the tap.
 
 Chat goes the same way, through the room's chat filter (`ChatFilter`, a rule of `RoomState.Say`): word lists that
 either star a word out or refuse the whole line, seeing through accents, look-alike letters, digits for letters,
@@ -99,10 +106,22 @@ player's tabs (`FriendsChanged`, through SignalR's user = player ID).
 
 ## Shop
 
-The shop (`ShopCatalog`) sells hats, collars and fur colours for coins, which come from fishing. Buying and wearing are
-rules of the `Player` aggregate: a player buys what they can afford and don't have yet (`Buy`), and has it from then on
-(`player_items`); every cat also owns the coat it was born with. A cat wears at most one hat and one collar, and always
-one fur (`Wear`, `TakeOff`). Guests shop like everyone.
+The shop is a place: the Cat Shop, a room of the catalogue (`RoomCatalog.ShopId`) whose door is one of the shopfronts in
+Town Square's back wall. It sells (`ShopCatalog`) hats, collars, fur colours and furniture for coins, which come from
+fishing. Buying and wearing are rules of the `Player` aggregate: a player buys, from the room their cat is in, what they
+can afford and don't have yet (`Buy`), and has it from then on (`player_items`); every cat also owns the coat it was born
+with. Only a room with the catalogue in it sells (`RoomDefinition.HasCatalogue`: a `PropKinds.CatalogueStand` among its
+props, which only the shop has); a purchase from anywhere else (another room, a home, no room) is refused with a message
+saying where to go. The hub hands the use case (`ShopService.BuyAsync`) the room of the tab that asked, from its own
+record of where each connection is. A cat wears at most one hat and one collar, and always one fur (`Wear`, `TakeOff`),
+anywhere. Guests shop like everyone.
+
+In the browser, a tap on the catalogue stand walks the cat up to it and opens the catalogue once it is there (at once
+for a cat near it already; `client/src/catalogue.ts`); "Open the catalogue" does the same for the keyboard. What a
+player has is put on and taken off from their own card, which a tap on their own cat opens (or "Your cat"). Every
+player card shows a picture of the cat as it looks now, its fur, hat and collar (`client/src/portrait.ts`): the room's
+cat model, dressed, drawn once into an image off screen, in a scene of its own on the room's engine that is disposed
+as soon as the picture is taken; pictures are kept per outfit. Nothing more is downloaded, and nothing keeps drawing.
 
 Coins never go below zero, however many purchases and catches land at once. A catch adds its coins in one statement
 (`coins = coins + n`); a purchase reads the player, applies the rule and saves, with `Coins` as a concurrency token: a

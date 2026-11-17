@@ -1,8 +1,8 @@
 // Each room's look: the sky (the colour round it), how its floor and back wall are painted, the ground round it, and the
 // backdrop behind its back wall that the fixed camera sees over it.
 import {
-  houses, paintCafeFloor, paintCafeWall, paintHomeFloor, paintHomeWall, paints, paintStreet, paintTownSquareFloor,
-  paintTownSquareWall, type Brush, type Floorplan,
+  houses, paintCafeFloor, paintCafeWall, paintHomeFloor, paintHomeWall, paints, paintShopFloor, paintShopWall, paintStreet,
+  paintTownSquareFloor, paintTownSquareWall, type Brush, type Floorplan,
 } from "./paint";
 import { ink, palette, type Part } from "./props";
 import type { DoorView } from "./types";
@@ -43,6 +43,15 @@ const looks: Record<string, RoomLook> = {
     paintFloor: paintCafeFloor,
     paintWall: paintCafeWall,
     backdrop: cafeBackdrop,
+  },
+  // The shop, off Town Square, where the catalogue is.
+  shop: {
+    sky: "#eadfc4",
+    floorColour: paints.shopTile,
+    wallColour: paints.shopWall,
+    paintFloor: paintShopFloor,
+    paintWall: paintShopWall,
+    backdrop: shopBackdrop,
   },
   // Every player's home (src/Pspsps.Domain/Homes/Home.cs, Layout): one look, its furniture the owner's own.
   home: {
@@ -181,5 +190,36 @@ function homeBackdrop(plan: Floorplan, wallHeight: number): Part[] {
     { shape: "box", width: 0.03, height: cord, depth: 0.03, at: [1.5, lantern + cord / 2, halfDepth - 2.5], colour: palette.iron, outlined: false },
     { shape: "ball", diameter: 0.7, at: [1.5, lantern, halfDepth - 2.5], colour: palette.glow },
   );
+  return parts;
+}
+
+/**
+ * The shop's walls: above the back wall's painted front, more wallpaper under a dark cornice; at the sides, walls like
+ * the back, panelled. Two lamps hang over the catalogue, well above the cats.
+ */
+function shopBackdrop(plan: Floorplan, wallHeight: number): Part[] {
+  const [halfWidth, halfDepth] = [plan.width / 2, plan.depth / 2];
+  const upper = 7;
+  const parts: Part[] = [
+    { shape: "box", width: plan.width + 0.7, height: upper, depth: 0.3, at: [0, wallHeight + upper / 2, halfDepth + 0.15], colour: paints.shopWall },
+    { shape: "box", width: plan.width + 0.9, height: 0.3, depth: 0.5, at: [0, wallHeight + 0.15, halfDepth + 0.05], colour: palette.darkWood },
+  ];
+  for (const side of [-1, 1]) {
+    const x = side * (halfWidth + 0.2);
+    parts.push(
+      { shape: "box", width: 0.3, height: wallHeight, depth: plan.depth + 0.3, at: [x, wallHeight / 2, 0.15], colour: paints.shopWall },
+      { shape: "box", width: 0.36, height: 1.0, depth: plan.depth + 0.36, at: [x, 0.5, 0.15], colour: palette.sage, outlined: false },
+      { shape: "box", width: 0.4, height: 0.3, depth: plan.depth + 0.4, at: [x, wallHeight + 0.15, 0.15], colour: palette.darkWood },
+    );
+  }
+  const lamp = wallHeight - 1.2;
+  const cord = wallHeight + upper - lamp;
+  for (const x of [0.2, 2.6]) {
+    parts.push(
+      { shape: "box", width: 0.03, height: cord, depth: 0.03, at: [x, lamp + cord / 2, halfDepth - 3], colour: palette.iron, outlined: false },
+      { shape: "cylinder", diameter: 0.55, top: 0.2, height: 0.34, sides: 16, at: [x, lamp, halfDepth - 3], colour: palette.teal },
+      { shape: "ball", diameter: 0.22, at: [x, lamp - 0.18, halfDepth - 3], colour: palette.glow },
+    );
+  }
   return parts;
 }

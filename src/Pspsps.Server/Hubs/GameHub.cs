@@ -467,9 +467,23 @@ public sealed partial class GameHub(
     public async Task<ShopView> GetShop() =>
         ShopView.From(await PlayersRule(() => shop.GetAsync(PlayerId, Context.ConnectionAborted)));
 
-    /// <summary>Buys something with the player's coins (it isn't put on); the shop as it is after.</summary>
-    public async Task<ShopView> Buy(string itemId) =>
-        ShopView.From(await PlayersRule(() => shop.BuyAsync(PlayerId, itemId, Context.ConnectionAborted)));
+    /// <summary>
+    /// Buys something with the player's coins (it isn't put on), from the catalogue of the room this tab's cat is in:
+    /// the shop's, or the purchase is refused (a rule of the Domain); the shop as it is after.
+    /// </summary>
+    public async Task<ShopView> Buy(string itemId)
+    {
+        // Only the tab that plays the cat: a replaced one may still think it is in the shop. (In no room, it buys nothing
+        // anyway.)
+        if (Here?.RoomKey is not null)
+        {
+            await EnsureCurrentTab();
+        }
+
+        // Read after the wait. A home's room is its owner's ID, which is no room of the catalogue: it sells nothing.
+        var roomId = Here?.RoomKey is { } key ? RoomKey.Parse(key).RoomId : null;
+        return ShopView.From(await PlayersRule(() => shop.BuyAsync(PlayerId, roomId, itemId, Context.ConnectionAborted)));
+    }
 
     /// <summary>Puts on a hat, collar or fur the player has: the room the cat is in sees it at once.</summary>
     public Task<ShopView> Wear(string itemId) => Dress(() => shop.WearAsync(PlayerId, itemId, Context.ConnectionAborted));
@@ -681,7 +695,8 @@ public sealed partial class GameHub(
     {
         var open = await homes.OpenToAsync(PlayerId, [relation.PlayerId], Context.ConnectionAborted);
         return new(relation.PlayerId, relation.DisplayName, relation.FurColor.ToString(), relation.State.ToString(),
-            ShopCatalog.Find(relation.Hat)?.Name, ShopCatalog.Find(relation.Collar)?.Name, open.Contains(relation.PlayerId));
+            ShopCatalog.Find(relation.Hat)?.Name, ShopCatalog.Find(relation.Collar)?.Name, open.Contains(relation.PlayerId),
+            relation.Hat, relation.Collar);
     }
 
     // A use case's call: a rule it breaks (a DomainException) is the player's message.

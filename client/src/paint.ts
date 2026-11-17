@@ -81,6 +81,13 @@ export const paints = {
   wallpaperSprig: "#e3c6b4",
   skirting: "#fbf3ea",
   curtain: "#d98ba6",
+  shopTile: "#cfe6d4",
+  shopTileLight: "#f4ecdc",
+  shopGrout: "#b9cfbf",
+  shopRug: "#c9b3e0",
+  shopRugDark: "#a98fc8",
+  shopWall: "#f7ecc9",
+  shopStripe: "#f0dfae",
 } as const;
 
 /**
@@ -623,4 +630,150 @@ export function paintStreet(brush: Brush, scale: number): void {
  */
 export function powerOfTwo(pixels: number): number {
   return Math.min(largestTexture, 2 ** Math.max(0, Math.round(Math.log2(pixels))));
+}
+
+/** Where the shop's catalogue stand is (src/Pspsps.Domain/Rooms/RoomCatalog.cs): its rug is under it. */
+const shopCatalogueStand = { x: 1.4, z: -0.6 };
+
+/** The shop's floor: big tiles, mint and cream, in a check, and a round lilac rug in the middle under the catalogue. */
+export function paintShopFloor(brush: Brush, plan: Floorplan, scale: number): void {
+  const tile = 1 * scale;
+  const [w, h] = [plan.width * scale, plan.depth * scale];
+  for (let row = 0; row * tile < h; row++) {
+    for (let column = 0; column * tile < w; column++) {
+      brush.fillStyle = (row + column) % 2 === 0 ? paints.shopTile : paints.shopTileLight;
+      brush.fillRect(column * tile, row * tile, tile, tile);
+    }
+  }
+  brush.strokeStyle = paints.shopGrout;
+  brush.lineWidth = Math.max(1, scale * 0.03);
+  brush.beginPath();
+  for (let x = 0; x <= w; x += tile) {
+    brush.moveTo(x, 0);
+    brush.lineTo(x, h);
+  }
+  for (let y = 0; y <= h; y += tile) {
+    brush.moveTo(0, y);
+    brush.lineTo(w, y);
+  }
+  brush.stroke();
+
+  // The rug: lilac with a darker ring and a scalloped cream edge.
+  const [cx, cy] = floorPixel(plan, scale, shopCatalogueStand.x, shopCatalogueStand.z);
+  const [rx, ry] = [2.6 * scale, 1.9 * scale];
+  brush.beginPath();
+  brush.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+  brush.fillStyle = palette.cream;
+  brush.fill();
+  brush.strokeStyle = ink;
+  brush.lineWidth = Math.max(2, scale * 0.06);
+  brush.stroke();
+  brush.beginPath();
+  brush.ellipse(cx, cy, rx - 0.25 * scale, ry - 0.25 * scale, 0, 0, Math.PI * 2);
+  brush.fillStyle = paints.shopRug;
+  brush.fill();
+  brush.beginPath();
+  brush.ellipse(cx, cy, rx - 0.7 * scale, ry - 0.6 * scale, 0, 0, Math.PI * 2);
+  brush.strokeStyle = paints.shopRugDark;
+  brush.lineWidth = Math.max(2, scale * 0.08);
+  brush.stroke();
+}
+
+/**
+ * The shop's back wall: striped butter wallpaper over sage panelling, bunting along the top, and, each painted only
+ * where it fits (on the wall, clear of the doorways), a sign saying what the shop is, a poster of a top hat and a
+ * window.
+ */
+export function paintShopWall(brush: Brush, width: number, height: number, scale: number, doors: readonly DoorView[]): void {
+  const x = (metres: number) => (metres + width / 2) * scale;
+  const y = (metres: number) => (height - metres) * scale;
+  brush.fillStyle = paints.shopWall;
+  brush.fillRect(0, 0, width * scale, height * scale);
+  brush.fillStyle = paints.shopStripe;
+  for (let m = -width / 2; m < width / 2; m += 0.5) {
+    brush.fillRect(x(m), 0, Math.min(0.2, width / 2 - m) * scale, height * scale);
+  }
+  // Panelling, waist high, and its rail.
+  brush.fillStyle = palette.sage;
+  brush.fillRect(0, y(1.0), width * scale, 1.0 * scale);
+  brush.strokeStyle = palette.teal;
+  brush.lineWidth = Math.max(2, scale * 0.04);
+  for (let m = -width / 2 + 0.15; m < width / 2 - 0.8; m += 0.9) {
+    brush.strokeRect(x(m), y(0.85), 0.7 * scale, 0.7 * scale);
+  }
+  brush.fillStyle = palette.darkWood;
+  brush.fillRect(0, y(1.06), width * scale, 0.08 * scale);
+
+  // Bunting under the ceiling: little flags on a line, in turn pink, butter and sage.
+  const flags = [palette.hatPink, palette.butter, palette.sage] as const;
+  brush.strokeStyle = ink;
+  brush.lineWidth = Math.max(1.5, scale * 0.03);
+  for (let m = -width / 2 + 0.1, i = 0; m + 0.4 <= width / 2; m += 0.5, i++) {
+    brush.beginPath();
+    brush.moveTo(x(m), y(3.75));
+    brush.lineTo(x(m + 0.4), y(3.75));
+    brush.lineTo(x(m + 0.2), y(3.4));
+    brush.closePath();
+    brush.fillStyle = flags[i % flags.length] ?? palette.butter;
+    brush.fill();
+    brush.stroke();
+  }
+
+  const taken: [number, number][] = [];
+  const fits = (from: number, to: number) => {
+    const ok = from >= -width / 2 + 0.1 && to <= width / 2 - 0.1
+      && !doors.some((door) => door.x + 1 > from && door.x - 1 < to)
+      && !taken.some(([a, b]) => b > from && a < to);
+    if (ok) {
+      taken.push([from, to]);
+    }
+    return ok;
+  };
+  // The sign, over the shelves: a wooden board with the shop's name, and a party hat each side of it.
+  const sign = -2.2;
+  if (fits(sign, sign + 3.6)) {
+    frame(brush, x(sign), y(3.25), 3.6 * scale, 0.85 * scale, scale, palette.darkWood);
+    brush.fillStyle = palette.cream;
+    brush.font = `bold ${Math.round(0.42 * scale)}px sans-serif`;
+    brush.textAlign = "center";
+    brush.fillText("Cat Shop", x(sign + 1.8), y(2.97));
+    for (const at of [sign + 0.4, sign + 3.2]) {
+      brush.beginPath();
+      brush.moveTo(x(at - 0.16), y(2.55));
+      brush.lineTo(x(at + 0.16), y(2.55));
+      brush.lineTo(x(at), y(3.1));
+      brush.closePath();
+      brush.fillStyle = palette.hatPink;
+      brush.fill();
+      brush.stroke();
+    }
+  }
+  // A poster of a top hat, right of the sign.
+  const poster = 1.8;
+  if (fits(poster, poster + 1.1)) {
+    frame(brush, x(poster), y(3.1), 1.1 * scale, 1.2 * scale, scale, palette.cream);
+    brush.fillStyle = palette.felt;
+    brush.fillRect(x(poster + 0.35), y(2.75), 0.4 * scale, 0.55 * scale);
+    brush.fillRect(x(poster + 0.2), y(2.2), 0.7 * scale, 0.08 * scale);
+    brush.fillStyle = palette.rose;
+    brush.fillRect(x(poster + 0.35), y(2.36), 0.4 * scale, 0.08 * scale);
+  }
+  // A window near the right end, over the counter.
+  const window = width / 2 - 1.8;
+  if (fits(window, window + 1.4)) {
+    frame(brush, x(window), y(3.1), 1.4 * scale, 1.5 * scale, scale, paints.windowSky);
+    brush.fillStyle = palette.lightLeaf;
+    brush.fillRect(x(window), y(1.95), 1.4 * scale, 0.35 * scale);
+    brush.strokeStyle = ink;
+    brush.lineWidth = Math.max(2, scale * 0.05);
+    brush.beginPath();
+    brush.moveTo(x(window + 0.7), y(3.1));
+    brush.lineTo(x(window + 0.7), y(1.6));
+    brush.moveTo(x(window), y(2.35));
+    brush.lineTo(x(window + 1.4), y(2.35));
+    brush.stroke();
+  }
+  // The line under the ceiling.
+  brush.fillStyle = palette.darkWood;
+  brush.fillRect(0, 0, width * scale, 0.1 * scale);
 }

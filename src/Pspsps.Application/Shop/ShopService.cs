@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Pspsps.Application.Abstractions;
 using Pspsps.Domain;
 using Pspsps.Domain.Players;
+using Pspsps.Domain.Rooms;
 
 namespace Pspsps.Application.Shop;
 
@@ -19,8 +20,11 @@ internal sealed class ShopService(IApplicationDbContext db, TimeProvider time) :
         return Wardrobe.Of(player);
     }
 
-    public Task<Wardrobe> BuyAsync(Guid playerId, string itemId, CancellationToken cancellationToken) =>
-        ChangeAsync(playerId, player => player.Buy(itemId, time.GetUtcNow()), cancellationToken);
+    public Task<Wardrobe> BuyAsync(Guid playerId, string? roomId, string itemId, CancellationToken cancellationToken)
+    {
+        var room = roomId is null ? null : RoomCatalog.Find(roomId);
+        return ChangeAsync(playerId, player => player.Buy(itemId, room, time.GetUtcNow()), cancellationToken);
+    }
 
     public Task<Wardrobe> WearAsync(Guid playerId, string itemId, CancellationToken cancellationToken) =>
         ChangeAsync(playerId, player => player.Wear(itemId), cancellationToken);

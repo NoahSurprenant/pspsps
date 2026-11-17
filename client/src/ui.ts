@@ -3,7 +3,10 @@ import type { Fishing } from "./fishing";
 import { canGoTo, friendButtons, friendStatus, sections, whereIs, type FriendAction, type Here } from "./friends";
 import { coatOf } from "./fur";
 import { visitorChoices, type FurnitureLeft } from "./home";
-import { shopSections, wearingLine, type ShopAction, type ShopRow } from "./shop";
+import {
+  catalogueSections, hasMoreToWear, wardrobeSections, wearingLine, type ShopAction, type ShopRow, type ShopSection,
+} from "./shop";
+import { pageTitle } from "./title";
 import type {
   DoorView, Emote, FurColor, Friend, FurnitureView, HomeVisitors, Player, PlayerCard, RoomSnapshot, Shop, WorldSummary,
 } from "./types";
@@ -25,6 +28,18 @@ export interface FishingControls {
   fish: () => void;
   reel: () => void;
   state: () => Fishing;
+}
+
+/** A picture of a cat for its card: what it shows (for a screen reader), and the picture, now or once it is taken. */
+export interface CatPicture {
+  description: string;
+  src: string | Promise<string> | undefined;
+}
+
+/** The room's buttons for the keyboard (the room itself is a canvas): the player's own cat, and the catalogue in the shop. */
+export interface RoomKeys {
+  yourCat: () => void;
+  catalogue?: () => void;
 }
 
 /** What the owner's controls in their own home do: decorate, and choose who may visit (now `visitors`). */
@@ -71,9 +86,6 @@ export class Overlay {
 
   /** Opens the friends list: the room bar has a Friends button once this is set. */
   onFriends: (() => void) | undefined;
-
-  /** Opens the shop: the room bar has a Shop button once this is set. */
-  onShop: (() => void) | undefined;
 
   constructor(private readonly root: HTMLElement) {}
 
@@ -137,7 +149,7 @@ export class Overlay {
 
   showRoom(
     room: RoomSnapshot, say: (text: string) => void, emote: (emote: Emote) => void, throughDoor: (door: DoorView) => void,
-    leave: () => void, coins: number, fishing?: FishingControls, home?: HomeControls,
+    leave: () => void, coins: number, keys: RoomKeys, fishing?: FishingControls, home?: HomeControls,
   ): void {
     this.fishing = fishing;
     const input = el("input", { className: "chat" });
@@ -162,16 +174,16 @@ export class Overlay {
       }),
     );
     this.replace(
+      // Small, to leave the room in view: the coins and the way to friends and worlds. No room name (it is the page's
+      // title) and no buttons to other rooms: the doors are the way around, and the shop is one of the rooms.
       el("div", { className: "room-bar" },
-        // No buttons to other rooms: the doors are the way around.
-        el("strong", { text: room.roomName }),
         el("span", { className: "coins", id: "coins", text: coinText(coins) }),
-        ...(this.onShop ? [button("Shop", this.onShop)] : []),
         ...(this.onFriends ? [button("Friends", this.onFriends)] : []),
         button("Worlds", leave, "quiet"),
       ),
-      // The doors are drawn on the canvas, which the keyboard can't reach: a button for each, unseen until it has focus.
-      doorLinks(room.doors, throughDoor),
+      // The cat, the doors and the catalogue are drawn on the canvas, which the keyboard can't reach: a button for each,
+      // unseen until it has focus.
+      keyboardLinks(room.doors, throughDoor, keys),
       el("div", { className: "dock" },
         el("div", { className: "toast", id: "toast" }),
         ...(fishing ? [el("div", { className: "fishing", id: "fishing" })] : []),
@@ -180,6 +192,8 @@ export class Overlay {
         form,
       ),
     );
+
+    document.title = pageTitle(room.roomName);
 
     // After replace(), which ends the last view's listeners.
     document.addEventListener("keydown", (event) => {
@@ -378,17 +392,18 @@ export class Overlay {
   }
 
   /**
-   * Another cat's player card, over the room: its name, its fur, and where the two stand, with the buttons for that
-   * (add, cancel, accept or decline, remove), and "Visit home" when <visitHome> is given (main.ts decides when). `act`
-   * runs a button's change.
+   * Another cat's player card, over the room: its name, a picture of the cat as it looks now, its fur, and where the
+   * two stand, with the buttons for that (add, cancel, accept or decline, remove), and "Visit home" when <visitHome> is
+   * given (main.ts decides when). `act` runs a button's change.
    */
-  showPlayerCard(card: PlayerCard, act: (action: FriendAction) => void, visitHome?: () => void): void {
+  showPlayerCard(card: PlayerCard, picture: CatPicture, act: (action: FriendAction) => void, visitHome?: () => void): void {
     const visit = visitHome ? [button("Visit home", visitHome)] : [];
     const swatch = swatchOf(card.furColor);
     const status = friendStatus(card.friendState);
     const wearing = wearingLine(card);
     this.openDialog({ kind: "card", playerId: card.playerId }, "player-card",
       el("h2", { text: card.displayName, id: "dialog-title" }),
+      portrait(picture),
       el("p", { className: "fur" }, swatch, el("span", { text: `${card.furColor} fur` })),
       ...(wearing ? [el("p", { text: wearing, className: "wearing" })] : []),
       ...(status ? [el("p", { text: status, className: "friend-status" })] : []),
@@ -468,29 +483,42 @@ export class Overlay {
   }
 
   /**
-   * The shop, over the room: the player's coins, then the hats, collars and furs, each with its price and Buy (disabled,
-   * with the coins still needed, when the player can't afford it), or Wear or Take off for what they have. `act` runs
-   * a button's change.
+   * The shop's catalogue, over the room (opened at its stand, in the shop): the player's coins, then the hats, collars,
+   * furs and furniture, each with its price and Buy (disabled, with the coins still needed, when the player can't afford
+   * it); what they have already says so. `act` runs a button's change.
    */
-  showShop(shop: Shop, act: (action: ShopAction, itemId: string) => void): void {
-    // The shop opens at its top, on its heading: the first button can be far down (a new guest's is Close).
-    const heading = el("h2", { text: "Shop", id: "dialog-title" });
-    heading.tabIndex = -1;
-    heading.autofocus = true;
-    const parts: Node[] = [
-      heading,
+  showCatalogue(shop: Shop, act: (action: ShopAction, itemId: string) => void): void {
+    this.openDialog({ kind: "catalogue" }, "catalogue",
+      openingHeading("Catalogue"),
+      el("p", { className: "catalogue-blurb", text: "Hats, collars, coats and things for your home." }),
       el("p", { className: "purse", text: `You have ${coinText(shop.coins)}` }),
-    ];
-    for (const section of shopSections(shop)) {
-      parts.push(
-        el("h3", { text: section.title }),
-        el("ul", { className: "shop-list" }, ...section.rows.map((row) => shopItem(row, act))),
-      );
-    }
-    this.openDialog({ kind: "shop" }, "shop", ...parts);
+      ...sectionsOf(catalogueSections(shop), act),
+    );
   }
 
-  /** What is open over the room: a player card (whose), the friends list, the shop, or nothing. */
+  /**
+   * The player's own card, over the room (a tap on their own cat): their name, a picture of their cat as it looks now,
+   * what it wears, and everything they have to wear, with Wear or Take off (a fur is changed, not taken off). `act`
+   * runs a button's change.
+   */
+  showOwnCard(name: string, shop: Shop, picture: CatPicture, act: (action: ShopAction, itemId: string) => void): void {
+    const wearing = wearingLine({
+      hatName: shop.items.find((item) => item.id === shop.hat)?.name,
+      collarName: shop.items.find((item) => item.id === shop.collar)?.name,
+    });
+    this.openDialog({ kind: "own-card" }, "player-card own-card",
+      openingHeading(name),
+      portrait(picture),
+      el("p", { className: "fur" }, swatchOf(shop.furColor), el("span", { text: `${shop.furColor} fur` })),
+      el("p", { text: wearing ?? "Wearing nothing yet", className: "wearing" }),
+      ...(hasMoreToWear(shop)
+        ? []
+        : [el("p", { className: "wardrobe-hint", text: "Hats, collars and coats are sold from the catalogue in the Cat Shop, off Town Square." })]),
+      ...sectionsOf(wardrobeSections(shop), act),
+    );
+  }
+
+  /** What is open over the room: a player card (whose), the player's own card, the friends list, the catalogue, or nothing. */
   get openDialogFor(): OpenDialog | undefined {
     return this.dialog?.element.open ? this.dialog.open : undefined;
   }
@@ -546,6 +574,8 @@ export class Overlay {
     this.showing.abort();
     this.showing = new AbortController();
     this.root.replaceChildren(...children);
+    // Outside a room (showRoom names it), the game's name.
+    document.title = pageTitle();
   }
 
   toast(message: string): void {
@@ -625,13 +655,55 @@ function homeTools(home: HomeControls): HTMLElement {
   );
 }
 
-/** A button through each door, for the keyboard: the doors themselves are drawn on the canvas. */
-function doorLinks(doors: DoorView[], throughDoor: (door: DoorView) => void): HTMLElement {
+/**
+ * The room's buttons for the keyboard, unseen until one has focus: the player's own cat (its card), the catalogue (in
+ * the shop), and a button through each door. The cat, the stand and the doors themselves are drawn on the canvas.
+ */
+function keyboardLinks(doors: DoorView[], throughDoor: (door: DoorView) => void, keys: RoomKeys): HTMLElement {
   const nav = el("nav", { className: "doors" },
     ...doors.map((door) => button(`Through the door to ${door.toRoomName}`, () => throughDoor(door))),
   );
   nav.setAttribute("aria-label", "Doors");
-  return nav;
+  return el("div", { className: "keyboard-links" },
+    button("Your cat", keys.yourCat),
+    ...(keys.catalogue ? [button("Open the catalogue", keys.catalogue)] : []),
+    nav,
+  );
+}
+
+/** A dialog's heading that has the focus when it opens: its top, not scrolled down to the first button far below. */
+function openingHeading(text: string): HTMLElement {
+  const heading = el("h2", { text, id: "dialog-title" });
+  heading.tabIndex = -1;
+  heading.autofocus = true;
+  return heading;
+}
+
+/** The parts of the catalogue or the wardrobe: each one's title, and its items. */
+function sectionsOf(sections: ShopSection[], act: (action: ShopAction, itemId: string) => void): HTMLElement[] {
+  return sections.flatMap((section) => [
+    el("h3", { text: section.title }),
+    el("ul", { className: "shop-list" }, ...section.rows.map((row) => shopItem(row, act))),
+  ]);
+}
+
+/**
+ * A picture of the cat on its card, described for a screen reader; shown once it is taken (a picture already taken
+ * shows at once, so a card brought up to date doesn't flicker).
+ */
+function portrait(picture: CatPicture): HTMLElement {
+  const image = el("img");
+  image.alt = picture.description;
+  image.width = image.height = 160;
+  const { src } = picture;
+  if (typeof src === "string") {
+    image.src = src;
+  } else {
+    src?.then((url) => {
+      image.src = url;
+    }).catch((error: unknown) => console.warn("A cat's picture couldn't be taken", error));
+  }
+  return el("figure", { className: "portrait" }, image);
 }
 
 function coinText(coins: number): string {
@@ -656,8 +728,8 @@ function noteParagraph(note: Note | undefined): HTMLElement[] {
   return note ? [el("p", { text: note.text, className: note.error ? "error" : "note" })] : [];
 }
 
-/** What a dialog over the room shows: a player's card, the friends list, or the shop. */
-export type OpenDialog = { kind: "card"; playerId: string } | { kind: "friends" } | { kind: "shop" };
+/** What a dialog over the room shows: another player's card, the player's own, the friends list, or the catalogue. */
+export type OpenDialog = { kind: "card"; playerId: string } | { kind: "own-card" } | { kind: "friends" } | { kind: "catalogue" };
 
 function sameDialog(a: OpenDialog, b: OpenDialog): boolean {
   return a.kind === "card" ? b.kind === "card" && a.playerId === b.playerId : a.kind === b.kind;

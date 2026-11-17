@@ -26,6 +26,15 @@ public static class PropKinds
     public const string Bookshelf = "bookshelf";
     public const string CatBed = "cat-bed";
 
+    /// <summary>The shop's catalogue, open on a lectern: more than decoration, it is where things are bought.</summary>
+    public const string CatalogueStand = "catalogue-stand";
+    public const string HatShelf = "hat-shelf";
+    public const string ShopCounter = "shop-counter";
+    public const string Mirror = "mirror";
+
     public static IReadOnlyList<string> All { get; } =
-        [Tree, Bench, Lamp, FlowerBed, CafeTable, Counter, Plant, CatTree, Rug, Armchair, Sofa, FloorLamp, Bookshelf, CatBed];
+    [
+        Tree, Bench, Lamp, FlowerBed, CafeTable, Counter, Plant, CatTree, Rug, Armchair, Sofa, FloorLamp, Bookshelf, CatBed,
+        CatalogueStand, HatShelf, ShopCounter, Mirror,
+    ];
 }

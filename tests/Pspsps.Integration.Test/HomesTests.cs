@@ -74,8 +74,8 @@ public sealed class HomesTests
         var tom = await NewPlayerAsync();
         await GiveCoinsAsync(tom, 100);
         var shop = Game.Get<IShopService>();
-        await shop.BuyAsync(tom, "plant", CancellationToken.None);
-        var wardrobe = await shop.BuyAsync(tom, "plant", CancellationToken.None);
+        await shop.BuyAsync(tom, RoomCatalog.ShopId, "plant", CancellationToken.None);
+        var wardrobe = await shop.BuyAsync(tom, RoomCatalog.ShopId, "plant", CancellationToken.None);
 
         await Homes.PlaceAsync(tom, "plant", null, null, 0, CancellationToken.None);
         await Homes.PlaceAsync(tom, "plant", null, null, 0, CancellationToken.None);
@@ -99,7 +99,7 @@ public sealed class HomesTests
         // again on the home as it is now, and refused.
         var tom = await NewPlayerAsync();
         await GiveCoinsAsync(tom, 100);
-        await Game.Get<IShopService>().BuyAsync(tom, "plant", CancellationToken.None);
+        await Game.Get<IShopService>().BuyAsync(tom, RoomCatalog.ShopId, "plant", CancellationToken.None);
         await Homes.PlaceAsync(tom, "plant", -3, -3, 0, CancellationToken.None); // the home exists before the race
         await Homes.PutAwayAsync(tom, (await Homes.GetAsync(tom, CancellationToken.None)).Furniture.Single().Id, CancellationToken.None);
         await using var db = RacingContext(ct => Homes.PlaceAsync(tom, "plant", 2, -1, 0, ct));
