@@ -174,3 +174,35 @@ test("the panel fits a phone's screen", async ({ page }) => {
   expect(panel.x).toBeGreaterThanOrEqual(0);
   expect(panel.x + panel.width).toBeLessThanOrEqual(375);
 });
+
+test("a guest fishes at the pond and is paid in coins", async ({ page }) => {
+  await enterWorld(page, "Tabby");
+  await expect(page.locator("#coins")).toHaveText("🪙 0");
+
+  // Fish walks the cat to the pond's edge and casts.
+  await page.getByRole("button", { name: "🎣 Fish" }).click();
+  await expect(page.getByText("Waiting for a bite…")).toBeVisible();
+
+  // The bite comes 3-9 s later, at a moment only the server knows; then there are 1.5 s to reel.
+  const reel = page.getByRole("button", { name: "Reel!" });
+  await expect(reel).toBeVisible({ timeout: 15_000 });
+  await reel.click();
+
+  await expect(page.locator("#toast")).toHaveText(/^You caught an? .+! \+\d+ coins?$/);
+  const coins = await page.evaluate(() => window.pspsps?.coins() ?? 0);
+  expect(coins).toBeGreaterThan(0);
+  await expect(page.locator("#coins")).toHaveText(`🪙 ${coins}`);
+  expect(await page.evaluate(() => window.pspsps?.fishing())).toBe("idle");
+});
+
+test("reeling in before the bite loses the fish", async ({ page }) => {
+  await enterWorld(page, "Tabby");
+
+  await page.getByRole("button", { name: "🎣 Fish" }).click();
+  await expect(page.getByText("Waiting for a bite…")).toBeVisible();
+  await page.getByRole("button", { name: "Reel in" }).click();
+
+  await expect(page.locator("#toast")).toHaveText("Too soon! It swam off.");
+  expect(await page.evaluate(() => window.pspsps?.coins())).toBe(0);
+  await expect(page.getByRole("button", { name: "🎣 Fish" })).toBeVisible();
+});

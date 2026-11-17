@@ -3,6 +3,7 @@ import { addressNote, linkUrl, loginUrl } from "./link";
 import { GameConnection, fetchMe, fetchProviders, messageOf, playAsGuest, signOut } from "./net";
 import { PendingEvents } from "./pending";
 import { comeBack } from "./rejoin";
+import { catchBubble, pondEdge, reelMessage, type Fishing } from "./fishing";
 import { Room } from "./room";
 import { RoomScene } from "./scene";
 import { Overlay, type Note } from "./ui";
@@ -16,16 +17,19 @@ const scene = new RoomScene(engine);
 let room: Room | undefined;
 // Who is playing, once known: the world picker needs it again when a world is lost.
 let me: Player | undefined;
+// The player's coins, shown in the room bar, and where their fishing line is.
+let coins = 0;
+let fishing: Fishing = "idle";
 // Room events that arrive while the next room loads, for it once its snapshot shows.
 const loading = new PendingEvents<(room: Room) => void>();
 
 // Read-only: the end-to-end tests (e2e/) read the room here, since the cats and chat are drawn on a canvas.
 declare global {
   interface Window {
-    pspsps?: { room(): Room | undefined };
+    pspsps?: { room(): Room | undefined; coins(): number; fishing(): Fishing };
   }
 }
-window.pspsps = { room: () => room };
+window.pspsps = { room: () => room, coins: () => coins, fishing: () => fishing };
 
 const connection = new GameConnection({
   catJoined: (cat) => onRoom((here) => {
@@ -50,6 +54,12 @@ const connection = new GameConnection({
     here.emote(emote);
     scene.emote(emote.playerId, emote.emote);
   }),
+  fishBit: () => {
+    if (fishing === "waiting") {
+      setFishing("bite");
+    }
+  },
+  catFished: (caught) => onRoom(() => scene.speak(caught.playerId, catchBubble(caught.fishName))),
   replaced: () => {
     loading.cancel();
     room = undefined;
@@ -79,9 +89,54 @@ function onRoom(apply: (room: Room) => void): void {
 
 scene.onFloorClicked((x, z) => {
   if (room) {
+    // Walking off reels the line in (the server drops it), with nothing on it.
+    setFishing("idle");
     connection.move(x, z).catch((error: unknown) => overlay.toast(messageOf(error)));
   }
 });
+scene.onPondClicked(() => void fish());
+
+function setFishing(state: Fishing): void {
+  fishing = state;
+  overlay.setFishing(state);
+}
+
+/** Walks the player's cat to the pond's edge and casts. */
+async function fish(): Promise<void> {
+  const pond = room?.snapshot.pond;
+  const cat = me && room?.cats.get(me.id);
+  if (!pond || !cat || fishing !== "idle") {
+    return;
+  }
+  try {
+    const spot = pondEdge(pond, cat);
+    await connection.move(spot.x, spot.z);
+    await connection.cast();
+    setFishing("waiting");
+  } catch (error) {
+    setFishing("idle");
+    overlay.toast(messageOf(error));
+  }
+}
+
+/** Reels the line in: the catch (or why not) as a toast, and the coins it paid. */
+async function reel(): Promise<void> {
+  if (fishing === "idle") {
+    return;
+  }
+  try {
+    const result = await connection.reel();
+    overlay.toast(reelMessage(result));
+    if (result.coins > 0) {
+      coins = result.totalCoins;
+      overlay.setCoins(coins);
+    }
+  } catch (error) {
+    overlay.toast(messageOf(error));
+  } finally {
+    setFishing("idle");
+  }
+}
 
 function show(snapshot: RoomSnapshot): Room {
   const shown = new Room(snapshot);
@@ -98,7 +153,10 @@ function show(snapshot: RoomSnapshot): Room {
       }
     },
     () => window.location.reload(),
+    coins,
+    snapshot.pond ? { fish: () => void fish(), reel: () => void reel() } : undefined,
   );
+  fishing = "idle";
   return shown;
 }
 
@@ -149,6 +207,7 @@ async function load(request: () => Promise<RoomSnapshot>): Promise<void> {
 /** The world list; `providers` when they're already known (a guest who just signed in from the sign-in panel). */
 async function pickWorld(player: Player, providers?: string[], note?: Note): Promise<void> {
   me = player;
+  coins = player.coins;
   await connection.start();
   // A guest can save their cat with any provider the server offers.
   const [saveWith, worlds] = await Promise.all([

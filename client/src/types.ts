@@ -40,6 +40,32 @@ export interface RoomSnapshot {
   cats: CatView[];
   chat: ChatView[];
   rooms: RoomLink[];
+  /** The room's pond, if it has one. */
+  pond: PondView | null;
+}
+
+export interface PondView {
+  x: number;
+  z: number;
+  radius: number;
+}
+
+/** How a reel went (src/Pspsps.Server/Game/Contracts.cs, ReelView). */
+export interface ReelView {
+  outcome: "caught" | "too-early" | "too-late";
+  fishId: string | null;
+  fishName: string | null;
+  coins: number;
+  /** The player's coins after it; 0 when nothing was caught (nothing changed). */
+  totalCoins: number;
+}
+
+/** A catch, shown to the room. */
+export interface CatchView {
+  playerId: string;
+  fishId: string;
+  fishName: string;
+  coins: number;
 }
 
 export interface WorldSummary {

@@ -59,6 +59,8 @@ declare global {
           emotes: Map<string, { playerId: string; emote: string }>;
         }
         | undefined;
+      coins(): number;
+      fishing(): "idle" | "waiting" | "bite";
     };
   }
 }
