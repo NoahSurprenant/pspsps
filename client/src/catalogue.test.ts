@@ -16,16 +16,18 @@ describe("catalogueStand", () => {
 });
 
 describe("readingSpot", () => {
-  it("is just in front of the stand, off it, the way it faces", () => {
+  // Beside the stand, not in front of it: a cat in front stands between the camera and the stand, and a tap on the stand
+  // would reach the cat (which comes first) and open the player's own card instead of the catalogue.
+  it("is beside the stand, on its right as seen from its front, off it and never between it and the camera", () => {
     const spot = readingSpot(stand);
-    expect(spot.x).toBeCloseTo(1.4);
-    expect(spot.z).toBeCloseTo(-0.6 - 1.05);
-    expect(Math.hypot(spot.x - stand.x, spot.z - stand.z)).toBeGreaterThan(stand.radius);
+    expect(spot.x).toBeCloseTo(1.4 + 1.2);
+    expect(spot.z).toBeCloseTo(-0.6);
+    expect(Math.hypot(spot.x - stand.x, spot.z - stand.z)).toBeGreaterThan(stand.radius + 0.45);
 
-    // Turned to face the left (-X), it is read from its left.
+    // Turned to face the left (-X), its right is towards the front of the room (-Z).
     const left = readingSpot({ ...stand, facing: Math.PI / 2 });
-    expect(left.x).toBeCloseTo(1.4 - 1.05);
-    expect(left.z).toBeCloseTo(-0.6);
+    expect(left.x).toBeCloseTo(1.4);
+    expect(left.z).toBeCloseTo(-0.6 - 1.2);
   });
 });
 
@@ -73,7 +75,7 @@ describe("goRead", () => {
 
     await goRead(stand, { x: -1.6, z: 1 }, how);
 
-    expect(heard).toEqual(["move 1.40 -1.65", "open"]);
+    expect(heard).toEqual(["move 2.60 -0.60", "open"]);
   });
 
   it("opens nothing when the cat is sent elsewhere on the way", async () => {
@@ -86,7 +88,7 @@ describe("goRead", () => {
     arrive(true);
     await going;
 
-    expect(heard).toEqual(["move 1.40 -1.65"]);
+    expect(heard).toEqual(["move 2.60 -0.60"]);
   });
 
   it("opens nothing when the cat never gets there (another room showed)", async () => {
@@ -94,6 +96,6 @@ describe("goRead", () => {
 
     await goRead(stand, { x: -1.6, z: 1 }, how);
 
-    expect(heard).toEqual(["move 1.40 -1.65"]);
+    expect(heard).toEqual(["move 2.60 -0.60"]);
   });
 });

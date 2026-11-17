@@ -473,7 +473,15 @@ public sealed partial class GameHub(
     /// </summary>
     public async Task<ShopView> Buy(string itemId)
     {
-        var roomId = Here?.RoomKey is { } key && RoomKey.HomeOwner(key) is null ? RoomKey.Parse(key).RoomId : null;
+        // Only the tab that plays the cat: a replaced one may still think it is in the shop. (In no room, it buys nothing
+        // anyway.)
+        if (Here?.RoomKey is not null)
+        {
+            await EnsureCurrentTab();
+        }
+
+        // Read after the wait. A home's room is its owner's ID, which is no room of the catalogue: it sells nothing.
+        var roomId = Here?.RoomKey is { } key ? RoomKey.Parse(key).RoomId : null;
         return ShopView.From(await PlayersRule(() => shop.BuyAsync(PlayerId, roomId, itemId, Context.ConnectionAborted)));
     }
 

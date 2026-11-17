@@ -72,9 +72,11 @@ describe("wardrobeSections", () => {
     ]);
   });
 
-  it("says whether there is anything to put on besides the coat worn", () => {
+  it("says whether the player has anything to wear besides the coat on its cat", () => {
     expect(hasMoreToWear(shop)).toBe(true);
     expect(hasMoreToWear({ ...shop, owned: ["fur-grey"] })).toBe(false);
+    // A hat worn is something besides the coat: the card shows it, to take off, and no hint to go shopping.
+    expect(hasMoreToWear({ ...shop, owned: ["fur-grey", "party-hat"], hat: "party-hat" })).toBe(true);
   });
 });
 

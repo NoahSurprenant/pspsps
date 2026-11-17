@@ -134,6 +134,20 @@ describe("the painters", () => {
     }
   });
 
+  // The rug is the catalogue's: centred under the stand (src/Pspsps.Domain/Rooms/RoomCatalog.cs).
+  it("paints the shop's rug under the catalogue stand", () => {
+    const plan = { ...square, width: 13, depth: 9, pond: null, doors: [] };
+    const { brush, calls } = recordingBrush();
+    paintShopFloor(brush, plan, 10);
+
+    const [x, y] = floorPixel(plan, 10, 1.4, -0.6);
+    const rug = calls.filter((c) => c.name === "ellipse");
+    expect(rug.length).toBeGreaterThan(0);
+    for (const { args } of rug) {
+      expect([args[0], args[1]]).toEqual([x, y]);
+    }
+  });
+
   // The shop's wall is laid out round its door, by the back wall on the left (src/Pspsps.Domain/Rooms/RoomCatalog.cs).
   it("paints the shop's wall with nothing off its edges, and nothing framed over its doorway", () => {
     const door = { id: "town-square", x: -4.9, z: 3.6, radius: 0.8, toRoomId: "town-square", toRoomName: "Town Square" };

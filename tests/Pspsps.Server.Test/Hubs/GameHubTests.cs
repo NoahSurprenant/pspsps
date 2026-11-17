@@ -667,6 +667,20 @@ public sealed class GameHubTests
     }
 
     [Test]
+    public async Task Buy_FromATabThatWasReplaced_IsRefused_AndNothingIsBought()
+    {
+        // This tab was in the shop; another tab took the cat over (and may have walked it anywhere): this one buys nothing.
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+        _session.IsCurrent(Connection).Returns(false);
+
+        var refused = Assert.ThrowsAsync<HubException>(() => hub.Buy("bow"));
+
+        Assert.That(refused!.Message, Is.EqualTo(GameHub.ReplacedMessage));
+        await _shop.DidNotReceiveWithAnyArgs().BuyAsync(default, default, default!, default);
+    }
+
+    [Test]
     public void Buy_WithoutTheCoins_IsThePlayersMessage()
     {
         _shop.BuyAsync(Tom.Id, null, "crown", Arg.Any<CancellationToken>())

@@ -117,7 +117,10 @@ export function wardrobeSections(shop: Shop): ShopSection[] {
   return sectionsOf(shop, (item) => item.kind !== "Furniture" && shop.owned.includes(item.id), wardrobeRow);
 }
 
-/** Whether the player has anything to put on besides the coat their cat wears now. */
+/**
+ * Whether the player has anything to wear besides the coat on their cat now: a hat or collar (worn, to take off, or not,
+ * to put on), or another coat. With nothing, their card says where things are sold.
+ */
 export function hasMoreToWear(shop: Shop): boolean {
   return wardrobeSections(shop).some((section) => section.rows.some((row) => row.button));
 }

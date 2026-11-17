@@ -632,6 +632,9 @@ export function powerOfTwo(pixels: number): number {
   return Math.min(largestTexture, 2 ** Math.max(0, Math.round(Math.log2(pixels))));
 }
 
+/** Where the shop's catalogue stand is (src/Pspsps.Domain/Rooms/RoomCatalog.cs): its rug is under it. */
+const shopCatalogueStand = { x: 1.4, z: -0.6 };
+
 /** The shop's floor: big tiles, mint and cream, in a check, and a round lilac rug in the middle under the catalogue. */
 export function paintShopFloor(brush: Brush, plan: Floorplan, scale: number): void {
   const tile = 1 * scale;
@@ -656,7 +659,7 @@ export function paintShopFloor(brush: Brush, plan: Floorplan, scale: number): vo
   brush.stroke();
 
   // The rug: lilac with a darker ring and a scalloped cream edge.
-  const [cx, cy] = floorPixel(plan, scale, 1, -0.6);
+  const [cx, cy] = floorPixel(plan, scale, shopCatalogueStand.x, shopCatalogueStand.z);
   const [rx, ry] = [2.6 * scale, 1.9 * scale];
   brush.beginPath();
   brush.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);

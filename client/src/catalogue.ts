@@ -6,8 +6,8 @@ import type { PropView } from "./types";
 /** The kind of prop the catalogue stand is. */
 export const catalogueStandKind = "catalogue-stand";
 
-/** How far past the stand's edge a cat reads it from. */
-const readingGap = 0.45;
+/** How far past the stand's edge a cat reading it stands: its middle, half a cat clear. */
+const readingGap = 0.6;
 
 /** How far past the stand's edge a cat can still read it, without walking up. */
 const reach = 1.3;
@@ -18,15 +18,16 @@ export function catalogueStand(props: readonly PropView[] | null | undefined): P
 }
 
 /**
- * Where a cat stands to read the catalogue: just in front of the stand, the side it faces (a stand facing 0 faces the
- * front of the room, -Z, where the camera is), clear of it.
+ * Where a cat stands to read the catalogue: beside the stand, on its right as seen from its front (a stand facing 0
+ * faces the front of the room, -Z, where the camera is: its right is +X), clear of it. Not in front of it, where the
+ * cat would stand between the camera and the stand and take the next tap on it (the player's own cat comes first).
  */
 export function readingSpot(stand: PropView): { x: number; z: number } {
   const away = stand.radius + readingGap;
-  return { x: stand.x - Math.sin(stand.facing) * away, z: stand.z - Math.cos(stand.facing) * away };
+  return { x: stand.x + Math.cos(stand.facing) * away, z: stand.z - Math.sin(stand.facing) * away };
 }
 
-/** Whether a cat at (x, z) is near enough the stand to read it where it stands. */
+/** Whether a cat drawn at (x, z) is near enough the stand to read it where it stands. */
 export function canRead(stand: PropView, cat: { x: number; z: number }): boolean {
   return Math.hypot(cat.x - stand.x, cat.z - stand.z) <= stand.radius + reach;
 }
@@ -42,7 +43,7 @@ export interface Reading {
 }
 
 /**
- * The stand tapped, with the player's cat at <cat>: near enough, the catalogue opens at once; otherwise the cat walks up
+ * The stand tapped, with the player's cat drawn at <cat> (where it is on screen, not where it is walking to): near enough, the catalogue opens at once; otherwise the cat walks up
  * to it and the catalogue opens once it is drawn there, unless it was sent somewhere else meanwhile.
  */
 export async function goRead(stand: PropView, cat: { x: number; z: number }, how: Reading): Promise<void> {

@@ -468,6 +468,12 @@ export class RoomScene {
     return this.project(new Vector3(x, 0, z));
   }
 
+  /** Where a cat is drawn on the floor now, as it walks (not where it is walking to); undefined when it isn't here. */
+  positionOf(playerId: string): { x: number; z: number } | undefined {
+    const cat = this.cats.get(playerId);
+    return cat && { x: cat.root.position.x, z: cat.root.position.z };
+  }
+
   /**
    * Where the middle of a cat is drawn, as it walks, in CSS pixels from the canvas's top left; undefined when it isn't in
    * the room. For the end-to-end tests, which tap cats.

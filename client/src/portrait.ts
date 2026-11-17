@@ -14,11 +14,14 @@ import { Cat, type Outfit } from "./cat";
 /** How many pixels a side a picture is (shown at half that on the card: sharp on a phone's screen). */
 export const pictureSize = 320;
 
-/** How many pictures are kept, the latest: a card opened again shows at once. */
+/** How many pictures are kept, the ones used last: a card opened again shows at once. */
 const kept = 24;
 
-/** What takes the picture: draws <scene> through <camera> into a square <size> pixels a side, as an image's URL. */
-export type Snap = (scene: Scene, camera: ArcRotateCamera, size: number) => Promise<string>;
+/**
+ * What takes the picture: draws <scene> (with <sitter> in it, dressed) through <camera> into a square <size> pixels a side,
+ * as an image's URL.
+ */
+export type Snap = (scene: Scene, camera: ArcRotateCamera, size: number, sitter: Cat) => Promise<string>;
 
 /** An outfit as a key: the same outfit, the same picture. */
 export function outfitKey(outfit: Outfit): string {
@@ -29,8 +32,6 @@ export function outfitKey(outfit: Outfit): string {
 export class Portraits {
   private readonly taken = new Map<string, string>();
   private queue: Promise<unknown> = Promise.resolve();
-  /** The cat the last picture was taken of, as it was dressed (for the tests). */
-  lastSitter: Cat | undefined;
 
   constructor(
     private readonly engine: AbstractEngine,
@@ -38,9 +39,16 @@ export class Portraits {
     private readonly snap: Snap = drawToImage,
   ) {}
 
-  /** The picture of a cat in <outfit>, if it has been taken. */
+  /** The picture of a cat in <outfit>, if it has been taken: kept as the one used last. */
   cached(outfit: Outfit): string | undefined {
-    return this.taken.get(outfitKey(outfit));
+    const key = outfitKey(outfit);
+    const url = this.taken.get(key);
+    if (url !== undefined) {
+      // Last in the map, which drops its first (the one unused longest) when it is full.
+      this.taken.delete(key);
+      this.taken.set(key, url);
+    }
+    return url;
   }
 
   /** A picture of a cat dressed in <outfit>, facing the viewer: the one taken already, or taken now (one at a time). */
@@ -71,8 +79,7 @@ export class Portraits {
       root.rotation.y = Math.PI;
       const cat = new Cat(scene, model, root, "sitter", outfit.fur);
       cat.dress(outfit);
-      this.lastSitter = cat;
-      const url = await this.snap(scene, camera, pictureSize);
+      const url = await this.snap(scene, camera, pictureSize, cat);
       this.taken.set(outfitKey(outfit), url);
       if (this.taken.size > kept) {
         const oldest = this.taken.keys().next().value;

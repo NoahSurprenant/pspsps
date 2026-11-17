@@ -133,6 +133,17 @@ describe("RoomScene", () => {
     expect(Number.isFinite(point?.y)).toBe(true);
   });
 
+  // Where a cat is drawn, as it walks: not where it was sent (the catalogue opens at once only for a cat drawn near it).
+  it("says where a cat is drawn, not where it is walking to", () => {
+    const view = new RoomScene(new NullEngine(), () => new Promise<AssetContainer>(() => {}));
+    view.show({ ...room, cats: [{ playerId: "tom", displayName: "Tom", furColor: "Grey", x: -3, z: 1, pose: null, hat: null, collar: null }] });
+
+    view.walk("tom", 4, -2);
+
+    expect(view.positionOf("tom")).toEqual({ x: -3, z: 1 });
+    expect(view.positionOf("nobody")).toBeUndefined();
+  });
+
   // The names and bubbles are a GUI layer over the canvas, which takes Tab for its own controls while the canvas has
   // the focus (a tap on the room gives it the focus): it has none, and Tab must go on to the page's buttons.
   it("leaves Tab to the page: the names and bubbles take no keyboard focus", () => {

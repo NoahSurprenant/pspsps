@@ -12,6 +12,7 @@ import { CreateIcoSphereVertexData } from "@babylonjs/core/Meshes/Builders/icoSp
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import type { Scene } from "@babylonjs/core/scene";
+import { catalogueStandKind } from "./catalogue";
 import type { PropView } from "./types";
 
 /** The dark ink every outline in a room is drawn in. */
@@ -244,7 +245,7 @@ const designs: Record<string, { size: number; parts: Part[] }> = {
   },
   // The shop's. Its catalogue, open on a wooden lectern whose top slopes down to the reader (the front), a ribbon
   // hanging from its pages: tapping it opens the catalogue (main.ts).
-  "catalogue-stand": {
+  [catalogueStandKind]: {
     size: 0.6,
     parts: [
       box(0.66, 0.06, 0.46, [0, 0.03, 0], palette.darkWood),

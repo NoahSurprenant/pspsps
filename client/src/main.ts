@@ -611,7 +611,8 @@ async function readCatalogue(): Promise<void> {
   // Walking off reels the line in, as any walk does.
   fishing.drop();
   try {
-    await goRead(stand, cat, {
+    // From where the cat is drawn, not where it was sent: near the stand on screen, the catalogue opens at once.
+    await goRead(stand, view.positionOf(id) ?? cat, {
       walks: doorWalks,
       move: (x, z) => connection.move(x, z),
       reached: (x, z) => view.reached(id, x, z),

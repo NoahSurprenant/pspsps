@@ -12,9 +12,9 @@ function modelBytes(): Uint8Array {
 /** Portraits whose "picture" is what the cat sat for it wearing, and how many were taken. */
 function studio() {
   let taken = 0;
-  const portraits: Portraits = new Portraits(new NullEngine(), (scene) => loadCatModel(scene, modelBytes()), () => {
+  const portraits = new Portraits(new NullEngine(), (scene) => loadCatModel(scene, modelBytes()), (_scene, _camera, _size, sitter) => {
     taken++;
-    return Promise.resolve(JSON.stringify(portraits.lastSitter?.wearing));
+    return Promise.resolve(JSON.stringify(sitter.wearing));
   });
   return { portraits, taken: () => taken };
 }
@@ -43,6 +43,23 @@ describe("Portraits", () => {
     expect(second).toBe(first);
     expect(portraits.cached(outfit)).toBe(first);
     expect(taken()).toBe(1);
+  });
+
+  // A card opened again shows at once: the pictures kept are the ones used last, not the ones taken first.
+  it("keeps the pictures used last, dropping the one unused longest", async () => {
+    const { portraits, taken } = studio();
+    const outfit = (i: number) => ({ fur: "Grey" as const, hat: null, collar: `collar-${i}` });
+    for (let i = 0; i < 24; i++) {
+      await portraits.picture(outfit(i));
+    }
+
+    // The first one is shown again, then one more is taken: the second goes, not the first.
+    await portraits.picture(outfit(0));
+    await portraits.picture(outfit(24));
+
+    expect(portraits.cached(outfit(0))).toBeDefined();
+    expect(portraits.cached(outfit(1))).toBeUndefined();
+    expect(taken()).toBe(25);
   });
 
   it("keys an outfit by its fur, hat and collar", () => {
