@@ -3,7 +3,8 @@
 Players' data lives only in the chart's PostgreSQL. With `backup.enabled`, a CronJob dumps it on `backup.schedule`
 with `pg_dump --format=custom` onto a volume (the chart's own PersistentVolumeClaim, or
 `backup.persistence.existingClaim`) and keeps the newest `backup.keep` dumps. The script is
-`charts/pspsps/files/backup.sh`; CI runs it and both restores below against a real PostgreSQL (`tests/chart/backup-test.sh`).
+`charts/pspsps/files/backup.sh`; CI runs it and both restores below against a real PostgreSQL
+(`tests/chart/backup-test.sh`).
 
 Dumps are named `pspsps-<UTC time>.dump`, e.g. `pspsps-20261117T030000Z.dump`. A run writes to a `.partial` file and
 renames it when `pg_dump` succeeds, so a failed run never replaces a good dump. The job uses the database's own image,
