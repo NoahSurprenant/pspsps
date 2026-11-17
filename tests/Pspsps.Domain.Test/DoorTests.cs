@@ -148,7 +148,7 @@ public sealed class DoorTests
             {
                 var to = RoomCatalog.Find(door.ToRoom);
                 Assert.That(to, Is.Not.Null, $"{room.Id}/{door.Id} leads to a room");
-                var back = to!.GetDoor(door.ToDoor);
+                var back = to!.GetDoor(door.ToDoor!);
                 Assert.That((back.ToRoom, back.ToDoor), Is.EqualTo((room.Id, door.Id)), $"{to.Id}/{back.Id} leads back");
 
                 Assert.That(room.Clamp(door.Spot), Is.EqualTo(door.Spot), $"{room.Id}/{door.Id} is on the floor");

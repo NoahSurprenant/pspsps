@@ -102,6 +102,20 @@ public sealed class RoomState(RoomDefinition room)
     }
 
     /// <summary>
+    /// Takes the cat out, whichever session controls it: it may no longer be here (a home whose owner stopped letting it
+    /// in). Returns the session that controlled it, to tell; null when the cat wasn't here.
+    /// </summary>
+    public string? SendOut(Guid playerId)
+    {
+        if (!_leases.TryGetValue(playerId, out var lease) || !Leave(playerId, lease.Session))
+        {
+            return null;
+        }
+
+        return lease.Session;
+    }
+
+    /// <summary>
     /// Takes the cat out through the door <paramref name="doorId"/>, when <paramref name="session"/> controls it and it
     /// stands on that door; returns the door, which says where it leads. Refused, and the cat stays, when it isn't on the
     /// door: a cat only goes through a door it walked up to.

@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using Pspsps.Application.Friends;
+using Pspsps.Application.Homes;
 using Pspsps.Application.Players;
 using Pspsps.Application.Shop;
 using Pspsps.Domain;
@@ -33,6 +34,7 @@ public sealed class GameHubTests
     private IPlayerService _players = null!;
     private IFriendService _friends = null!;
     private IShopService _shop = null!;
+    private IHomeService _homes = null!;
     private IPlayerSessionGrain _session = null!;
     private IRoomGrain _cafe = null!;
     private IHubCallerClients<IGameClient> _clients = null!;
@@ -57,6 +59,7 @@ public sealed class GameHubTests
         _players = Substitute.For<IPlayerService>();
         _friends = Substitute.For<IFriendService>();
         _shop = Substitute.For<IShopService>();
+        _homes = Substitute.For<IHomeService>();
         _players.FindAsync(Tom.Id, Arg.Any<CancellationToken>()).Returns(Tom);
         _heartbeat = new SessionHeartbeat(
             _grains,
@@ -694,7 +697,7 @@ public sealed class GameHubTests
         context.Items.Returns(new ConnectionItems());
         context.ConnectionAborted.Returns(CancellationToken.None);
         var metrics = new GameMetrics(_services.GetRequiredService<IMeterFactory>());
-        return new GameHub(_grains, _players, _friends, _shop, _heartbeat, metrics, NullLogger<GameHub>.Instance)
+        return new GameHub(_grains, _players, _friends, _shop, _homes, _heartbeat, metrics, NullLogger<GameHub>.Instance)
         {
             Context = context,
             Groups = Substitute.For<IGroupManager>(),

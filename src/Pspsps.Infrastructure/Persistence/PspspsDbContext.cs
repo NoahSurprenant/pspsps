@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Pspsps.Application.Abstractions;
 using Pspsps.Domain.Friends;
+using Pspsps.Domain.Homes;
 using Pspsps.Domain.Players;
 
 namespace Pspsps.Infrastructure.Persistence;
@@ -13,6 +14,8 @@ public sealed class PspspsDbContext(DbContextOptions<PspspsDbContext> options)
     public DbSet<Player> Players => Set<Player>();
 
     public DbSet<Friendship> Friendships => Set<Friendship>();
+
+    public DbSet<Home> Homes => Set<Home>();
 
     /// <summary>The ASP.NET Core key ring, shared by every server pod so a sign-in cookie works on all of them.</summary>
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
@@ -41,6 +44,23 @@ public sealed class PspspsDbContext(DbContextOptions<PspspsDbContext> options)
     {
         ArgumentNullException.ThrowIfNull(friendship);
         Entry(friendship).State = EntityState.Detached;
+    }
+
+    public void Forget(Home home)
+    {
+        ArgumentNullException.ThrowIfNull(home);
+        // A copy, as for a player's items. A piece put away (deleted) isn't in the list: detached with the rest below.
+        foreach (var piece in home.Furniture.ToList())
+        {
+            Entry(piece).State = EntityState.Detached;
+        }
+
+        foreach (var removed in ChangeTracker.Entries<PlacedFurniture>().Where(e => e.State == EntityState.Deleted).ToList())
+        {
+            removed.State = EntityState.Detached;
+        }
+
+        Entry(home).State = EntityState.Detached;
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>

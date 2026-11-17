@@ -1,6 +1,8 @@
 using Orleans.Runtime;
+using Pspsps.Application.Homes;
 using Pspsps.Domain;
 using Pspsps.Domain.Fishing;
+using Pspsps.Domain.Homes;
 using Pspsps.Domain.Players;
 using Pspsps.Domain.Rooms;
 using Pspsps.Server.Telemetry;
@@ -10,7 +12,8 @@ namespace Pspsps.Server.Game;
 /// <summary>
 /// Holds a room's <see cref="RoomState"/> in memory and broadcasts every change. Calls run one at a time. Kept alive while
 /// cats are in it (idle cats are still there), deactivated by the last one leaving. Takes out cats whose session stopped
-/// renewing its lease (<see cref="SessionLease"/>).
+/// renewing its lease (<see cref="SessionLease"/>). A world's room comes from the room catalogue; a player's home
+/// (<see cref="RoomKey.HomeOwner"/>) is read from the database, its furniture and all, when it activates.
 /// </summary>
 [KeepAlive]
 internal sealed class RoomGrain(
@@ -18,7 +21,8 @@ internal sealed class RoomGrain(
     ChatFilters chatFilters,
     [FromKeyedServices(TimeProviderNames.Grains)] TimeProvider time,
     Random random,
-    GameMetrics metrics) : Grain, IRoomGrain
+    GameMetrics metrics,
+    IServiceScopeFactory scopes) : Grain, IRoomGrain
 {
     private string _key = "";
     private RoomState _state = null!;
@@ -26,6 +30,9 @@ internal sealed class RoomGrain(
     // The room's doors and props as the browser sees them: catalogue data, the same for every join.
     private IReadOnlyList<DoorView> _doors = [];
     private IReadOnlyList<PropView> _props = [];
+
+    // A home's owner, furniture and who may visit; null for a world's room.
+    private HomeView? _home;
 
     // Counted in pspsps.rooms.active once a cat joins, not on activation: a renewal can wake an empty room for a moment.
     private bool _counted;
@@ -36,11 +43,23 @@ internal sealed class RoomGrain(
     // How long after the bite window closes the getaway timer fires, so it never beats a reel at the window's edge.
     private static readonly TimeSpan GetAwayGrace = TimeSpan.FromMilliseconds(50);
 
-    public override Task OnActivateAsync(CancellationToken cancellationToken)
+    public override async Task OnActivateAsync(CancellationToken cancellationToken)
     {
         _key = this.GetPrimaryKeyString();
-        var (_, roomId) = RoomKey.Parse(_key);
-        var room = RoomCatalog.Find(roomId) ?? throw new InvalidOperationException($"No room '{roomId}'.");
+        RoomDefinition room;
+        if (RoomKey.HomeOwner(_key) is { } owner)
+        {
+            await using var scope = scopes.CreateAsyncScope();
+            var plan = await scope.ServiceProvider.GetRequiredService<IHomeService>().GetAsync(owner, cancellationToken);
+            room = Home.RoomOf(plan.OwnerName, plan.Furniture);
+            _home = HomeView.From(plan);
+        }
+        else
+        {
+            var (_, roomId) = RoomKey.Parse(_key);
+            room = RoomCatalog.Find(roomId) ?? throw new InvalidOperationException($"No room '{roomId}'.");
+        }
+
         _state = new RoomState(room);
         _doors = [.. room.Doors.Select(DoorView.From)];
         _props = [.. room.Props.Select(PropView.From)];
@@ -48,7 +67,6 @@ internal sealed class RoomGrain(
             static (grain, _) => grain.RemoveExpired(),
             this,
             new GrainTimerCreationOptions { DueTime = SessionLease.RenewEvery, Period = SessionLease.RenewEvery });
-        return Task.CompletedTask;
     }
 
     public override Task OnDeactivateAsync(DeactivationReason reason, CancellationToken cancellationToken)
@@ -84,10 +102,12 @@ internal sealed class RoomGrain(
             _state.Room.Depth,
             [.. _state.Cats.Select(CatView.From)],
             [.. _state.RecentChat.Select(ChatView.From)],
-            [.. RoomCatalog.All.Where(r => r.Id != _state.Room.Id).Select(r => new RoomLink(r.Id, r.Name))],
+            // A home is in no world: its door is the way out.
+            _home is null ? [.. RoomCatalog.All.Where(r => r.Id != _state.Room.Id).Select(r => new RoomLink(r.Id, r.Name))] : [],
             _state.Room.Pond is { } pond ? new PondView(pond.Center.X, pond.Center.Z, pond.Radius) : null,
             _doors,
-            _props);
+            _props,
+            _home);
     }
 
     public async Task Leave(Guid playerId, string session)
@@ -202,6 +222,44 @@ internal sealed class RoomGrain(
         var result = Rule(() => _state.Reel(playerId, time.GetUtcNow(), random.NextDouble()));
         Unschedule(playerId);
         return Task.FromResult(ReelView.From(result));
+    }
+
+    public async Task Furnish(HomeView home)
+    {
+        ArgumentNullException.ThrowIfNull(home);
+        // A home only, and not an older change than it has (two changes told out of order).
+        if (_home is not null && home.OwnerId == _home.OwnerId && home.Version >= _home.Version)
+        {
+            _home = home;
+            _props = home.Props();
+            await broadcaster.HomeChanged(_key, home);
+        }
+
+        // Telling a home nobody is in can be what activated it: it goes again.
+        GoIfEmpty();
+    }
+
+    public Task<IReadOnlyList<Guid>> CatsHere()
+    {
+        IReadOnlyList<Guid> here = [.. _state.Cats.Select(cat => cat.PlayerId)];
+        GoIfEmpty();
+        return Task.FromResult(here);
+    }
+
+    public async Task SendOut(IReadOnlyList<Guid> playerIds, string message)
+    {
+        ArgumentNullException.ThrowIfNull(playerIds);
+        foreach (var playerId in playerIds)
+        {
+            if (_state.SendOut(playerId) is { } session)
+            {
+                Unschedule(playerId);
+                await broadcaster.CatLeft(_key, playerId);
+                await broadcaster.SentOut(_key, session, message);
+            }
+        }
+
+        GoIfEmpty();
     }
 
     // At most one pending fishing timer per cat: a new one replaces (disposes) the cat's last.

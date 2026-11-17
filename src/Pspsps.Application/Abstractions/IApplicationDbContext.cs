@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Pspsps.Domain.Friends;
+using Pspsps.Domain.Homes;
 using Pspsps.Domain.Players;
 
 namespace Pspsps.Application.Abstractions;
@@ -10,6 +11,8 @@ public interface IApplicationDbContext
     DbSet<Player> Players { get; }
 
     DbSet<Friendship> Friendships { get; }
+
+    DbSet<Home> Homes { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 
@@ -24,4 +27,7 @@ public interface IApplicationDbContext
 
     /// <summary>Stops tracking the friendship, so its unsaved change (refused by the database) isn't saved by the next save.</summary>
     void Forget(Friendship friendship);
+
+    /// <summary>Stops tracking the home and its furniture, so its unsaved changes (refused by the database) aren't saved.</summary>
+    void Forget(Home home);
 }

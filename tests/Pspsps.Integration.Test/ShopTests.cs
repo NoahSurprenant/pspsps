@@ -37,8 +37,8 @@ public sealed class ShopTests
         {
             Assert.That(bought.Coins, Is.EqualTo(70));
             Assert.That(saved.Coins, Is.EqualTo(70));
-            Assert.That(saved.Owned, Is.EquivalentTo(new[] { ShopCatalog.FurOf(guest.FurColor).Id, "party-hat" }),
-                "a guest buys like anyone, and has the coat it was born with");
+            Assert.That(saved.Owned, Is.EquivalentTo(new[] { ShopCatalog.FurOf(guest.FurColor).Id, ShopCatalog.StarterFurniture, "party-hat" }),
+                "a guest buys like anyone, and has the coat and the bed it was born with");
             Assert.That(saved.Hat, Is.Null);
         });
     }
@@ -82,7 +82,7 @@ public sealed class ShopTests
             Assert.That(twice!.Message, Is.EqualTo("You already have the Red collar."));
             Assert.That(unknown!.Message, Is.EqualTo("Your cat wasn't found. Sign in again."));
             Assert.That(saved.Coins, Is.EqualTo(20));
-            Assert.That(saved.Owned, Has.Count.EqualTo(2));
+            Assert.That(saved.Owned, Has.Count.EqualTo(3), "its coat, its bed and the red collar");
         });
     }
 
@@ -143,7 +143,7 @@ public sealed class ShopTests
         // and the coins never go below zero.
         var guest = await Game.Get<IPlayerService>().CreateGuestAsync(CancellationToken.None);
         await GiveCoinsAsync(guest.Id, 200);
-        var items = ShopCatalog.All.Where(i => i.Kind != ItemKind.Fur).ToList();
+        var items = ShopCatalog.All.Where(i => i.Kind is ItemKind.Hat or ItemKind.Collar).ToList();
 
         var results = await Task.WhenAll(items.Select(async item =>
         {

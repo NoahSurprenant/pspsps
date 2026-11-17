@@ -330,6 +330,20 @@ public sealed class RoomStateTests
     }
 
     [Test]
+    public void SendOut_TakesTheCatOut_FromWhicheverTabPlaysIt_AndSaysWhichToTell()
+    {
+        var state = new RoomState(Room);
+        state.Join(Tom, "Tom", FurColor.Grey, TabA, Now);
+        state.Join(Tom, "Tom", FurColor.Grey, TabB, Now);
+        state.Join(Felix, "Felix", FurColor.Tuxedo, "felix-tab", Now);
+
+        Assert.That(state.SendOut(Tom), Is.EqualTo(TabB));
+        Assert.That(state.SendOut(Tom), Is.Null, "gone already");
+        Assert.That(state.Cats.Select(c => c.PlayerId), Is.EqualTo(new[] { Felix }));
+        Assert.That(state.Renew(Tom, TabB, Now), Is.EqualTo(CatRenewal.Gone), "its tab hears it's gone");
+    }
+
+    [Test]
     public void Leave_RemovesTheCat()
     {
         var state = new RoomState(Room);

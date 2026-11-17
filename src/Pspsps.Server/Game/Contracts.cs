@@ -1,5 +1,7 @@
+using Pspsps.Application.Homes;
 using Pspsps.Application.Shop;
 using Pspsps.Domain.Fishing;
+using Pspsps.Domain.Homes;
 using Pspsps.Domain.Rooms;
 using Pspsps.Domain.Shop;
 
@@ -83,7 +85,54 @@ public sealed record RoomSnapshot(
     [property: Id(7)] IReadOnlyList<RoomLink> Rooms,
     [property: Id(8)] PondView? Pond,
     [property: Id(9)] IReadOnlyList<DoorView> Doors,
-    [property: Id(10)] IReadOnlyList<PropView> Props);
+    [property: Id(10)] IReadOnlyList<PropView> Props,
+    [property: Id(11)] HomeView? Home = null);
+
+/// <summary>
+/// A player's home, as the browser draws it and its owner decorates it: whose it is, who may visit ("Friends", "Anyone"
+/// or "Nobody"), the furniture in it, and its version (a room or a browser told of two changes keeps the newer).
+/// </summary>
+[GenerateSerializer, Immutable]
+public sealed record HomeView(
+    [property: Id(0)] Guid OwnerId,
+    [property: Id(1)] string OwnerName,
+    [property: Id(2)] string Visitors,
+    [property: Id(3)] IReadOnlyList<FurnitureView> Furniture,
+    [property: Id(4)] int Version = 0)
+{
+    public static HomeView From(HomePlan plan)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+        return new(
+            plan.OwnerId, plan.OwnerName, plan.Visitors.ToString(), [.. plan.Furniture.Select(FurnitureView.From)], plan.Version);
+    }
+
+    /// <summary>The furniture as the room's decoration.</summary>
+    public IReadOnlyList<PropView> Props() =>
+        [.. Furniture.Select(piece => new PropView(piece.ItemId, piece.X, piece.Z, piece.Radius, Home.FacingOf(piece.QuarterTurns)))];
+}
+
+/// <summary>
+/// A piece of furniture in a home: its ID (to turn it or put it away), the shop item it is (which is also the kind of
+/// prop it's drawn as) and its name, where it stands, the circle it takes up, and which way it faces in quarter turns.
+/// </summary>
+[GenerateSerializer, Immutable]
+public sealed record FurnitureView(
+    [property: Id(0)] Guid Id,
+    [property: Id(1)] string ItemId,
+    [property: Id(2)] string Name,
+    [property: Id(3)] double X,
+    [property: Id(4)] double Z,
+    [property: Id(5)] double Radius,
+    [property: Id(6)] int QuarterTurns)
+{
+    public static FurnitureView From(PlacedFurniture piece)
+    {
+        ArgumentNullException.ThrowIfNull(piece);
+        var item = ShopCatalog.Find(piece.ItemId);
+        return new(piece.Id, piece.ItemId, item?.Name ?? piece.ItemId, piece.X, piece.Z, item?.Radius ?? 0, piece.QuarterTurns);
+    }
+}
 
 /// <summary>Where a room's pond is, for drawing it and walking to it.</summary>
 [GenerateSerializer, Immutable]
@@ -129,9 +178,12 @@ public sealed record DoorView(
     }
 }
 
-/// <summary>Where a door a cat went through leads: a room, and the door in it the cat comes in by.</summary>
+/// <summary>
+/// Where a door a cat went through leads: a room, and the door in it the cat comes in by (none: its spawn point, as from
+/// a home).
+/// </summary>
 [GenerateSerializer, Immutable]
-public sealed record DoorTarget([property: Id(0)] string RoomId, [property: Id(1)] string DoorId);
+public sealed record DoorTarget([property: Id(0)] string RoomId, [property: Id(1)] string? DoorId);
 
 /// <summary>
 /// How a reel went: "caught" with the fish and the coins it paid, "too-early" or "too-late" with nothing. TotalCoins is
@@ -186,10 +238,12 @@ public sealed record PlayerPlace([property: Id(0)] string WorldId, [property: Id
 
 /// <summary>
 /// A player card: another cat, where the player looking stands with them (FriendState: "None", "RequestSent",
-/// "RequestReceived" or "Friends"), and the names of the hat and collar it wears, if any.
+/// "RequestReceived" or "Friends"), the names of the hat and collar it wears, if any, and whether its home would let the
+/// player looking in now.
 /// </summary>
 public sealed record PlayerCardView(
-    Guid PlayerId, string DisplayName, string FurColor, string FriendState, string? HatName = null, string? CollarName = null);
+    Guid PlayerId, string DisplayName, string FurColor, string FriendState, string? HatName = null, string? CollarName = null,
+    bool CanVisitHome = false);
 
 /// <summary>Something in the shop (Kind: "Hat", "Collar" or "Fur"; a fur's colour in FurColor).</summary>
 public sealed record ShopItemView(string Id, string Name, string Kind, int Price, string? FurColor)
@@ -206,7 +260,8 @@ public sealed record ShopItemView(string Id, string Name, string Kind, int Price
 /// IDs) and what their cat wears.
 /// </summary>
 public sealed record ShopView(
-    IReadOnlyList<ShopItemView> Items, int Coins, IReadOnlyList<string> Owned, string FurColor, string? Hat, string? Collar)
+    IReadOnlyList<ShopItemView> Items, int Coins, IReadOnlyList<string> Owned, string FurColor, string? Hat, string? Collar,
+    IReadOnlyDictionary<string, int>? Counts = null)
 {
     public static ShopView From(Wardrobe wardrobe)
     {
@@ -217,7 +272,8 @@ public sealed record ShopView(
             wardrobe.Owned,
             wardrobe.FurColor.ToString(),
             wardrobe.Hat,
-            wardrobe.Collar);
+            wardrobe.Collar,
+            wardrobe.Counts ?? wardrobe.Owned.ToDictionary(id => id, _ => 1));
     }
 }
 
@@ -226,7 +282,11 @@ public sealed record ShopView(
 /// null when they're offline (or between rooms).
 /// </summary>
 public sealed record FriendView(
-    Guid PlayerId, string DisplayName, string FurColor, string FriendState, FriendPlaceView? Place);
+    Guid PlayerId, string DisplayName, string FurColor, string FriendState, FriendPlaceView? Place, bool CanVisitHome = false);
 
-/// <summary>Where a friend is, with the names to show.</summary>
-public sealed record FriendPlaceView(string WorldId, string WorldName, string RoomId, string RoomName);
+/// <summary>
+/// Where a friend is, with the names to show. In a home, which is in no world, the world is empty and HomeOwnerId says
+/// whose it is.
+/// </summary>
+public sealed record FriendPlaceView(
+    string WorldId, string WorldName, string RoomId, string RoomName, Guid? HomeOwnerId = null);

@@ -38,13 +38,13 @@ public sealed class ShopTests
     }
 
     [Test]
-    public void ANewCat_OwnsTheCoatItWasBornWith_AndWearsNothingElse()
+    public void ANewCat_OwnsTheCoatItWasBornWith_AndItsBed_AndWearsNothingElse()
     {
         var player = Player.CreateGuest("Whiskers", FurColor.Calico, Now);
 
         Assert.Multiple(() =>
         {
-            Assert.That(player.Items.Select(i => i.ItemId), Is.EqualTo(new[] { "fur-calico" }));
+            Assert.That(player.Items.Select(i => i.ItemId), Is.EqualTo(new[] { "fur-calico", "cat-bed" }));
             Assert.That(player.Owns("fur-calico"), Is.True);
             Assert.That(player.Hat, Is.Null);
             Assert.That(player.Collar, Is.Null);
@@ -219,6 +219,60 @@ public sealed class ShopTests
         Assert.That(ShopCatalog.FurOf(FurColor.Cream).Id, Is.EqualTo("fur-cream"));
         Assert.Throws<DomainException>(() => ShopCatalog.FurOf((FurColor)99));
         Assert.Throws<DomainException>(() => Player.CreateGuest("Whiskers", (FurColor)99, Now));
+    }
+
+    [Test]
+    public void Furniture_CanBeBoughtAgain_UpToAFew_EachTimePaidFor()
+    {
+        var player = WithCoins(1000);
+
+        for (var i = 0; i < ShopCatalog.MaxOfEachFurniture; i++)
+        {
+            player.Buy("plant", Now);
+        }
+
+        var more = Assert.Throws<DomainException>(() => player.Buy("plant", Now));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(player.CountOf("plant"), Is.EqualTo(ShopCatalog.MaxOfEachFurniture));
+            Assert.That(player.Coins, Is.EqualTo(1000 - (ShopCatalog.MaxOfEachFurniture * 35)));
+            Assert.That(player.Items.Count(i => i.ItemId == "plant"), Is.EqualTo(1), "one row, counted");
+            Assert.That(more!.Message, Is.EqualTo("You have 5 of the Potted plant already: that's as many as a cat can keep."));
+        });
+    }
+
+    [Test]
+    public void ANewCat_HasOneOfWhatItWasBornWith_AndNoneOfTheRest()
+    {
+        var player = WithCoins(0);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(player.CountOf("fur-grey"), Is.EqualTo(1));
+            Assert.That(player.CountOf(ShopCatalog.StarterFurniture), Is.EqualTo(1));
+            Assert.That(player.CountOf("sofa"), Is.Zero);
+        });
+    }
+
+    [Test]
+    public void Wear_Furniture_IsRefused()
+    {
+        var player = WithCoins(0);
+
+        var refused = Assert.Throws<DomainException>(() => player.Wear(ShopCatalog.StarterFurniture));
+
+        Assert.That(refused!.Message, Is.EqualTo("The Cat bed goes in your home, not on your cat."));
+    }
+
+    [Test]
+    public void Furniture_IsPricedAgainstFishing_FromAFewCatchesToALongSit()
+    {
+        var averageCatch = FishCatalog.All.Sum(f => (double)f.Coins * f.Weight) / FishCatalog.All.Sum(f => f.Weight);
+        var furniture = ShopCatalog.All.Where(i => i.IsFurniture).ToList();
+
+        Assert.That(furniture.Min(f => f.Price) / averageCatch, Is.InRange(1.0, 4.0), "catches for the cheapest piece");
+        Assert.That(furniture.Max(f => f.Price) / averageCatch, Is.InRange(15.0, 40.0), "catches for the dearest piece");
     }
 
     private static Player WithCoins(int coins)

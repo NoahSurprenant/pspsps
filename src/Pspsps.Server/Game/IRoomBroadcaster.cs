@@ -20,4 +20,13 @@ public interface IRoomBroadcaster
 
     /// <summary>Tells one tab that the bite on its line wasn't reeled in time: the fish got away, the line is in.</summary>
     Task FishGotAway(string session);
+
+    /// <summary>Shows a home's room its furniture and who may visit, as its owner just changed them.</summary>
+    Task HomeChanged(string roomKey, HomeView home);
+
+    /// <summary>
+    /// Tells one tab (its connection) its cat was sent out of the room <paramref name="roomKey"/>, which it hears nothing
+    /// more from, and why.
+    /// </summary>
+    Task SentOut(string roomKey, string session, string message);
 }

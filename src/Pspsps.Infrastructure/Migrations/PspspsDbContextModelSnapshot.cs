@@ -86,6 +86,29 @@ namespace Pspsps.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Pspsps.Domain.Homes.Home", b =>
+                {
+                    b.Property<Guid>("OwnerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("owner_id");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.Property<string>("Visitors")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("visitors");
+
+                    b.HasKey("OwnerId")
+                        .HasName("pk_homes");
+
+                    b.ToTable("homes", (string)null);
+                });
+
             modelBuilder.Entity("Pspsps.Domain.Players.Player", b =>
                 {
                     b.Property<Guid>("Id")
@@ -158,6 +181,62 @@ namespace Pspsps.Infrastructure.Migrations
                         .HasConstraintName("fk_friendships_players_second_player_id");
                 });
 
+            modelBuilder.Entity("Pspsps.Domain.Homes.Home", b =>
+                {
+                    b.HasOne("Pspsps.Domain.Players.Player", null)
+                        .WithOne()
+                        .HasForeignKey("Pspsps.Domain.Homes.Home", "OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_homes_players_owner_id");
+
+                    b.OwnsMany("Pspsps.Domain.Homes.PlacedFurniture", "Furniture", b1 =>
+                        {
+                            b1.Property<Guid>("Id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("id");
+
+                            b1.Property<Guid>("HomeOwnerId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("home_owner_id");
+
+                            b1.Property<string>("ItemId")
+                                .IsRequired()
+                                .HasMaxLength(32)
+                                .HasColumnType("character varying(32)")
+                                .HasColumnName("item_id");
+
+                            b1.Property<int>("QuarterTurns")
+                                .HasColumnType("integer")
+                                .HasColumnName("quarter_turns");
+
+                            b1.Property<double>("X")
+                                .HasColumnType("double precision")
+                                .HasColumnName("x");
+
+                            b1.Property<double>("Z")
+                                .HasColumnType("double precision")
+                                .HasColumnName("z");
+
+                            b1.HasKey("Id")
+                                .HasName("pk_home_furniture");
+
+                            b1.HasIndex("HomeOwnerId")
+                                .HasDatabaseName("ix_home_furniture_home_owner_id");
+
+                            b1.ToTable("home_furniture", null, t =>
+                                {
+                                    t.HasCheckConstraint("ck_home_furniture_quarter_turns", "quarter_turns >= 0 AND quarter_turns < 4");
+                                });
+
+                            b1.WithOwner()
+                                .HasForeignKey("HomeOwnerId")
+                                .HasConstraintName("fk_home_furniture_homes_home_owner_id");
+                        });
+
+                    b.Navigation("Furniture");
+                });
+
             modelBuilder.Entity("Pspsps.Domain.Players.Player", b =>
                 {
                     b.OwnsMany("Pspsps.Domain.Players.OwnedItem", "Items", b1 =>
@@ -175,10 +254,17 @@ namespace Pspsps.Infrastructure.Migrations
                                 .HasColumnType("timestamp with time zone")
                                 .HasColumnName("at");
 
+                            b1.Property<int>("Count")
+                                .HasColumnType("integer")
+                                .HasColumnName("count");
+
                             b1.HasKey("PlayerId", "ItemId")
                                 .HasName("pk_player_items");
 
-                            b1.ToTable("player_items", (string)null);
+                            b1.ToTable("player_items", null, t =>
+                                {
+                                    t.HasCheckConstraint("ck_player_items_count_positive", "count >= 1");
+                                });
 
                             b1.WithOwner()
                                 .HasForeignKey("PlayerId")
