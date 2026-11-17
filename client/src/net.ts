@@ -18,9 +18,14 @@ export async function fetchMe(): Promise<Player | null> {
   return response.status === 200 ? ((await response.json()) as Player) : null;
 }
 
+/** The configured providers; none when the request fails, which only hides the sign-in and save buttons. */
 export async function fetchProviders(): Promise<string[]> {
-  const response = await fetch("/auth/providers");
-  return response.ok ? ((await response.json()) as string[]) : [];
+  try {
+    const response = await fetch("/auth/providers");
+    return response.ok ? ((await response.json()) as string[]) : [];
+  } catch {
+    return [];
+  }
 }
 
 export async function playAsGuest(): Promise<Player> {

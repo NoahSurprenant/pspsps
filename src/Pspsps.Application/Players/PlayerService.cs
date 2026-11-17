@@ -11,9 +11,7 @@ internal sealed class PlayerService(IApplicationDbContext db, TimeProvider time,
     public async Task<PlayerProfile> SignInWithLoginAsync(
         LoginProvider provider, string providerKey, string? profileName, CancellationToken cancellationToken)
     {
-        var existing = await db.Players
-            .FirstOrDefaultAsync(
-                p => p.Logins.Any(l => l.Provider == provider && l.ProviderKey == providerKey), cancellationToken);
+        var existing = await OwnerAsync(provider, providerKey, cancellationToken);
         if (existing is not null)
         {
             return PlayerProfile.From(existing);
@@ -22,18 +20,31 @@ internal sealed class PlayerService(IApplicationDbContext db, TimeProvider time,
         var name = DisplayNameRules.FromProfile(profileName, fallback: RandomCatName());
         var player = Player.CreateWithLogin(provider, providerKey, name, RandomFur(), time.GetUtcNow());
         db.Players.Add(player);
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException saving) when (db.IsUniqueViolation(saving))
+        {
+            // Another request gave the login a cat (a guest linking it, a sign-in in another browser) since the check
+            // above: that cat is the one this login plays.
+            db.Forget(player);
+            var winner = await OwnerAsync(provider, providerKey, cancellationToken);
+            if (winner is null)
+            {
+                throw;
+            }
+
+            return PlayerProfile.From(winner);
+        }
+
         return PlayerProfile.From(player);
     }
 
     public async Task<LinkLoginOutcome> LinkLoginAsync(
         Guid playerId, LoginProvider provider, string providerKey, CancellationToken cancellationToken)
     {
-        var ownerId = await db.Players
-            .Where(p => p.Logins.Any(l => l.Provider == provider && l.ProviderKey == providerKey))
-            .Select(p => (Guid?)p.Id)
-            .FirstOrDefaultAsync(cancellationToken);
-        if (ownerId is { } owner)
+        if (await OwnerIdAsync(provider, providerKey, cancellationToken) is { } owner)
         {
             return owner == playerId ? LinkLoginOutcome.Linked : LinkLoginOutcome.TakenByAnotherPlayer;
         }
@@ -59,9 +70,15 @@ internal sealed class PlayerService(IApplicationDbContext db, TimeProvider time,
         }
         catch (DbUpdateException saving) when (db.IsUniqueViolation(saving))
         {
-            // Another request gave the login a cat between the check above and this save.
-            db.DiscardChanges();
-            return LinkLoginOutcome.TakenByAnotherPlayer;
+            // Another request got there first: the same link (Linked), this login for another cat (taken), or another
+            // login from this provider for this cat (the database's one-per-provider index: refused).
+            db.Forget(player);
+            return await OwnerIdAsync(provider, providerKey, cancellationToken) switch
+            {
+                { } winner when winner == playerId => LinkLoginOutcome.Linked,
+                not null => LinkLoginOutcome.TakenByAnotherPlayer,
+                null => LinkLoginOutcome.Refused,
+            };
         }
 
         return LinkLoginOutcome.Linked;
@@ -80,6 +97,16 @@ internal sealed class PlayerService(IApplicationDbContext db, TimeProvider time,
         var player = await db.Players.AsNoTracking().FirstOrDefaultAsync(p => p.Id == playerId, cancellationToken);
         return player is null ? null : PlayerProfile.From(player);
     }
+
+    private Task<Player?> OwnerAsync(LoginProvider provider, string providerKey, CancellationToken cancellationToken) =>
+        db.Players.FirstOrDefaultAsync(
+            p => p.Logins.Any(l => l.Provider == provider && l.ProviderKey == providerKey), cancellationToken);
+
+    private Task<Guid?> OwnerIdAsync(LoginProvider provider, string providerKey, CancellationToken cancellationToken) =>
+        db.Players
+            .Where(p => p.Logins.Any(l => l.Provider == provider && l.ProviderKey == providerKey))
+            .Select(p => (Guid?)p.Id)
+            .FirstOrDefaultAsync(cancellationToken);
 
     private string RandomCatName() =>
         "Kitty " + random.Next(1000, 10000).ToString(CultureInfo.InvariantCulture);

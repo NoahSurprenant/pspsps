@@ -56,11 +56,6 @@ public sealed class Player
             throw new DomainException("That sign-in provider doesn't exist.");
         }
 
-        if (_logins.Any(l => l.Provider == provider && l.ProviderKey == providerKey))
-        {
-            throw new DomainException($"This cat already signs in with that {provider} account.");
-        }
-
         if (_logins.Any(l => l.Provider == provider))
         {
             throw new DomainException($"This cat already has a {provider} login.");

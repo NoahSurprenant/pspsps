@@ -114,13 +114,14 @@ async function pickWorld(player: Player, providers?: string[], note?: Note): Pro
 }
 
 async function start(): Promise<void> {
+  const search = window.location.search;
+  const player = await fetchMe();
   // How signing in or saving the cat went, said once: a reload doesn't say it again.
-  const note = addressNote(window.location.search);
+  const note = addressNote(search, player !== null);
   if (note) {
     window.history.replaceState(null, "", window.location.pathname);
   }
 
-  const player = await fetchMe();
   if (player) {
     await pickWorld(player, undefined, note);
     return;
@@ -131,7 +132,7 @@ async function start(): Promise<void> {
     providers,
     (provider) => window.location.assign(`/auth/login/${encodeURIComponent(provider)}`),
     () => void playAsGuest().then((guest) => pickWorld(guest, providers)).catch((error: unknown) => overlay.toast(messageOf(error))),
-    note?.error ? note.text : undefined,
+    note,
   );
 }
 

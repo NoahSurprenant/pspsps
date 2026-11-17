@@ -9,9 +9,9 @@ export function linkUrl(provider: string): string {
 
 /**
  * What to tell the player after the server sent them back from saving their cat (?link=...) or signing in
- * (?signin=failed), if it did. Shown signed in or not.
+ * (?signin=failed), if it did. A signed-out player who was saving their cat has lost it: their guest cookie is gone.
  */
-export function addressNote(search: string): Note | undefined {
+export function addressNote(search: string, signedIn: boolean): Note | undefined {
   const query = new URLSearchParams(search);
   if (query.get("signin") === "failed") {
     return { text: "Signing in didn't work. Try again.", error: true };
@@ -31,7 +31,9 @@ export function addressNote(search: string): Note | undefined {
         error: true,
       };
     case "failed":
-      return { text: "Saving your cat didn't work. Try again.", error: true };
+      return signedIn
+        ? { text: "Saving your cat didn't work. Try again.", error: true }
+        : { text: "Your guest cat couldn't be found. Sign in or play as a new guest.", error: true };
     default:
       return undefined;
   }

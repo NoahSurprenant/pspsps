@@ -64,8 +64,9 @@ protected `AuthenticationProperties`) with the player who asked, and `/auth/call
 player (`Player.LinkLogin`) instead of finding or creating one, if the game cookie is still that player's. The cat,
 its ID and coins stay; it stops being a guest. A login that already has another cat is refused (`?link=taken`), never
 merged, and the guest stays signed in as themselves (also when two requests race for the login). A second login from
-a provider the cat already has is `?link=refused`. A provider sign-in that fails on the way back (Cancel on the consent
-screen, lost state) returns to `?link=failed` or `?signin=failed` instead of an error page.
+a provider the cat already has is `?link=refused` (a unique index on `player_logins (player_id, provider)` holds that
+rule when two links race). A provider sign-in that fails on the way back (Cancel on the consent screen, lost state)
+returns to `?link=failed` or `?signin=failed` instead of an error page, and logs a warning.
 
 The cookie is encrypted with ASP.NET Core Data Protection, whose keys are kept in PostgreSQL so every pod can read
 every cookie.

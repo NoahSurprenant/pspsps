@@ -17,7 +17,16 @@ public sealed class PspspsDbContext(DbContextOptions<PspspsDbContext> options)
     public bool IsUniqueViolation(DbUpdateException exception) =>
         exception?.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation };
 
-    public void DiscardChanges() => ChangeTracker.Clear();
+    public void Forget(Player player)
+    {
+        ArgumentNullException.ThrowIfNull(player);
+        foreach (var login in player.Logins)
+        {
+            Entry(login).State = EntityState.Detached;
+        }
+
+        Entry(player).State = EntityState.Detached;
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(PspspsDbContext).Assembly);

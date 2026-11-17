@@ -16,14 +16,14 @@ export interface SaveYourCat {
 export class Overlay {
   constructor(private readonly root: HTMLElement) {}
 
-  showSignIn(providers: string[], signIn: (provider: string) => void, guest: () => void, error?: string): void {
+  showSignIn(providers: string[], signIn: (provider: string) => void, guest: () => void, note?: Note): void {
     this.root.replaceChildren(
       panel(
         el("h1", { text: "pspsps" }),
         el("p", { text: "A town full of cats. Come hang out." }),
         ...providers.map((provider) => button(`Sign in with ${provider}`, () => signIn(provider), "primary")),
         button("Play as a guest", guest),
-        ...(error ? [el("p", { text: error, className: "error" })] : []),
+        ...noteParagraph(note),
       ),
     );
   }
@@ -48,7 +48,7 @@ export class Overlay {
     worlds: WorldSummary[],
     enter: (worldId: string) => void,
     signOut: () => void,
-    save: SaveYourCat = { providers: [], link: () => {} },
+    save: SaveYourCat,
     note?: Note,
   ): void {
     const saving = player.isGuest && save.providers.length > 0
@@ -60,7 +60,7 @@ export class Overlay {
     this.root.replaceChildren(
       panel(
         el("h1", { text: `Hi, ${player.displayName}!` }),
-        ...(note ? [el("p", { text: note.text, className: note.error ? "error" : "note" })] : []),
+        ...noteParagraph(note),
         ...saving,
         el("p", { text: "Pick a world." }),
         ...worlds.map((world) => {
@@ -132,4 +132,9 @@ function button(text: string, onClick: () => void, className = ""): HTMLButtonEl
     element.addEventListener("click", onClick);
   }
   return element;
+}
+
+/** A note as a paragraph (an error in red), or nothing. */
+function noteParagraph(note: Note | undefined): HTMLElement[] {
+  return note ? [el("p", { text: note.text, className: note.error ? "error" : "note" })] : [];
 }

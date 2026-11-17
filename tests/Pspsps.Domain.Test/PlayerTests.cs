@@ -79,7 +79,7 @@ public sealed class PlayerTests
 
         var refused = Assert.Throws<DomainException>(() => player.LinkLogin(LoginProvider.Discord, "80351110224678912"));
 
-        Assert.That(refused?.Message, Does.Contain("already signs in"));
+        Assert.That(refused?.Message, Does.Contain("already has a Discord login"));
         Assert.That(player.Logins, Has.Count.EqualTo(1));
     }
 
