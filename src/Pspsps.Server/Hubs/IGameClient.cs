@@ -12,4 +12,7 @@ public interface IGameClient
     Task CatMoved(Guid playerId, double x, double z);
 
     Task ChatSaid(ChatView line);
+
+    /// <summary>The player opened the game in another tab, which is the one playing now.</summary>
+    Task SessionReplaced();
 }

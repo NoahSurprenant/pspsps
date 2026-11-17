@@ -44,6 +44,10 @@ const connection = new GameConnection({
       scene.speak(line.playerId, line.text);
     }
   },
+  replaced: () => {
+    room = undefined;
+    overlay.showReplaced(() => window.location.reload());
+  },
   reconnected: () => {
     // The server dropped us from the room with the old connection: walk back in.
     const current = room?.snapshot;

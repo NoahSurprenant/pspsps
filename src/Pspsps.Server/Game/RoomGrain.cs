@@ -23,10 +23,10 @@ internal sealed class RoomGrain(IRoomBroadcaster broadcaster, TimeProvider time)
         return Task.CompletedTask;
     }
 
-    public async Task<RoomSnapshot> Join(PlayerCard player)
+    public async Task<RoomSnapshot> Join(PlayerCard player, string session)
     {
         var fur = Enum.Parse<FurColor>(player.FurColor);
-        var cat = Rule(() => _state.Join(player.PlayerId, player.DisplayName, fur));
+        var cat = Rule(() => _state.Join(player.PlayerId, player.DisplayName, fur, session));
         await broadcaster.CatJoined(_key, CatView.From(cat));
 
         var (worldId, _) = RoomKey.Parse(_key);
@@ -41,9 +41,9 @@ internal sealed class RoomGrain(IRoomBroadcaster broadcaster, TimeProvider time)
             [.. RoomCatalog.All.Where(r => r.Id != _state.Room.Id).Select(r => new RoomLink(r.Id, r.Name))]);
     }
 
-    public async Task Leave(Guid playerId)
+    public async Task Leave(Guid playerId, string session)
     {
-        if (_state.Leave(playerId))
+        if (_state.Leave(playerId, session))
         {
             await broadcaster.CatLeft(_key, playerId);
         }

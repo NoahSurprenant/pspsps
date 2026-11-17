@@ -1,5 +1,5 @@
 import { PNG } from "pngjs";
-import { cats, enterWorld, expect, newPlayer, test } from "./game";
+import { cats, enterWorld, expect, newPlayer, test, watchErrors } from "./game";
 
 test("the sign-in page loads without errors", async ({ page }) => {
   await page.goto("/");
@@ -71,3 +71,24 @@ function colours(png: Buffer): number {
   }
   return seen.size;
 }
+
+test("a second tab takes over and the first says so", async ({ page: first, context }) => {
+  const playerId = await enterWorld(first, "Tabby");
+  const second = await context.newPage();
+  const secondErrors = watchErrors(second);
+
+  // Same browser, same cookie: the same player. No sign-in this time; straight to the worlds.
+  await second.goto("/");
+  await second.getByRole("button", { name: /^Tabby · / }).click();
+  await expect(second.locator(".room-bar strong")).toHaveText("Town Square");
+
+  await expect(first.getByText("You've joined from another tab.")).toBeVisible();
+  await expect(first.getByRole("button", { name: "Play here instead" })).toBeVisible();
+  // One cat for the player, still there after the first tab closes.
+  await expect.poll(async () => Object.keys(await cats(second)).filter((id) => id === playerId)).toHaveLength(1);
+  await first.close();
+  await second.waitForTimeout(1_000);
+  expect(Object.keys(await cats(second))).toContain(playerId);
+
+  expect(secondErrors, "the second tab's console errors and uncaught exceptions").toEqual([]);
+});

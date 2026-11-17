@@ -23,6 +23,9 @@ Both are Orleans grains, the actors of this design:
 
 - `WorldGrain` (key: world ID) counts who is in the world, against its cap.
 - `RoomGrain` (key: `world/room`) holds the room's `RoomState`: who is in it, where they stand, what they said lately.
+- `PlayerSessionGrain` (key: player ID) knows the player's current tab. A player is one cat, played from their newest
+  tab: entering a world from a second tab takes the cat over where it stands, the first tab is told ("You've joined
+  from another tab") and stops, and its moves are refused. A room only lets the tab that controls a cat take it out.
 
 Each grain exists exactly once in the whole cluster, on whichever pod Orleans placed it, and handles one call at a
 time, so its state needs no locks. Room state lives only in memory: an empty room deactivates and forgets everything.
@@ -74,4 +77,3 @@ Never edit a migration that is already on master; add a new one. The server appl
 
 - If a pod dies without its connections closing cleanly, their cats stay in rooms on other pods until the room
   empties. A per-connection heartbeat to the room grains will fix this.
-- A player with two tabs in the same room shows as one cat; closing either tab removes it.

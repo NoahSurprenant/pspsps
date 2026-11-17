@@ -8,6 +8,8 @@ export interface GameEvents {
   chatSaid(line: ChatView): void;
   /** The connection came back after a drop; the server forgot where we were, so the game re-enters. */
   reconnected(): void;
+  /** The player opened the game in another tab, which plays now; this one has stopped. */
+  replaced(): void;
 }
 
 export async function fetchMe(): Promise<Player | null> {
@@ -48,6 +50,9 @@ export class GameConnection {
     this.hub.on("CatMoved", (playerId: string, x: number, z: number) => events.catMoved(playerId, x, z));
     this.hub.on("ChatSaid", (line: ChatView) => events.chatSaid(line));
     this.hub.onreconnected(() => events.reconnected());
+    this.hub.on("SessionReplaced", () => {
+      void this.hub.stop().then(() => events.replaced());
+    });
   }
 
   async start(): Promise<void> {

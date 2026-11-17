@@ -12,6 +12,9 @@ public sealed class RoomState(RoomDefinition room)
     public const int ChatHistory = 20;
 
     private readonly Dictionary<Guid, CatInRoom> _cats = [];
+
+    // Which session (a browser tab's connection) controls each cat: a player is one cat, in their newest tab.
+    private readonly Dictionary<Guid, string> _sessions = [];
     private readonly Queue<ChatLine> _chat = new();
 
     public RoomDefinition Room { get; } = room;
@@ -22,11 +25,15 @@ public sealed class RoomState(RoomDefinition room)
 
     public bool IsFull => _cats.Count >= Room.Capacity;
 
-    /// <summary>Puts a cat at the room's spawn point. A cat already here (a second tab) keeps its spot.</summary>
-    public CatInRoom Join(Guid playerId, string displayName, FurColor furColor)
+    /// <summary>
+    /// Puts a cat at the room's spawn point, controlled by <paramref name="session"/>. A cat already here (the player's
+    /// other tab) keeps its spot and passes to the new session.
+    /// </summary>
+    public CatInRoom Join(Guid playerId, string displayName, FurColor furColor, string session)
     {
         if (_cats.TryGetValue(playerId, out var existing))
         {
+            _sessions[playerId] = session;
             return existing;
         }
 
@@ -37,11 +44,24 @@ public sealed class RoomState(RoomDefinition room)
 
         var cat = new CatInRoom(playerId, displayName, furColor, Room.Spawn);
         _cats.Add(playerId, cat);
+        _sessions[playerId] = session;
         return cat;
     }
 
-    /// <summary>Removes the cat; false when it wasn't here.</summary>
-    public bool Leave(Guid playerId) => _cats.Remove(playerId);
+    /// <summary>
+    /// Removes the cat when <paramref name="session"/> controls it; false when it wasn't here or another session took it
+    /// over (a replaced tab closing must not take the newer tab's cat with it).
+    /// </summary>
+    public bool Leave(Guid playerId, string session)
+    {
+        if (!_sessions.TryGetValue(playerId, out var current) || current != session)
+        {
+            return false;
+        }
+
+        _sessions.Remove(playerId);
+        return _cats.Remove(playerId);
+    }
 
     /// <summary>Walks the cat towards <paramref name="target"/>, stopping at the room's walls. Returns where it ends up.</summary>
     public Position Move(Guid playerId, Position target)

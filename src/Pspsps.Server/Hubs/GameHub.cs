@@ -18,6 +18,9 @@ public sealed class GameHub(IGrainFactory grains, IPlayerService players) : Hub<
     private const string WorldItem = "world";
     private const string RoomItem = "room";
 
+    /// <summary>What a replaced tab is told; the client shows the same words.</summary>
+    public const string ReplacedMessage = "You've joined from another tab.";
+
     public async Task<IReadOnlyList<WorldSummary>> GetWorlds()
     {
         var summaries = new List<WorldSummary>();
@@ -34,6 +37,14 @@ public sealed class GameHub(IGrainFactory grains, IPlayerService players) : Hub<
     {
         var world = WorldCatalog.Find(worldId) ?? throw new HubException("That world doesn't exist.");
         await LeaveWorld();
+
+        // Entering a world makes this tab the player's one; the tab it replaces is told, and stops.
+        var replaced = await Session.Claim(Context.ConnectionId);
+        if (replaced is not null)
+        {
+            await Clients.Client(replaced).SessionReplaced();
+        }
+
         if (!await grains.GetGrain<IWorldGrain>(world.Id).TryEnter(PlayerId))
         {
             throw new HubException($"{world.Name} is full. Try another world.");
@@ -46,6 +57,7 @@ public sealed class GameHub(IGrainFactory grains, IPlayerService players) : Hub<
     public async Task<RoomSnapshot> GoToRoom(string roomId)
     {
         var worldId = Context.Items[WorldItem] as string ?? throw new HubException("Pick a world first.");
+        await EnsureCurrentTab();
         var room = RoomCatalog.Find(roomId) ?? throw new HubException("That room doesn't exist.");
         await LeaveRoom();
         return await JoinRoom(worldId, room.Id);
@@ -58,10 +70,21 @@ public sealed class GameHub(IGrainFactory grains, IPlayerService players) : Hub<
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
         await LeaveWorld();
+        await Session.Release(Context.ConnectionId);
         await base.OnDisconnectedAsync(exception);
     }
 
     private Guid PlayerId => Context.User?.GetPlayerId() ?? throw new HubException("Sign in first.");
+
+    private IPlayerSessionGrain Session => grains.GetGrain<IPlayerSessionGrain>(PlayerId);
+
+    private async Task EnsureCurrentTab()
+    {
+        if (!await Session.IsCurrent(Context.ConnectionId))
+        {
+            throw new HubException(ReplacedMessage);
+        }
+    }
 
     private async Task<RoomSnapshot> JoinRoom(string worldId, string roomId)
     {
@@ -74,7 +97,7 @@ public sealed class GameHub(IGrainFactory grains, IPlayerService players) : Hub<
         try
         {
             var card = new PlayerCard(profile.Id, profile.DisplayName, profile.FurColor.ToString());
-            var snapshot = await grains.GetGrain<IRoomGrain>(key).Join(card);
+            var snapshot = await grains.GetGrain<IRoomGrain>(key).Join(card, Context.ConnectionId);
             Context.Items[RoomItem] = key;
             return snapshot;
         }
@@ -91,7 +114,7 @@ public sealed class GameHub(IGrainFactory grains, IPlayerService players) : Hub<
         {
             Context.Items.Remove(RoomItem);
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, key);
-            await grains.GetGrain<IRoomGrain>(key).Leave(PlayerId);
+            await grains.GetGrain<IRoomGrain>(key).Leave(PlayerId, Context.ConnectionId);
         }
     }
 
@@ -108,6 +131,7 @@ public sealed class GameHub(IGrainFactory grains, IPlayerService players) : Hub<
     private async Task InRoom(Func<IRoomGrain, Task> action)
     {
         var key = Context.Items[RoomItem] as string ?? throw new HubException("You aren't in a room.");
+        await EnsureCurrentTab();
         try
         {
             await action(grains.GetGrain<IRoomGrain>(key));
