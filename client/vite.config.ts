@@ -4,6 +4,8 @@ import { defineConfig } from "vitest/config";
 const server = "http://localhost:5080";
 
 export default defineConfig({
+  // The cat model (src/models/cat.glb): a file of its own, fetched on the way into a room.
+  assetsInclude: ["**/*.glb"],
   server: {
     proxy: {
       "/auth": server,

@@ -87,4 +87,17 @@ describe("CatLook", () => {
     expect(look.wavingAt(t0 + CatLook.waveMilliseconds + 1)).toBe(false);
     expect(look.pose).toBe("sleep");
   });
+
+  it("meows for a moment, and counts each meow so the animation starts again", () => {
+    const look = new CatLook();
+    expect(look.meowingAt(t0)).toBe(false);
+
+    look.emote("meow", t0);
+    expect(look.meowingAt(t0 + 100)).toBe(true);
+    expect(look.meows).toBe(1);
+    look.emote("meow", t0 + 200);
+    expect(look.meows).toBe(2);
+
+    expect(look.meowingAt(t0 + 200 + CatLook.meowMilliseconds + 1)).toBe(false);
+  });
 });

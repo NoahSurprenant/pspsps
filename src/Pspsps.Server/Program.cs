@@ -106,7 +106,7 @@ try
     app.UseForwardedHeaders();
     app.UseRequestTelemetry();
     app.UseDefaultFiles();
-    app.UseStaticFiles();
+    app.UseStaticFiles(ClientFiles.Options());
     app.UseAuthentication();
     app.UseAuthorization();
 

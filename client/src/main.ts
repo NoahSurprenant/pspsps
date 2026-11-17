@@ -5,6 +5,7 @@ import { PendingEvents } from "./pending";
 import { comeBack } from "./rejoin";
 import { catchBubble, FishingState, gotAwayMessage, paid, pondEdge, reelMessage, type Fishing } from "./fishing";
 import { Room } from "./room";
+import type { CatAnimation } from "./cat";
 import type { RoomScene } from "./scene";
 import { Overlay, type Note } from "./ui";
 import type { Player, RoomSnapshot } from "./types";
@@ -54,10 +55,21 @@ const loading = new PendingEvents<(room: Room) => void>();
 // Read-only: the end-to-end tests (e2e/) read the room here, since the cats and chat are drawn on a canvas.
 declare global {
   interface Window {
-    pspsps?: { room(): Room | undefined; coins(): number; fishing(): Fishing };
+    pspsps?: {
+      room(): Room | undefined;
+      coins(): number;
+      fishing(): Fishing;
+      /** The animation a cat in the room is playing ("idle", "walk", ...), once the cat is drawn. */
+      animation(playerId: string): CatAnimation | undefined;
+    };
   }
 }
-window.pspsps = { room: () => room, coins: () => me?.coins ?? 0, fishing: () => fishing.state };
+window.pspsps = {
+  room: () => room,
+  coins: () => me?.coins ?? 0,
+  fishing: () => fishing.state,
+  animation: (playerId) => scene?.animationOf(playerId),
+};
 
 const connection = new GameConnection({
   catJoined: (cat) => onRoom((here) => {

@@ -1,65 +1,193 @@
+// Babylon by module: the animation runtime (AnimationGroup.start) and the glTF 2.0 loader, for their side effects.
+import "@babylonjs/core/Animations/animatable";
+import "@babylonjs/loaders/glTF/2.0/glTFLoader";
+import type { AnimationGroup } from "@babylonjs/core/Animations/animationGroup";
+import type { AssetContainer } from "@babylonjs/core/assetContainer";
+import { LoadAssetContainerAsync } from "@babylonjs/core/Loading/sceneLoader";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
-import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
-import { CreateCylinder } from "@babylonjs/core/Meshes/Builders/cylinderBuilder";
-import { CreateSphere } from "@babylonjs/core/Meshes/Builders/sphereBuilder";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Scene } from "@babylonjs/core/scene";
-import { coatOf } from "./fur";
-import type { FurColor } from "./types";
+import { coatOf, type Coat } from "./fur";
+import type { FurColor, Pose } from "./types";
 
-const outline = Color3.FromHexString("#2a2230");
+/** The cat's clips (src/models/cat.glb, made by scripts/cat-model.mjs). */
+export const catAnimations = ["idle", "walk", "sit", "sleep", "wave", "meow"] as const;
+export type CatAnimation = (typeof catAnimations)[number];
 
-/**
- * A cat built from primitives in flat, unlit colours with dark outlines, for the hand-drawn look. A placeholder until
- * there's a modelled cat. The parts hang off `body`, which poses squash; `root` stays unscaled for whatever is fixed
- * above or beside the cat (its name, bubbles) and for `paw`, hidden until the cat waves.
- */
-export function buildCat(
-  scene: Scene, name: string, fur: FurColor,
-): { root: TransformNode; body: TransformNode; paw: AbstractMesh } {
-  const coat = coatOf(fur);
-  const main = flat(scene, `${name}-coat`, coat.body);
-  const accent = flat(scene, `${name}-accent`, coat.accent);
-  const eyes = flat(scene, `${name}-eyes`, "#1b1b1f");
-  const root = new TransformNode(name, scene);
-  const body = new TransformNode(`${name}-body`, scene);
-  body.parent = root;
-
-  const parts = [
-    part(CreateSphere("body", { diameterX: 0.9, diameterY: 0.8, diameterZ: 1.2 }, scene), main, 0, 0.45, 0),
-    part(CreateSphere("chest", { diameter: 0.5 }, scene), accent, 0, 0.5, 0.42),
-    part(CreateSphere("head", { diameter: 0.75 }, scene), main, 0, 1.05, 0.45),
-    part(CreateCylinder("ear-l", { height: 0.32, diameterTop: 0, diameterBottom: 0.26 }, scene), accent, -0.2, 1.42, 0.45),
-    part(CreateCylinder("ear-r", { height: 0.32, diameterTop: 0, diameterBottom: 0.26 }, scene), accent, 0.2, 1.42, 0.45),
-    part(CreateSphere("eye-l", { diameter: 0.1 }, scene), eyes, -0.14, 1.1, 0.8),
-    part(CreateSphere("eye-r", { diameter: 0.1 }, scene), eyes, 0.14, 1.1, 0.8),
-    part(CreateCylinder("tail", { height: 0.9, diameterTop: 0.08, diameterBottom: 0.14 }, scene), accent, 0, 0.75, -0.7),
-  ];
-  for (const mesh of parts) {
-    mesh.parent = body;
-    mesh.isPickable = false;
-    if (!mesh.name.startsWith("eye")) {
-      outlined(mesh);
-    }
-  }
-  const tail = parts.at(-1);
-  if (tail) {
-    tail.rotation.x = -0.6;
-  }
-
-  const paw = part(CreateSphere("paw", { diameter: 0.24 }, scene), main, 0.42, 1.2, 0.55);
-  paw.parent = root;
-  paw.isPickable = false;
-  outlined(paw);
-  paw.setEnabled(false);
-  return { root, body, paw };
+/** What a cat is doing, for {@link animationFor}. */
+export interface CatDoing {
+  moving: boolean;
+  pose: Pose | undefined;
+  waving: boolean;
+  meowing: boolean;
 }
 
-function outlined(mesh: AbstractMesh): void {
-  mesh.renderOutline = true;
-  mesh.outlineWidth = 0.025;
-  mesh.outlineColor = outline;
+/**
+ * The clip a cat plays: walking beats everything (a walk ends a pose), a wave shows over a pose for its moment, a pose
+ * holds, and a meow shows only on a cat standing (sitting or asleep, its bubble says it).
+ */
+export function animationFor(doing: CatDoing): CatAnimation {
+  if (doing.moving) {
+    return "walk";
+  }
+  if (doing.waving) {
+    return "wave";
+  }
+  if (doing.pose) {
+    return doing.pose;
+  }
+  return doing.meowing ? "meow" : "idle";
+}
+
+/** Whether a clip plays over and over (meow plays once and holds its last frame). */
+export function loops(animation: CatAnimation): boolean {
+  return animation !== "meow";
+}
+
+/** The turn about the vertical axis (radians) that faces the model, which looks along +z, along (dx, dz). */
+export function facing(dx: number, dz: number): number {
+  return Math.atan2(dx, dz);
+}
+
+/** The model's colour parts: each of its meshes is named "<part>.<colour>". */
+export type CatColour = "coat" | "accent" | "eyes" | "pupils" | "dark";
+const catColours: readonly CatColour[] = ["coat", "accent", "eyes", "pupils", "dark"];
+
+const darkFeatures = "#2a2230";
+const eyeColour = "#ffc85a";
+
+/** The colour a part of the model is painted in <coat>; asleep, the eyes are shut (the coat's colour, pupils too). */
+export function colourOf(colour: CatColour, coat: Coat, asleep: boolean): string {
+  switch (colour) {
+    case "coat":
+      return coat.body;
+    case "accent":
+      return coat.accent;
+    case "eyes":
+      return asleep ? coat.body : eyeColour;
+    case "pupils":
+      return asleep ? coat.body : darkFeatures;
+    case "dark":
+      return darkFeatures;
+  }
+}
+
+/** The colour part a mesh of the model is, from its name ("body.coat", "cat-1-tail.accent"), if it is one. */
+export function colourOfMesh(name: string): CatColour | undefined {
+  const colour = name.slice(name.lastIndexOf(".") + 1);
+  return catColours.find((known) => known === colour);
+}
+
+/** Reads the model (the bytes of cat.glb) into <scene>, ready to make cats from. No materials: each cat paints its own. */
+export async function loadCatModel(scene: Scene, bytes: Uint8Array): Promise<AssetContainer> {
+  return LoadAssetContainerAsync(bytes, scene, {
+    pluginExtension: ".glb",
+    pluginOptions: { gltf: { skipMaterials: true } },
+  });
+}
+
+// The model is about 1.25 m wide; cats are a little smaller.
+const modelScale = 0.75;
+
+/**
+ * A modelled cat (a cube cat) in flat, unlit colours with dark outlines, for the hand-drawn look, that walks, idles,
+ * sits, sleeps, waves and meows.
+ *
+ * Attachment points, for what a cat wears: `anchors.headTop` sits on top of the head between the ears (hats), and
+ * `anchors.neck` on the front of the chest just under the mouth, at collar height (collars). Both hang off the model's
+ * body, so whatever is parented to them follows the animations (it leans back when the cat sits, lies down when it
+ * sleeps), and both face the way the cat faces: +y up, +z forward, in the model's units (before the cat's scale).
+ * Parent a hat with `hat.parent = cat.anchors.headTop`, modelled with its brim at y = 0; a collar to `neck`, with its
+ * buckle at the origin.
+ */
+export class Cat {
+  readonly anchors: { headTop: TransformNode; neck: TransformNode };
+  private readonly groups: Map<CatAnimation, AnimationGroup>;
+  private readonly materials: ReadonlyMap<CatColour, StandardMaterial>;
+  private readonly coat: Coat;
+  private playing: CatAnimation | undefined;
+
+  /** Hangs a new cat of <fur>, made from <model>, off <parent> (which places and turns it). */
+  constructor(scene: Scene, model: AssetContainer, parent: TransformNode, name: string, fur: FurColor) {
+    this.coat = coatOf(fur);
+    const made = model.instantiateModelsToScene((source) => `${name}-${source}`, false, { doNotInstantiate: true });
+    const top = made.rootNodes[0] as TransformNode;
+    top.parent = parent;
+    top.scaling.scaleInPlace(modelScale);
+
+    const materials = new Map(catColours.map((colour) =>
+      [colour, flat(scene, `${name}-${colour}`, colourOf(colour, this.coat, false))] as const));
+    this.materials = materials;
+    for (const mesh of top.getChildMeshes(false)) {
+      const colour = colourOfMesh(mesh.name);
+      const material = colour && materials.get(colour);
+      if (!material) {
+        continue;
+      }
+      mesh.material = material;
+      mesh.isPickable = false;
+      if (colour === "coat" || colour === "accent") {
+        mesh.renderOutline = true;
+        mesh.outlineWidth = 0.025 / modelScale;
+        mesh.outlineColor = Color3.FromHexString(darkFeatures);
+      } else {
+        // The eyes, pupils, mouth and soles are drawn from both sides, as the original model has them: some of their
+        // faces are wound the other way.
+        material.backFaceCulling = false;
+      }
+    }
+    top.onDisposeObservable.add(() => {
+      for (const group of made.animationGroups) {
+        group.dispose();
+      }
+      for (const material of materials.values()) {
+        material.dispose();
+      }
+    });
+
+    const body = top.getChildTransformNodes(false).find((node) => node.name === `${name}-body`);
+    if (!body) {
+      throw new Error("The cat model has no body");
+    }
+    this.anchors = {
+      headTop: anchor(scene, `${name}-head-top`, body, 0, 1.13, 0.1),
+      neck: anchor(scene, `${name}-neck`, body, 0, 0.3, 0.63),
+    };
+
+    this.groups = new Map(made.animationGroups.flatMap((group) => {
+      const clip = catAnimations.find((known) => group.name === `${name}-${known}`);
+      return clip ? [[clip, group] as const] : [];
+    }));
+    this.play("idle");
+  }
+
+  /** The clip playing. */
+  get animation(): CatAnimation | undefined {
+    return this.playing;
+  }
+
+  /** Plays <animation> from its start, unless it is playing already and not to <restart>. */
+  play(animation: CatAnimation, restart = false): void {
+    if (animation === this.playing && !restart) {
+      return;
+    }
+    for (const group of this.groups.values()) {
+      group.stop();
+    }
+    this.groups.get(animation)?.start(loops(animation));
+    this.playing = animation;
+    for (const [colour, material] of this.materials) {
+      material.emissiveColor = Color3.FromHexString(colourOf(colour, this.coat, animation === "sleep"));
+    }
+  }
+}
+
+function anchor(scene: Scene, name: string, parent: TransformNode, x: number, y: number, z: number): TransformNode {
+  const node = new TransformNode(name, scene);
+  node.parent = parent;
+  node.position.set(x, y, z);
+  return node;
 }
 
 function flat(scene: Scene, name: string, hex: string): StandardMaterial {
@@ -67,12 +195,4 @@ function flat(scene: Scene, name: string, hex: string): StandardMaterial {
   material.disableLighting = true;
   material.emissiveColor = Color3.FromHexString(hex);
   return material;
-}
-
-function part<T extends { position: { set(x: number, y: number, z: number): void }; material: unknown }>(
-  mesh: T, material: StandardMaterial, x: number, y: number, z: number,
-): T {
-  mesh.material = material;
-  mesh.position.set(x, y, z);
-  return mesh;
 }

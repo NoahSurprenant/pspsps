@@ -1,5 +1,5 @@
 import { PNG } from "pngjs";
-import { cats, emotes, enterWorld, expect, newPlayer, pixelsNear, pondBlue, test, watchErrors } from "./game";
+import { animation, catEyes, cats, emotes, enterWorld, expect, newPlayer, pixelsNear, pondBlue, test, watchErrors } from "./game";
 
 test("the sign-in page loads without errors", async ({ page }) => {
   await page.goto("/");
@@ -163,10 +163,37 @@ test("a cat that arrives later sees a sleeping cat asleep", async ({ page: tom, 
     await enterWorld(tom, "Siamese");
 
     expect((await cats(tom))[felixId]?.pose).toBe("sleep");
+    await expect.poll(() => animation(tom, felixId)).toBe("sleep");
     expect(felix.errors, "Felix's console errors and uncaught exceptions").toEqual([]);
   } finally {
     await felix.close();
   }
+});
+
+test("a cat is drawn, walks with its walk animation and idles when it stops", async ({ page }) => {
+  const playerId = await enterWorld(page, "Calico");
+
+  // The model loads on the way into the room: the cat idles once it's drawn, facing the camera with its yellow eyes.
+  await expect.poll(() => animation(page, playerId)).toBe("idle");
+  await page.locator("#ui").evaluate((ui) => (ui.style.visibility = "hidden"));
+  await expect.poll(async () => pixelsNear(await page.locator("#game").screenshot(), catEyes, 1)).toBeGreaterThan(10);
+  await page.locator("#ui").evaluate((ui) => (ui.style.visibility = ""));
+
+  // Sent to the middle of the room, 4 m from the spawn point: it walks there (a second), then idles.
+  const canvas = await page.locator("#game").boundingBox();
+  if (!canvas) throw new Error("no canvas");
+  await page.mouse.click(canvas.x + canvas.width / 2, canvas.y + canvas.height / 2);
+  await expect.poll(() => animation(page, playerId), { intervals: [50] }).toBe("walk");
+  await expect.poll(() => animation(page, playerId)).toBe("idle");
+
+  // The poses and the wave are animations too.
+  await page.getByRole("button", { name: "Sit" }).click();
+  await expect.poll(() => animation(page, playerId)).toBe("sit");
+  // The server takes one emote a second.
+  await page.waitForTimeout(1_100);
+  await page.getByRole("button", { name: "Wave" }).click();
+  await expect.poll(() => animation(page, playerId), { intervals: [50] }).toBe("wave");
+  await expect.poll(() => animation(page, playerId)).toBe("sit");
 });
 
 /** How many distinct colours a PNG has (sampled), to tell a drawn room from a flat background. */
