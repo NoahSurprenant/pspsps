@@ -96,8 +96,16 @@ grep -qx '            disk: ssd' <<< "$placed" || fail "the backup pod ignores n
 grep -q '^ *- effect: NoSchedule$' <<< "$placed" || fail "the backup pod ignores tolerations"
 grep -qx '            nodeAffinity:' <<< "$placed" || fail "the backup pod ignores affinity"
 
-# Settings the chart refuses: keep 1 leaves no dump while a run deletes the previous one.
-for bad in backup.keep=1 backup.keep=0 backup.activeDeadlineSeconds=0 postgres.enabled=false; do
+# How long a run waits for the database: a new pod's network can take a moment to be allowed.
+[[ "$(env_value "$cronjob" BACKUP_CONNECT_SECONDS)" == 120 ]] || fail "BACKUP_CONNECT_SECONDS isn't 120 by default"
+[[ "$(env_value "$(backup --set backup.connectTimeoutSeconds=30)" BACKUP_CONNECT_SECONDS)" == 30 ]] \
+  || fail "BACKUP_CONNECT_SECONDS doesn't follow backup.connectTimeoutSeconds"
+
+# Settings the chart refuses: keep 1 leaves no dump while a run deletes the previous one; a connect wait as long as
+# the job's deadline ends in DeadlineExceeded, with no retry and no word of why.
+for bad in backup.keep=1 backup.keep=0 backup.activeDeadlineSeconds=0 backup.connectTimeoutSeconds=0 \
+  postgres.enabled=false backup.connectTimeoutSeconds=3600 \
+  backup.activeDeadlineSeconds=100,backup.connectTimeoutSeconds=100; do
   if backup --set "$bad" > /dev/null 2>&1; then fail "rendered with backups on and $bad"; fi
 done
 
