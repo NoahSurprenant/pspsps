@@ -63,8 +63,7 @@ test("two cats see each other walk, chat and leave", async ({ page: tom, browser
 });
 
 test("filtered words never reach another cat", async ({ page: tom, browser }) => {
-  // The placeholder word lists the image ships (src/Pspsps.Server/chat-filter/chat-filter.json): "heck" is masked,
-  // "woof" refused.
+  // The word lists CI starts the game with (.github/workflows/ci.yml): "heck" is masked, "woof" refused.
   const felix = await newPlayer(browser);
   try {
     await enterWorld(tom, "Siamese");

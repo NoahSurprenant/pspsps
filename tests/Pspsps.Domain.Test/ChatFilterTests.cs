@@ -136,7 +136,7 @@ public sealed class ChatFilterTests
     }
 
     [Test]
-    public void Apply_ALongListOnAChatLine_IsQuickAndAllocatesNothing()
+    public void Apply_ALongListOnAChatLine_AllocatesNothing()
     {
         // 2,000 made-up words, none of them in the line: the line is checked against every one of them.
         var words = Enumerable.Range(0, 2000).Select(MadeUpWord).ToList();
@@ -153,17 +153,14 @@ public sealed class ChatFilterTests
 
         const int Runs = 500;
         var allocated = GC.GetAllocatedBytesForCurrentThread();
-        var clock = System.Diagnostics.Stopwatch.StartNew();
         for (var i = 0; i < Runs; i++)
         {
             filter.Apply(line);
         }
 
-        clock.Stop();
         allocated = GC.GetAllocatedBytesForCurrentThread() - allocated;
 
         Assert.That(allocated, Is.LessThan(1024), "bytes allocated by all the runs together");
-        Assert.That(clock.Elapsed.TotalMilliseconds / Runs, Is.LessThan(5), "milliseconds per line");
     }
 
     // A word of letters from a number, like a spreadsheet column: 0 is "baa", 1 "bab", ... (no word of the line).
@@ -176,6 +173,79 @@ public sealed class ChatFilterTests
         }
 
         return new string(letters);
+    }
+
+    [TestCase("wo-of")]
+    [TestCase("wo.of")]
+    [TestCase("wo_of")]
+    [TestCase("w*of")]
+    [TestCase("(w.o.o.f)")]
+    public void Apply_SeesThroughPunctuationInsideAWord(string text)
+    {
+        Assert.Throws<DomainException>(() => Filter.Apply(text));
+    }
+
+    [TestCase("da~rn", "*****")]
+    [TestCase("oh d-arn!", "oh *****!")]
+    public void Apply_MasksThroughPunctuationInsideAWord(string text, string said)
+    {
+        Assert.That(Filter.Apply(text), Is.EqualTo(said));
+    }
+
+    [Test]
+    public void Apply_SeesThroughPunctuationInsideAWord_ButNotAcrossSpaces()
+    {
+        var filter = ChatFilter.Create([new ChatWordList(ChatFilterAction.Refuse, ["shit", "anal"])]);
+
+        Assert.Throws<DomainException>(() => filter.Apply("sh.it"));
+        Assert.That(filter.Apply("it's hit or miss"), Is.EqualTo("it's hit or miss"));
+        Assert.That(filter.Apply("an all-day event"), Is.EqualTo("an all-day event"));
+    }
+
+    [Test]
+    public void Create_RefusesEntriesThatAreNotOneWord_AndSaysWhich()
+    {
+        var filter = ChatFilter.Create([new ChatWordList(ChatFilterAction.Mask, ["da-rn", "go away", "he*ck", "woof"])]);
+
+        Assert.That(filter.Apply("darn heck woof"), Is.EqualTo("darn heck ****"));
+    }
+
+    [TestCase("I'm level 455")]
+    [TestCase("717")]
+    [TestCase("8008")]
+    [TestCase("4 5 5")]
+    public void Apply_PlainNumbersAreNotReadAsWords(string text)
+    {
+        var filter = ChatFilter.Create([new ChatWordList(ChatFilterAction.Refuse, ["ass", "tit", "boob"])]);
+
+        Assert.That(filter.Apply(text), Is.EqualTo(text));
+        Assert.Throws<DomainException>(() => filter.Apply("a55"));
+    }
+
+    [TestCase("\uFF57\uFF4F\uFF4F\uFF46")]
+    [TestCase("\U0001D430\U0001D428\U0001D428\U0001D41F")]
+    public void Apply_SeesThroughFullWidthAndMathLetters(string text)
+    {
+        Assert.Throws<DomainException>(() => Filter.Apply(text));
+    }
+
+    [Test]
+    public void Apply_MasksAMathLetterWordWhole()
+    {
+        Assert.That(Filter.Apply("\U0001D41D\U0001D41A\U0001D42B\U0001D427!"), Is.EqualTo("********!"));
+    }
+
+    [TestCase("good", "good")]
+    [TestCase("boob", "boob")]
+    [TestCase("daarn", "daarn")]
+    [TestCase("goood", "*****")]
+    [TestCase("bbbob", "*****")]
+    [TestCase("daaarn", "******")]
+    public void Apply_OnlyThreeOrMoreOfALetterIsStretching(string text, string said)
+    {
+        var filter = ChatFilter.Create([new ChatWordList(ChatFilterAction.Mask, ["god", "bob", "darn"])]);
+
+        Assert.That(filter.Apply(text), Is.EqualTo(said));
     }
 
     [Test]

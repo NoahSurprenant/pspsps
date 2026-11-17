@@ -44,7 +44,7 @@ public sealed class GameHubTests
     [Test]
     public async Task FilteredWordsNeverReachTheRoom()
     {
-        // The placeholder lists in src/Pspsps.Server/chat-filter/chat-filter.json: "darn" masked, "woof" refused.
+        // The test lists (GameFactory): "darn" masked, "woof" refused.
         var (_, tomHub) = await Game.ConnectGuestAsync();
         var (felix, felixHub) = await Game.ConnectGuestAsync();
         await using var _ = tomHub;

@@ -83,6 +83,50 @@ public sealed class ChatFiltersTests
     }
 
     [Test]
+    public void Current_AFileBrokenThenFixedBeforeAnyChat_UsesTheFixedLists()
+    {
+        WriteFile(Darn);
+        var filters = Start();
+
+        WriteFile("""{ "ChatFilter": { "Lists": [ """);
+        Reload();
+        WriteFile(Heck);
+        Reload();
+
+        Assert.That(filters.Current.Apply("darn heck"), Is.EqualTo("darn ****"));
+    }
+
+    [Test]
+    public async Task Current_AFileStillBrokenAcrossReloads_KeepsTheLastGoodFilter()
+    {
+        WriteFile(Darn);
+        var filters = Start();
+        Assert.That(filters.Current.Apply("darn"), Is.EqualTo("****"));
+
+        WriteFile("""{ "ChatFilter": { "Lists": [ """);
+        // Long enough for the file watcher's own reload, which empties the file's settings when it can't parse it.
+        await Task.Delay(TimeSpan.FromSeconds(2));
+        for (var i = 0; i < 3; i++)
+        {
+            Reload();
+            Assert.That(filters.Current.Apply("darn"), Is.EqualTo("****"), $"after reload {i + 1}");
+        }
+
+        Assert.That(_logs.Warnings, Is.Not.Empty);
+    }
+
+    [Test]
+    public void Current_AnEntryThatIsNotOneWord_IsLeftOutWithAWarning()
+    {
+        WriteFile("""{ "ChatFilter": { "Lists": [ { "Action": "Mask", "Words": [ "darn", "go away" ] } ] } }""");
+        var filters = Start();
+
+        Assert.That(filters.Current.Apply("darn"), Is.EqualTo("****"));
+        Assert.That(_logs.Warnings, Has.Count.EqualTo(1));
+        Assert.That(_logs.Warnings[0], Does.Contain("'go away'").And.Contain("one word per entry, letters only"));
+    }
+
+    [Test]
     public void Current_AfterTheFileGoesMissing_KeepsTheLastGoodFilterAndWarns()
     {
         WriteFile(Darn);

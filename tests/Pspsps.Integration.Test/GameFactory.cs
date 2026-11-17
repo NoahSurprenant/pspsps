@@ -26,6 +26,12 @@ public sealed class GameFactory(string connectionString) : WebApplicationFactory
         // Discord as a configured provider: /auth/login and /auth/link challenge it (a redirect, never a request to it).
         builder.UseSetting("Authentication:Discord:ClientId", "test-client");
         builder.UseSetting("Authentication:Discord:ClientSecret", "test-secret");
+        // The chat filter's word lists: the image ships none.
+        builder.UseSetting("ChatFilter:Lists:0:Action", "Mask");
+        builder.UseSetting("ChatFilter:Lists:0:Words:0", "darn");
+        builder.UseSetting("ChatFilter:Lists:0:Words:1", "heck");
+        builder.UseSetting("ChatFilter:Lists:1:Action", "Refuse");
+        builder.UseSetting("ChatFilter:Lists:1:Words:0", "woof");
         builder.ConfigureTestServices(services =>
         {
             services.AddSingleton<IStartupFilter, FakeExternalSignIn>();
