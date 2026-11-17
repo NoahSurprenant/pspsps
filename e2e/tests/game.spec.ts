@@ -591,3 +591,24 @@ test("a cat buys a plant with its catch, puts it out at home, and a friend visit
     await felix.close();
   }
 });
+
+test("a cat visiting a friend's home goes back to Town Square when they stop being friends", async ({ page: tom }) => {
+  const tomId = await enterWorld(tom, "Calico");
+  const felix = await hubGuest(new URL(tom.url()).origin);
+  try {
+    // Felix asks; Tom accepts in his friends list, and visits Felix's home from it.
+    await felix.hub.invoke("AddFriend", tomId);
+    await tom.getByRole("button", { name: "Friends", exact: true }).click();
+    await tom.getByRole("button", { name: `Accept ${felix.name}` }).click();
+    await tom.getByRole("button", { name: `Visit home of ${felix.name}` }).click();
+    await expect(tom.locator(".room-bar strong")).toHaveText(`${felix.name}'s home`);
+
+    // Felix ends the friendship: his home is for friends, so Tom is sent back to Town Square, in Calico, and told.
+    await felix.hub.invoke("RemoveFriend", tomId);
+    await expect(tom.locator(".room-bar strong")).toHaveText("Town Square");
+    await expect(tom.getByText(`You and ${felix.name} aren't friends any more`)).toBeVisible();
+    expect(await tom.evaluate(() => window.pspsps?.room()?.snapshot.worldId)).toBe("calico");
+  } finally {
+    await felix.hub.stop();
+  }
+});

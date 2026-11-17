@@ -843,6 +843,9 @@ public sealed class GameHubTests
         _friends.UnfriendAsync(Tom.Id, Felix, Arg.Any<CancellationToken>())
             .Returns(new PlayerRelation(Felix, "Felix", FurColor.Black, FriendState.None));
         tomsHome.CatsHere().Returns([Felix]);
+        // Each, as far as their sessions say, in the other's home (the room has the last word).
+        Session(Felix).Locate().Returns(new PlayerPlace(RoomKey.Homes, Tom.Id.ToString()));
+        _session.Locate().Returns(new PlayerPlace(RoomKey.Homes, Felix.ToString()));
         felixsHome.CatsHere().Returns([Tom.Id, Felix]);
         _homes.MustLeaveAsync(Tom.Id, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>()).Returns([Felix]);
         _homes.MustLeaveAsync(Felix, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>()).Returns([Tom.Id]);
@@ -852,6 +855,79 @@ public sealed class GameHubTests
 
         await tomsHome.Received(1).SendOut(Arg.Is<IReadOnlyList<Guid>>(ids => ids.SequenceEqual(new[] { Felix })), Arg.Any<string>());
         await felixsHome.Received(1).SendOut(Arg.Is<IReadOnlyList<Guid>>(ids => ids.SequenceEqual(new[] { Tom.Id })), Arg.Any<string>());
+    }
+
+    [Test]
+    public async Task RemoveFriend_WithNeitherInTheOthersHome_WakesNoHome()
+    {
+        var tomsHome = HomeOf(Tom.Id);
+        var felixsHome = HomeOf(Felix);
+        _friends.UnfriendAsync(Tom.Id, Felix, Arg.Any<CancellationToken>())
+            .Returns(new PlayerRelation(Felix, "Felix", FurColor.Black, FriendState.None));
+        Session(Felix).Locate().Returns(new PlayerPlace("tabby", "cafe"));
+        _session.Locate().Returns((PlayerPlace?)null);
+
+        await Hub().RemoveFriend(Felix);
+
+        await tomsHome.DidNotReceive().CatsHere();
+        await felixsHome.DidNotReceive().CatsHere();
+        await _homes.DidNotReceiveWithAnyArgs().MustLeaveAsync(default, default!, default);
+    }
+
+    [Test]
+    public async Task GoToRoom_IntoAFullRoom_FromAHomeThatSentTheCatOut_DoesntGoBackIntoTheHome()
+    {
+        var felixHome = HomeOf(Felix);
+        _homes.VisitAsync(Tom.Id, Felix, Arg.Any<CancellationToken>()).Returns(Plan(Felix, "Felix"));
+        felixHome.Join(default!, default!, default).ReturnsForAnyArgs(HomeSnapshot(Felix));
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+        await hub.VisitHome(Felix);
+        // Felix closed his home and sent Tom out; Town Square is full.
+        _homes.VisitAsync(Tom.Id, Felix, Arg.Any<CancellationToken>())
+            .ThrowsAsync(new DomainException("That home isn't open to visitors right now."));
+        _room.Join(default!, default!, default).ThrowsAsyncForAnyArgs(new GameRuleException("Town Square is full."));
+
+        var refused = Assert.ThrowsAsync<HubException>(() => hub.GoToRoom("town-square"));
+
+        Assert.That(refused!.Message, Is.EqualTo("Town Square is full."));
+        await felixHome.Received(1).Join(Arg.Any<PlayerCard>(), Connection, null);
+    }
+
+    [Test]
+    public async Task VisitHome_WhenTheSecondCheckFails_TakesTheCatBackOut()
+    {
+        var felixHome = HomeOf(Felix);
+        _homes.VisitAsync(Tom.Id, Felix, Arg.Any<CancellationToken>()).Returns(
+            Task.FromResult(Plan(Felix, "Felix")), Task.FromException<HomePlan>(new TimeoutException()));
+        felixHome.Join(default!, default!, default).ReturnsForAnyArgs(HomeSnapshot(Felix));
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+
+        Assert.ThrowsAsync<TimeoutException>(() => hub.VisitHome(Felix));
+
+        await felixHome.Received(1).Leave(Tom.Id, Connection);
+        await _room.Received(2).Join(Arg.Is<PlayerCard>(c => c.PlayerId == Tom.Id), Connection, null);
+    }
+
+    [Test]
+    public async Task GetFriends_TwoFriendsInTheSameHome_ReadItsOwnerOnce()
+    {
+        var garfield = Guid.NewGuid();
+        var stranger = Guid.NewGuid();
+        _friends.ListAsync(Tom.Id, Arg.Any<CancellationToken>()).Returns(
+        [
+            new PlayerRelation(Felix, "Felix", FurColor.Black, FriendState.Friends),
+            new PlayerRelation(garfield, "Garfield", FurColor.Orange, FriendState.Friends),
+        ]);
+        Session(Felix).Locate().Returns(new PlayerPlace(RoomKey.Homes, stranger.ToString()));
+        Session(garfield).Locate().Returns(new PlayerPlace(RoomKey.Homes, stranger.ToString()));
+        _players.FindAsync(stranger, Arg.Any<CancellationToken>()).Returns((PlayerProfile?)null);
+
+        var friends = await Hub().GetFriends();
+
+        Assert.That(friends.Select(f => f.Place), Is.All.Null, "a home whose owner is gone shows nowhere");
+        await _players.Received(1).FindAsync(stranger, Arg.Any<CancellationToken>());
     }
 
     [Test]
