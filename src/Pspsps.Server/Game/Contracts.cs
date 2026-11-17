@@ -14,10 +14,19 @@ public sealed record CatView(
     [property: Id(1)] string DisplayName,
     [property: Id(2)] string FurColor,
     [property: Id(3)] double X,
-    [property: Id(4)] double Z)
+    [property: Id(4)] double Z,
+    [property: Id(5)] string? Pose)
 {
     public static CatView From(CatInRoom cat) =>
-        new(cat.PlayerId, cat.DisplayName, cat.FurColor.ToString(), cat.Position.X, cat.Position.Z);
+        new(cat.PlayerId, cat.DisplayName, cat.FurColor.ToString(), cat.Position.X, cat.Position.Z, PoseName(cat.Pose));
+
+    /// <summary>The held pose by its emote's name ("sit", "sleep"), or null when standing.</summary>
+    private static string? PoseName(CatPose pose) => pose switch
+    {
+        CatPose.Sitting => "sit",
+        CatPose.Sleeping => "sleep",
+        _ => null,
+    };
 }
 
 [GenerateSerializer, Immutable]

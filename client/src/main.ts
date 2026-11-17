@@ -76,7 +76,12 @@ function show(snapshot: RoomSnapshot): void {
     snapshot,
     (roomId) => void goTo(roomId),
     (text) => connection.say(text).catch((error: unknown) => overlay.toast(messageOf(error))),
-    (emote) => connection.emote(emote).catch((error: unknown) => overlay.toast(messageOf(error))),
+    // Between rooms (room undefined while the next one loads) an emote would only be refused.
+    (emote) => {
+      if (room) {
+        connection.emote(emote).catch((error: unknown) => overlay.toast(messageOf(error)));
+      }
+    },
     () => window.location.reload(),
   );
 }

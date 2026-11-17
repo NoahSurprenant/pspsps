@@ -16,6 +16,8 @@ export interface CatView {
   furColor: FurColor;
   x: number;
   z: number;
+  /** Sitting or asleep (held until it walks), or null when standing. */
+  pose: Pose | null;
 }
 
 export interface ChatView {
@@ -49,6 +51,9 @@ export interface WorldSummary {
 
 /** The emotes a cat can do (RoomState.Emotes on the server). */
 export type Emote = "sit" | "meow" | "wave" | "sleep";
+
+/** The emotes a cat holds until it walks. */
+export type Pose = "sit" | "sleep";
 
 export interface EmoteView {
   playerId: string;

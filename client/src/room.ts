@@ -7,7 +7,7 @@ import type { CatView, ChatView, EmoteView, RoomSnapshot } from "./types";
 export class Room {
   readonly cats = new Map<string, CatView>();
   readonly chat: ChatView[] = [];
-  /** Each cat's latest emote, while it is still in the room. */
+  /** Each cat's latest emote, until it walks or leaves. Whether it is sitting or asleep is on the cat (`pose`). */
   readonly emotes = new Map<string, EmoteView>();
 
   constructor(readonly snapshot: RoomSnapshot) {
@@ -31,7 +31,9 @@ export class Room {
     if (!cat) {
       return undefined;
     }
-    const moved = { ...cat, x, z };
+    // A cat that walks gets up, as on the server.
+    this.emotes.delete(playerId);
+    const moved = { ...cat, x, z, pose: null };
     this.cats.set(playerId, moved);
     return moved;
   }
@@ -44,8 +46,13 @@ export class Room {
   }
 
   emote(emote: EmoteView): void {
-    if (this.cats.has(emote.playerId)) {
-      this.emotes.set(emote.playerId, emote);
+    const cat = this.cats.get(emote.playerId);
+    if (!cat) {
+      return;
+    }
+    this.emotes.set(emote.playerId, emote);
+    if (emote.emote === "sit" || emote.emote === "sleep") {
+      this.cats.set(emote.playerId, { ...cat, pose: emote.emote });
     }
   }
 

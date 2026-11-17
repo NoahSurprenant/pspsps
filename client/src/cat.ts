@@ -6,19 +6,22 @@ const outline = Color3.FromHexString("#2a2230");
 
 /**
  * A cat built from primitives in flat, unlit colours with dark outlines, for the hand-drawn look. A placeholder until
- * there's a modelled cat.
+ * there's a modelled cat. The parts hang off `body`, which poses squash; `root` stays unscaled for whatever is fixed
+ * above or beside the cat (its name, bubbles, a waving paw).
  */
-export function buildCat(scene: Scene, name: string, fur: FurColor): TransformNode {
+export function buildCat(scene: Scene, name: string, fur: FurColor): { root: TransformNode; body: TransformNode } {
   const coat = coatOf(fur);
-  const body = flat(scene, `${name}-body`, coat.body);
+  const main = flat(scene, `${name}-coat`, coat.body);
   const accent = flat(scene, `${name}-accent`, coat.accent);
   const eyes = flat(scene, `${name}-eyes`, "#1b1b1f");
   const root = new TransformNode(name, scene);
+  const body = new TransformNode(`${name}-body`, scene);
+  body.parent = root;
 
   const parts = [
-    part(MeshBuilder.CreateSphere("body", { diameterX: 0.9, diameterY: 0.8, diameterZ: 1.2 }, scene), body, 0, 0.45, 0),
+    part(MeshBuilder.CreateSphere("body", { diameterX: 0.9, diameterY: 0.8, diameterZ: 1.2 }, scene), main, 0, 0.45, 0),
     part(MeshBuilder.CreateSphere("chest", { diameter: 0.5 }, scene), accent, 0, 0.5, 0.42),
-    part(MeshBuilder.CreateSphere("head", { diameter: 0.75 }, scene), body, 0, 1.05, 0.45),
+    part(MeshBuilder.CreateSphere("head", { diameter: 0.75 }, scene), main, 0, 1.05, 0.45),
     part(MeshBuilder.CreateCylinder("ear-l", { height: 0.32, diameterTop: 0, diameterBottom: 0.26 }, scene), accent, -0.2, 1.42, 0.45),
     part(MeshBuilder.CreateCylinder("ear-r", { height: 0.32, diameterTop: 0, diameterBottom: 0.26 }, scene), accent, 0.2, 1.42, 0.45),
     part(MeshBuilder.CreateSphere("eye-l", { diameter: 0.1 }, scene), eyes, -0.14, 1.1, 0.8),
@@ -26,7 +29,7 @@ export function buildCat(scene: Scene, name: string, fur: FurColor): TransformNo
     part(MeshBuilder.CreateCylinder("tail", { height: 0.9, diameterTop: 0.08, diameterBottom: 0.14 }, scene), accent, 0, 0.75, -0.7),
   ];
   for (const mesh of parts) {
-    mesh.parent = root;
+    mesh.parent = body;
     mesh.isPickable = false;
     if (!mesh.name.startsWith("eye")) {
       mesh.renderOutline = true;
@@ -38,7 +41,7 @@ export function buildCat(scene: Scene, name: string, fur: FurColor): TransformNo
   if (tail) {
     tail.rotation.x = -0.6;
   }
-  return root;
+  return { root, body };
 }
 
 function flat(scene: Scene, name: string, hex: string): StandardMaterial {

@@ -3,13 +3,13 @@ import type { Emote, Player, RoomSnapshot, WorldSummary } from "./types";
 
 /** The HTML laid over the canvas: sign-in, the world list, the room bar and the chat box. */
 export class Overlay {
-  // The room's emote keys (1-4); replaced each time a room shows.
-  private emoteKeys = new AbortController();
+  // Listeners that belong to what is showing (the room's emote keys): every show* ends them.
+  private showing = new AbortController();
 
   constructor(private readonly root: HTMLElement) {}
 
   showSignIn(providers: string[], signIn: (provider: string) => void, guest: () => void, error?: string): void {
-    this.root.replaceChildren(
+    this.replace(
       panel(
         el("h1", { text: "pspsps" }),
         el("p", { text: "A town full of cats. Come hang out." }),
@@ -22,7 +22,7 @@ export class Overlay {
 
   /** This tab stopped: the player opened the game in another one. */
   showReplaced(playHere: () => void): void {
-    this.root.replaceChildren(
+    this.replace(
       panel(
         el("h1", { text: "pspsps" }),
         el("p", { text: "You've joined from another tab." }),
@@ -32,7 +32,7 @@ export class Overlay {
   }
 
   showWorlds(player: Player, worlds: WorldSummary[], enter: (worldId: string) => void, signOut: () => void): void {
-    this.root.replaceChildren(
+    this.replace(
       panel(
         el("h1", { text: `Hi, ${player.displayName}!` }),
         el("p", { text: "Pick a world." }),
@@ -72,18 +72,7 @@ export class Overlay {
         return pick;
       }),
     );
-    this.emoteKeys.abort();
-    this.emoteKeys = new AbortController();
-    document.addEventListener("keydown", (event) => {
-      // Only while this room is showing; never while typing in the chat box.
-      const name = emotes.isConnected ? emoteForKey(event) : undefined;
-      if (name) {
-        event.preventDefault();
-        emote(name);
-      }
-    }, { signal: this.emoteKeys.signal });
-
-    this.root.replaceChildren(
+    this.replace(
       el("div", { className: "room-bar" },
         el("strong", { text: room.roomName }),
         ...room.rooms.map((link) => button(link.name, () => goTo(link.id))),
@@ -93,6 +82,23 @@ export class Overlay {
       form,
       el("div", { className: "toast", id: "toast" }),
     );
+
+    // After replace(), which ends the last view's listeners.
+    document.addEventListener("keydown", (event) => {
+      // Never while typing in the chat box.
+      const name = emoteForKey(event);
+      if (name) {
+        event.preventDefault();
+        emote(name);
+      }
+    }, { signal: this.showing.signal });
+  }
+
+  /** Shows <children> in place of whatever was showing, and ends the old view's listeners. */
+  private replace(...children: Node[]): void {
+    this.showing.abort();
+    this.showing = new AbortController();
+    this.root.replaceChildren(...children);
   }
 
   toast(message: string): void {

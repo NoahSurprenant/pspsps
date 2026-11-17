@@ -83,7 +83,7 @@ public sealed class RoomState(RoomDefinition room)
         }
 
         var position = Room.Clamp(target);
-        _cats[playerId] = cat with { Position = position };
+        _cats[playerId] = cat with { Position = position, Pose = CatPose.Standing };
         return position;
     }
 
@@ -111,10 +111,13 @@ public sealed class RoomState(RoomDefinition room)
         return line;
     }
 
-    /// <summary>The cat does <paramref name="emote"/>, one of <see cref="Emotes"/>, at most once per <see cref="EmoteCooldown"/>.</summary>
+    /// <summary>
+    /// The cat does <paramref name="emote"/>, one of <see cref="Emotes"/>, at most once per <see cref="EmoteCooldown"/>.
+    /// Sit and sleep are held until the cat walks; meow and wave leave the pose as it is.
+    /// </summary>
     public CatEmote Emote(Guid playerId, string emote, DateTimeOffset now)
     {
-        Get(playerId);
+        var cat = Get(playerId);
         if (!Emotes.Contains(emote))
         {
             throw new DomainException("That isn't an emote.");
@@ -126,6 +129,12 @@ public sealed class RoomState(RoomDefinition room)
         }
 
         _lastEmotes[playerId] = now;
+        _cats[playerId] = emote switch
+        {
+            "sit" => cat with { Pose = CatPose.Sitting },
+            "sleep" => cat with { Pose = CatPose.Sleeping },
+            _ => cat,
+        };
         return new CatEmote(playerId, emote, now);
     }
 

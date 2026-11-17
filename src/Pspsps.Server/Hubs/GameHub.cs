@@ -74,7 +74,11 @@ public sealed class GameHub(IGrainFactory grains, IPlayerService players, GameMe
     }
 
     /// <summary>Sit, meow, wave or sleep: the room shows it to everyone in it.</summary>
-    public Task Emote(string emote) => InRoom(room => room.Emote(PlayerId, emote));
+    public async Task Emote(string emote)
+    {
+        await InRoom(room => room.Emote(PlayerId, emote));
+        metrics.Emoted(RoomKey.Parse((string)Context.Items[RoomItem]!).WorldId, emote);
+    }
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
