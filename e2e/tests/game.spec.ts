@@ -1,7 +1,7 @@
 import { PNG } from "pngjs";
 import {
-  animation, catEyes, cats, clickCat, emotes, enterWorld, expect, goThroughDoor, hubGuest, newPlayer, pixelsNear, pondBlue, test,
-  watchErrors,
+  animation, catEyes, cats, clickCat, emotes, enterWorld, expect, goThroughDoor, hubGuest, newPlayer, pixelsNear, pondBlue,
+  roomBarButtons, test, watchErrors,
 } from "./game";
 
 test("the sign-in page loads without errors", async ({ page }) => {
@@ -431,17 +431,11 @@ test("the friends list keeps the focus where it was when a request arrives", asy
 
 test("a guest walks through the café door and comes in by the café's door back", async ({ page }) => {
   const me = await enterWorld(page, "Tabby");
-  const door = await page.evaluate(() => window.pspsps?.room()?.snapshot.doors.find((d) => d.toRoomId === "cafe"));
-  if (!door) throw new Error("Town Square has no door to the café");
+  // Doors are the way around: the room bar has no buttons to other rooms.
+  expect(await roomBarButtons(page)).toEqual(["Friends", "Worlds"]);
 
   // Click the door's mat where it is drawn: the cat walks onto it, then through.
-  const canvas = await page.locator("#game").boundingBox();
-  if (!canvas) throw new Error("no canvas");
-  const mat = await page.evaluate(({ x, z }) => window.pspsps?.screenPoint(x, z), door);
-  if (!mat) throw new Error("the door isn't drawn");
-  await page.mouse.click(canvas.x + mat.x, canvas.y + mat.y);
-
-  await expect(page.locator(".room-bar strong")).toHaveText("Cat Café");
+  await goThroughDoor(page, "cafe", "Cat Café");
   // In the café, just inside its door back to the square: by it, not on it, and not at the spawn point.
   const back = await page.evaluate(() => window.pspsps?.room()?.snapshot.doors.find((d) => d.toRoomId === "town-square"));
   if (!back) throw new Error("the café has no door back");
@@ -451,6 +445,20 @@ test("a guest walks through the café door and comes in by the café's door back
   expect(fromDoor).toBeGreaterThan(back.radius);
   expect(fromDoor).toBeLessThan(back.radius + 1);
   expect(cat).not.toMatchObject({ x: 0, z: 3 });
-  // Doors are the way around: the room bar has no buttons to other rooms.
-  await expect(page.locator(".room-bar").getByRole("button", { name: "Town Square" })).toHaveCount(0);
+  expect(await roomBarButtons(page)).toEqual(["Friends", "Worlds"]);
+});
+
+// The doors are drawn on the canvas, which the keyboard can't reach: each also has a button, shown once it has focus.
+test("a keyboard player goes through a door", async ({ page }) => {
+  await enterWorld(page, "Tabby");
+  const door = page.getByRole("button", { name: "Through the door to Cat Café" });
+
+  for (let tab = 0; tab < 30 && !(await door.evaluate((button) => button === document.activeElement)); tab++) {
+    await page.keyboard.press("Tab");
+  }
+  await expect(door).toBeFocused();
+  await expect(door).toBeVisible();
+  await page.keyboard.press("Enter");
+
+  await expect(page.locator(".room-bar strong")).toHaveText("Cat Café");
 });
