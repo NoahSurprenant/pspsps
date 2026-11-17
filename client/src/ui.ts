@@ -1,5 +1,17 @@
 import type { Player, RoomSnapshot, WorldSummary } from "./types";
 
+/** A message for the player on a panel; an error shows in red. */
+export interface Note {
+  text: string;
+  error: boolean;
+}
+
+/** The providers a guest can save their cat with, and what a button does. */
+export interface SaveYourCat {
+  providers: string[];
+  link: (provider: string) => void;
+}
+
 /** The HTML laid over the canvas: sign-in, the world list, the room bar and the chat box. */
 export class Overlay {
   constructor(private readonly root: HTMLElement) {}
@@ -27,10 +39,29 @@ export class Overlay {
     );
   }
 
-  showWorlds(player: Player, worlds: WorldSummary[], enter: (worldId: string) => void, signOut: () => void): void {
+  /**
+   * The world list. A guest also gets "Save your cat with ..." for each provider in `save`, and `note` says how the
+   * last try at that went.
+   */
+  showWorlds(
+    player: Player,
+    worlds: WorldSummary[],
+    enter: (worldId: string) => void,
+    signOut: () => void,
+    save: SaveYourCat = { providers: [], link: () => {} },
+    note?: Note,
+  ): void {
+    const saving = player.isGuest && save.providers.length > 0
+      ? [
+          el("p", { text: "You're a guest: your cat lasts as long as this browser remembers you." }),
+          ...save.providers.map((provider) => button(`Save your cat with ${provider}`, () => save.link(provider), "primary")),
+        ]
+      : [];
     this.root.replaceChildren(
       panel(
         el("h1", { text: `Hi, ${player.displayName}!` }),
+        ...(note ? [el("p", { text: note.text, className: note.error ? "error" : "note" })] : []),
+        ...saving,
         el("p", { text: "Pick a world." }),
         ...worlds.map((world) => {
           const full = world.population >= world.capacity;

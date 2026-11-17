@@ -39,6 +39,7 @@ html, body {
   flex-direction: column;
   gap: 0.6rem;
   min-width: 18rem;
+  max-width: min(26rem, calc(100% - 2rem));
   padding: 1.5rem 2rem;
   background: var(--paper);
   border: 3px solid var(--ink);

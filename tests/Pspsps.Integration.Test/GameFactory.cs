@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Pspsps.Application.Players;
 
@@ -14,6 +15,7 @@ public sealed class GameFactory(string connectionString) : WebApplicationFactory
     {
         builder.UseEnvironment("Testing");
         builder.UseSetting("ConnectionStrings:Pspsps", connectionString);
+        builder.ConfigureTestServices(services => services.AddSingleton<IStartupFilter, FakeExternalSignIn>());
     }
 
     public T Get<T>()

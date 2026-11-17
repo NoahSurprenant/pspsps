@@ -1,8 +1,9 @@
 import { Engine } from "@babylonjs/core";
+import { linkMessage, linkUrl } from "./link";
 import { GameConnection, fetchMe, fetchProviders, messageOf, playAsGuest, signOut } from "./net";
 import { Room } from "./room";
 import { RoomScene } from "./scene";
-import { Overlay } from "./ui";
+import { Overlay, type Note } from "./ui";
 import type { Player, RoomSnapshot } from "./types";
 
 const overlay = new Overlay(required<HTMLElement>("#ui"));
@@ -94,26 +95,40 @@ async function goTo(roomId: string): Promise<void> {
   }
 }
 
-async function pickWorld(player: Player): Promise<void> {
+async function pickWorld(player: Player, note?: Note): Promise<void> {
   await connection.start();
-  overlay.showWorlds(player, await connection.getWorlds(), (worldId) => void enter(worldId), () => {
-    void signOut().then(() => window.location.reload());
-  });
+  // A guest can save their cat with any provider the server offers.
+  const providers = player.isGuest ? await fetchProviders() : [];
+  overlay.showWorlds(
+    player,
+    await connection.getWorlds(),
+    (worldId) => void enter(worldId),
+    () => void signOut().then(() => window.location.reload()),
+    { providers, link: (provider) => window.location.assign(linkUrl(provider)) },
+    note,
+  );
 }
 
 async function start(): Promise<void> {
+  const search = window.location.search;
+  // How saving the cat went, said once: a reload doesn't say it again.
+  const linked = linkMessage(search);
+  if (linked) {
+    window.history.replaceState(null, "", window.location.pathname);
+  }
+
   const player = await fetchMe();
   if (player) {
-    await pickWorld(player);
+    await pickWorld(player, linked);
     return;
   }
 
-  const failed = new URLSearchParams(window.location.search).get("signin") === "failed";
+  const failed = new URLSearchParams(search).get("signin") === "failed";
   overlay.showSignIn(
     await fetchProviders(),
     (provider) => window.location.assign(`/auth/login/${encodeURIComponent(provider)}`),
-    () => void playAsGuest().then(pickWorld).catch((error: unknown) => overlay.toast(messageOf(error))),
-    failed ? "Signing in didn't work. Try again." : undefined,
+    () => void playAsGuest().then((guest) => pickWorld(guest)).catch((error: unknown) => overlay.toast(messageOf(error))),
+    failed ? "Signing in didn't work. Try again." : linked?.error ? linked.text : undefined,
   );
 }
 

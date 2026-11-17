@@ -45,6 +45,31 @@ public sealed class Player
         return player;
     }
 
+    /// <summary>
+    /// Adds a Discord or Google login to this cat. A guest who gains one stops being a guest: the cat, its coins and
+    /// everything else stay as they are. A cat has at most one login per provider.
+    /// </summary>
+    public void LinkLogin(LoginProvider provider, string providerKey)
+    {
+        if (!Enum.IsDefined(provider))
+        {
+            throw new DomainException("That sign-in provider doesn't exist.");
+        }
+
+        if (_logins.Any(l => l.Provider == provider && l.ProviderKey == providerKey))
+        {
+            throw new DomainException($"This cat already signs in with that {provider} account.");
+        }
+
+        if (_logins.Any(l => l.Provider == provider))
+        {
+            throw new DomainException($"This cat already has a {provider} login.");
+        }
+
+        _logins.Add(new PlayerLogin(provider, providerKey));
+        IsGuest = false;
+    }
+
     public void Rename(string displayName) => DisplayName = DisplayNameRules.Normalize(displayName);
 
     public void ChangeFurColor(FurColor furColor)
