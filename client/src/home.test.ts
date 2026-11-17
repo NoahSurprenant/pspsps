@@ -35,6 +35,11 @@ describe("newer", () => {
     expect(newer(undefined, older)).toBe(older);
     expect(newer({ ...home, ownerId: "felix" }, older)).toBe(older);
   });
+
+  // The owner's tab hears its own change twice (its answer, and the room's broadcast): drawn once.
+  it("keeps the one it has for the same version", () => {
+    expect(newer(home, { ...home, furniture: [] })).toBe(home);
+  });
 });
 
 describe("countOf and furnitureLeft", () => {

@@ -859,20 +859,35 @@ public sealed class GameHubTests
     }
 
     [Test]
-    public async Task RemoveFriend_AsksTheHomesThemselves_NotWhereTheSessionsPoint()
+    public async Task RemoveFriend_AsksTheHome_WhenTheSessionDoesntSayWhereTheCatIs()
     {
-        // Felix's session points elsewhere (its Arrived failed, say), but Tom's home has his cat: the home has the last word.
+        // Felix's session doesn't know where he is (its Arrived failed, say), but Tom's home has his cat: the home is asked.
         var tomsHome = HomeOf(Tom.Id);
         HomeOf(Felix);
         _friends.UnfriendAsync(Tom.Id, Felix, Arg.Any<CancellationToken>())
             .Returns(new PlayerRelation(Felix, "Felix", FurColor.Black, FriendState.None));
-        Session(Felix).Locate().Returns(new PlayerPlace("tabby", "cafe"));
+        Session(Felix).Locate().Returns((PlayerPlace?)null);
         tomsHome.CatsHere().Returns([Felix]);
         _homes.MustLeaveAsync(Tom.Id, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>()).Returns([Felix]);
 
         await Hub().RemoveFriend(Felix);
 
         await tomsHome.Received(1).SendOut(Arg.Is<IReadOnlyList<Guid>>(ids => ids.SequenceEqual(new[] { Felix })), Arg.Any<string>());
+    }
+
+    [Test]
+    public async Task RemoveFriend_WithTheOtherSomewhereElse_DoesntOpenTheirHome()
+    {
+        // Felix is in the café, as his session says: Tom's home isn't asked (nor opened, if nobody is in it).
+        var tomsHome = HomeOf(Tom.Id);
+        HomeOf(Felix);
+        _friends.UnfriendAsync(Tom.Id, Felix, Arg.Any<CancellationToken>())
+            .Returns(new PlayerRelation(Felix, "Felix", FurColor.Black, FriendState.None));
+        Session(Felix).Locate().Returns(new PlayerPlace("tabby", "cafe"));
+
+        await Hub().RemoveFriend(Felix);
+
+        await tomsHome.DidNotReceive().CatsHere();
     }
 
     [Test]

@@ -47,6 +47,28 @@ public sealed class HomesTests
     }
 
     [Test]
+    public async Task PlaceFurniture_AtHalfASpot_IsRefused_NotPutSomewhereElse()
+    {
+        var tom = await NewPlayerAsync();
+
+        var refused = Assert.ThrowsAsync<DomainException>(() =>
+            Homes.PlaceAsync(tom, ShopCatalog.StarterFurniture, 2, null, 0, CancellationToken.None));
+
+        Assert.That(refused!.Message, Is.EqualTo("Pick a spot on the floor."));
+        Assert.That((await Homes.GetAsync(tom, CancellationToken.None)).Furniture, Is.Empty);
+    }
+
+    [Test]
+    public async Task PlaceFurniture_WhereverItFits_FacesTheWayAsked()
+    {
+        var tom = await NewPlayerAsync();
+
+        var placed = await Homes.PlaceAsync(tom, ShopCatalog.StarterFurniture, null, null, 3, CancellationToken.None);
+
+        Assert.That(placed.Furniture.Single().QuarterTurns, Is.EqualTo(3));
+    }
+
+    [Test]
     public async Task Furniture_BoughtTwice_GoesOutTwice_AndNoMore()
     {
         var tom = await NewPlayerAsync();
@@ -159,6 +181,7 @@ public sealed class HomesTests
         var felixOut = SentOut(felixHub, tom.Id);
         var garfieldOut = SentOut(garfieldHub, tom.Id);
         var tomSees = new Recorder(tomHub);
+        var felixSees = new Recorder(felixHub);
         var grains = Game.Services.GetRequiredService<IGrainFactory>();
         var homeGrain = grains.GetGrain<IRoomGrain>(RoomKey.ForHome(tom.Id));
 
@@ -167,6 +190,8 @@ public sealed class HomesTests
 
         Assert.That(await felixOut.Task.WaitAsync(TimeSpan.FromSeconds(10)), Does.Contain("changed who can visit their home"));
         Assert.That(await tomSees.Next<Guid>("CatLeft", id => id == felix.Id), Is.EqualTo(felix.Id));
+        Assert.That(await felixSees.Saw<Guid>("CatLeft", id => id == felix.Id, TimeSpan.FromSeconds(1)), Is.False,
+            "the cat sent out isn't told it left a room its tab still shows");
         Assert.That(await homeGrain.CatsHere(), Is.EquivalentTo(new[] { tom.Id, garfield.Id }));
         Assert.That(garfieldOut.Task.IsCompleted, Is.False);
         // Felix goes back to Town Square, in his own world.
