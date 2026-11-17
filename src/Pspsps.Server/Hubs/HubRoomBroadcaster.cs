@@ -16,4 +16,8 @@ internal sealed class HubRoomBroadcaster(IHubContext<GameHub, IGameClient> hub) 
     public Task ChatSaid(string roomKey, ChatView line) => hub.Clients.Group(roomKey).ChatSaid(line);
 
     public Task CatEmoted(string roomKey, EmoteView emote) => hub.Clients.Group(roomKey).CatEmoted(emote);
+
+    public Task FishBit(string session) => hub.Clients.Client(session).FishBit();
+
+    public Task CatFished(string roomKey, CatchView caught) => hub.Clients.Group(roomKey).CatFished(caught);
 }

@@ -1,5 +1,6 @@
 using Orleans.Runtime;
 using Pspsps.Domain;
+using Pspsps.Domain.Fishing;
 using Pspsps.Domain.Players;
 using Pspsps.Domain.Rooms;
 using Pspsps.Server.Telemetry;
@@ -15,6 +16,7 @@ namespace Pspsps.Server.Game;
 internal sealed class RoomGrain(
     IRoomBroadcaster broadcaster,
     [FromKeyedServices(TimeProviderNames.Grains)] TimeProvider time,
+    Random random,
     GameMetrics metrics) : Grain, IRoomGrain
 {
     private string _key = "";
@@ -67,7 +69,8 @@ internal sealed class RoomGrain(
             _state.Room.Depth,
             [.. _state.Cats.Select(CatView.From)],
             [.. _state.RecentChat.Select(ChatView.From)],
-            [.. RoomCatalog.All.Where(r => r.Id != _state.Room.Id).Select(r => new RoomLink(r.Id, r.Name))]);
+            [.. RoomCatalog.All.Where(r => r.Id != _state.Room.Id).Select(r => new RoomLink(r.Id, r.Name))],
+            _state.Room.Pond is { } pond ? new PondView(pond.Center.X, pond.Center.Z, pond.Radius) : null);
     }
 
     public async Task Leave(Guid playerId, string session)
@@ -117,6 +120,39 @@ internal sealed class RoomGrain(
     {
         var done = Rule(() => _state.Emote(playerId, emote, time.GetUtcNow()));
         await broadcaster.CatEmoted(_key, EmoteView.From(done));
+    }
+
+    public Task Cast(Guid playerId, string session)
+    {
+        var now = time.GetUtcNow();
+        var line = Rule(() => _state.Cast(playerId, now, random.NextDouble()));
+        // One shot, at the bite. The grain timer runs on the grain clock and inside the grain, like every call here.
+        IGrainTimer? bite = null;
+        bite = this.RegisterGrainTimer(
+            async ct =>
+            {
+                bite?.Dispose();
+                // Only if this line is still out: the cat may have reeled early, walked off or left meanwhile.
+                if (ReferenceEquals(_state.LineOf(playerId), line))
+                {
+                    await broadcaster.FishBit(session);
+                }
+            },
+            new GrainTimerCreationOptions { DueTime = line.BiteAt - now, Period = Timeout.InfiniteTimeSpan });
+        return Task.CompletedTask;
+    }
+
+    public async Task<ReelView> Reel(Guid playerId)
+    {
+        var result = Rule(() => _state.Reel(playerId, time.GetUtcNow(), random.NextDouble()));
+        if (result.Fish is not { } fish)
+        {
+            var outcome = result.Outcome == ReelOutcome.TooEarly ? "too-early" : "too-late";
+            return new ReelView(outcome, null, null, 0, 0);
+        }
+
+        await broadcaster.CatFished(_key, new CatchView(playerId, fish.Id, fish.Name, fish.Coins));
+        return new ReelView("caught", fish.Id, fish.Name, fish.Coins, 0);
     }
 
     // Cats whose pod died without closing their connections: nothing renews their leases.

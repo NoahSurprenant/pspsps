@@ -12,4 +12,9 @@ public interface IRoomBroadcaster
     Task ChatSaid(string roomKey, ChatView line);
 
     Task CatEmoted(string roomKey, EmoteView emote);
+
+    /// <summary>Tells one tab (its connection) that its line has a bite: reel now.</summary>
+    Task FishBit(string session);
+
+    Task CatFished(string roomKey, CatchView caught);
 }

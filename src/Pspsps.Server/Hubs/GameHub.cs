@@ -114,6 +114,25 @@ public sealed class GameHub(IGrainFactory grains, IPlayerService players, Sessio
         metrics.Emoted(place.WorldId, emote);
     }
 
+    /// <summary>Casts into the room's pond; the bite comes as FishBit, to this tab only.</summary>
+    public Task Cast() => InRoom(room => room.Cast(PlayerId, Context.ConnectionId));
+
+    /// <summary>Reels in: a catch is paid into the player's coins here, and the room is shown it.</summary>
+    public async Task<ReelView> Reel()
+    {
+        ReelView? reel = null;
+        var place = await InRoom(async room => reel = await room.Reel(PlayerId));
+        var caught = reel!;
+        if (caught.Coins == 0)
+        {
+            return caught;
+        }
+
+        var player = await players.EarnCoinsAsync(PlayerId, caught.Coins, Context.ConnectionAborted);
+        metrics.Fished(place.WorldId, caught.FishId!);
+        return caught with { TotalCoins = player.Coins };
+    }
+
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
         // Forgotten first, whatever happens next: a leave that fails falls back to the leases running out.

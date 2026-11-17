@@ -1,3 +1,4 @@
+using Pspsps.Domain.Fishing;
 using Pspsps.Domain.Players;
 
 namespace Pspsps.Domain.Rooms;
@@ -23,6 +24,9 @@ public sealed class RoomState(RoomDefinition room)
 
     // When each cat last emoted, for the cooldown.
     private readonly Dictionary<Guid, DateTimeOffset> _lastEmotes = [];
+
+    // Lines in the pond, by cat: cast, waiting for the bite only the server knows.
+    private readonly Dictionary<Guid, FishingLine> _lines = [];
 
     public RoomDefinition Room { get; } = room;
 
@@ -68,6 +72,7 @@ public sealed class RoomState(RoomDefinition room)
 
         _leases.Remove(playerId);
         _lastEmotes.Remove(playerId);
+        _lines.Remove(playerId);
         return _cats.Remove(playerId);
     }
 
@@ -98,12 +103,16 @@ public sealed class RoomState(RoomDefinition room)
             _leases.Remove(playerId);
             _cats.Remove(playerId);
             _lastEmotes.Remove(playerId);
+            _lines.Remove(playerId);
         }
 
         return expired;
     }
 
-    /// <summary>Walks the cat towards <paramref name="target"/>, stopping at the room's walls. Returns where it ends up.</summary>
+    /// <summary>
+    /// Walks the cat towards <paramref name="target"/>, stopping at the room's walls. Returns where it ends up. A cat that
+    /// walks off reels its line in, with nothing on it.
+    /// </summary>
     public Position Move(Guid playerId, Position target)
     {
         var cat = Get(playerId);
@@ -114,7 +123,51 @@ public sealed class RoomState(RoomDefinition room)
 
         var position = Room.Clamp(target);
         _cats[playerId] = cat with { Position = position, Pose = CatPose.Standing };
+        _lines.Remove(playerId);
         return position;
+    }
+
+    public bool IsFishing(Guid playerId) => _lines.ContainsKey(playerId);
+
+    /// <summary>The cat's line in the water, if any: a bite applies only to the line it was cast for.</summary>
+    public FishingLine? LineOf(Guid playerId) => _lines.GetValueOrDefault(playerId);
+
+    /// <summary>
+    /// Casts the cat's line into the room's pond: it must stand at the water's edge, with no line already out.
+    /// <paramref name="roll"/> in [0, 1) picks when the fish bites.
+    /// </summary>
+    public FishingLine Cast(Guid playerId, DateTimeOffset now, double roll)
+    {
+        var cat = Get(playerId);
+        var pond = Room.Pond ?? throw new DomainException("There's no water to fish in here.");
+        if (!pond.InReach(cat.Position))
+        {
+            throw new DomainException("Walk up to the pond to fish.");
+        }
+
+        if (_lines.ContainsKey(playerId))
+        {
+            throw new DomainException("Your line is already in the water.");
+        }
+
+        var line = FishingLine.Cast(now, roll);
+        _lines[playerId] = line;
+        return line;
+    }
+
+    /// <summary>
+    /// Reels the cat's line in: a fish if it's right at the bite, nothing if too early or too late. Either way the line is
+    /// out of the water after. <paramref name="roll"/> in [0, 1) picks the fish.
+    /// </summary>
+    public ReelResult Reel(Guid playerId, DateTimeOffset now, double roll)
+    {
+        Get(playerId);
+        if (!_lines.Remove(playerId, out var line))
+        {
+            throw new DomainException("Cast your line first.");
+        }
+
+        return line.Reel(now, roll);
     }
 
     public ChatLine Say(Guid playerId, string text, DateTimeOffset now)

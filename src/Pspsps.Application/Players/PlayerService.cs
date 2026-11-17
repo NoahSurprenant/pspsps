@@ -1,6 +1,7 @@
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Pspsps.Application.Abstractions;
+using Pspsps.Domain;
 using Pspsps.Domain.Players;
 
 namespace Pspsps.Application.Players;
@@ -37,6 +38,16 @@ internal sealed class PlayerService(IApplicationDbContext db, TimeProvider time,
     {
         var player = await db.Players.AsNoTracking().FirstOrDefaultAsync(p => p.Id == playerId, cancellationToken);
         return player is null ? null : PlayerProfile.From(player);
+    }
+
+    // Only the player's current tab earns (one tab per player), so two earnings for one player don't race.
+    public async Task<PlayerProfile> EarnCoinsAsync(Guid playerId, int coins, CancellationToken cancellationToken)
+    {
+        var player = await db.Players.FirstOrDefaultAsync(p => p.Id == playerId, cancellationToken)
+            ?? throw new DomainException("Your cat wasn't found. Sign in again.");
+        player.EarnCoins(coins);
+        await db.SaveChangesAsync(cancellationToken);
+        return PlayerProfile.From(player);
     }
 
     private string RandomCatName() =>

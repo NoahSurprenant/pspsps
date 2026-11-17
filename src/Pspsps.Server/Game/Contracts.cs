@@ -43,7 +43,29 @@ public sealed record RoomSnapshot(
     [property: Id(4)] double Depth,
     [property: Id(5)] IReadOnlyList<CatView> Cats,
     [property: Id(6)] IReadOnlyList<ChatView> Chat,
-    [property: Id(7)] IReadOnlyList<RoomLink> Rooms);
+    [property: Id(7)] IReadOnlyList<RoomLink> Rooms,
+    [property: Id(8)] PondView? Pond);
+
+/// <summary>Where a room's pond is, for drawing it and walking to it.</summary>
+[GenerateSerializer, Immutable]
+public sealed record PondView([property: Id(0)] double X, [property: Id(1)] double Z, [property: Id(2)] double Radius);
+
+/// <summary>
+/// How a reel went: "caught" with the fish and its coins, "too-early" or "too-late" with nothing. TotalCoins is the
+/// player's coins after it (filled in by the hub, which pays).
+/// </summary>
+[GenerateSerializer, Immutable]
+public sealed record ReelView(
+    [property: Id(0)] string Outcome,
+    [property: Id(1)] string? FishId,
+    [property: Id(2)] string? FishName,
+    [property: Id(3)] int Coins,
+    [property: Id(4)] int TotalCoins);
+
+/// <summary>A catch, shown to everyone in the room.</summary>
+[GenerateSerializer, Immutable]
+public sealed record CatchView(
+    [property: Id(0)] Guid PlayerId, [property: Id(1)] string FishId, [property: Id(2)] string FishName, [property: Id(3)] int Coins);
 
 /// <summary>A room the player can go to from here.</summary>
 [GenerateSerializer, Immutable]
