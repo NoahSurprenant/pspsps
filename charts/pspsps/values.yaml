@@ -64,6 +64,10 @@ chatFilter:
 extraEnv: []
 
 server:
+  # How long the server waits at startup for PostgreSQL to answer before migrating anyway (Database:StartupWaitSeconds),
+  # from 1 to 120. A new pod's first connections can be refused or dropped while its network policy is applied. The
+  # startup probe allows 240 s, room for the longest wait and the migration's retries after it.
+  databaseStartupWaitSeconds: 90
   resources:
     requests:
       cpu: 100m

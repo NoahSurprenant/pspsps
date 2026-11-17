@@ -28,7 +28,9 @@ ConnectionStrings__Pspsps="Host=localhost;Database=pspsps;Username=postgres;Pass
 cd client && npm ci && npm run dev
 ```
 
-The database schema is migrated on startup. Discord and Google sign-in turn on when their client ID and secret are
+The database schema is migrated on startup, once PostgreSQL answers: the server waits up to
+`Database__StartupWaitSeconds` (90 by default, from 1 to 120), trying every 2 s and logging each failed attempt, then
+migrates anyway so the real error shows. Discord and Google sign-in turn on when their client ID and secret are
 configured (`Authentication__Discord__ClientId`, `Authentication__Discord__ClientSecret`, and the same for `Google`);
 guest play always works.
 
