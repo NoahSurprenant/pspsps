@@ -103,13 +103,14 @@ export class RoomScene {
     let pond: AbstractMesh | undefined;
     if (room.pond) {
       // Two flat cylinders: the water, and a little larger and just below it, its dark edge. Not renderOutline: on
-      // something this flat the outline pass painted over the whole of it.
+      // something this flat the outline pass painted over the whole of it. Clear of the floor by more than the depth
+      // buffer can tell apart from far off: a few centimetres above it, the floor won.
       const edge = CreateCylinder("pond-edge", { diameter: room.pond.radius * 2 + 0.16, height: 0.02, tessellation: 48 }, this.scene);
-      edge.position.set(room.pond.x, 0.01, room.pond.z);
+      edge.position.set(room.pond.x, 0.06, room.pond.z);
       edge.material = flat(this.scene, "pond-edge", "#2a2230");
       edge.isPickable = false;
       pond = CreateCylinder("pond", { diameter: room.pond.radius * 2, height: 0.02, tessellation: 48 }, this.scene);
-      pond.position.set(room.pond.x, 0.025, room.pond.z);
+      pond.position.set(room.pond.x, 0.08, room.pond.z);
       pond.material = flat(this.scene, "pond", "#5fb3d9");
     }
 
