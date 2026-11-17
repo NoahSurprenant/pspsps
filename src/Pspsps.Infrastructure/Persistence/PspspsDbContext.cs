@@ -20,7 +20,8 @@ public sealed class PspspsDbContext(DbContextOptions<PspspsDbContext> options)
     public void Forget(Player player)
     {
         ArgumentNullException.ThrowIfNull(player);
-        foreach (var login in player.Logins)
+        // A copy: detaching an added login takes it out of the player's list.
+        foreach (var login in player.Logins.ToList())
         {
             Entry(login).State = EntityState.Detached;
         }
