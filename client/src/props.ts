@@ -53,6 +53,9 @@ export const palette = {
   sisal: "#e3cfa3",
   lavender: "#b9a7d4",
   pot: "#efe4d0",
+  mirror: "#d8eef0",
+  hatPink: "#f58fbf",
+  felt: "#3d3a4a",
 } as const;
 
 const box = (width: number, height: number, depth: number, at: [number, number, number], colour: string,
@@ -239,6 +242,71 @@ const designs: Record<string, { size: number; parts: Part[] }> = {
       ball(0.14, [0.18, 0.31, -0.12], palette.pink),
     ],
   },
+  // The shop's. Its catalogue, open on a wooden lectern whose top slopes down to the reader (the front), a ribbon
+  // hanging from its pages: tapping it opens the catalogue (main.ts).
+  "catalogue-stand": {
+    size: 0.6,
+    parts: [
+      box(0.66, 0.06, 0.46, [0, 0.03, 0], palette.darkWood),
+      box(0.14, 0.95, 0.14, [0, 0.5, 0.04], palette.wood),
+      box(0.78, 0.06, 0.52, [0, 1.02, 0], palette.wood, [-0.45, 0, 0]),
+      box(0.74, 0.03, 0.48, [0, 1.06, -0.02], palette.teal, [-0.45, 0, 0]),
+      ...[-1, 1].map((side) => box(0.34, 0.04, 0.44, [side * 0.18, 1.09, -0.03], palette.white, [-0.45, 0.04 * side, 0])),
+      { ...box(0.04, 0.36, 0.015, [0.06, 0.88, -0.25], palette.rose, [-0.15, 0, 0]), outlined: false },
+    ],
+  },
+  // A shelf unit of hats: wooden sides and back, three shelves, party hats, top hats, beanies and bows on show.
+  "hat-shelf": {
+    size: 0.8,
+    parts: [
+      ...[-1, 1].map((side) => box(0.07, 1.75, 0.32, [side * 0.6, 0.875, 0], palette.wood)),
+      box(1.26, 1.75, 0.04, [0, 0.875, 0.14], palette.darkWood),
+      ...[0.03, 0.62, 1.2, 1.72].map((y) => box(1.14, 0.06, 0.3, [0, y, 0], palette.wood)),
+      // The bottom shelf: two top hats and a beanie.
+      ...[-0.34, 0.06].flatMap((x) => [
+        cylinder(0.3, 0.03, [x, 0.075, -0.02], palette.felt, { sides: 12 }),
+        cylinder(0.19, 0.28, [x, 0.22, -0.02], palette.felt, { sides: 12 }),
+        cylinder(0.2, 0.05, [x, 0.12, -0.02], palette.rose, { sides: 12 }),
+      ]),
+      ball(0.3, [0.38, 0.17, -0.02], palette.sage, 0.3),
+      // The middle shelf: party hats.
+      ...[-0.36, -0.06, 0.24].flatMap((x) => [
+        cylinder(0.22, 0.32, [x, 0.81, -0.02], palette.hatPink, { top: 0, sides: 10 }),
+        ball(0.08, [x, 0.99, -0.02], palette.butter),
+      ]),
+      // The top shelf: beanies and a bow.
+      ball(0.32, [-0.3, 1.34, -0.02], palette.lavender, 0.3),
+      ball(0.32, [0.05, 1.34, -0.02], palette.mustard, 0.3),
+      ...[-1, 1].map((side) => cylinder(0.14, 0.12, [0.36 + side * 0.07, 1.33, -0.04], palette.rose, { top: 0.02, sides: 8, turn: [0, 0, side * Math.PI / 2] })),
+    ],
+  },
+  // The shop's counter: a wooden front with panels, a cream top, a till, a bell to ring, folded collars and a gift box.
+  "shop-counter": {
+    size: 1.2,
+    parts: [
+      box(1.96, 1.0, 0.66, [0, 0.5, 0], palette.wood),
+      ...[-0.6, 0, 0.6].map((x) => box(0.48, 0.6, 0.03, [x, 0.5, -0.34], palette.darkWood)),
+      box(2.06, 0.08, 0.74, [0, 1.04, 0], palette.cream),
+      box(0.44, 0.26, 0.34, [-0.62, 1.21, 0.06], palette.teal),
+      box(0.36, 0.1, 0.12, [-0.62, 1.39, 0.16], palette.teal, [-0.5, 0, 0]),
+      cylinder(0.18, 0.03, [-0.15, 1.095, -0.12], palette.silver, { sides: 12 }),
+      ball(0.14, [-0.15, 1.15, -0.12], palette.mustard, 0.12),
+      ...[palette.teal, palette.sage, palette.lilac].map((colour, i) => box(0.3, 0.05, 0.2, [0.25, 1.105 + i * 0.05, -0.08], colour)),
+      box(0.3, 0.26, 0.3, [0.7, 1.21, 0.05], palette.lavender),
+      { ...box(0.06, 0.27, 0.31, [0.7, 1.215, 0.05], palette.butter), outlined: false },
+    ],
+  },
+  // A standing mirror, to try things on in: a tall wooden frame on two feet, the glass with a glint across it.
+  mirror: {
+    size: 0.55,
+    parts: [
+      ...[-1, 1].map((side) => box(0.1, 0.06, 0.4, [side * 0.26, 0.03, 0], palette.darkWood)),
+      box(0.62, 1.4, 0.07, [0, 0.9, 0.02], palette.wood),
+      box(0.5, 1.26, 0.03, [0, 0.9, -0.025], palette.mirror),
+      { ...box(0.05, 0.5, 0.01, [-0.08, 1.05, -0.045], palette.white, [0, 0, -0.6]), outlined: false },
+      { ...box(0.03, 0.3, 0.01, [0.06, 1.0, -0.045], palette.white, [0, 0, -0.6]), outlined: false },
+    ],
+  },
 };
 
 /** The kinds of prop drawn here (the server's PropKinds). */
@@ -356,6 +424,11 @@ export function topOf(hex: string): string {
   return Color3.Lerp(Color3.FromHexString(hex), Color3.White(), 0.18).toHexString().toLowerCase();
 }
 
+/** The prop whose circle the spot (x, z) on the floor is in, if any. */
+export function propAt(props: readonly PropView[], x: number, z: number): PropView | undefined {
+  return props.find((p) => Math.hypot(x - p.x, z - p.z) <= p.radius);
+}
+
 /** How far past a prop's edge a cat sent beside it stands. */
 const besideGap = 0.4;
 
@@ -366,7 +439,7 @@ const besideGap = 0.4;
  */
 export function besideProp(props: readonly PropView[], floor: { width: number; depth: number }, x: number, z: number):
   { x: number; z: number } | undefined {
-  const prop = props.find((p) => Math.hypot(x - p.x, z - p.z) <= p.radius);
+  const prop = propAt(props, x, z);
   if (!prop) {
     return undefined;
   }

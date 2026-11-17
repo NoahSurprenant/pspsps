@@ -202,6 +202,9 @@ export interface PlayerCard {
   collarName?: string | null;
   /** Whether the cat's home would let the player in now. */
   canVisitHome?: boolean;
+  /** The hat and collar it wears (shop item IDs), for its picture (missing from an older server). */
+  hat?: string | null;
+  collar?: string | null;
 }
 
 /** Where a friend is (Contracts.cs, FriendPlaceView). */

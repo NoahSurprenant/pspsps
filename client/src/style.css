@@ -92,24 +92,42 @@ button:disabled {
   color: #b3261e;
 }
 
+/* The room bar: small, to leave the room in view. The coins, Friends and Worlds on one line (wrapping only on a screen
+   narrower than any phone). */
 .room-bar {
   position: absolute;
-  top: 0.75rem;
+  top: 0.4rem;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  /* On a narrow screen the room's buttons wrap onto a second line rather than run off it. */
   flex-wrap: wrap;
   justify-content: center;
   width: max-content;
-  max-width: calc(100% - 1rem);
+  max-width: calc(100% - 0.5rem);
   box-sizing: border-box;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.4rem 0.6rem 0.4rem 1rem;
+  gap: 0.15rem;
+  padding: 0.1rem 0.15rem 0.1rem 0.7rem;
   background: var(--paper);
   border: 2px solid var(--ink);
   border-radius: 999px;
+}
+
+.room-bar .coins {
+  margin-right: 0.2rem;
+}
+
+.room-bar button {
+  min-height: 2.1rem;
+  padding: 0.2rem 0.7rem;
+  font-size: 0.95rem;
+}
+
+/* A finger needs more than a mouse: 44 px tall on a touch screen. */
+@media (pointer: coarse) {
+  .room-bar button {
+    min-height: 2.75rem;
+  }
 }
 
 /* The bottom of the screen, one column from the top down: a toast, fishing, the emotes and the chat. Stacked by the
@@ -395,28 +413,33 @@ button:disabled {
   margin-left: auto;
 }
 
-/* The doors' buttons, for the keyboard (the doors themselves are on the canvas): unseen and untouchable until one has
-   focus, then shown at the top left, over whatever is there, as a skip link is. */
-.doors {
+/* The room's buttons for the keyboard (the cat, the catalogue and the doors themselves are on the canvas): unseen and
+   untouchable until one has focus, then shown at the top left, over whatever is there, as a skip link is. */
+.keyboard-links,
+.keyboard-links .doors {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+}
+
+.keyboard-links {
   position: absolute;
   top: 0.75rem;
   left: 0.75rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
   z-index: 1;
 }
 
-#ui > .doors {
+#ui > .keyboard-links {
   pointer-events: none;
 }
 
-.doors button {
+.keyboard-links button {
   opacity: 0;
   pointer-events: none;
 }
 
-.doors button:focus-visible {
+.keyboard-links button:focus-visible {
   opacity: 1;
   pointer-events: auto;
 }
@@ -534,4 +557,69 @@ button:disabled {
 /* What decorating puts away (the emotes, the chat): its own display rules mustn't show it. */
 .dock > [hidden] {
   display: none;
+}
+
+/* A picture of the cat on its card: round, on a soft ground, as it looks now. */
+.portrait {
+  align-self: center;
+  margin: 0;
+  width: min(8.5rem, 40vw);
+  aspect-ratio: 1;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 40%, #fff6e6 0 55%, #f3dcc0 100%);
+  overflow: hidden;
+}
+
+.portrait img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Until it has been taken: nothing (not a broken image). */
+.portrait img:not([src]) {
+  visibility: hidden;
+}
+
+/* Your own card: what you have to wear, as the catalogue lists it. */
+.own-card .wardrobe-hint {
+  font-style: italic;
+}
+
+/* The catalogue: a printed booklet, in place of a plain sheet. Cream pages with a ruled edge, its title in a serif, and
+   its items in a grid of two when there is room. */
+.catalogue {
+  width: min(36rem, calc(100% - 1rem));
+  background:
+    linear-gradient(90deg, transparent 0 0.6rem, #e8c9a0 0.6rem 0.75rem, transparent 0.75rem),
+    #fff4dc;
+  padding-left: 1.6rem;
+}
+
+.catalogue h2 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-style: italic;
+  font-size: 2rem;
+  letter-spacing: 0.02em;
+}
+
+.catalogue .catalogue-blurb {
+  font-style: italic;
+}
+
+.catalogue h3 {
+  padding-bottom: 0.15rem;
+  border-bottom: 2px dotted var(--ink);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.15rem;
+}
+
+.catalogue .shop-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
+}
+
+.catalogue .shop-item {
+  background: #fffdf7;
 }

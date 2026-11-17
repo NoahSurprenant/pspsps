@@ -6,6 +6,7 @@ const plans: Record<string, Floorplan> = {
   "town-square": { width: 24, depth: 16, pond: { x: -7, z: -3, radius: 2.5 }, doors: [] },
   cafe: { width: 14, depth: 10, pond: null, doors: [] },
   home: { width: 12, depth: 9, pond: null, doors: [] },
+  shop: { width: 13, depth: 9, pond: null, doors: [] },
 };
 
 describe("lookOf", () => {
@@ -25,6 +26,16 @@ describe("lookOf", () => {
     expect(cafe.paintFloor).toBeDefined();
     expect(square.paintFloor).not.toBe(cafe.paintFloor);
     expect(square.sky).not.toBe(cafe.sky);
+  });
+
+  it("gives the shop a look of its own, indoors", () => {
+    const [shop, cafe, home] = [lookOf("shop"), lookOf("cafe"), lookOf("home")];
+
+    expect(shop.paintFloor).toBeDefined();
+    expect(shop.paintWall).toBeDefined();
+    expect(shop.paintFloor).not.toBe(cafe.paintFloor);
+    expect(shop.paintFloor).not.toBe(home.paintFloor);
+    expect(shop.ground).toBeUndefined();
   });
 
   it("gives a room it has no look for a plain floor and wall, and no backdrop", () => {

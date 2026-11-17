@@ -8,17 +8,18 @@ import { catchBubble, FishingState, gotAwayMessage, paid, pondEdge, reelMessage,
 import { Room } from "./room";
 import type { CatAnimation } from "./cat";
 import type { RoomScene } from "./scene";
-import { Overlay, type DecorateActions, type Note } from "./ui";
+import { Overlay, type CatPicture, type DecorateActions, type Note } from "./ui";
+import { catalogueStand, goRead } from "./catalogue";
+import type { Outfit } from "./cat";
 import {
   canVisitFromCard, decoratingHint, furnitureLeft, isOwnHome, pieceAt, propOf, propsOf, visitorsMessage, type Decorating,
 } from "./home";
 import type { FriendAction } from "./friends";
-import { shopMessage, showsOutfit, type ShopAction } from "./shop";
+import { describeCat, shopMessage, showsOutfit, type ShopAction } from "./shop";
 import type { DoorView, HomeView, HomeVisitors, OutfitView, Player, PlayerCard, PropView, RoomSnapshot, Shop } from "./types";
 
 const overlay = new Overlay(required<HTMLElement>("#ui"));
 overlay.onFriends = () => void openFriends();
-overlay.onShop = () => void openShop();
 // The 3D scene, made on the way into the first room: Babylon (most of the page's script) loads only then, so the
 // sign-in screen and the world list stay light, and nothing draws until there is a room to draw.
 let scene: RoomScene | undefined;
@@ -57,12 +58,19 @@ const stage = lazily(async (): Promise<RoomScene> => {
   made.onPondClicked(() => void fish());
   made.onDoorClicked((door) => void goThrough(door));
   made.onEditTapped((x, z) => editTap(x, z));
-  // Another cat: its player card. The player's own cat has none.
+  // A cat: its player card; the player's own, their own card (what they wear, to change it).
   made.onCatClicked((playerId) => {
-    if (room && playerId !== me?.id) {
+    if (!room) {
+      return;
+    }
+    if (playerId === me?.id) {
+      void openOwnCard();
+    } else {
       void openCard(playerId);
     }
   });
+  // The shop's catalogue stand: the cat walks up to it, and the catalogue opens.
+  made.onStandClicked(() => void readCatalogue());
   scene = made;
   return made;
 });
@@ -78,7 +86,7 @@ let decoratingShop: Shop | undefined;
 let me: Player | undefined;
 // Where the player's fishing line is.
 const fishing = new FishingState((state) => overlay.setFishing(state));
-// The walk to a door, which goes through it once the cat gets there.
+// The walk to a door (which goes through it once the cat gets there) or to the catalogue stand (which opens it).
 const doorWalks = new DoorWalks();
 // Room events that arrive while the next room loads, for it once its snapshot shows.
 const loading = new PendingEvents<(room: Room) => void>();
@@ -290,6 +298,10 @@ function show(snapshot: RoomSnapshot, view: RoomScene): Room {
     (door) => void goThrough(door),
     () => window.location.reload(),
     me?.coins ?? 0,
+    {
+      yourCat: () => void openOwnCard(),
+      catalogue: catalogueStand(snapshot.props) ? () => void readCatalogue() : undefined,
+    },
     snapshot.pond ? { fish: () => void fish(), reel: () => void reel(), state: () => fishing.state } : undefined,
     // In their own home, the owner decorates it and chooses who may visit.
     home && isOwnHome(home, me?.id)
@@ -472,7 +484,21 @@ function showCard(card: PlayerCard): void {
     overlay.closeDialog();
     visitHome(card.playerId);
   } : undefined;
-  overlay.showPlayerCard(card, (action) => void changeFriendship(action, card.playerId), visit);
+  const outfit: Outfit = { fur: card.furColor, hat: card.hat ?? null, collar: card.collar ?? null };
+  overlay.showPlayerCard(card, pictureOf(card.displayName, outfit, card.hatName, card.collarName),
+    (action) => void changeFriendship(action, card.playerId), visit);
+}
+
+/**
+ * A picture of a cat dressed in <outfit> for its card, described for a screen reader: the one taken already, or one
+ * being taken (the room's scene takes them; none before a room has shown).
+ */
+function pictureOf(name: string, outfit: Outfit, hatName?: string | null, collarName?: string | null): CatPicture {
+  const portraits = scene?.portraits;
+  return {
+    description: describeCat(name, outfit.fur, hatName, collarName),
+    src: portraits ? portraits.cached(outfit) ?? portraits.picture(outfit) : undefined,
+  };
 }
 
 /**
@@ -549,25 +575,60 @@ async function friendsChanged(playerId: string): Promise<void> {
   }
 }
 
-/** The shop. A refresh (`refresh`) of the open shop updates it in place, and does nothing if the player closed it. */
-async function openShop(refresh = false): Promise<void> {
+/** The dialogs that show the player's side of the shop: the catalogue, and their own card (their wardrobe). */
+type ShopSheet = "catalogue" | "own-card";
+
+/**
+ * Opens the catalogue or the player's own card, as the server has the shop now. A refresh (`refresh`) of the one open
+ * updates it in place, and does nothing if the player closed it.
+ */
+async function openShopSheet(sheet: ShopSheet, refresh = false): Promise<void> {
   try {
     const shop = await connection.getShop();
-    if (refresh && overlay.openDialogFor?.kind !== "shop") {
+    if (refresh && overlay.openDialogFor?.kind !== sheet) {
       return;
     }
-    showShop(shop);
+    showShopSheet(sheet, shop);
   } catch (error) {
     overlay.toast(messageOf(error));
   }
 }
 
-// The shop showing, as last drawn, and how many of this tab's shop buttons are still waiting for the server (each draws
-// the shop as it is after, so a CatDressed of this tab's own change, which comes back first, needs no fetch).
+/** The player's own card: a tap on their own cat (or "Your cat"), anywhere. */
+function openOwnCard(): Promise<void> {
+  return openShopSheet("own-card");
+}
+
+/** Walks the player's cat up to the shop's catalogue stand, and opens the catalogue once it's there. */
+async function readCatalogue(): Promise<void> {
+  const stand = catalogueStand(room?.snapshot.props);
+  const cat = me && room?.cats.get(me.id);
+  const view = scene;
+  if (!stand || !cat || !me || !view) {
+    return;
+  }
+  const id = me.id;
+  // Walking off reels the line in, as any walk does.
+  fishing.drop();
+  try {
+    await goRead(stand, cat, {
+      walks: doorWalks,
+      move: (x, z) => connection.move(x, z),
+      reached: (x, z) => view.reached(id, x, z),
+      open: () => openShopSheet("catalogue"),
+    });
+  } catch (error) {
+    overlay.toast(messageOf(error));
+  }
+}
+
+// The shop showing (in the catalogue or the player's own card), as last drawn, and how many of this tab's shop buttons
+// are still waiting for the server (each draws the shop as it is after, so a CatDressed of this tab's own change, which
+// comes back first, needs no fetch).
 let shopShown: Shop | undefined;
 let shopping = 0;
 
-function showShop(shop: Shop): void {
+function showShopSheet(sheet: ShopSheet, shop: Shop): void {
   shopShown = shop;
   // Furniture just bought is there to put out.
   if (decorating) {
@@ -579,16 +640,24 @@ function showShop(shop: Shop): void {
     me = { ...me, coins: shop.coins };
     overlay.setCoins(me.coins);
   }
-  overlay.showShop(shop, (action, itemId) => void shopAction(action, itemId, shop));
+  const act = (action: ShopAction, itemId: string) => void shopAction(action, itemId, shop);
+  if (sheet === "catalogue") {
+    overlay.showCatalogue(shop, act);
+    return;
+  }
+  const outfit: Outfit = { fur: shop.furColor, hat: shop.hat, collar: shop.collar };
+  const nameOf = (id: string | null) => shop.items.find((item) => item.id === id)?.name;
+  overlay.showOwnCard(me?.displayName ?? "Your cat", shop, pictureOf(me?.displayName ?? "Your cat", outfit, nameOf(shop.hat), nameOf(shop.collar)), act);
 }
 
-/** Buys, puts on or takes off an item, then shows the shop as it is after, and says what happened. */
+/** Buys, puts on or takes off an item, then shows the catalogue or card open as it is after, and says what happened. */
 async function shopAction(action: ShopAction, itemId: string, before: Shop): Promise<void> {
   shopping++;
   try {
     const after = await connection.shop(action, itemId);
-    if (overlay.openDialogFor?.kind === "shop") {
-      showShop(after);
+    const open = overlay.openDialogFor?.kind;
+    if (open === "catalogue" || open === "own-card") {
+      showShopSheet(open, after);
     } else if (me) {
       me = { ...me, coins: after.coins };
       overlay.setCoins(me.coins);
@@ -602,16 +671,16 @@ async function shopAction(action: ShopAction, itemId: string, before: Shop): Pro
 }
 
 /**
- * A cat changed what it wears: the card showing it is brought up to date; when it's the player's own, the open shop,
- * unless it shows that already (this tab's own change).
+ * A cat changed what it wears: the card showing it (its picture too) is brought up to date; when it's the player's own,
+ * the catalogue or their own card open, unless it shows that already (this tab's own change).
  */
 async function dressed(outfit: OutfitView): Promise<void> {
   const open = overlay.openDialogFor;
-  if (open?.kind === "shop" && outfit.playerId === me?.id) {
+  if ((open?.kind === "catalogue" || open?.kind === "own-card") && outfit.playerId === me?.id) {
     if (shopping > 0 || (shopShown && showsOutfit(shopShown, outfit))) {
       return;
     }
-    await openShop(true);
+    await openShopSheet(open.kind, true);
   } else if (open?.kind === "card" && open.playerId === outfit.playerId) {
     try {
       const card = await connection.getPlayerCard(outfit.playerId);

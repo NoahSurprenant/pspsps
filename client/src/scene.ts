@@ -31,7 +31,9 @@ import { lookOf } from "./looks";
 import {
   floorPixelsPerMetre, powerOfTwo, streetTile, textureSize, wallPixelsPerMetre, type Brush, type Floorplan,
 } from "./paint";
-import { besideProp, buildParts, ink, propParts, type Part } from "./props";
+import { catalogueStandKind } from "./catalogue";
+import { Portraits } from "./portrait";
+import { besideProp, buildParts, ink, propAt, propParts, type Part } from "./props";
 import { CatLook } from "./look";
 import catModelUrl from "./models/cat.glb?url";
 import type { CatView, DoorView, Emote, OutfitView, PropView, RoomSnapshot } from "./types";
@@ -74,8 +76,6 @@ interface CatOnScreen {
   model?: Cat;
   // What it wears: put on the model once it's drawn, and whenever it changes.
   outfit: Outfit;
-  // Whether a tap on it opens its card (another player's cat).
-  tappable: boolean;
   meow: MeowClip;
   // Someone waiting for the cat to be drawn standing at a spot (a walk to a door), told true when it is, false if it
   // is sent elsewhere first.
@@ -93,6 +93,7 @@ export class RoomScene {
   private pondClicked: () => void = () => {};
   private doorClicked: (door: DoorView) => void = () => {};
   private catClicked: (playerId: string) => void = () => {};
+  private standClicked: (stand: PropView) => void = () => {};
   private editTapped: (x: number, z: number) => void = () => {};
   // The room showing's back wall and props (one mesh, rebuilt when a home's furniture changes), and the ring round the
   // piece of furniture selected while decorating.
@@ -107,8 +108,14 @@ export class RoomScene {
   editing = false;
   // What a tap does, given everything along its ray (multiPick): set for the room showing.
   private tap: (picks: readonly PickingInfo[]) => void = () => {};
-  /** The player's own cat: it never takes the pointer, so a tap just behind it still walks or fishes. */
+  /**
+   * The player's own cat: a tap on it opens the player's own card, but only when nothing else a tap goes to is along its
+   * ray (another cat, a door, the pond): a tap on a door just behind it still goes through the door.
+   */
   playerId: string | undefined;
+
+  /** Pictures of cats for their cards, taken off screen with this engine and the cat model. */
+  readonly portraits: Portraits;
 
   /** <loadModel> reads the cat model into a room's scene (the tests hand in their own). */
   constructor(
@@ -117,6 +124,7 @@ export class RoomScene {
   ) {
     this.scene = new Scene(this.engine);
     this.scene.clearColor = sky;
+    this.portraits = new Portraits(this.engine, this.loadModel);
     // One loop for the page; it draws whichever room is showing.
     this.engine.runRenderLoop(() => this.renderFrame());
   }
@@ -140,9 +148,14 @@ export class RoomScene {
     this.doorClicked = handler;
   }
 
-  /** A tap or click on another cat: its player's ID. */
+  /** A tap or click on a cat (the player's own included): its player's ID. */
   onCatClicked(handler: (playerId: string) => void): void {
     this.catClicked = handler;
+  }
+
+  /** A tap or click on the shop's catalogue stand (or the floor it stands on). */
+  onStandClicked(handler: (stand: PropView) => void): void {
+    this.standClicked = handler;
   }
 
   /** A tap while decorating: where on the floor, under the furniture or the floor tapped. */
@@ -268,9 +281,10 @@ export class RoomScene {
       }
     }
 
-    // A tap goes to the first thing along its ray in this order, not to the nearest: another cat, a door, the pond, a
-    // prop (beside it), the floor. Props are tall and cats walk through them: a cat among a table's chairs, or a door
-    // mat showing round a tree, still takes the tap.
+    // A tap goes to the first thing along its ray in this order, not to the nearest: another cat, a door, the pond, the
+    // player's own cat, the catalogue stand, a prop (beside it), the floor. Props are tall and cats walk through them: a
+    // cat among a table's chairs, or a door mat showing round a tree, still takes the tap; and the player's own cat
+    // stands in front of the door it walks to.
     this.tap = (picks) => {
       const hits = picks.filter((pick) => pick.hit && pick.pickedMesh).sort((a, b) => a.distance - b.distance);
       const decor = this.decor;
@@ -286,17 +300,28 @@ export class RoomScene {
         }
         return;
       }
-      const catId = hits.map((pick) => catPlayerIdOf(pick.pickedMesh)).find((id) => id !== undefined);
+      const catIds = hits.map((pick) => catPlayerIdOf(pick.pickedMesh));
+      const catId = catIds.find((id) => id !== undefined && id !== this.playerId);
+      const ownCat = this.playerId !== undefined && catIds.includes(this.playerId) ? this.playerId : undefined;
       const door = hits.map((pick) => (pick.pickedMesh ? doors.get(pick.pickedMesh) : undefined)).find((d) => d);
-      const beside = hits.filter((pick) => decor && pick.pickedMesh === decor && pick.pickedPoint)
-        .map((pick) => besideProp(this.props, room, pick.pickedPoint?.x ?? 0, pick.pickedPoint?.z ?? 0)).find((spot) => spot);
+      const onProps = hits.filter((pick) => decor && pick.pickedMesh === decor && pick.pickedPoint);
       const ground = hits.find((pick) => pick.pickedMesh === floor)?.pickedPoint;
+      // The stand, tapped, or the floor it stands on (it is small, to tap on a phone).
+      const stand = [...onProps.map((pick) => pick.pickedPoint), ground]
+        .map((point) => (point ? propAt(this.props, point.x, point.z) : undefined))
+        .find((prop) => prop?.kind === catalogueStandKind);
+      const beside = onProps
+        .map((pick) => besideProp(this.props, room, pick.pickedPoint?.x ?? 0, pick.pickedPoint?.z ?? 0)).find((spot) => spot);
       if (catId !== undefined) {
         this.catClicked(catId);
       } else if (door) {
         this.doorClicked(door);
       } else if (pond && hits.some((pick) => pick.pickedMesh === pond)) {
         this.pondClicked();
+      } else if (ownCat !== undefined) {
+        this.catClicked(ownCat);
+      } else if (stand) {
+        this.standClicked(stand);
       } else if (beside) {
         this.floorClicked(beside.x, beside.z);
       } else if (ground) {
@@ -345,10 +370,8 @@ export class RoomScene {
     label.linkOffsetY = -6;
 
     const look = new CatLook(cat.pose);
-    // The player's own cat never takes the pointer, so a tap just behind it still walks or fishes.
     const shown: CatOnScreen = {
       root, anchor, target: new Vector3(cat.x, 0, cat.z), look, meow: new MeowClip(), outfit: outfitOf(cat),
-      tappable: cat.playerId !== this.playerId,
     };
     this.cats.set(cat.playerId, shown);
     const scene = this.scene;
@@ -493,8 +516,8 @@ export class RoomScene {
   }
 
   /**
-   * Dresses the cat (its model, once drawn). Tapping any part of another cat, what it wears included, opens its card;
-   * its name's anchor never takes the pointer.
+   * Dresses the cat (its model, once drawn). Tapping any part of a cat, what it wears included, opens its card (the tap
+   * decides whether the player's own cat takes it); its name's anchor never takes the pointer.
    */
   private dressOnScreen(cat: CatOnScreen, outfit: Outfit): void {
     cat.outfit = outfit;
@@ -503,7 +526,7 @@ export class RoomScene {
     }
     cat.model.dress(outfit);
     for (const mesh of cat.root.getChildMeshes(false)) {
-      mesh.isPickable = cat.tappable && mesh !== cat.anchor;
+      mesh.isPickable = mesh !== cat.anchor;
     }
   }
 

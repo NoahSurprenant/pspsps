@@ -6,8 +6,9 @@ export function doorAt(doors: readonly DoorView[], x: number, z: number): DoorVi
 }
 
 /**
- * The player's walk to a door, which goes through it once the cat is drawn standing on it. Only the latest walk goes
- * through: any other walk (a floor click, fishing, another room) started after it calls it off.
+ * The player's walk to a door, which goes through it once the cat is drawn standing on it, or to the shop's catalogue
+ * stand, which opens the catalogue (catalogue.ts). Only the latest walk gets there and does it: any other walk (a floor
+ * click, fishing, another room) started after it calls it off.
  */
 export class DoorWalks {
   private walks = 0;

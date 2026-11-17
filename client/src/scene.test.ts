@@ -93,9 +93,9 @@ describe("RoomScene", () => {
     }
   });
 
-  // Another cat's card opens with a tap on any part of it, as soon as its model is drawn, also for cats placed while the
-  // model was still loading; the player's own cat never takes the pointer, so a tap just behind it still walks or fishes.
-  it("lets other cats be tapped once their model loads, and never the player's own", async () => {
+  // A cat's card opens with a tap on any part of it, as soon as its model is drawn, also for cats placed while the model
+  // was still loading; the player's own too (its own card), which the tap puts after doors and the pond.
+  it("lets every cat be tapped once its model loads, the player's own included", async () => {
     const loaded = deferred<true>();
     const view = new RoomScene(new NullEngine(), async (scene) => {
       await loaded.promise;
@@ -117,7 +117,7 @@ describe("RoomScene", () => {
       .map((mesh) => mesh.isPickable))];
     expect(pickable("felix")).toEqual([true]);
     expect(pickable("garfield")).toEqual([true]);
-    expect(pickable("tom")).toEqual([false]);
+    expect(pickable("tom")).toEqual([true]);
     expect(meshes.filter((mesh) => mesh.name.startsWith("anchor-")).every((anchor) => !anchor.isPickable)).toBe(true);
   });
 
@@ -165,13 +165,20 @@ describe("RoomScene", () => {
       view.onDoorClicked((door) => heard.push(`door ${door.id}`));
       view.onCatClicked((id) => heard.push(`cat ${id}`));
       view.onPondClicked(() => heard.push("pond"));
+      view.onStandClicked((stand) => heard.push(`stand ${stand.x} ${stand.z}`));
+      view.playerId = "tom";
       view.show({
         ...room,
         pond: { x: -5, z: -2, radius: 2 },
         doors: [{ id: "cafe", x: 6, z: 5, radius: 0.8, toRoomId: "cafe", toRoomName: "Cat Café" }],
-        props: [{ kind: "tree", x: 6, z: 2, radius: 1, facing: 0 }, { kind: "cafe-table", x: -1, z: -3, radius: 1.2, facing: 0 }],
+        props: [
+          { kind: "tree", x: 6, z: 2, radius: 1, facing: 0 },
+          { kind: "cafe-table", x: -1, z: -3, radius: 1.2, facing: 0 },
+          { kind: "catalogue-stand", x: 3, z: -3, radius: 0.6, facing: 0 },
+        ],
       });
       view.place({ playerId: "felix", displayName: "Felix", furColor: "Black", x: -1, z: -3, pose: null, hat: null, collar: null });
+      view.place({ playerId: "tom", displayName: "Tom", furColor: "Grey", x: 6, z: 3.5, pose: null, hat: null, collar: null });
       const scene = (view as unknown as { scene: Scene }).scene;
       const hit = (name: string, x: number, y: number, z: number): PickingInfo =>
         ({ hit: true, pickedMesh: scene.getMeshByName(name), pickedPoint: new Vector3(x, y, z) }) as PickingInfo;
@@ -196,6 +203,30 @@ describe("RoomScene", () => {
       tap(hit("decor", -1, 0.7, -3.3), hit("anchor-felix", -1, 0.5, -3), hit("floor", -1, 0, -2.8));
 
       expect(heard).toEqual(["cat felix"]);
+    });
+
+    // The player's own cat, tapped: its own card; but a door or the pond behind it still takes the tap.
+    it("on the player's own cat opens its card, unless a door or the pond is behind it", () => {
+      const { heard, hit, tap } = setUp();
+
+      tap(hit("anchor-tom", 6, 0.5, 3.5), hit("floor", 6, 0, 3.6));
+      tap(hit("anchor-tom", 6, 0.5, 3.5), hit("decor", 6, 1, 3.4), hit("floor", 6, 0, 3.6));
+      tap(hit("anchor-tom", 6, 0.5, 3.5), hit("door-cafe-mat", 6, 0.04, 5), hit("floor", 6, 0, 5));
+      tap(hit("anchor-tom", -5, 0.5, -2), hit("pond", -5, 0.04, -2), hit("floor", -5, 0, -2));
+      tap(hit("anchor-tom", 6, 0.5, 3.5), hit("anchor-felix", -1, 0.5, -3));
+
+      expect(heard).toEqual(["cat tom", "cat tom", "door cafe", "pond", "cat felix"]);
+    });
+
+    // The catalogue stand: tapped, or the floor it stands on (it is small, for a finger), it opens the catalogue.
+    it("on the catalogue stand, or the floor under it, reads the catalogue, not walking beside it", () => {
+      const { heard, hit, tap } = setUp();
+
+      tap(hit("decor", 3.1, 1, -3.2), hit("floor", 3.1, 0, -2));
+      tap(hit("floor", 2.7, 0, -3.3));
+      tap(hit("door-cafe-mat", 6, 0.04, 5), hit("decor", 3.1, 1, -3.2));
+
+      expect(heard).toEqual(["stand 3 -3", "stand 3 -3", "door cafe"]);
     });
 
     it("on a prop's top walks the cat beside the prop, not to the floor behind it", () => {

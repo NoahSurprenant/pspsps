@@ -1,5 +1,5 @@
 import { HubConnectionBuilder, LogLevel, type HubConnection } from "@microsoft/signalr";
-import { expect, test as base, type Browser, type Page } from "@playwright/test";
+import { expect, test as base, type Browser, type Locator, type Page } from "@playwright/test";
 import { PNG } from "pngjs";
 
 /** A page that fails its test on any console error or uncaught exception (the "No camera defined" kind). */
@@ -24,12 +24,21 @@ export function watchErrors(page: Page): string[] {
   return errors;
 }
 
+/**
+ * Waits until the page shows the room <name>: by the page's title ("Cat Café · pspsps"), since the room bar has no room
+ * name, and the room itself (window.pspsps).
+ */
+export async function expectRoom(page: Page, name: string): Promise<void> {
+  await expect(page).toHaveTitle(`${name} · pspsps`);
+  await expect.poll(() => page.evaluate(() => window.pspsps?.room()?.snapshot.roomName)).toBe(name);
+}
+
 /** Signs in as a new guest and enters a world; resolves once the room is showing. Returns the player's ID. */
 export async function enterWorld(page: Page, world: string): Promise<string> {
   await page.goto("/");
   await page.getByRole("button", { name: "Play as a guest" }).click();
   await page.getByRole("button", { name: new RegExp(`^${world} · `) }).click();
-  await expect(page.locator(".room-bar strong")).toHaveText("Town Square");
+  await expectRoom(page, "Town Square");
   return page.evaluate(async () => ((await (await fetch("/api/me")).json()) as { id: string }).id);
 }
 
@@ -64,7 +73,7 @@ export async function goThroughDoor(page: Page, roomId: string, roomName: string
   } else {
     await page.mouse.click(mat.x, mat.y);
   }
-  await expect(page.locator(".room-bar strong")).toHaveText(roomName);
+  await expectRoom(page, roomName);
 }
 
 /** The buttons in the room bar, by name. */
@@ -101,6 +110,8 @@ declare global {
           snapshot: {
             worldId: string;
             roomId: string;
+            roomName: string;
+            props: { kind: string; x: number; z: number; radius: number }[] | null;
             doors: { id: string; x: number; z: number; radius: number; toRoomId: string }[];
           };
         }
@@ -220,7 +231,7 @@ export async function fishFor(hub: HubConnection, world: string, coins: number):
 export async function goHome(page: Page): Promise<void> {
   await page.getByRole("button", { name: "Friends", exact: true }).click();
   await page.getByRole("button", { name: "Go home", exact: true }).click();
-  await expect(page.locator(".room-bar strong")).toHaveText(/'s home$/);
+  await expect(page).toHaveTitle(/'s home · pspsps$/);
 }
 
 /**
@@ -239,4 +250,57 @@ export async function tapFloor(page: Page, x: number, z: number): Promise<void> 
   } else {
     await page.mouse.click(point.x, point.y);
   }
+}
+
+/** Where the shop's catalogue stand is drawn, in page pixels, or why it can't be tapped there. */
+export async function catalogueStand(page: Page): Promise<{ x: number; y: number } | string> {
+  const stand = await page.evaluate(() => window.pspsps?.room()?.snapshot.props?.find((p) => p.kind === "catalogue-stand"));
+  if (!stand) return "no catalogue stand";
+  const canvas = await page.locator("#game").boundingBox();
+  const at = await page.evaluate(({ x, z }) => window.pspsps?.screenPoint(x, z), stand);
+  if (!canvas || !at) return "the catalogue stand isn't drawn";
+  const point = { x: canvas.x + at.x, y: canvas.y + at.y };
+  const on = await page.evaluate(({ x, y }) => {
+    const top = document.elementFromPoint(x, y);
+    return top?.id === "game" ? undefined : top ? `${top.tagName.toLowerCase()}.${top.className}` : "nothing";
+  }, point);
+  return on ? `the catalogue stand is under ${on}` : point;
+}
+
+/**
+ * Taps (or clicks) the shop's catalogue stand where it is drawn, as a player would: the cat walks up to it and the
+ * catalogue opens. Resolves with the catalogue open.
+ */
+export async function openCatalogue(page: Page): Promise<void> {
+  const stand = await catalogueStand(page);
+  if (typeof stand === "string") throw new Error(stand);
+  if (await page.evaluate(() => matchMedia("(pointer: coarse)").matches)) {
+    await page.touchscreen.tap(stand.x, stand.y);
+  } else {
+    await page.mouse.click(stand.x, stand.y);
+  }
+  await expect(page.getByRole("dialog", { name: "Catalogue" })).toBeVisible({ timeout: 15_000 });
+}
+
+/** The party hat's pink (client/src/wearables.ts): nothing else on a card is this colour. */
+export const partyHatPink: [number, number, number] = [0xff, 0x7e, 0xb6];
+
+/** The picture of the cat on the card open, once it has been taken. */
+export async function portrait(page: Page): Promise<Buffer> {
+  const image = page.locator("dialog .portrait img");
+  await expect(image).toHaveAttribute("src", /^data:image\/png/);
+  await expect.poll(() => image.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
+  return image.screenshot();
+}
+
+/**
+ * Presses Tab until <target> (one of the room's buttons for the keyboard, unseen until focused) has the focus, as a
+ * keyboard player would; it shows then.
+ */
+export async function focusByTab(page: Page, target: Locator): Promise<void> {
+  for (let tab = 0; tab < 30 && !(await target.evaluate((element) => element === document.activeElement)); tab++) {
+    await page.keyboard.press("Tab");
+  }
+  await expect(target).toBeFocused();
+  await expect(target).toBeVisible();
 }

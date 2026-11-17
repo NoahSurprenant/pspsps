@@ -90,7 +90,7 @@ jobs:
     timeout-minutes: 25
     outputs:
       # Empty unless all the contact sheets were uploaded, so a run without them leaves the PR's last links alone.
-      screenshots: ${{ steps.sheet_sign_in.outputs.artifact-url && steps.sheet_worlds.outputs.artifact-url && steps.sheet_town_square.outputs.artifact-url && steps.sheet_cafe.outputs.artifact-url && steps.sheet_player_card.outputs.artifact-url && steps.sheet_friends.outputs.artifact-url && steps.sheet_shop.outputs.artifact-url && steps.sheet_home.outputs.artifact-url && steps.sheet_decorating.outputs.artifact-url && format('- [Sign-in]({0})\n- [World list]({1})\n- [Town Square]({2})\n- [Cat Café]({3})\n- [Player card]({4})\n- [Friends]({5})\n- [Shop]({6})\n- [Home]({7})\n- [Decorating]({8})', steps.sheet_sign_in.outputs.artifact-url, steps.sheet_worlds.outputs.artifact-url, steps.sheet_town_square.outputs.artifact-url, steps.sheet_cafe.outputs.artifact-url, steps.sheet_player_card.outputs.artifact-url, steps.sheet_friends.outputs.artifact-url, steps.sheet_shop.outputs.artifact-url, steps.sheet_home.outputs.artifact-url, steps.sheet_decorating.outputs.artifact-url) || '' }}
+      screenshots: ${{ steps.sheet_sign_in.outputs.artifact-url && steps.sheet_worlds.outputs.artifact-url && steps.sheet_town_square.outputs.artifact-url && steps.sheet_cafe.outputs.artifact-url && steps.sheet_shop_room.outputs.artifact-url && steps.sheet_player_card.outputs.artifact-url && steps.sheet_own_card.outputs.artifact-url && steps.sheet_friends.outputs.artifact-url && steps.sheet_catalogue.outputs.artifact-url && steps.sheet_home.outputs.artifact-url && steps.sheet_decorating.outputs.artifact-url && format('- [Sign-in]({0})\n- [World list]({1})\n- [Town Square]({2})\n- [Cat Café]({3})\n- [Cat Shop]({4})\n- [Player card]({5})\n- [Own card]({6})\n- [Friends]({7})\n- [Catalogue]({8})\n- [Home]({9})\n- [Decorating]({10})', steps.sheet_sign_in.outputs.artifact-url, steps.sheet_worlds.outputs.artifact-url, steps.sheet_town_square.outputs.artifact-url, steps.sheet_cafe.outputs.artifact-url, steps.sheet_shop_room.outputs.artifact-url, steps.sheet_player_card.outputs.artifact-url, steps.sheet_own_card.outputs.artifact-url, steps.sheet_friends.outputs.artifact-url, steps.sheet_catalogue.outputs.artifact-url, steps.sheet_home.outputs.artifact-url, steps.sheet_decorating.outputs.artifact-url) || '' }}
     # The shipped image, run against PostgreSQL, driven by Chromium (software WebGL).
     services:
       postgres:
@@ -195,12 +195,28 @@ jobs:
           path: e2e/screenshots/cafe.png
           archive: false
           retention-days: 30
+      - name: Upload the Cat Shop screenshots
+        id: sheet_shop_room
+        if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+        uses: actions/upload-artifact@v7
+        with:
+          path: e2e/screenshots/shop-room.png
+          archive: false
+          retention-days: 30
       - name: Upload the player card screenshots
         id: sheet_player_card
         if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
         uses: actions/upload-artifact@v7
         with:
           path: e2e/screenshots/player-card.png
+          archive: false
+          retention-days: 30
+      - name: Upload the own card screenshots
+        id: sheet_own_card
+        if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+        uses: actions/upload-artifact@v7
+        with:
+          path: e2e/screenshots/own-card.png
           archive: false
           retention-days: 30
       - name: Upload the friends list screenshots
@@ -211,12 +227,12 @@ jobs:
           path: e2e/screenshots/friends.png
           archive: false
           retention-days: 30
-      - name: Upload the shop screenshots
-        id: sheet_shop
+      - name: Upload the catalogue screenshots
+        id: sheet_catalogue
         if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
         uses: actions/upload-artifact@v7
         with:
-          path: e2e/screenshots/shop.png
+          path: e2e/screenshots/catalogue.png
           archive: false
           retention-days: 30
       - name: Upload the home screenshots
