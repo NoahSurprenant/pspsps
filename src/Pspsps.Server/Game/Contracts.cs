@@ -26,6 +26,13 @@ public sealed record ChatView([property: Id(0)] Guid PlayerId, [property: Id(1)]
     public static ChatView From(ChatLine line) => new(line.PlayerId, line.Text, line.At);
 }
 
+/// <summary>A cat did an emote (one of RoomState.Emotes: "sit", "meow", "wave", "sleep").</summary>
+[GenerateSerializer, Immutable]
+public sealed record EmoteView([property: Id(0)] Guid PlayerId, [property: Id(1)] string Emote, [property: Id(2)] DateTimeOffset At)
+{
+    public static EmoteView From(CatEmote emote) => new(emote.PlayerId, emote.Emote, emote.At);
+}
+
 [GenerateSerializer, Immutable]
 public sealed record RoomSnapshot(
     [property: Id(0)] string WorldId,

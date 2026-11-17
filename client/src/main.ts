@@ -44,6 +44,12 @@ const connection = new GameConnection({
       scene.speak(line.playerId, line.text);
     }
   },
+  catEmoted: (emote) => {
+    if (room) {
+      room.emote(emote);
+      scene.emote(emote.playerId, emote.emote);
+    }
+  },
   replaced: () => {
     room = undefined;
     overlay.showReplaced(() => window.location.reload());
@@ -70,6 +76,7 @@ function show(snapshot: RoomSnapshot): void {
     snapshot,
     (roomId) => void goTo(roomId),
     (text) => connection.say(text).catch((error: unknown) => overlay.toast(messageOf(error))),
+    (emote) => connection.emote(emote).catch((error: unknown) => overlay.toast(messageOf(error))),
     () => window.location.reload(),
   );
 }

@@ -1,7 +1,11 @@
-import type { Player, RoomSnapshot, WorldSummary } from "./types";
+import { emoteBar, emoteForKey } from "./emotes";
+import type { Emote, Player, RoomSnapshot, WorldSummary } from "./types";
 
 /** The HTML laid over the canvas: sign-in, the world list, the room bar and the chat box. */
 export class Overlay {
+  // The room's emote keys (1-4); replaced each time a room shows.
+  private emoteKeys = new AbortController();
+
   constructor(private readonly root: HTMLElement) {}
 
   showSignIn(providers: string[], signIn: (provider: string) => void, guest: () => void, error?: string): void {
@@ -43,7 +47,10 @@ export class Overlay {
     );
   }
 
-  showRoom(room: RoomSnapshot, goTo: (roomId: string) => void, say: (text: string) => void, leave: () => void): void {
+  showRoom(
+    room: RoomSnapshot, goTo: (roomId: string) => void, say: (text: string) => void, emote: (emote: Emote) => void,
+    leave: () => void,
+  ): void {
     const input = el("input", { className: "chat" });
     input.maxLength = 120;
     input.placeholder = "Say something…";
@@ -57,12 +64,32 @@ export class Overlay {
       }
     });
 
+    const emotes = el("div", { className: "emote-bar" },
+      ...emoteBar.map(({ emote: name, label, key }) => {
+        const pick = button(label, () => emote(name));
+        pick.title = `${label} (${key})`;
+        pick.setAttribute("aria-keyshortcuts", key);
+        return pick;
+      }),
+    );
+    this.emoteKeys.abort();
+    this.emoteKeys = new AbortController();
+    document.addEventListener("keydown", (event) => {
+      // Only while this room is showing; never while typing in the chat box.
+      const name = emotes.isConnected ? emoteForKey(event) : undefined;
+      if (name) {
+        event.preventDefault();
+        emote(name);
+      }
+    }, { signal: this.emoteKeys.signal });
+
     this.root.replaceChildren(
       el("div", { className: "room-bar" },
         el("strong", { text: room.roomName }),
         ...room.rooms.map((link) => button(link.name, () => goTo(link.id))),
         button("Worlds", leave, "quiet"),
       ),
+      emotes,
       form,
       el("div", { className: "toast", id: "toast" }),
     );

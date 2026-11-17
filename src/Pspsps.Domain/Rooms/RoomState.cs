@@ -11,11 +11,20 @@ public sealed class RoomState(RoomDefinition room)
     public const int MaxChatLength = 120;
     public const int ChatHistory = 20;
 
+    /// <summary>The emotes a cat can do, by the name the browser sends.</summary>
+    public static IReadOnlyList<string> Emotes { get; } = ["sit", "meow", "wave", "sleep"];
+
+    /// <summary>How long a cat waits between emotes.</summary>
+    public static TimeSpan EmoteCooldown { get; } = TimeSpan.FromSeconds(1);
+
     private readonly Dictionary<Guid, CatInRoom> _cats = [];
 
     // Which session (a browser tab's connection) controls each cat: a player is one cat, in their newest tab.
     private readonly Dictionary<Guid, string> _sessions = [];
     private readonly Queue<ChatLine> _chat = new();
+
+    // When each cat last emoted, for the cooldown.
+    private readonly Dictionary<Guid, DateTimeOffset> _lastEmotes = [];
 
     public RoomDefinition Room { get; } = room;
 
@@ -60,6 +69,7 @@ public sealed class RoomState(RoomDefinition room)
         }
 
         _sessions.Remove(playerId);
+        _lastEmotes.Remove(playerId);
         return _cats.Remove(playerId);
     }
 
@@ -99,6 +109,24 @@ public sealed class RoomState(RoomDefinition room)
         }
 
         return line;
+    }
+
+    /// <summary>The cat does <paramref name="emote"/>, one of <see cref="Emotes"/>, at most once per <see cref="EmoteCooldown"/>.</summary>
+    public CatEmote Emote(Guid playerId, string emote, DateTimeOffset now)
+    {
+        Get(playerId);
+        if (!Emotes.Contains(emote))
+        {
+            throw new DomainException("That isn't an emote.");
+        }
+
+        if (_lastEmotes.TryGetValue(playerId, out var last) && now - last < EmoteCooldown)
+        {
+            throw new DomainException("Not so fast: one emote a second.");
+        }
+
+        _lastEmotes[playerId] = now;
+        return new CatEmote(playerId, emote, now);
     }
 
     private CatInRoom Get(Guid playerId) =>

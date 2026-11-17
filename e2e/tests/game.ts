@@ -38,6 +38,12 @@ export async function newPlayer(browser: Browser): Promise<{ page: Page; errors:
   return { page, errors: watchErrors(page), close: () => context.close() };
 }
 
+/** Each cat's latest emote in this page's room, by player ID. */
+export function emotes(page: Page): Promise<Record<string, string>> {
+  return page.evaluate(() =>
+    Object.fromEntries([...(window.pspsps?.room()?.emotes ?? [])].map(([id, emote]) => [id, emote.emote])));
+}
+
 /** The cats this page's room knows, by player ID (window.pspsps, client/src/main.ts). */
 export function cats(page: Page): Promise<Record<string, { x: number; z: number }>> {
   return page.evaluate(() => Object.fromEntries(window.pspsps?.room()?.cats ?? []));
@@ -47,7 +53,11 @@ declare global {
   interface Window {
     pspsps?: {
       room():
-        | { cats: Map<string, { x: number; z: number }>; chat: { playerId: string; text: string }[] }
+        | {
+          cats: Map<string, { x: number; z: number }>;
+          chat: { playerId: string; text: string }[];
+          emotes: Map<string, { playerId: string; emote: string }>;
+        }
         | undefined;
     };
   }

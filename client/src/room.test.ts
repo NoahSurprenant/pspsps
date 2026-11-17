@@ -46,4 +46,17 @@ describe("Room", () => {
     expect(room.chat).toHaveLength(Room.chatHistory);
     expect(room.chat.at(-1)?.text).toBe(`line ${Room.chatHistory + 2}`);
   });
+
+  it("keeps each cat's latest emote and forgets it when the cat leaves", () => {
+    const room = new Room(snapshot([tom, felix]));
+
+    room.emote({ playerId: "tom", emote: "sit", at: "" });
+    room.emote({ playerId: "tom", emote: "wave", at: "" });
+    room.emote({ playerId: "felix", emote: "meow", at: "" });
+    room.emote({ playerId: "garfield", emote: "sleep", at: "" });
+
+    expect(Object.fromEntries([...room.emotes].map(([id, e]) => [id, e.emote]))).toEqual({ tom: "wave", felix: "meow" });
+    room.leave("tom");
+    expect([...room.emotes.keys()]).toEqual(["felix"]);
+  });
 });

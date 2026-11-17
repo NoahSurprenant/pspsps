@@ -1,0 +1,62 @@
+import { describe, expect, it } from "vitest";
+import { emoteBar, emoteForKey, isTyping, poseOf } from "./emotes";
+
+const onPage = { tagName: "BODY", isContentEditable: false } as unknown as EventTarget;
+const chatBox = { tagName: "INPUT", isContentEditable: false } as unknown as EventTarget;
+
+function press(key: string, more: Partial<Parameters<typeof emoteForKey>[0]> = {}) {
+  return emoteForKey({ key, altKey: false, ctrlKey: false, metaKey: false, repeat: false, target: onPage, ...more });
+}
+
+describe("emoteForKey", () => {
+  it("maps 1-4 to sit, meow, wave and sleep", () => {
+    expect(["1", "2", "3", "4"].map((key) => press(key))).toEqual(["sit", "meow", "wave", "sleep"]);
+  });
+
+  it("ignores other keys, modifiers and held keys", () => {
+    expect(press("5")).toBeUndefined();
+    expect(press("a")).toBeUndefined();
+    expect(press("1", { ctrlKey: true })).toBeUndefined();
+    expect(press("1", { altKey: true })).toBeUndefined();
+    expect(press("1", { metaKey: true })).toBeUndefined();
+    expect(press("1", { repeat: true })).toBeUndefined();
+  });
+
+  it("leaves digits typed in the chat box alone", () => {
+    expect(press("1", { target: chatBox })).toBeUndefined();
+  });
+});
+
+describe("isTyping", () => {
+  it("is true in text fields and editable elements only", () => {
+    expect(isTyping(chatBox)).toBe(true);
+    expect(isTyping({ tagName: "TEXTAREA" } as unknown as EventTarget)).toBe(true);
+    expect(isTyping({ tagName: "DIV", isContentEditable: true } as unknown as EventTarget)).toBe(true);
+    expect(isTyping({ tagName: "BUTTON", isContentEditable: false } as unknown as EventTarget)).toBe(false);
+    expect(isTyping(onPage)).toBe(false);
+    expect(isTyping(null)).toBe(false);
+  });
+});
+
+describe("poseOf", () => {
+  it("holds sit and sleep, lower than standing", () => {
+    for (const emote of ["sit", "sleep"] as const) {
+      const pose = poseOf(emote);
+      expect(pose?.emote).toBe(emote);
+      expect(pose?.scale[1]).toBeLessThan(1);
+    }
+    expect(poseOf("sleep")?.scale[1]).toBeLessThan(poseOf("sit")?.scale[1] ?? 0);
+  });
+
+  it("has no pose for meow and wave", () => {
+    expect(poseOf("meow")).toBeUndefined();
+    expect(poseOf("wave")).toBeUndefined();
+  });
+});
+
+describe("emoteBar", () => {
+  it("offers every emote once, each with its own key", () => {
+    expect(emoteBar.map((entry) => entry.emote)).toEqual(["sit", "meow", "wave", "sleep"]);
+    expect(new Set(emoteBar.map((entry) => entry.key)).size).toBe(emoteBar.length);
+  });
+});

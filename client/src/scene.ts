@@ -4,17 +4,23 @@ import {
 } from "@babylonjs/core";
 import { AdvancedDynamicTexture, Rectangle, TextBlock } from "@babylonjs/gui";
 import { buildCat } from "./cat";
-import type { CatView, RoomSnapshot } from "./types";
+import { poseOf, type Pose } from "./emotes";
+import type { CatView, Emote, RoomSnapshot } from "./types";
 
 const walkSpeed = 4; // metres per second
 const bubbleSeconds = 6;
+const waveSeconds = 1.2;
 const sky = Color4.FromHexString("#bfe3f2ff");
 
 interface CatOnScreen {
   root: TransformNode;
   anchor: AbstractMesh;
   target: Vector3;
-  bubble?: { box: Rectangle; until: number };
+  bubble?: { box: Rectangle; until: number; snore?: boolean };
+  // Sitting or asleep, until it walks.
+  pose?: Pose;
+  // A paw raised for a moment.
+  wave?: { paw: AbstractMesh; until: number };
 }
 
 /** Draws one room at a time and walks the cats in it. Knows nothing about the network. */
@@ -127,9 +133,63 @@ export class RoomScene {
 
   speak(playerId: string, text: string): void {
     const cat = this.cats.get(playerId);
+    if (cat) {
+      this.bubble(playerId, cat, text, bubbleSeconds * 1000);
+    }
+  }
+
+  /**
+   * Stand-ins until the cat is a modelled, animated one: sit and sleep squash the cat into a pose it holds until it
+   * walks (asleep, with a "z z z" over it), wave raises a paw for a moment, and meow is a speech bubble.
+   */
+  emote(playerId: string, emote: Emote): void {
+    const cat = this.cats.get(playerId);
     if (!cat) {
       return;
     }
+    switch (emote) {
+      case "meow":
+        this.bubble(playerId, cat, "meow!", bubbleSeconds * 1000);
+        break;
+      case "wave":
+        this.raisePaw(playerId, cat);
+        break;
+      case "sit":
+      case "sleep":
+        this.wake(cat);
+        cat.pose = poseOf(emote);
+        cat.root.scaling.set(...(cat.pose?.scale ?? [1, 1, 1]));
+        if (emote === "sleep") {
+          this.bubble(playerId, cat, "z z z", Infinity, true);
+        }
+        break;
+    }
+  }
+
+  private raisePaw(playerId: string, cat: CatOnScreen): void {
+    cat.wave?.paw.dispose();
+    const paw = MeshBuilder.CreateSphere(`paw-${playerId}`, { diameter: 0.24 }, this.scene);
+    paw.material = cat.root.getChildMeshes(true).find((mesh) => mesh.name === "body")?.material ?? null;
+    paw.parent = cat.root;
+    paw.position.set(0.42, 1.2, 0.55);
+    paw.isPickable = false;
+    paw.renderOutline = true;
+    paw.outlineWidth = 0.025;
+    paw.outlineColor = Color3.FromHexString("#2a2230");
+    cat.wave = { paw, until: performance.now() + waveSeconds * 1000 };
+  }
+
+  /** Ends a sit or sleep: back on four feet, and no more snoring. */
+  private wake(cat: CatOnScreen): void {
+    cat.pose = undefined;
+    cat.root.scaling.setAll(1);
+    if (cat.bubble?.snore) {
+      cat.bubble.box.dispose();
+      cat.bubble = undefined;
+    }
+  }
+
+  private bubble(playerId: string, cat: CatOnScreen, text: string, milliseconds: number, snore = false): void {
     cat.bubble?.box.dispose();
 
     const box = new Rectangle(`bubble-${playerId}`);
@@ -150,7 +210,7 @@ export class RoomScene {
     this.gui?.addControl(box);
     box.linkWithMesh(cat.anchor);
     box.linkOffsetY = -42;
-    cat.bubble = { box, until: performance.now() + bubbleSeconds * 1000 };
+    cat.bubble = { box, until: performance.now() + milliseconds, snore };
   }
 
   private step(seconds: number): void {
@@ -162,10 +222,21 @@ export class RoomScene {
         const stride = Math.min(distance, walkSpeed * seconds);
         cat.root.position.addInPlace(offset.scale(stride / distance));
         cat.root.rotation.y = Math.atan2(offset.x, offset.z);
+        if (cat.pose) {
+          this.wake(cat);
+        }
       }
       if (cat.bubble && now > cat.bubble.until) {
         cat.bubble.box.dispose();
         cat.bubble = undefined;
+      }
+      if (cat.wave) {
+        // The paw waves side to side a few times, then goes back down.
+        cat.wave.paw.position.x = 0.42 + 0.08 * Math.sin(now / 70);
+        if (now > cat.wave.until) {
+          cat.wave.paw.dispose();
+          cat.wave = undefined;
+        }
       }
     }
   }

@@ -46,3 +46,12 @@ export interface WorldSummary {
   population: number;
   capacity: number;
 }
+
+/** The emotes a cat can do (RoomState.Emotes on the server). */
+export type Emote = "sit" | "meow" | "wave" | "sleep";
+
+export interface EmoteView {
+  playerId: string;
+  emote: Emote;
+  at: string;
+}
