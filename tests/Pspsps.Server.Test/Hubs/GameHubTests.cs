@@ -167,14 +167,14 @@ public sealed class GameHubTests
         await hub.EnterWorld("tabby");
         // The tab is closing as it reels (a refresh).
         hub.Context.ConnectionAborted.Returns(new CancellationToken(canceled: true));
-        _room.Reel(Tom.Id).Returns(new ReelView("caught", "koi", "Golden koi", 100, 0, IsCatch: true));
+        _room.Reel(Tom.Id).Returns(new ReelView("caught", "koi", "Golden koi", 100, TotalCoins: null));
         _players.EarnCoinsAsync(Tom.Id, 100, Arg.Any<CancellationToken>()).Returns(Tom with { Coins = 140 });
         var room = Substitute.For<IGameClient>();
         _clients.Group("tabby/town-square").Returns(room);
 
         var reel = await hub.Reel();
 
-        Assert.That(reel, Is.EqualTo(new ReelView("caught", "koi", "Golden koi", 100, 140, IsCatch: true)));
+        Assert.That(reel, Is.EqualTo(new ReelView("caught", "koi", "Golden koi", 100, TotalCoins: 140)));
         Received.InOrder(() =>
         {
             _players.EarnCoinsAsync(Tom.Id, 100, CancellationToken.None);
@@ -187,7 +187,7 @@ public sealed class GameHubTests
     {
         var hub = Hub();
         await hub.EnterWorld("tabby");
-        _room.Reel(Tom.Id).Returns(new ReelView("caught", "koi", "Golden koi", 100, 0, IsCatch: true));
+        _room.Reel(Tom.Id).Returns(new ReelView("caught", "koi", "Golden koi", 100, TotalCoins: null));
         _players.EarnCoinsAsync(Tom.Id, 100, Arg.Any<CancellationToken>()).ThrowsAsync(new TimeoutException());
         var room = Substitute.For<IGameClient>();
         _clients.Group("tabby/town-square").Returns(room);
@@ -203,7 +203,7 @@ public sealed class GameHubTests
     {
         var hub = Hub();
         await hub.EnterWorld("tabby");
-        var missed = new ReelView("too-late", null, null, 0, 0, IsCatch: false);
+        var missed = new ReelView("too-late", null, null, 0, TotalCoins: null);
         _room.Reel(Tom.Id).Returns(missed);
         var room = Substitute.For<IGameClient>();
         _clients.Group("tabby/town-square").Returns(room);

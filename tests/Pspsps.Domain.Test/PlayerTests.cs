@@ -134,6 +134,14 @@ public sealed class PlayerTests
 
         Assert.Throws<DomainException>(() => player.EarnCoins(amount));
         Assert.Throws<DomainException>(() => player.SpendCoins(amount));
+        Assert.Throws<DomainException>(() => Player.Earning(amount));
+    }
+
+    [Test]
+    public void Earning_IsTheIncrementThePlayersCoinsGoUpBy()
+    {
+        // What the database adds in one statement (no read, then write, that two earnings could race).
+        Assert.That(Player.Earning(40), Is.EqualTo(40));
     }
 
     [Test]

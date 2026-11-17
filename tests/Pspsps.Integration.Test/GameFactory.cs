@@ -37,7 +37,8 @@ public sealed class GameFactory(string connectionString) : WebApplicationFactory
         builder.ConfigureTestServices(services =>
         {
             services.AddSingleton<IStartupFilter, FakeExternalSignIn>();
-            services.ConfigureDbContext<PspspsDbContext>(options => options.AddInterceptors(BeforeSaving));
+            services.ConfigureDbContext<PspspsDbContext>(options =>
+                options.AddInterceptors(BeforeSaving, BeforeSaving.Statements));
             services.AddAuthentication().AddRemoteScheme<RemoteAuthenticationOptions, FakeProviderHandler>(
                 FakeProviderHandler.SchemeName, null, options =>
                 {

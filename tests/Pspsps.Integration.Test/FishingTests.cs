@@ -60,7 +60,7 @@ public sealed class FishingTests
         await hub.InvokeAsync("Cast");
         var reel = await hub.InvokeAsync<ReelView>("Reel");
 
-        Assert.That(reel, Is.EqualTo(new ReelView("too-early", null, null, 0, 0, IsCatch: false)));
+        Assert.That(reel, Is.EqualTo(new ReelView("too-early", null, null, 0, TotalCoins: null)));
         var saved = await Game.Get<IPlayerService>().FindAsync(tom.Id, CancellationToken.None);
         Assert.That(saved!.Coins, Is.Zero);
     }
@@ -138,6 +138,27 @@ public sealed class FishingTests
             Assert.That(newBit.Task.IsCompleted, Is.False, "the new tab was told of a bite for a line it never cast");
         });
         var noLine = Assert.ThrowsAsync<HubException>(() => newTab.InvokeAsync<ReelView>("Reel"));
+        Assert.That(noLine!.Message, Does.Contain("Cast your line first."));
+    }
+
+    [Test]
+    public async Task ABiteNotReeledInTime_GetsAway_AndTheTabIsTold()
+    {
+        var (_, hub) = await Game.ConnectGuestAsync();
+        await using var connection = hub;
+        var bit = new TaskCompletionSource();
+        var gotAway = new TaskCompletionSource();
+        hub.On("FishBit", () => bit.TrySetResult());
+        hub.On("FishGotAway", () => gotAway.TrySetResult());
+        await hub.InvokeAsync<RoomSnapshot>("EnterWorld", WorldId);
+        await hub.InvokeAsync("Move", PondEdgeX, PondEdgeZ);
+        await hub.InvokeAsync("Cast");
+        await WaitForTheBite(bit);
+
+        Game.GrainClock.Advance(FishingLine.BiteWindow + TimeSpan.FromSeconds(1));
+
+        await gotAway.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        var noLine = Assert.ThrowsAsync<HubException>(() => hub.InvokeAsync<ReelView>("Reel"));
         Assert.That(noLine!.Message, Does.Contain("Cast your line first."));
     }
 

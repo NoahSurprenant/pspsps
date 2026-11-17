@@ -96,15 +96,11 @@ public sealed class FishingTests
     public void ReelResult_PaysTheCatchsCoins_AndNothingOtherwise()
     {
         var koi = FishCatalog.All.Single(f => f.Id == "koi");
-        var joke = new Fish("sock", "Wet sock", Coins: 0, Weight: 1);
 
         Assert.Multiple(() =>
         {
             Assert.That(new ReelResult(ReelOutcome.Caught, koi).IsCatch, Is.True);
             Assert.That(new ReelResult(ReelOutcome.Caught, koi).Coins, Is.EqualTo(100));
-            // A catch worth nothing is still a catch.
-            Assert.That(new ReelResult(ReelOutcome.Caught, joke).IsCatch, Is.True);
-            Assert.That(new ReelResult(ReelOutcome.Caught, joke).Coins, Is.Zero);
             Assert.That(new ReelResult(ReelOutcome.TooEarly, null).IsCatch, Is.False);
             Assert.That(new ReelResult(ReelOutcome.TooLate, null).Coins, Is.Zero);
         });
@@ -167,7 +163,7 @@ public sealed class FishingTests
         Assert.That(state.LineOf(Tom), Is.Null);
 
         state.Move(Tom, new Position(5, 8));
-        state.Cast(Tom, Now, 0);
+        state.Cast(Tom, Now + RoomState.CastCooldown, 0);
         state.Leave(Tom, Tab);
         state.Join(Tom, "Tom", FurColor.Grey, Tab, Now);
         Assert.That(state.LineOf(Tom), Is.Null);
@@ -191,7 +187,7 @@ public sealed class FishingTests
         var state = AtThePond();
         var old = state.Cast(Tom, Now, 0);
         state.Reel(Tom, Now, 0);
-        var line = state.Cast(Tom, Now, 0);
+        var line = state.Cast(Tom, Now + RoomState.CastCooldown, 0);
 
         Assert.That(state.Bite(Tom, old, old.BiteAt), Is.Null, "a bite for a line already reeled in");
         Assert.That(old.BitAt, Is.Null);
@@ -213,8 +209,76 @@ public sealed class FishingTests
         var again = Assert.Throws<DomainException>(() => state.Reel(Tom, line.BiteAt, 0));
         Assert.That(again!.Message, Is.EqualTo("Cast your line first."));
         // The new tab fishes from where the cat stands.
-        var mine = state.Cast(Tom, Now, 0);
+        var mine = state.Cast(Tom, Now + RoomState.CastCooldown, 0);
         Assert.That(state.Bite(Tom, mine, mine.BiteAt), Is.EqualTo("tom-new-tab"));
+    }
+
+    [Test]
+    public void EveryFish_PaysAtLeastOneCoin()
+    {
+        // A catch is always paid: Player.Earning refuses nothing.
+        Assert.That(FishCatalog.All.Select(f => f.Coins), Is.All.GreaterThanOrEqualTo(1));
+    }
+
+    [Test]
+    public void Rolls_AreCheckedTheSameWayEverywhere()
+    {
+        var pick = Assert.Throws<ArgumentOutOfRangeException>(() => FishCatalog.Pick(1));
+        var cast = Assert.Throws<ArgumentOutOfRangeException>(() => FishingLine.Cast(Now, 1));
+
+        Assert.That(cast!.Message, Is.EqualTo(pick!.Message));
+    }
+
+    [Test]
+    public void Cast_WaitsACooldownAfterTheLastCastOrReel()
+    {
+        var state = AtThePond();
+        state.Cast(Tom, Now, 0);
+        var reeledAt = Now + TimeSpan.FromMilliseconds(500);
+        state.Reel(Tom, reeledAt, 0);
+
+        var soon = Assert.Throws<DomainException>(() => state.Cast(Tom, reeledAt + RoomState.CastCooldown - TimeSpan.FromMilliseconds(1), 0));
+        Assert.That(soon!.Message, Is.EqualTo("Not so fast: wait a moment before casting again."));
+        Assert.That(state.Cast(Tom, reeledAt + RoomState.CastCooldown, 0), Is.Not.Null);
+    }
+
+    [Test]
+    public void Cast_RightAfterWalkingOffACast_WaitsTheCooldownToo()
+    {
+        var state = AtThePond();
+        state.Cast(Tom, Now, 0);
+        state.Move(Tom, new Position(5, 8.2));
+
+        Assert.Throws<DomainException>(() => state.Cast(Tom, Now + TimeSpan.FromMilliseconds(100), 0));
+    }
+
+    [Test]
+    public void AMissedBite_GetsAway_OnceItsWindowIsOver()
+    {
+        var state = AtThePond();
+        var line = state.Cast(Tom, Now, 0);
+        state.Bite(Tom, line, line.BiteAt);
+        var lastChance = line.BiteAt + FishingLine.BiteWindow;
+
+        Assert.That(state.LetGetAway(Tom, line, lastChance), Is.Null, "the window isn't over yet");
+        Assert.That(state.LineOf(Tom), Is.SameAs(line));
+        Assert.That(state.LetGetAway(Tom, line, lastChance + TimeSpan.FromMilliseconds(1)), Is.EqualTo(Tab));
+        Assert.That(state.LineOf(Tom), Is.Null);
+        var again = Assert.Throws<DomainException>(() => state.Reel(Tom, lastChance, 0));
+        Assert.That(again!.Message, Is.EqualTo("Cast your line first."));
+    }
+
+    [Test]
+    public void ALineThatHasNotBitten_OrIsNoLongerOut_DoesNotGetAway()
+    {
+        var state = AtThePond();
+        var line = state.Cast(Tom, Now, 0);
+
+        Assert.That(state.LetGetAway(Tom, line, Now + TimeSpan.FromMinutes(1)), Is.Null, "nothing has bitten");
+        Assert.That(state.LineOf(Tom), Is.SameAs(line));
+        state.Bite(Tom, line, line.BiteAt);
+        state.Reel(Tom, line.BiteAt, 0);
+        Assert.That(state.LetGetAway(Tom, line, Now + TimeSpan.FromMinutes(1)), Is.Null, "it was reeled in");
     }
 
     private static RoomState AtThePond()
