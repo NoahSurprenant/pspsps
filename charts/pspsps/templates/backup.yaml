@@ -6,6 +6,13 @@
 {{- if lt (int $b.keep) 2 }}
 {{- fail "backup.keep must be at least 2: with 1, making room for a new dump would delete the only one" }}
 {{- end }}
+{{- if lt (int $b.connectTimeoutSeconds) 1 }}
+{{- fail "backup.connectTimeoutSeconds must be at least 1" }}
+{{- end }}
+{{- if ge (int $b.connectTimeoutSeconds) (int $b.activeDeadlineSeconds) }}
+{{- /* Else the deadline stops a run still waiting for the database, with no retry and no word of why. */}}
+{{- fail "backup.connectTimeoutSeconds must be below backup.activeDeadlineSeconds" }}
+{{- end }}
 {{- if lt (int $b.activeDeadlineSeconds) 1 }}
 {{- fail "backup.activeDeadlineSeconds must be at least 1" }}
 {{- end }}
@@ -103,6 +110,9 @@ spec:
                   value: /backups
                 - name: BACKUP_KEEP
                   value: {{ int $b.keep | quote }}
+                # A new pod's network can take a moment to be allowed: how long to wait for the database.
+                - name: BACKUP_CONNECT_SECONDS
+                  value: {{ int $b.connectTimeoutSeconds | quote }}
                 # A .partial file older than a run may last is from a run that died.
                 - name: BACKUP_STALE_SECONDS
                   value: {{ int $b.activeDeadlineSeconds | quote }}
