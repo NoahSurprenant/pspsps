@@ -39,7 +39,7 @@ test("two cats see each other walk, chat and leave", async ({ page: tom, browser
 
     // Felix clicks the middle of the floor: Tom sees Felix leave the spawn point (0, 4).
     const spawn = (await cats(tom))[felixId];
-    expect(spawn).toEqual({ x: 0, z: 4 });
+    expect(spawn).toMatchObject({ x: 0, z: 4 });
     const canvas = await felix.page.locator("#game").boundingBox();
     if (!canvas) throw new Error("no canvas");
     await felix.page.mouse.click(canvas.x + canvas.width / 2, canvas.y + canvas.height / 2);

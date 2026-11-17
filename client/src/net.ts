@@ -11,8 +11,9 @@ export interface GameEvents {
 }
 
 export async function fetchMe(): Promise<Player | null> {
+  // 200 with the player, or 204 when not signed in.
   const response = await fetch("/api/me");
-  return response.ok ? ((await response.json()) as Player) : null;
+  return response.status === 200 ? ((await response.json()) as Player) : null;
 }
 
 export async function fetchProviders(): Promise<string[]> {

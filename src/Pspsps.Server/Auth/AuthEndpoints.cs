@@ -58,9 +58,10 @@ public static class AuthEndpoints
             return Results.NoContent();
         });
 
+        // Asked on every page load: not signed in is an answer (204), not an error the browser would log.
         app.MapGet("/api/me", async (ClaimsPrincipal user, IPlayerService players, CancellationToken ct) =>
             user.GetPlayerId() is { } id && await players.FindAsync(id, ct) is { } player
                 ? Results.Ok(player)
-                : Results.Unauthorized());
+                : Results.NoContent());
     }
 }
