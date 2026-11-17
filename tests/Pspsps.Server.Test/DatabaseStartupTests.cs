@@ -1,4 +1,7 @@
+using System.Net.Sockets;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Time.Testing;
+using Npgsql;
 
 namespace Pspsps.Server.Test;
 
@@ -97,29 +100,129 @@ public sealed class DatabaseStartupTests
     [Test]
     public async Task WaitAsync_CutsOffAHangingAttempt()
     {
-        // A network that drops packets leaves a connect hanging; each attempt must stop at its own timeout. Real time
-        // here, with tiny timeouts.
-        var options = new DatabaseWaitOptions(
-            Budget: TimeSpan.FromMilliseconds(300), Interval: TimeSpan.FromMilliseconds(10),
-            AttemptTimeout: TimeSpan.FromMilliseconds(50));
+        // A network that drops packets leaves a connect hanging; each attempt must stop at its own timeout. The connect
+        // waits on its token, and the fake clock moves past the attempt's timeout while it hangs.
+        var clock = new FakeTimeProvider();
         var attempts = 0;
         var reported = new List<Exception>();
-        var started = TimeProvider.System.GetTimestamp();
 
         var reached = await DatabaseStartup.WaitAsync(
             ct =>
             {
                 attempts++;
-                return Task.Delay(Timeout.InfiniteTimeSpan, ct);
+                var hanging = Task.Delay(Timeout.InfiniteTimeSpan, ct);
+                clock.Advance(Options.AttemptTimeout);
+                return hanging;
             },
-            _ => false, (_, e) => reported.Add(e), options, TimeProvider.System,
-            (delay, ct) => Task.Delay(delay, ct), CancellationToken.None);
+            _ => false, (_, e) => reported.Add(e), Options, clock, Advance(clock), CancellationToken.None);
 
         Assert.That(reached, Is.False);
-        Assert.That(attempts, Is.GreaterThan(1));
+        // 5 s attempts 2 s apart: the 14th starts at 90 s and ends at 95 s, one attempt timeout past the budget.
+        Assert.That(attempts, Is.EqualTo(14));
+        Assert.That(clock.GetUtcNow() - clock.Start, Is.EqualTo(Options.Budget + Options.AttemptTimeout));
         Assert.That(reported, Has.Count.EqualTo(attempts).And.All.InstanceOf<TimeoutException>());
-        Assert.That(TimeProvider.System.GetElapsedTime(started), Is.LessThan(TimeSpan.FromSeconds(5)));
     }
+
+    [Test]
+    public async Task WaitAsync_ReportsARealErrorAsItselfEvenAfterTheAttemptTimedOut()
+    {
+        // The connect failed on its own just as its timeout fired: its real error is what's reported.
+        var clock = new FakeTimeProvider();
+        var refused = new InvalidOperationException("Connection refused");
+        var reported = new List<Exception>();
+        var attempts = 0;
+
+        await DatabaseStartup.WaitAsync(
+            _ =>
+            {
+                if (++attempts > 1)
+                {
+                    return Task.CompletedTask;
+                }
+
+                clock.Advance(Options.AttemptTimeout);
+                throw refused;
+            },
+            _ => false, (_, e) => reported.Add(e), Options, clock, Advance(clock), CancellationToken.None);
+
+        Assert.That(reported, Is.EqualTo(new Exception[] { refused }));
+    }
+
+    [TestCase("57P03", false, TestName = "IsPostgresAnswer_StartingUpIsNotYet")]
+    [TestCase("57P01", false, TestName = "IsPostgresAnswer_ShuttingDownIsNotYet")]
+    [TestCase("53300", false, TestName = "IsPostgresAnswer_TooManyConnectionsIsNotYet")]
+    [TestCase("3D000", true, TestName = "IsPostgresAnswer_AMissingDatabaseIsAnAnswer")]
+    [TestCase("28P01", true, TestName = "IsPostgresAnswer_AWrongPasswordIsAnAnswer")]
+    public void IsPostgresAnswer_CountsOnlyNonTransientServerErrors(string sqlState, bool answer)
+    {
+        var error = new PostgresException("message", "FATAL", "FATAL", sqlState);
+
+        Assert.That(DatabaseStartup.IsPostgresAnswer(error), Is.EqualTo(answer));
+    }
+
+    [Test]
+    public void IsPostgresAnswer_ANetworkErrorIsNotYet()
+    {
+        var error = new NpgsqlException(
+            "Failed to connect to 127.0.0.1:5432", new SocketException((int)SocketError.ConnectionRefused));
+
+        Assert.That(DatabaseStartup.IsPostgresAnswer(error), Is.False);
+    }
+
+    [Test]
+    public void Describe_GivesTheWholeChainDownToTheCause()
+    {
+        var cause = new SocketException((int)SocketError.ConnectionRefused);
+        var error = new NpgsqlException("Failed to connect to 127.0.0.1:5432", cause);
+
+        Assert.That(
+            DatabaseStartup.Describe(error), Is.EqualTo($"Failed to connect to 127.0.0.1:5432 -> {cause.Message}"));
+    }
+
+    [Test]
+    public void CheckConnectionString_DoesNotPoolTheCheck()
+    {
+        var check = new NpgsqlConnectionStringBuilder(
+            DatabaseStartup.CheckConnectionString("Host=db;Database=pspsps;Username=pspsps;Password=secret"));
+
+        Assert.That(check.Pooling, Is.False);
+        Assert.That(check.Host, Is.EqualTo("db"));
+        Assert.That(check.Database, Is.EqualTo("pspsps"));
+    }
+
+    [TestCase(null, 90)]
+    [TestCase("1", 1)]
+    [TestCase("120", 120)]
+    public void OptionsFrom_ReadsTheBudget(string? configured, int seconds)
+    {
+        string? invalid = null;
+
+        var options = DatabaseStartup.OptionsFrom(Configuration(configured), value => invalid = value);
+
+        Assert.That(options.Budget, Is.EqualTo(TimeSpan.FromSeconds(seconds)));
+        Assert.That(options.Interval, Is.EqualTo(TimeSpan.FromSeconds(2)));
+        Assert.That(options.AttemptTimeout, Is.EqualTo(TimeSpan.FromSeconds(5)));
+        Assert.That(invalid, Is.Null);
+    }
+
+    [TestCase("0")]
+    [TestCase("121")]
+    [TestCase("-5")]
+    [TestCase("ninety")]
+    [TestCase("")]
+    public void OptionsFrom_FallsBackToTheDefaultOnABadValue(string configured)
+    {
+        string? invalid = null;
+
+        var options = DatabaseStartup.OptionsFrom(Configuration(configured), value => invalid = value);
+
+        Assert.That(options.Budget, Is.EqualTo(TimeSpan.FromSeconds(90)));
+        Assert.That(invalid, Is.EqualTo(configured));
+    }
+
+    private static IConfiguration Configuration(string? startupWaitSeconds) => new ConfigurationBuilder()
+        .AddInMemoryCollection(new Dictionary<string, string?> { ["Database:StartupWaitSeconds"] = startupWaitSeconds })
+        .Build();
 
     [Test]
     public void WaitAsync_StopsWhenTheCallerCancels()
