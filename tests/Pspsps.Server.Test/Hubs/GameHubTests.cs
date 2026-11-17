@@ -256,6 +256,22 @@ public sealed class GameHubTests
     }
 
     [Test]
+    public async Task AddFriend_WhenTellingTheOtherPlayerFails_StillSucceeds()
+    {
+        // The request is saved by then: an unreachable backplane mustn't make it look refused (a retry would be "already asked").
+        _friends.RequestAsync(Tom.Id, Felix, Arg.Any<CancellationToken>())
+            .Returns(new PlayerRelation(Felix, "Felix", FurColor.Black, FriendState.RequestSent));
+        var hub = Hub();
+        var felixTabs = Substitute.For<IGameClient>();
+        felixTabs.FriendsChanged(Tom.Id).ThrowsAsync(new TimeoutException());
+        _clients.User(Felix.ToString()).Returns(felixTabs);
+
+        var card = await hub.AddFriend(Felix);
+
+        Assert.That(card.FriendState, Is.EqualTo("RequestSent"));
+    }
+
+    [Test]
     public async Task AcceptFriend_ARuleBroken_IsThePlayersMessage_AndNobodyIsTold()
     {
         _friends.AcceptAsync(Tom.Id, Felix, Arg.Any<CancellationToken>())

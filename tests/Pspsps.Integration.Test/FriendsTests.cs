@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.DependencyInjection;
+using Orleans.Runtime;
 using Pspsps.Application.Friends;
 using Pspsps.Application.Players;
 using Pspsps.Domain;
@@ -201,6 +202,58 @@ public sealed class FriendsTests
             await Friends().RequestAsync(await NewPlayerAsync(), popular, CancellationToken.None));
 
         Assert.That(refused!.Message, Is.EqualTo("That cat can't take any more friends."));
+    }
+
+    [Test]
+    public async Task Cancel_RacingAnAccept_DoesNotDeleteTheFriendship()
+    {
+        var tom = await NewPlayerAsync();
+        var felix = await NewPlayerAsync();
+        await Friends().RequestAsync(tom, felix, CancellationToken.None);
+
+        // Tom takes his request back from the pending friendship he loaded; Felix accepts it just before Tom's delete.
+        Game.BeforeSaving.Once(tom, () => Friends().AcceptAsync(felix, tom, CancellationToken.None));
+        var refused = Assert.ThrowsAsync<DomainException>(() => Friends().CancelAsync(tom, felix, CancellationToken.None));
+
+        Assert.That(refused!.Message, Is.EqualTo("That changed just now. Look again."));
+        Assert.That((await Friends().GetAsync(tom, felix, CancellationToken.None))!.State, Is.EqualTo(FriendState.Friends));
+    }
+
+    [Test]
+    public async Task RequestsToAPlayer_NeverStopThemAskingOthers()
+    {
+        // Many cats ask one: their requests fill only the slots for requests to that cat.
+        var victim = await NewPlayerAsync();
+        for (var i = 0; i < 100; i++)
+        {
+            try
+            {
+                await Friends().RequestAsync(await NewPlayerAsync(), victim, CancellationToken.None);
+            }
+            catch (DomainException)
+            {
+                // Refused once the victim has as many requests waiting as they can.
+            }
+        }
+
+        var friend = await NewPlayerAsync();
+        var asked = await Friends().RequestAsync(victim, friend, CancellationToken.None);
+
+        Assert.That(asked.State, Is.EqualTo(FriendState.RequestSent));
+    }
+
+    [Test]
+    public async Task Locate_ForAPlayerWhoIsOffline_DoesNotKeepTheirSessionActive()
+    {
+        var grains = Game.Services.GetRequiredService<IGrainFactory>();
+        var offline = Guid.NewGuid();
+
+        Assert.That(await grains.GetGrain<IPlayerSessionGrain>(offline).Locate(), Is.Null);
+
+        // A friends list asks after every friend: the offline ones' sessions go again rather than wait to be collected.
+        var management = grains.GetGrain<IManagementGrain>(0);
+        await AssertEventually(async () => !(await management.GetDetailedGrainStatistics())
+            .Any(s => s.GrainId.TryGetGuidKey(out var key, out _) && key == offline));
     }
 
     private static IFriendService Friends() => Game.Get<IFriendService>();

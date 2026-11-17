@@ -28,3 +28,19 @@ describe("catPlayerIdOf", () => {
     expect(catPlayerIdOf(null)).toBeUndefined();
   });
 });
+
+describe("RoomScene's cats", () => {
+  // Other cats take the pointer (their cards); the player's own doesn't, so a tap just behind it still walks or fishes.
+  it("makes other cats pickable, and not the player's own", () => {
+    const view = new RoomScene(new NullEngine());
+    view.playerId = "tom";
+    view.place({ playerId: "tom", displayName: "Tom", furColor: "Grey", x: 0, z: 0, pose: null });
+    view.place({ playerId: "felix", displayName: "Felix", furColor: "Black", x: 2, z: 0, pose: null });
+
+    const meshes = (view as unknown as { scene: Scene }).scene.meshes;
+    const pickable = (id: string) => [...new Set(meshes.filter((m) => catPlayerIdOf(m) === id && !m.name.startsWith("anchor-")).map((m) => m.isPickable))];
+
+    expect(pickable("felix")).toEqual([true]);
+    expect(pickable("tom")).toEqual([false]);
+  });
+});
