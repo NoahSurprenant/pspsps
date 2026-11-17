@@ -85,9 +85,26 @@ test("a cat's emotes show on the other cat's screen", async ({ page: tom, browse
     await felix.page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
     await felix.page.keyboard.press("1");
     await expect.poll(async () => (await emotes(tom))[felixId]).toBe("sit");
+    expect((await cats(tom))[felixId]?.pose).toBe("sit");
     expect(Object.keys(await emotes(felix.page))).toContain(felixId);
     expect((await emotes(tom))[tomId]).toBeUndefined();
 
+    expect(felix.errors, "Felix's console errors and uncaught exceptions").toEqual([]);
+  } finally {
+    await felix.close();
+  }
+});
+
+test("a cat that arrives later sees a sleeping cat asleep", async ({ page: tom, browser }) => {
+  const felix = await newPlayer(browser);
+  try {
+    const felixId = await enterWorld(felix.page, "Siamese");
+    await felix.page.getByRole("button", { name: "Sleep" }).click();
+    await expect.poll(async () => (await cats(felix.page))[felixId]?.pose).toBe("sleep");
+
+    await enterWorld(tom, "Siamese");
+
+    expect((await cats(tom))[felixId]?.pose).toBe("sleep");
     expect(felix.errors, "Felix's console errors and uncaught exceptions").toEqual([]);
   } finally {
     await felix.close();

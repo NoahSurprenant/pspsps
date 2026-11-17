@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { emoteBar, emoteForKey, isTyping, poseOf } from "./emotes";
+import { emoteBar, emoteForKey, isTyping, poseScales } from "./emotes";
 
 const onPage = { tagName: "BODY", isContentEditable: false } as unknown as EventTarget;
 const chatBox = { tagName: "INPUT", isContentEditable: false } as unknown as EventTarget;
@@ -38,19 +38,10 @@ describe("isTyping", () => {
   });
 });
 
-describe("poseOf", () => {
-  it("holds sit and sleep, lower than standing", () => {
-    for (const emote of ["sit", "sleep"] as const) {
-      const pose = poseOf(emote);
-      expect(pose?.emote).toBe(emote);
-      expect(pose?.scale[1]).toBeLessThan(1);
-    }
-    expect(poseOf("sleep")?.scale[1]).toBeLessThan(poseOf("sit")?.scale[1] ?? 0);
-  });
-
-  it("has no pose for meow and wave", () => {
-    expect(poseOf("meow")).toBeUndefined();
-    expect(poseOf("wave")).toBeUndefined();
+describe("poseScales", () => {
+  it("squashes a sitting cat, and a sleeping one flatter", () => {
+    expect(poseScales.sit[1]).toBeLessThan(1);
+    expect(poseScales.sleep[1]).toBeLessThan(poseScales.sit[1]);
   });
 });
 

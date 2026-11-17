@@ -45,7 +45,7 @@ export function emotes(page: Page): Promise<Record<string, string>> {
 }
 
 /** The cats this page's room knows, by player ID (window.pspsps, client/src/main.ts). */
-export function cats(page: Page): Promise<Record<string, { x: number; z: number }>> {
+export function cats(page: Page): Promise<Record<string, { x: number; z: number; pose: string | null }>> {
   return page.evaluate(() => Object.fromEntries(window.pspsps?.room()?.cats ?? []));
 }
 
@@ -54,7 +54,7 @@ declare global {
     pspsps?: {
       room():
         | {
-          cats: Map<string, { x: number; z: number }>;
+          cats: Map<string, { x: number; z: number; pose: string | null }>;
           chat: { playerId: string; text: string }[];
           emotes: Map<string, { playerId: string; emote: string }>;
         }

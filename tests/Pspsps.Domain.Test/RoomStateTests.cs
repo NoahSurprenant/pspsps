@@ -173,6 +173,53 @@ public sealed class RoomStateTests
         Assert.That(state.Emote(Tom, "sleep", Now.AddSeconds(1)).Emote, Is.EqualTo("sleep"));
     }
 
+    [TestCase("sit", CatPose.Sitting)]
+    [TestCase("sleep", CatPose.Sleeping)]
+    public void Emote_SitAndSleep_AreHeldPoses(string emote, CatPose pose)
+    {
+        var state = new RoomState(Room);
+        Assert.That(state.Join(Tom, "Tom", FurColor.Grey, TabA).Pose, Is.EqualTo(CatPose.Standing));
+
+        state.Emote(Tom, emote, Now);
+
+        Assert.That(state.Cats.Single().Pose, Is.EqualTo(pose));
+    }
+
+    [TestCase("meow")]
+    [TestCase("wave")]
+    public void Emote_MeowAndWave_KeepThePose(string emote)
+    {
+        var state = new RoomState(Room);
+        state.Join(Tom, "Tom", FurColor.Grey, TabA);
+        state.Emote(Tom, "sleep", Now);
+
+        state.Emote(Tom, emote, Now.AddSeconds(1));
+
+        Assert.That(state.Cats.Single().Pose, Is.EqualTo(CatPose.Sleeping));
+    }
+
+    [Test]
+    public void Move_StandsTheCatUp()
+    {
+        var state = new RoomState(Room);
+        state.Join(Tom, "Tom", FurColor.Grey, TabA);
+        state.Emote(Tom, "sit", Now);
+
+        state.Move(Tom, new Position(2, 0));
+
+        Assert.That(state.Cats.Single().Pose, Is.EqualTo(CatPose.Standing));
+    }
+
+    [Test]
+    public void Join_FromAnotherTab_KeepsThePose()
+    {
+        var state = new RoomState(Room);
+        state.Join(Tom, "Tom", FurColor.Grey, TabA);
+        state.Emote(Tom, "sleep", Now);
+
+        Assert.That(state.Join(Tom, "Tom", FurColor.Grey, TabB).Pose, Is.EqualTo(CatPose.Sleeping));
+    }
+
     [Test]
     public void Leave_FromAReplacedTab_LeavesTheNewTabsCat()
     {

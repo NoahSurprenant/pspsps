@@ -80,6 +80,26 @@ public sealed class GameHubTests
     }
 
     [Test]
+    public async Task ACatThatArrivesLater_SeesASleepingCatAsleep_UntilItWalks()
+    {
+        var (felix, felixHub) = await Game.ConnectGuestAsync();
+        await using var _ = felixHub;
+        await felixHub.InvokeAsync<RoomSnapshot>("EnterWorld", "calico");
+        await felixHub.InvokeAsync("Emote", "sleep");
+
+        var (_, tomHub) = await Game.ConnectGuestAsync();
+        await using var __ = tomHub;
+        var tomRoom = await tomHub.InvokeAsync<RoomSnapshot>("EnterWorld", "calico");
+        Assert.That(tomRoom.Cats.Single(c => c.PlayerId == felix.Id).Pose, Is.EqualTo("sleep"));
+
+        await felixHub.InvokeAsync("Move", 1.0, 1.0);
+        var (_, garfieldHub) = await Game.ConnectGuestAsync();
+        await using var ___ = garfieldHub;
+        var garfieldRoom = await garfieldHub.InvokeAsync<RoomSnapshot>("EnterWorld", "calico");
+        Assert.That(garfieldRoom.Cats.Single(c => c.PlayerId == felix.Id).Pose, Is.Null);
+    }
+
+    [Test]
     public async Task GetWorlds_CountsPlayersInEachWorld()
     {
         var (_, hub) = await Game.ConnectGuestAsync();
