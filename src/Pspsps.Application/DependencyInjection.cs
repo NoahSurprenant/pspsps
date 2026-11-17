@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Pspsps.Application.Friends;
 using Pspsps.Application.Players;
 
 namespace Pspsps.Application;
@@ -10,6 +11,7 @@ public static class DependencyInjection
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton(Random.Shared);
         services.AddScoped<IPlayerService, PlayerService>();
+        services.AddScoped<IFriendService, FriendService>();
         return services;
     }
 }

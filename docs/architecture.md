@@ -23,9 +23,10 @@ Both are Orleans grains, the actors of this design:
 
 - `WorldGrain` (key: world ID) holds the world's `WorldPopulation`: who is in it, against its cap.
 - `RoomGrain` (key: `world/room`) holds the room's `RoomState`: who is in it, where they stand, what they said lately.
-- `PlayerSessionGrain` (key: player ID) knows the player's current tab. A player is one cat, played from their newest
-  tab: entering a world from a second tab takes the cat over where it stands, the first tab is told ("You've joined
-  from another tab") and stops, and its moves are refused. A room only lets the tab that controls a cat take it out.
+- `PlayerSessionGrain` (key: player ID) knows the player's current tab, and the room its cat is in (Friends, below). A
+  player is one cat, played from their newest tab: entering a world from a second tab takes the cat over where it
+  stands, the first tab is told ("You've joined from another tab") and stops, and its moves are refused. A room only
+  lets the tab that controls a cat take it out.
 
 Each grain exists exactly once in the whole cluster, on whichever pod Orleans placed it, and handles one call at a
 time, so its state needs no locks. Room state lives only in memory: an empty room deactivates and forgets everything.
@@ -65,6 +66,30 @@ word across real words or reading a plain number as one. The lists are configura
 `chatFilter` values, or sets them through environment variables), and the filter is rebuilt on every change. A file
 that goes missing or can't be read, or an unknown action, is logged as a warning and the filter it had stays in force.
 
+## Friends
+
+A **friendship** (`Friendship`, an aggregate of its own) is a request from one player to another, pending until the
+one asked accepts it. A pair of players has at most one: its key is the pair in a fixed order, so the database refuses a
+second even when both ask at once (and asking someone who has asked you accepts). Only the one asked accepts or
+declines; the one who asked can take it back; either friend can end it. A declined, taken back or ended friendship is
+deleted, so either can ask again. A player has at most 100 friends, 20 requests of their own waiting and 50 requests
+waiting for them, counted apart so that cats asking one never stop it asking or accepting others. `Status` is a
+concurrency token: an answer decided on a status that changed meanwhile (a request taken back as it's accepted) is
+refused, never applied. Only friends can go to each other. Guests have friends like everyone: a guest is a real
+player (its friendships go with it, and stay when it saves its cat).
+
+Where a friend is comes from the grains, not the database: the hub tells the player's `PlayerSessionGrain` which room
+its current tab's cat joined, and the friends list asks each friend's session, which asks that room whether the cat is
+still there, played from that tab (the room's lease is the truth). That question interleaves with the session's other
+calls, so the player's own moves never wait behind friends asking, and a session asked after a player who isn't playing
+goes again at once. A session that points at a room checks it every lease
+(which keeps it from being collected while its player sits idle) and forgets it once the room no longer has the cat. A
+friend between rooms, in the world picker or offline has no place. If the pod holding a session grain dies, the grain
+comes back empty and its player shows offline until they next enter a room. "Go to" a friend takes a place in their
+world first (within its cap), then joins their room (within its cap), and only then leaves the room and world the
+player was in, so a full world or room leaves the player where they were. A change to a friendship is sent to the other
+player's tabs (`FriendsChanged`, through SignalR's user = player ID).
+
 ## Layers (Clean Architecture)
 
 Dependencies point inwards only: **Domain ← Application ← Infrastructure ← Server**. `Pspsps.Architecture.Test`
@@ -73,9 +98,9 @@ enforces this.
 - **Domain** (`src/Pspsps.Domain`): the game's rules, no frameworks. Aggregates in the DDD sense: `Player` owns its
   logins, coins and fur. A private constructor for EF Core, named static factories (`CreateGuest`,
   `CreateWithLogin`), private setters, collections exposed read-only, and methods that refuse invalid changes with a
-  `DomainException`. Also the in-memory world and room rules (`WorldPopulation`, `RoomState`,
-  `SessionLease`) and the world and room catalogues.
-- **Application** (`src/Pspsps.Application`): use cases (`PlayerService`) and the ports they need
+  `DomainException`. `Friendship` is another aggregate (Friends, above). Also the in-memory world and room rules
+  (`WorldPopulation`, `RoomState`, `SessionLease`) and the world and room catalogues.
+- **Application** (`src/Pspsps.Application`): use cases (`PlayerService`, `FriendService`) and the ports they need
   (`IApplicationDbContext`).
 - **Infrastructure** (`src/Pspsps.Infrastructure`): EF Core on PostgreSQL (snake_case names), the migrations, and the
   Data Protection key ring in the database.

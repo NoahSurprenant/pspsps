@@ -38,4 +38,10 @@ public interface IGameClient
 
     /// <summary>The player opened the game in another tab, which is the one playing now.</summary>
     Task SessionReplaced();
+
+    /// <summary>
+    /// Another player asked this one to be friends, answered their request, took theirs back or ended the friendship: the
+    /// friends list and a player card showing that player are out of date. Sent to every tab of the player.
+    /// </summary>
+    Task FriendsChanged(Guid playerId);
 }

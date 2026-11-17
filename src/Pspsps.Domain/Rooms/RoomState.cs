@@ -304,6 +304,12 @@ public sealed class RoomState(RoomDefinition room)
         return new CatEmote(playerId, emote, now);
     }
 
+    /// <summary>
+    /// Whether the player's cat is here, played from <paramref name="session"/>: where friends find it. A cat another tab
+    /// took over is that tab's.
+    /// </summary>
+    public bool Has(Guid playerId, string session) => _cats.ContainsKey(playerId) && Controls(playerId, session);
+
     private bool Controls(Guid playerId, string session) =>
         _leases.TryGetValue(playerId, out var lease) && lease.Session == session;
 

@@ -98,3 +98,27 @@ export interface EmoteView {
   emote: Emote;
   at: string;
 }
+
+/** Where one player stands with another, as the first sees it (Domain FriendState). */
+export type FriendState = "None" | "RequestSent" | "RequestReceived" | "Friends";
+
+/** Another cat's player card (Contracts.cs, PlayerCardView). */
+export interface PlayerCard {
+  playerId: string;
+  displayName: string;
+  furColor: FurColor;
+  friendState: FriendState;
+}
+
+/** Where a friend is (Contracts.cs, FriendPlaceView). */
+export interface FriendPlace {
+  worldId: string;
+  worldName: string;
+  roomId: string;
+  roomName: string;
+}
+
+/** A friend or a friend request (Contracts.cs, FriendView); a friend in a room has its place, null otherwise. */
+export interface Friend extends PlayerCard {
+  place: FriendPlace | null;
+}

@@ -27,6 +27,9 @@ public interface IRoomGrain : IGrainWithStringKey
     /// </summary>
     Task<IReadOnlyList<string>> Renew(IReadOnlyList<PlayerSession> sessions);
 
+    /// <summary>Whether the player's cat is here, played from <paramref name="session"/>: where friends find it.</summary>
+    Task<bool> Has(Guid playerId, string session);
+
     Task Move(Guid playerId, double x, double z);
 
     Task Say(Guid playerId, string text);

@@ -46,6 +46,8 @@ try
             options.Configuration.ChannelPrefix = RedisChannel.Literal("pspsps"));
     }
 
+    // A connection's user is its player, for messages to all of a player's tabs (friend requests).
+    builder.Services.AddSingleton<IUserIdProvider, PlayerUserIdProvider>();
     builder.Services.AddSingleton<IRoomBroadcaster, HubRoomBroadcaster>();
     // The words chat masks or refuses, from chat-filter/chat-filter.json, reread when it changes.
     builder.AddChatFilter();

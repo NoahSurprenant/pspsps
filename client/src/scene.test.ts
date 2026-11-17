@@ -1,7 +1,10 @@
 import type { AssetContainer } from "@babylonjs/core/assetContainer";
-import { NullEngine } from "@babylonjs/core";
+import { NullEngine, Scene, TransformNode } from "@babylonjs/core";
+import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { RoomScene } from "./scene";
+import { loadCatModel } from "./cat";
+import catGlb from "./models/cat.glb?inline";
+import { catPlayerIdOf, RoomScene } from "./scene";
 import type { RoomSnapshot } from "./types";
 
 const room: RoomSnapshot = {
@@ -18,6 +21,11 @@ function deferred<T>(): { promise: Promise<T>; resolve(value: T): void; reject(e
     reject = no;
   });
   return { promise, resolve, reject };
+}
+
+/** The real cat model's bytes, from the data URL Vite makes of it. */
+function modelBytes(): Uint8Array {
+  return Uint8Array.from(atob(catGlb.slice(catGlb.indexOf(",") + 1)), (c) => c.charCodeAt(0));
 }
 
 /** A model loader whose first room gets <first>, and every later one a model still loading. */
@@ -82,5 +90,49 @@ describe("RoomScene", () => {
     } finally {
       errors.mockRestore();
     }
+  });
+
+  // Another cat's card opens with a tap on any part of it, as soon as its model is drawn, also for cats placed while the
+  // model was still loading; the player's own cat never takes the pointer, so a tap just behind it still walks or fishes.
+  it("lets other cats be tapped once their model loads, and never the player's own", async () => {
+    const loaded = deferred<true>();
+    const view = new RoomScene(new NullEngine(), async (scene) => {
+      await loaded.promise;
+      return loadCatModel(scene, modelBytes());
+    });
+    view.playerId = "tom";
+    view.show({ ...room, cats: [{ playerId: "tom", displayName: "Tom", furColor: "Grey", x: 0, z: 0, pose: null }] });
+    view.place({ playerId: "felix", displayName: "Felix", furColor: "Black", x: 2, z: 0, pose: null });
+
+    loaded.resolve(true);
+    await vi.waitFor(() => expect(view.animationOf("felix")).toBeDefined());
+    view.place({ playerId: "garfield", displayName: "Garfield", furColor: "Orange", x: -2, z: 0, pose: null });
+    await vi.waitFor(() => expect(view.animationOf("garfield")).toBeDefined());
+    expect(view.animationOf("tom")).toBeDefined();
+
+    const meshes = (view as unknown as { scene: Scene }).scene.meshes;
+    const pickable = (id: string) => [...new Set(meshes
+      .filter((mesh) => catPlayerIdOf(mesh) === id && !mesh.name.startsWith("anchor-"))
+      .map((mesh) => mesh.isPickable))];
+    expect(pickable("felix")).toEqual([true]);
+    expect(pickable("garfield")).toEqual([true]);
+    expect(pickable("tom")).toEqual([false]);
+    expect(meshes.filter((mesh) => mesh.name.startsWith("anchor-")).every((anchor) => !anchor.isPickable)).toBe(true);
+  });
+});
+
+describe("catPlayerIdOf", () => {
+  it("finds the cat a picked mesh is part of, however deep, and nothing for other meshes", () => {
+    const scene = new Scene(new NullEngine());
+    const root = new TransformNode("cat", scene);
+    root.metadata = { catPlayerId: "felix" };
+    const body = new TransformNode("body", scene);
+    body.parent = root;
+    const ear = CreateBox("ear", {}, scene);
+    ear.parent = body;
+
+    expect(catPlayerIdOf(ear)).toBe("felix");
+    expect(catPlayerIdOf(CreateBox("floor", {}, scene))).toBeUndefined();
+    expect(catPlayerIdOf(null)).toBeUndefined();
   });
 });

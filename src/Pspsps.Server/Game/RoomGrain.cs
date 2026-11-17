@@ -121,6 +121,17 @@ internal sealed class RoomGrain(
         return Task.FromResult<IReadOnlyList<string>>(lost);
     }
 
+    public Task<bool> Has(Guid playerId, string session)
+    {
+        // Asking can be what activated this room (it came back empty after its pod died): an empty room goes again.
+        if (_state.Cats.Count == 0)
+        {
+            DeactivateOnIdle();
+        }
+
+        return Task.FromResult(_state.Has(playerId, session));
+    }
+
     public async Task Move(Guid playerId, double x, double z)
     {
         var position = Rule(() => _state.Move(playerId, new Position(x, z)));

@@ -9,9 +9,11 @@ import { Room } from "./room";
 import type { CatAnimation } from "./cat";
 import type { RoomScene } from "./scene";
 import { Overlay, type Note } from "./ui";
-import type { DoorView, Player, RoomSnapshot } from "./types";
+import type { FriendAction } from "./friends";
+import type { DoorView, Player, PlayerCard, RoomSnapshot } from "./types";
 
 const overlay = new Overlay(required<HTMLElement>("#ui"));
+overlay.onFriends = () => void openFriends();
 // The 3D scene, made on the way into the first room: Babylon (most of the page's script) loads only then, so the
 // sign-in screen and the world list stay light, and nothing draws until there is a room to draw.
 let scene: RoomScene | undefined;
@@ -49,6 +51,12 @@ const stage = lazily(async (): Promise<RoomScene> => {
   });
   made.onPondClicked(() => void fish());
   made.onDoorClicked((door) => void goThrough(door));
+  // Another cat: its player card. The player's own cat has none.
+  made.onCatClicked((playerId) => {
+    if (room && playerId !== me?.id) {
+      void openCard(playerId);
+    }
+  });
   scene = made;
   return made;
 });
@@ -75,6 +83,8 @@ declare global {
       animation(playerId: string): CatAnimation | undefined;
       /** Where a spot on the floor is drawn on the canvas, in CSS pixels, to click it; undefined with no room showing. */
       screenPoint(x: number, z: number): { x: number; y: number } | undefined;
+      /** Where a cat in the room is on the page, to click it. */
+      catOnScreen(playerId: string): { x: number; y: number } | undefined;
     };
   }
 }
@@ -84,6 +94,7 @@ window.pspsps = {
   fishing: () => fishing.state,
   animation: (playerId) => scene?.animationOf(playerId),
   screenPoint: (x, z) => scene?.screenPoint(x, z),
+  catOnScreen: (playerId) => scene?.screenPositionOf(playerId),
 };
 
 const connection = new GameConnection({
@@ -134,6 +145,7 @@ const connection = new GameConnection({
       void pickWorld(me);
     }
   },
+  friendsChanged: (playerId) => void friendsChanged(playerId),
 });
 
 /** Applies a room event to the room showing, or holds it for the one loading. */
@@ -220,6 +232,7 @@ async function reel(): Promise<void> {
 function show(snapshot: RoomSnapshot, view: RoomScene): Room {
   const shown = new Room(snapshot);
   room = shown;
+  view.playerId = me?.id;
   view.show(snapshot);
   overlay.showRoom(
     snapshot,
@@ -294,7 +307,8 @@ async function load(request: () => Promise<RoomSnapshot>, stay?: Room): Promise<
       return show(await request(), view);
     }, stay);
   } catch (error) {
-    // Still in `stay` if the server kept the cat there (a door that refused it); in no room otherwise.
+    // Still in `stay` if the server kept the cat there (a door that refused it, a Go to that couldn't); in no room
+    // otherwise.
     room = stay;
     overlay.toast(messageOf(error));
   }
@@ -340,6 +354,83 @@ async function start(): Promise<void> {
     () => void playAsGuest().then((guest) => pickWorld(guest, providers)).catch((error: unknown) => overlay.toast(messageOf(error))),
     note,
   );
+}
+
+/** Shows another cat's player card, as the server has it now. */
+async function openCard(playerId: string): Promise<void> {
+  try {
+    showCard(await connection.getPlayerCard(playerId));
+  } catch (error) {
+    overlay.toast(messageOf(error));
+  }
+}
+
+function showCard(card: PlayerCard): void {
+  overlay.showPlayerCard(card, (action) => void changeFriendship(action, card.playerId));
+}
+
+/**
+ * The friends list, with where each friend is now. A refresh (`refresh`) of the open list updates it in place, and does
+ * nothing if the player closed it meanwhile.
+ */
+async function openFriends(refresh = false): Promise<void> {
+  try {
+    const list = await connection.getFriends();
+    if (refresh && overlay.openDialogFor?.kind !== "friends") {
+      return;
+    }
+    const here = room ? { worldId: room.snapshot.worldId, roomId: room.snapshot.roomId } : undefined;
+    overlay.showFriends(list, here, {
+      card: (playerId) => void openCard(playerId),
+      goTo: (playerId) => {
+        overlay.closeDialog();
+        // The server goes only once it can: a full world or room, or a friend gone, leaves the cat where it is.
+        const stay = room;
+        pick(() => load(() => connection.goToFriend(playerId), stay));
+      },
+      act: (action, playerId) => void changeFriendship(action, playerId),
+    });
+  } catch (error) {
+    overlay.toast(messageOf(error));
+  }
+}
+
+/** Adds, answers, takes back or ends a friendship, then shows the card or list that is open as it is after. */
+async function changeFriendship(action: FriendAction, playerId: string): Promise<void> {
+  try {
+    const card = await connection.changeFriendship(action, playerId);
+    const open = overlay.openDialogFor;
+    if (open?.kind === "card" && open.playerId === playerId) {
+      showCard(card);
+    } else if (open?.kind === "friends") {
+      await openFriends(true);
+    }
+  } catch (error) {
+    overlay.toast(messageOf(error));
+  }
+}
+
+/**
+ * Another player changed their friendship with this one: the card or list showing it is brought up to date, and a new
+ * request is said.
+ */
+async function friendsChanged(playerId: string): Promise<void> {
+  const open = overlay.openDialogFor;
+  if (open?.kind === "friends") {
+    await openFriends(true);
+    return;
+  }
+  try {
+    const card = await connection.getPlayerCard(playerId);
+    const now = overlay.openDialogFor;
+    if (now?.kind === "card" && now.playerId === playerId) {
+      showCard(card);
+    } else if (card.friendState === "RequestReceived") {
+      overlay.toast(`${card.displayName} wants to be friends! Open Friends to answer.`);
+    }
+  } catch {
+    // Only a notice: the list shows it when opened.
+  }
 }
 
 /** Leaves the page with a form post to `url` (the browser marks it as from this site), as a submit button would. */

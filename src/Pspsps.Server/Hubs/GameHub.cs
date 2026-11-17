@@ -1,6 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Pspsps.Application.Friends;
 using Pspsps.Application.Players;
+using Pspsps.Domain;
+using Pspsps.Domain.Friends;
 using Pspsps.Domain.Rooms;
 using Pspsps.Domain.Worlds;
 using Pspsps.Server.Auth;
@@ -16,7 +19,12 @@ namespace Pspsps.Server.Hubs;
 /// </summary>
 [Authorize]
 public sealed partial class GameHub(
-    IGrainFactory grains, IPlayerService players, SessionHeartbeat heartbeat, GameMetrics metrics, ILogger<GameHub> logger)
+    IGrainFactory grains,
+    IPlayerService players,
+    IFriendService friends,
+    SessionHeartbeat heartbeat,
+    GameMetrics metrics,
+    ILogger<GameHub> logger)
     : Hub<IGameClient>
 {
     /// <summary>What a replaced tab is told; the client shows the same words.</summary>
@@ -217,6 +225,114 @@ public sealed partial class GameHub(
         return reel with { TotalCoins = paid.Coins };
     }
 
+    /// <summary>Another cat's player card: who they are, and where this player stands with them.</summary>
+    public async Task<PlayerCardView> GetPlayerCard(Guid playerId)
+    {
+        var relation = await friends.GetAsync(PlayerId, playerId, Context.ConnectionAborted)
+            ?? throw new HubException("That cat doesn't exist.");
+        return CardOf(relation);
+    }
+
+    /// <summary>Asks the cat to be friends (accepting, if they have asked this player); the card as it is now.</summary>
+    public Task<PlayerCardView> AddFriend(Guid playerId) =>
+        ChangeFriendship(playerId, friends.RequestAsync);
+
+    public Task<PlayerCardView> AcceptFriend(Guid playerId) =>
+        ChangeFriendship(playerId, friends.AcceptAsync);
+
+    public Task<PlayerCardView> DeclineFriend(Guid playerId) =>
+        ChangeFriendship(playerId, friends.DeclineAsync);
+
+    /// <summary>Takes back this player's request to the cat.</summary>
+    public Task<PlayerCardView> CancelFriendRequest(Guid playerId) =>
+        ChangeFriendship(playerId, friends.CancelAsync);
+
+    public Task<PlayerCardView> RemoveFriend(Guid playerId) =>
+        ChangeFriendship(playerId, friends.UnfriendAsync);
+
+    /// <summary>
+    /// The player's friends and requests, each friend with where they are now: their session says which room, and that
+    /// room confirms the cat is there. A friend between rooms or offline has no place.
+    /// </summary>
+    public async Task<IReadOnlyList<FriendView>> GetFriends()
+    {
+        var list = await friends.ListAsync(PlayerId, Context.ConnectionAborted);
+        var places = await Task.WhenAll(list.Select(friend => friend.State == FriendState.Friends
+            ? LocateAsync(friend.PlayerId)
+            : Task.FromResult<PlayerPlace?>(null)));
+        return [.. list.Select((friend, i) => new FriendView(
+            friend.PlayerId, friend.DisplayName, friend.FurColor.ToString(), friend.State.ToString(), PlaceView(places[i])))];
+    }
+
+    /// <summary>
+    /// Goes to the friend's room, in whichever world they are, within the world's and the room's caps. Into another world,
+    /// the player takes a place there first, so a full world leaves them where they were.
+    /// </summary>
+    public async Task<RoomSnapshot> GoToFriend(Guid friendId)
+    {
+        if (Here is null)
+        {
+            throw new HubException("Pick a world first.");
+        }
+
+        await EnsureCurrentTab();
+        PlayerRelation relation;
+        try
+        {
+            relation = await friends.VisitAsync(PlayerId, friendId, Context.ConnectionAborted);
+        }
+        catch (DomainException e)
+        {
+            throw new HubException(e.Message);
+        }
+
+        var target = await LocateAsync(friendId)
+            ?? throw new HubException($"{relation.DisplayName} isn't in a room right now.");
+        // Read after the waits: the heartbeat may have moved it meanwhile (a lost room or world).
+        var place = Here ?? throw new HubException("Pick a world first.");
+        if (place.RoomKey == RoomKey.For(target.WorldId, target.RoomId))
+        {
+            throw new HubException($"You're already with {relation.DisplayName}.");
+        }
+
+        if (target.WorldId == place.WorldId)
+        {
+            return await GoToRoom(target.RoomId);
+        }
+
+        var world = WorldCatalog.Find(target.WorldId) ?? throw new HubException("That world doesn't exist.");
+        var worldGrain = grains.GetGrain<IWorldGrain>(world.Id);
+        if (!await worldGrain.TryEnter(PlayerId, Context.ConnectionId))
+        {
+            throw new HubException($"{world.Name} is full. Try again later.");
+        }
+
+        RoomSnapshot snapshot;
+        try
+        {
+            snapshot = await JoinRoom(world.Id, target.RoomId, throughDoor: null);
+        }
+        catch
+        {
+            await worldGrain.Leave(PlayerId, Context.ConnectionId);
+            throw;
+        }
+
+        metrics.EnteredWorld(world.Id);
+        // Out of the room and world it was in, now that it's in the new ones. A leave that fails falls back to the leases
+        // running out: nothing renews them any more.
+        try
+        {
+            await Leave(place);
+        }
+        catch (Exception e)
+        {
+            LogLeaveFailed(logger, e, PlayerId, place.WorldId);
+        }
+
+        return snapshot;
+    }
+
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
         // Forgotten first, whatever happens next: a leave that fails falls back to the leases running out.
@@ -283,8 +399,67 @@ public sealed partial class GameHub(
             throw new HubException(ClosedMessage);
         }
 
+        // Where friends find the cat. Only a pointer, which the room confirms: a failure here only hides the cat from them.
+        try
+        {
+            await Session.Arrived(Context.ConnectionId, key);
+        }
+        catch (Exception e)
+        {
+            LogArrivalNotRecorded(logger, e, PlayerId, key);
+        }
+
         return snapshot;
     }
+
+    // A change to the friendship with another cat, as this player; the other player's tabs are told.
+    private async Task<PlayerCardView> ChangeFriendship(
+        Guid otherId, Func<Guid, Guid, CancellationToken, Task<PlayerRelation>> change)
+    {
+        PlayerRelation relation;
+        try
+        {
+            relation = await change(PlayerId, otherId, Context.ConnectionAborted);
+        }
+        catch (DomainException e)
+        {
+            throw new HubException(e.Message);
+        }
+
+        // Saved by now: a tab that isn't told sees it the next time it opens the list or the card.
+        try
+        {
+            await Clients.User(PlayerUserIdProvider.For(otherId)).FriendsChanged(PlayerId);
+        }
+        catch (Exception e)
+        {
+            LogFriendsChangedNotSent(logger, e, otherId);
+        }
+
+        return CardOf(relation);
+    }
+
+    private static PlayerCardView CardOf(PlayerRelation relation) =>
+        new(relation.PlayerId, relation.DisplayName, relation.FurColor.ToString(), relation.State.ToString());
+
+    // Where the player's cat is, or null when it can't be told (a grain call that failed counts as offline).
+    private async Task<PlayerPlace?> LocateAsync(Guid playerId)
+    {
+        try
+        {
+            return await grains.GetGrain<IPlayerSessionGrain>(playerId).Locate();
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            LogLocateFailed(logger, e, playerId);
+            return null;
+        }
+    }
+
+    private static FriendPlaceView? PlaceView(PlayerPlace? place) =>
+        place is not null && WorldCatalog.Find(place.WorldId) is { } world && RoomCatalog.Find(place.RoomId) is { } room
+            ? new FriendPlaceView(world.Id, world.Name, room.Id, room.Name)
+            : null;
 
     private async Task LeaveRoom(string key)
     {
@@ -339,6 +514,18 @@ public sealed partial class GameHub(
             throw new HubException(e.Message);
         }
     }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't record that player {PlayerId} is in {RoomKey}; friends won't find them there")]
+    private static partial void LogArrivalNotRecorded(ILogger logger, Exception exception, Guid playerId, string roomKey);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't tell player {PlayerId} their friendships changed")]
+    private static partial void LogFriendsChangedNotSent(ILogger logger, Exception exception, Guid playerId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't find where player {PlayerId} is; shown offline")]
+    private static partial void LogLocateFailed(ILogger logger, Exception exception, Guid playerId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Player {PlayerId} went to a friend but couldn't leave {WorldId}; its leases will run out")]
+    private static partial void LogLeaveFailed(ILogger logger, Exception exception, Guid playerId, string worldId);
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Couldn't pay player {PlayerId} for a {FishId}; the catch wasn't shown")]
     private static partial void LogCatchNotPaid(ILogger logger, Exception exception, Guid playerId, string fishId);

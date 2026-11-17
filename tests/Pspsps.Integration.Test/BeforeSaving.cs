@@ -2,14 +2,15 @@ using System.Collections.Concurrent;
 using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Pspsps.Domain.Friends;
 using Pspsps.Domain.Players;
 
 namespace Pspsps.Integration.Test;
 
 /// <summary>
 /// Runs a test's action in the server just before it writes a change to one player (a save, or an update statement
-/// such as ExecuteUpdate's), once: to see what the rest of the game had done by then, or to make something happen at
-/// exactly that moment.
+/// such as ExecuteUpdate's) or to a friendship of theirs, once: to see what the rest of the game had done by then, or to
+/// make something happen at exactly that moment.
 /// </summary>
 public sealed class BeforeSaving : SaveChangesInterceptor
 {
@@ -33,6 +34,9 @@ public sealed class BeforeSaving : SaveChangesInterceptor
         var changed = eventData.Context?.ChangeTracker.Entries<Player>()
             .Where(e => e.State == EntityState.Modified)
             .Select(e => e.Entity.Id)
+            .Concat(eventData.Context?.ChangeTracker.Entries<Friendship>()
+                .Where(e => e.State is EntityState.Modified or EntityState.Deleted)
+                .SelectMany(e => new[] { e.Entity.FirstPlayerId, e.Entity.SecondPlayerId }) ?? [])
             .ToList() ?? [];
         await RunFor(changed);
         return result;

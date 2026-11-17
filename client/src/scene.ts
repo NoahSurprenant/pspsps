@@ -10,6 +10,7 @@ import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
 import { CreateCylinder } from "@babylonjs/core/Meshes/Builders/cylinderBuilder";
 import { CreateGround } from "@babylonjs/core/Meshes/Builders/groundBuilder";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
+import type { Node as BabylonNode } from "@babylonjs/core/node";
 import { Scene } from "@babylonjs/core/scene";
 // For their side effects: picking what a pointer touches, and the meshes' drawn outlines (renderOutline).
 import "@babylonjs/core/Culling/ray";
@@ -72,6 +73,9 @@ export class RoomScene {
   private floorClicked: (x: number, z: number) => void = () => {};
   private pondClicked: () => void = () => {};
   private doorClicked: (door: DoorView) => void = () => {};
+  private catClicked: (playerId: string) => void = () => {};
+  /** The player's own cat: it never takes the pointer, so a tap just behind it still walks or fishes. */
+  playerId: string | undefined;
 
   /** <loadModel> reads the cat model into a room's scene (the tests hand in their own). */
   constructor(
@@ -101,6 +105,11 @@ export class RoomScene {
 
   onDoorClicked(handler: (door: DoorView) => void): void {
     this.doorClicked = handler;
+  }
+
+  /** A tap or click on another cat: its player's ID. */
+  onCatClicked(handler: (playerId: string) => void): void {
+    this.catClicked = handler;
   }
 
   /** Replaces whatever room was showing. */
@@ -184,8 +193,11 @@ export class RoomScene {
     }
 
     this.scene.onPointerDown = (_event, pick) => {
+      const catId = pick.hit ? catPlayerIdOf(pick.pickedMesh) : undefined;
       const door = pick.hit && pick.pickedMesh ? doors.get(pick.pickedMesh) : undefined;
-      if (door) {
+      if (catId !== undefined) {
+        this.catClicked(catId);
+      } else if (door) {
         this.doorClicked(door);
       } else if (pick.hit && pond && pick.pickedMesh === pond) {
         this.pondClicked();
@@ -211,6 +223,8 @@ export class RoomScene {
     // The anchor (name, bubbles) hangs off the root, above whatever the model is doing.
     const name = `cat-${cat.playerId}`;
     const root = new TransformNode(name, this.scene);
+    // Whose cat this is, for a tap on any of its meshes (another cat's take the pointer once its model is drawn).
+    root.metadata = { catPlayerId: cat.playerId };
     root.position.set(cat.x, 0, cat.z);
     // Facing the camera until it walks somewhere.
     root.rotation.y = Math.PI;
@@ -239,6 +253,12 @@ export class RoomScene {
       if (model && this.cats.get(cat.playerId) === shown && this.scene === scene && !root.isDisposed()) {
         try {
           shown.model = new Cat(scene, model, root, name, cat.furColor);
+          // Tapping any part of another cat opens its card; the player's own never takes the pointer, so a tap just
+          // behind it still walks or fishes. Its name's anchor never does either.
+          const tappable = cat.playerId !== this.playerId;
+          for (const mesh of root.getChildMeshes(false)) {
+            mesh.isPickable = tappable && mesh !== anchor;
+          }
         } catch (error) {
           // That cat goes undrawn; its name and bubbles still show.
           console.error("A cat couldn't be drawn", error);
@@ -278,6 +298,19 @@ export class RoomScene {
 
   /** Where a spot on the floor is drawn, in CSS pixels from the canvas's top left; undefined until a room shows. */
   screenPoint(x: number, z: number): { x: number; y: number } | undefined {
+    return this.project(new Vector3(x, 0, z));
+  }
+
+  /**
+   * Where the middle of a cat is drawn, as it walks, in CSS pixels from the canvas's top left; undefined when it isn't in
+   * the room. For the end-to-end tests, which tap cats.
+   */
+  screenPositionOf(playerId: string): { x: number; y: number } | undefined {
+    const cat = this.cats.get(playerId);
+    return cat && this.project(cat.root.position.add(new Vector3(0, 0.5, 0)));
+  }
+
+  private project(spot: Vector3): { x: number; y: number } | undefined {
     const camera = this.scene.activeCamera;
     if (!camera) {
       return undefined;
@@ -285,7 +318,7 @@ export class RoomScene {
     const width = this.engine.getRenderWidth();
     const height = this.engine.getRenderHeight();
     const point = Vector3.Project(
-      new Vector3(x, 0, z), Matrix.Identity(), camera.getTransformationMatrix(), camera.viewport.toGlobal(width, height));
+      spot, Matrix.Identity(), camera.getTransformationMatrix(), camera.viewport.toGlobal(width, height));
     // The canvas may draw at more pixels than it takes on the page.
     const scale = (this.engine.getRenderingCanvas()?.clientWidth ?? width) / width;
     return { x: point.x * scale, y: point.y * scale };
@@ -428,6 +461,17 @@ export class RoomScene {
     box.linkOffsetY = -42;
     return box;
   }
+}
+
+/** The player whose cat a picked mesh is part of (a cat's root carries the ID), if any. */
+export function catPlayerIdOf(mesh: BabylonNode | null | undefined): string | undefined {
+  for (let node = mesh; node; node = node.parent) {
+    const id: unknown = (node.metadata as { catPlayerId?: unknown } | null)?.catPlayerId;
+    if (typeof id === "string") {
+      return id;
+    }
+  }
+  return undefined;
 }
 
 function flat(scene: Scene, name: string, hex: string): StandardMaterial {
