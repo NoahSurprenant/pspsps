@@ -20,7 +20,8 @@ internal sealed class PlayerConfiguration : IEntityTypeConfiguration<Player>
             login.HasKey(l => new { l.Provider, l.ProviderKey });
             login.Property(l => l.Provider).HasConversion<string>().HasMaxLength(16);
             login.Property(l => l.ProviderKey).HasMaxLength(128);
-            login.HasIndex("PlayerId");
+            // One login per provider per cat, also when two links race past the rule on Player.LinkLogin.
+            login.HasIndex("PlayerId", nameof(PlayerLogin.Provider)).IsUnique();
         });
         builder.Navigation(p => p.Logins).HasField("_logins").UsePropertyAccessMode(PropertyAccessMode.Field);
     }

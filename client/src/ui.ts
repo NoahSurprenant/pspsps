@@ -1,6 +1,18 @@
 import { emoteBar, emoteForKey } from "./emotes";
 import type { Emote, Player, RoomSnapshot, WorldSummary } from "./types";
 
+/** A message for the player on a panel; an error shows in red. */
+export interface Note {
+  text: string;
+  error: boolean;
+}
+
+/** The providers a guest can save their cat with, and what a button does. */
+export interface SaveYourCat {
+  providers: string[];
+  link: (provider: string) => void;
+}
+
 /** The HTML laid over the canvas: sign-in, the world list, the room bar and the chat box. */
 export class Overlay {
   // Listeners that belong to what is showing (the room's emote keys): every show* ends them.
@@ -8,14 +20,14 @@ export class Overlay {
 
   constructor(private readonly root: HTMLElement) {}
 
-  showSignIn(providers: string[], signIn: (provider: string) => void, guest: () => void, error?: string): void {
+  showSignIn(providers: string[], signIn: (provider: string) => void, guest: () => void, note?: Note): void {
     this.replace(
       panel(
         el("h1", { text: "pspsps" }),
         el("p", { text: "A town full of cats. Come hang out." }),
         ...providers.map((provider) => button(`Sign in with ${provider}`, () => signIn(provider), "primary")),
         button("Play as a guest", guest),
-        ...(error ? [el("p", { text: error, className: "error" })] : []),
+        ...noteParagraph(note),
       ),
     );
   }
@@ -31,10 +43,29 @@ export class Overlay {
     );
   }
 
-  showWorlds(player: Player, worlds: WorldSummary[], enter: (worldId: string) => void, signOut: () => void): void {
+  /**
+   * The world list. A guest also gets "Save your cat with ..." for each provider in `save`, and `note` says how the
+   * last try at that went.
+   */
+  showWorlds(
+    player: Player,
+    worlds: WorldSummary[],
+    enter: (worldId: string) => void,
+    signOut: () => void,
+    save: SaveYourCat,
+    note?: Note,
+  ): void {
+    const saving = player.isGuest && save.providers.length > 0
+      ? [
+          el("p", { text: "You're a guest: your cat lasts as long as this browser remembers you." }),
+          ...save.providers.map((provider) => button(`Save your cat with ${provider}`, () => save.link(provider), "primary")),
+        ]
+      : [];
     this.replace(
       panel(
         el("h1", { text: `Hi, ${player.displayName}!` }),
+        ...noteParagraph(note),
+        ...saving,
         el("p", { text: "Pick a world." }),
         ...worlds.map((world) => {
           const full = world.population >= world.capacity;
@@ -134,4 +165,9 @@ function button(text: string, onClick: () => void, className = ""): HTMLButtonEl
     element.addEventListener("click", onClick);
   }
   return element;
+}
+
+/** A note as a paragraph (an error in red), or nothing. */
+function noteParagraph(note: Note | undefined): HTMLElement[] {
+  return note ? [el("p", { text: note.text, className: note.error ? "error" : "note" })] : [];
 }

@@ -39,6 +39,83 @@ public sealed class PlayerTests
             Player.CreateWithLogin(LoginProvider.Google, " ", "Whiskers", FurColor.Black, Now));
 
     [Test]
+    public void LinkLogin_TurnsAGuestIntoAnAccountAndKeepsTheCat()
+    {
+        var player = Player.CreateGuest("Kitty 1234", FurColor.Calico, Now);
+        player.EarnCoins(75);
+        var id = player.Id;
+
+        player.LinkLogin(LoginProvider.Google, "109876543210");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(player.IsGuest, Is.False);
+            Assert.That(player.Id, Is.EqualTo(id));
+            Assert.That(player.DisplayName, Is.EqualTo("Kitty 1234"));
+            Assert.That(player.FurColor, Is.EqualTo(FurColor.Calico));
+            Assert.That(player.Coins, Is.EqualTo(75));
+            Assert.That(player.CreatedAt, Is.EqualTo(Now));
+            Assert.That(player.Logins.Single(), Has.Property(nameof(PlayerLogin.Provider)).EqualTo(LoginProvider.Google)
+                .And.Property(nameof(PlayerLogin.ProviderKey)).EqualTo("109876543210"));
+        });
+    }
+
+    [Test]
+    public void LinkLogin_AddsAnotherProvidersLogin()
+    {
+        var player = Player.CreateWithLogin(LoginProvider.Discord, "80351110224678912", "Whiskers", FurColor.Black, Now);
+
+        player.LinkLogin(LoginProvider.Google, "109876543210");
+
+        Assert.That(
+            player.Logins.Select(l => l.Provider), Is.EquivalentTo(new[] { LoginProvider.Discord, LoginProvider.Google }));
+        Assert.That(player.IsGuest, Is.False);
+    }
+
+    [Test]
+    public void LinkLogin_RefusesALoginThePlayerAlreadyHas()
+    {
+        var player = Player.CreateWithLogin(LoginProvider.Discord, "80351110224678912", "Whiskers", FurColor.Black, Now);
+
+        var refused = Assert.Throws<DomainException>(() => player.LinkLogin(LoginProvider.Discord, "80351110224678912"));
+
+        Assert.That(refused?.Message, Does.Contain("already has a Discord login"));
+        Assert.That(player.Logins, Has.Count.EqualTo(1));
+    }
+
+    [Test]
+    public void LinkLogin_RefusesASecondLoginFromTheSameProvider()
+    {
+        var player = Player.CreateWithLogin(LoginProvider.Discord, "80351110224678912", "Whiskers", FurColor.Black, Now);
+
+        var refused = Assert.Throws<DomainException>(() => player.LinkLogin(LoginProvider.Discord, "41771983423143937"));
+
+        Assert.That(refused?.Message, Does.Contain("already has a Discord login"));
+        Assert.That(player.Logins, Has.Count.EqualTo(1));
+    }
+
+    [Test]
+    public void HasLoginFrom_IsPerProvider()
+    {
+        var player = Player.CreateWithLogin(LoginProvider.Discord, "80351110224678912", "Whiskers", FurColor.Black, Now);
+
+        Assert.That(player.HasLoginFrom(LoginProvider.Discord), Is.True);
+        Assert.That(player.HasLoginFrom(LoginProvider.Google), Is.False);
+    }
+
+    [Test]
+    public void LinkLogin_RefusesAnEmptyProviderKeyAndStaysAGuest()
+    {
+        var player = Player.CreateGuest("Kitty 1234", FurColor.Calico, Now);
+
+        Assert.Throws<DomainException>(() => player.LinkLogin(LoginProvider.Google, " "));
+        Assert.Throws<DomainException>(() => player.LinkLogin((LoginProvider)99, "109876543210"));
+
+        Assert.That(player.IsGuest, Is.True);
+        Assert.That(player.Logins, Is.Empty);
+    }
+
+    [Test]
     public void SpendCoins_RefusesMoreThanThePlayerHas()
     {
         var player = Player.CreateGuest("Whiskers", FurColor.Grey, Now);
