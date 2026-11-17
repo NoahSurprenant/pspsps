@@ -144,7 +144,7 @@ spec:
             - name: tmp
               mountPath: /tmp
             {{- if $chatFilter }}
-            # Over the image's placeholder lists; no subPath, so changes to the ConfigMap reach the pod.
+            # Over the image's empty lists; no subPath, so changes to the ConfigMap reach the pod.
             - name: chat-filter
               mountPath: /app/chat-filter
               readOnly: true

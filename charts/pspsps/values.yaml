@@ -48,9 +48,9 @@ healthChecks:
   # Managed memory above this reports Degraded on /health: about 75% of the server's memory limit.
   maxAllocatedMegabytes: 576
 
-# The chat filter's word lists: each list masks its words (starred out) or refuses the whole line. Empty: the image's
-# few placeholder words. The lists go in a ConfigMap mounted over the image's copy, which the server rereads when it
-# changes, so editing the ConfigMap changes the filter without restarting a pod.
+# The chat filter's word lists: each list masks its words (starred out) or refuses the whole line, one word per
+# entry. Empty: the image has none, so nothing is filtered. The lists go in a ConfigMap mounted over the image's empty
+# copy, which the server rereads when it changes, so editing the ConfigMap changes the filter without restarting a pod.
 chatFilter:
   lists: []
   #  - action: Refuse

@@ -1,7 +1,8 @@
+using System.Text.Json;
 using Microsoft.Extensions.Configuration.CommandLine;
 using Microsoft.Extensions.Configuration.EnvironmentVariables;
 using Microsoft.Extensions.Configuration.Json;
-using Microsoft.Extensions.Primitives;
+using Microsoft.Extensions.Options;
 using Pspsps.Domain.Rooms;
 
 namespace Pspsps.Server.Game;
@@ -18,110 +19,132 @@ public sealed class ChatWordListOptions
 {
     /// <summary>
     /// <c>Mask</c> or <c>Refuse</c>. Text, not the enum: the binder drops a list whose enum it can't convert without a
-    /// word, which would quietly turn the list off.
+    /// word, which would quietly turn the list off. <see cref="ChatFilters"/> checks it.
     /// </summary>
     public string Action { get; set; } = nameof(ChatFilterAction.Mask);
     public string[] Words { get; set; } = [];
 }
 
-/// <summary>
-/// The word lists' file: where it is, and the last error reading it. Its configuration source reports errors here
-/// instead of throwing, so a broken file stops neither the server nor a reload.
-/// </summary>
+/// <summary>The word lists' file, as it is on disk now.</summary>
 public sealed class ChatFilterFile(string path)
 {
-    private string? _error;
+    private static readonly JsonDocumentOptions Json = new()
+    {
+        CommentHandling = JsonCommentHandling.Skip,
+        AllowTrailingCommas = true,
+    };
 
     public string FullPath { get; } = path;
 
-    public bool Exists => File.Exists(FullPath);
+    /// <summary>What is wrong with the file (missing, unreadable, not JSON), or null when nothing is.</summary>
+    public string? Problem()
+    {
+        try
+        {
+            if (!File.Exists(FullPath))
+            {
+                return "the file is missing.";
+            }
 
-    internal void Failed(Exception error) => Volatile.Write(ref _error, error.Message);
-
-    /// <summary>The error from reading the file since the last call, if any.</summary>
-    internal string? TakeError() => Interlocked.Exchange(ref _error, null);
+            JsonDocument.Parse(File.ReadAllText(FullPath), Json).Dispose();
+            return null;
+        }
+        catch (JsonException e)
+        {
+            return $"the file isn't valid JSON: {e.Message}";
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return $"the file can't be read: {e.Message}";
+        }
+    }
 }
 
 /// <summary>
-/// The chat filter the rooms use now, built from configuration and rebuilt when it changes, so a new word list applies
-/// to the next line said, without a restart. Never throws: when the lists can't be read (a value that doesn't bind, a
-/// broken or missing file) it logs a warning and keeps the last good filter.
+/// The chat filter the rooms use now. Built when the server starts and rebuilt on every configuration change, so a new
+/// word list applies to the next line said, without a restart. When the lists can't be used (an action that doesn't
+/// exist, a missing or broken file) it logs a warning and keeps the filter it had; the next good load replaces it.
 /// </summary>
-public sealed partial class ChatFilters(IConfiguration configuration, ChatFilterFile file, ILogger<ChatFilters> logger)
+public sealed partial class ChatFilters : IDisposable
 {
+    private readonly ChatFilterFile _file;
+    private readonly ILogger<ChatFilters> _logger;
     private readonly Lock _rebuilding = new();
-    private Built? _built;
+    private readonly IDisposable? _subscription;
+    private ChatFilter? _current;
 
-    public ChatFilter Current
+    public ChatFilters(IOptionsMonitor<ChatFilterOptions> options, ChatFilterFile file, ILogger<ChatFilters> logger)
     {
-        get
+        ArgumentNullException.ThrowIfNull(options);
+        _file = file;
+        _logger = logger;
+        Rebuild(options.CurrentValue);
+        _subscription = options.OnChange(Rebuild);
+    }
+
+    public ChatFilter Current => Volatile.Read(ref _current) ?? ChatFilter.None;
+
+    public void Dispose() => _subscription?.Dispose();
+
+    // Runs on the thread that reloaded the configuration: never throws, whatever the configuration holds.
+    private void Rebuild(ChatFilterOptions options)
+    {
+        lock (_rebuilding)
         {
-            var built = Volatile.Read(ref _built);
-            if (built is not null && !built.Change.HasChanged)
+            var problem = _file.Problem();
+            ChatFilter? read = null;
+            if (Validate(options, out var lists) is { } invalid)
             {
-                return built.Filter;
+                problem = invalid;
             }
-
-            lock (_rebuilding)
+            else
             {
-                built = _built;
-                if (built is null || built.Change.HasChanged)
+                read = ChatFilter.Create(lists);
+                foreach (var entry in read.Rejected)
                 {
-                    built = Build(built?.Filter);
-                    Volatile.Write(ref _built, built);
+                    LogRejected(_logger, entry);
                 }
-
-                return built.Filter;
             }
+
+            if (problem is null)
+            {
+                Volatile.Write(ref _current, read);
+                return;
+            }
+
+            // Nothing to keep yet (at startup): use whatever could be read, so environment variables still apply.
+            LogUnusable(_logger, _file.FullPath, problem, _current is not null);
+            Volatile.Write(ref _current, _current ?? read ?? ChatFilter.None);
         }
     }
 
-    private Built Build(ChatFilter? lastGood)
+    // The lists with their actions, or what is wrong with them.
+    private static string? Validate(ChatFilterOptions options, out List<ChatWordList> lists)
     {
-        // The token first: a change while reading makes the next call read again.
-        var change = configuration.GetReloadToken();
-        var problem = file.TakeError() ?? (file.Exists ? null : "the file is missing");
-        ChatFilter? read = null;
-        try
+        lists = [];
+        foreach (var list in options.Lists ?? [])
         {
-            var options = configuration.GetSection(ChatFilterOptions.SectionName).Get<ChatFilterOptions>() ?? new();
-            var lists = new List<ChatWordList>();
-            foreach (var list in options.Lists ?? [])
+            // By name only: Enum.TryParse would also take a number.
+            var action = Enum.GetNames<ChatFilterAction>()
+                .FirstOrDefault(known => string.Equals(known, list.Action?.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (action is null)
             {
-                // By name only: Enum.TryParse would also take a number.
-                var name = Enum.GetNames<ChatFilterAction>()
-                    .FirstOrDefault(known => string.Equals(known, list.Action?.Trim(), StringComparison.OrdinalIgnoreCase));
-                if (name is null)
-                {
-                    throw new InvalidOperationException(
-                        $"A list's Action is '{list.Action}'; it is {nameof(ChatFilterAction.Mask)} or {nameof(ChatFilterAction.Refuse)}.");
-                }
-
-                lists.Add(new ChatWordList(Enum.Parse<ChatFilterAction>(name), list.Words ?? []));
+                return $"a list's Action is '{list.Action}'; it is {nameof(ChatFilterAction.Mask)} or {nameof(ChatFilterAction.Refuse)}.";
             }
 
-            read = ChatFilter.Create(lists);
-        }
-        catch (InvalidOperationException e)
-        {
-            // A value the options can't take, such as an action that doesn't exist.
-            problem = e.Message;
+            lists.Add(new ChatWordList(Enum.Parse<ChatFilterAction>(action), list.Words ?? []));
         }
 
-        if (problem is null && read is not null)
-        {
-            return new Built(change, read);
-        }
-
-        LogUnreadable(logger, file.FullPath, problem ?? "", lastGood is not null);
-        return new Built(change, lastGood ?? read ?? ChatFilter.None);
+        return null;
     }
 
     [LoggerMessage(Level = LogLevel.Warning,
-        Message = "The chat filter's word lists ({Path}) couldn't be read: {Problem} Kept the last good filter: {Kept}.")]
-    private static partial void LogUnreadable(ILogger logger, string path, string problem, bool kept);
+        Message = "The chat filter's word lists ({Path}) can't be used: {Problem} Kept the filter it had: {Kept}.")]
+    private static partial void LogUnusable(ILogger logger, string path, string problem, bool kept);
 
-    private sealed record Built(IChangeToken Change, ChatFilter Filter);
+    [LoggerMessage(Level = LogLevel.Warning,
+        Message = "The chat filter left out '{Entry}': one word per entry, letters only (and digits).")]
+    private static partial void LogRejected(ILogger logger, string entry);
 }
 
 public static class ChatFilterSetup
@@ -138,22 +161,19 @@ public static class ChatFilterSetup
     /// </summary>
     public static IHostApplicationBuilder AddChatFilter(this IHostApplicationBuilder builder)
     {
-        var file = new ChatFilterFile(Path.Combine(builder.Environment.ContentRootPath, FilePath));
         var source = new JsonConfigurationSource
         {
             Path = FilePath,
             Optional = true,
             ReloadOnChange = true,
-            OnLoadException = context =>
-            {
-                file.Failed(context.Exception);
-                context.Ignore = true;
-            },
+            // A broken file must not stop the server or throw out of a reload; ChatFilters checks the file itself.
+            OnLoadException = context => context.Ignore = true,
         };
 
         var sources = builder.Configuration.Sources;
         sources.Insert(OverridesStart(sources), source);
-        builder.Services.AddSingleton(file);
+        builder.Services.Configure<ChatFilterOptions>(builder.Configuration.GetSection(ChatFilterOptions.SectionName));
+        builder.Services.AddSingleton(new ChatFilterFile(Path.Combine(builder.Environment.ContentRootPath, FilePath)));
         builder.Services.AddSingleton<ChatFilters>();
         return builder;
     }

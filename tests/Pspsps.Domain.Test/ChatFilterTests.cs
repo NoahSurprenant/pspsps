@@ -207,6 +207,7 @@ public sealed class ChatFilterTests
     {
         var filter = ChatFilter.Create([new ChatWordList(ChatFilterAction.Mask, ["da-rn", "go away", "he*ck", "woof"])]);
 
+        Assert.That(filter.Rejected, Is.EqualTo(new[] { "da-rn", "go away", "he*ck" }));
         Assert.That(filter.Apply("darn heck woof"), Is.EqualTo("darn heck ****"));
     }
 

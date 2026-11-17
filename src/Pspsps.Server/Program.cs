@@ -76,8 +76,8 @@ try
 
     var app = builder.Build();
 
-    // Read the chat filter's word lists now, so a missing or broken file is logged at startup, not at the first line.
-    _ = app.Services.GetRequiredService<ChatFilters>().Current;
+    // Build the chat filter now, so a missing or broken word list is logged at startup, not at the first line said.
+    app.Services.GetRequiredService<ChatFilters>();
 
     await using (var scope = app.Services.CreateAsyncScope())
     {
