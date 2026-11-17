@@ -1,4 +1,5 @@
-import type { CatView, ChatView, RoomSnapshot } from "./types";
+import { isPose } from "./emotes";
+import type { CatView, ChatView, EmoteView, RoomSnapshot } from "./types";
 
 /**
  * The room as this browser knows it. Every change is idempotent: the server may send a join for a cat already in the
@@ -7,6 +8,8 @@ import type { CatView, ChatView, RoomSnapshot } from "./types";
 export class Room {
   readonly cats = new Map<string, CatView>();
   readonly chat: ChatView[] = [];
+  /** Each cat's latest emote, until it walks or leaves. Whether it is sitting or asleep is on the cat (`pose`). */
+  readonly emotes = new Map<string, EmoteView>();
 
   constructor(readonly snapshot: RoomSnapshot) {
     for (const cat of snapshot.cats) {
@@ -21,6 +24,7 @@ export class Room {
 
   leave(playerId: string): void {
     this.cats.delete(playerId);
+    this.emotes.delete(playerId);
   }
 
   move(playerId: string, x: number, z: number): CatView | undefined {
@@ -28,15 +32,37 @@ export class Room {
     if (!cat) {
       return undefined;
     }
-    const moved = { ...cat, x, z };
+    // A cat that walks gets up, as on the server.
+    this.emotes.delete(playerId);
+    const moved = { ...cat, x, z, pose: null };
     this.cats.set(playerId, moved);
     return moved;
   }
 
-  say(line: ChatView): void {
+  /**
+   * Adds a line said here; false for one it already has (the snapshot may hold a line also sent live) or one from a cat
+   * that isn't in this room (a late line from the room just left).
+   */
+  say(line: ChatView): boolean {
+    const known = this.chat.some((l) => l.playerId === line.playerId && l.at === line.at && l.text === line.text);
+    if (known || !this.cats.has(line.playerId)) {
+      return false;
+    }
     this.chat.push(line);
     if (this.chat.length > Room.chatHistory) {
       this.chat.splice(0, this.chat.length - Room.chatHistory);
+    }
+    return true;
+  }
+
+  emote(emote: EmoteView): void {
+    const cat = this.cats.get(emote.playerId);
+    if (!cat) {
+      return;
+    }
+    this.emotes.set(emote.playerId, emote);
+    if (isPose(emote.emote)) {
+      this.cats.set(emote.playerId, { ...cat, pose: emote.emote });
     }
   }
 

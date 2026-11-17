@@ -88,6 +88,13 @@ public sealed class GameHub(IGrainFactory grains, IPlayerService players, Sessio
         metrics.Said(place.WorldId);
     }
 
+    /// <summary>Sit, meow, wave or sleep: the room shows it to everyone in it.</summary>
+    public async Task Emote(string emote)
+    {
+        var place = await InRoom(room => room.Emote(PlayerId, emote));
+        metrics.Emoted(place.WorldId, emote);
+    }
+
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
         // Forgotten first, whatever happens next: a leave that fails falls back to the leases running out.

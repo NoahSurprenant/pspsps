@@ -101,6 +101,12 @@ internal sealed class RoomGrain(
         await broadcaster.ChatSaid(_key, ChatView.From(line));
     }
 
+    public async Task Emote(Guid playerId, string emote)
+    {
+        var done = Rule(() => _state.Emote(playerId, emote, time.GetUtcNow()));
+        await broadcaster.CatEmoted(_key, EmoteView.From(done));
+    }
+
     // Cats whose pod died without closing their connections: nothing renews their leases.
     private async Task RemoveExpired()
     {

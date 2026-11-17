@@ -116,6 +116,113 @@ public sealed class RoomStateTests
         Assert.Throws<DomainException>(() => state.Say(Tom, new string('a', RoomState.MaxChatLength + 1), Now));
     }
 
+    [TestCase("sit")]
+    [TestCase("meow")]
+    [TestCase("wave")]
+    [TestCase("sleep")]
+    public void Emote_DoesAKnownEmote(string emote)
+    {
+        var state = new RoomState(Room);
+        state.Join(Tom, "Tom", FurColor.Grey, TabA, Now);
+
+        Assert.That(state.Emote(Tom, emote, Now), Is.EqualTo(new CatEmote(Tom, emote, Now)));
+    }
+
+    [TestCase("dance")]
+    [TestCase("Sit")]
+    [TestCase("")]
+    [TestCase(null)]
+    public void Emote_RefusesUnknownEmotes(string? emote)
+    {
+        var state = new RoomState(Room);
+        state.Join(Tom, "Tom", FurColor.Grey, TabA, Now);
+
+        var refused = Assert.Throws<DomainException>(() => state.Emote(Tom, emote!, Now));
+        Assert.That(refused!.Message, Is.EqualTo("That isn't an emote."));
+    }
+
+    [Test]
+    public void Emote_RefusesACatThatIsNotHere()
+    {
+        var state = new RoomState(Room);
+        state.Join(Felix, "Felix", FurColor.Tuxedo, "felix-tab", Now);
+
+        var refused = Assert.Throws<DomainException>(() => state.Emote(Tom, "meow", Now));
+        Assert.That(refused!.Message, Is.EqualTo("You aren't in this room."));
+    }
+
+    [Test]
+    public void Emote_AllowsOnePerCatPerSecond()
+    {
+        var state = new RoomState(Room);
+        state.Join(Tom, "Tom", FurColor.Grey, TabA, Now);
+        state.Join(Felix, "Felix", FurColor.Tuxedo, "felix-tab", Now);
+        state.Emote(Tom, "wave", Now);
+
+        var tooFast = Assert.Throws<DomainException>(() => state.Emote(Tom, "meow", Now.AddMilliseconds(999)));
+        Assert.That(tooFast!.Message, Does.Contain("one emote a second"));
+        Assert.That(state.Emote(Felix, "meow", Now.AddMilliseconds(500)).PlayerId, Is.EqualTo(Felix), "each cat has its own limit");
+        Assert.That(state.Emote(Tom, "meow", Now.Add(RoomState.EmoteCooldown)).Emote, Is.EqualTo("meow"));
+    }
+
+    [Test]
+    public void Emote_ARefusedEmoteDoesNotRestartTheWait()
+    {
+        var state = new RoomState(Room);
+        state.Join(Tom, "Tom", FurColor.Grey, TabA, Now);
+        state.Emote(Tom, "sit", Now);
+        Assert.Throws<DomainException>(() => state.Emote(Tom, "sit", Now.AddMilliseconds(600)));
+
+        Assert.That(state.Emote(Tom, "sleep", Now.AddSeconds(1)).Emote, Is.EqualTo("sleep"));
+    }
+
+    [TestCase("sit", CatPose.Sitting)]
+    [TestCase("sleep", CatPose.Sleeping)]
+    public void Emote_SitAndSleep_AreHeldPoses(string emote, CatPose pose)
+    {
+        var state = new RoomState(Room);
+        Assert.That(state.Join(Tom, "Tom", FurColor.Grey, TabA, Now).Pose, Is.EqualTo(CatPose.Standing));
+
+        state.Emote(Tom, emote, Now);
+
+        Assert.That(state.Cats.Single().Pose, Is.EqualTo(pose));
+    }
+
+    [TestCase("meow")]
+    [TestCase("wave")]
+    public void Emote_MeowAndWave_KeepThePose(string emote)
+    {
+        var state = new RoomState(Room);
+        state.Join(Tom, "Tom", FurColor.Grey, TabA, Now);
+        state.Emote(Tom, "sleep", Now);
+
+        state.Emote(Tom, emote, Now.AddSeconds(1));
+
+        Assert.That(state.Cats.Single().Pose, Is.EqualTo(CatPose.Sleeping));
+    }
+
+    [Test]
+    public void Move_StandsTheCatUp()
+    {
+        var state = new RoomState(Room);
+        state.Join(Tom, "Tom", FurColor.Grey, TabA, Now);
+        state.Emote(Tom, "sit", Now);
+
+        state.Move(Tom, new Position(2, 0));
+
+        Assert.That(state.Cats.Single().Pose, Is.EqualTo(CatPose.Standing));
+    }
+
+    [Test]
+    public void Join_FromAnotherTab_KeepsThePose()
+    {
+        var state = new RoomState(Room);
+        state.Join(Tom, "Tom", FurColor.Grey, TabA, Now);
+        state.Emote(Tom, "sleep", Now);
+
+        Assert.That(state.Join(Tom, "Tom", FurColor.Grey, TabB, Now).Pose, Is.EqualTo(CatPose.Sleeping));
+    }
+
     [Test]
     public void Leave_FromAReplacedTab_LeavesTheNewTabsCat()
     {

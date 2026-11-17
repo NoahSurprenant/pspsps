@@ -14,16 +14,24 @@ public sealed record CatView(
     [property: Id(1)] string DisplayName,
     [property: Id(2)] string FurColor,
     [property: Id(3)] double X,
-    [property: Id(4)] double Z)
+    [property: Id(4)] double Z,
+    [property: Id(5)] string? Pose)
 {
     public static CatView From(CatInRoom cat) =>
-        new(cat.PlayerId, cat.DisplayName, cat.FurColor.ToString(), cat.Position.X, cat.Position.Z);
+        new(cat.PlayerId, cat.DisplayName, cat.FurColor.ToString(), cat.Position.X, cat.Position.Z, Emotes.NameOf(cat.Pose));
 }
 
 [GenerateSerializer, Immutable]
 public sealed record ChatView([property: Id(0)] Guid PlayerId, [property: Id(1)] string Text, [property: Id(2)] DateTimeOffset At)
 {
     public static ChatView From(ChatLine line) => new(line.PlayerId, line.Text, line.At);
+}
+
+/// <summary>A cat did an emote (one of Emotes.All: "sit", "meow", "wave", "sleep").</summary>
+[GenerateSerializer, Immutable]
+public sealed record EmoteView([property: Id(0)] Guid PlayerId, [property: Id(1)] string Emote, [property: Id(2)] DateTimeOffset At)
+{
+    public static EmoteView From(CatEmote emote) => new(emote.PlayerId, emote.Emote, emote.At);
 }
 
 [GenerateSerializer, Immutable]

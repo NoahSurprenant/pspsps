@@ -14,4 +14,6 @@ internal sealed class HubRoomBroadcaster(IHubContext<GameHub, IGameClient> hub) 
         hub.Clients.Group(roomKey).CatMoved(playerId, x, z);
 
     public Task ChatSaid(string roomKey, ChatView line) => hub.Clients.Group(roomKey).ChatSaid(line);
+
+    public Task CatEmoted(string roomKey, EmoteView emote) => hub.Clients.Group(roomKey).CatEmoted(emote);
 }

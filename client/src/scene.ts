@@ -4,17 +4,23 @@ import {
 } from "@babylonjs/core";
 import { AdvancedDynamicTexture, Rectangle, TextBlock } from "@babylonjs/gui";
 import { buildCat } from "./cat";
-import type { CatView, RoomSnapshot } from "./types";
+import { poseScales } from "./emotes";
+import { CatLook } from "./look";
+import type { CatView, Emote, RoomSnapshot } from "./types";
 
 const walkSpeed = 4; // metres per second
-const bubbleSeconds = 6;
 const sky = Color4.FromHexString("#bfe3f2ff");
 
 interface CatOnScreen {
   root: TransformNode;
+  // The parts a pose squashes.
+  body: TransformNode;
   anchor: AbstractMesh;
   target: Vector3;
-  bubble?: { box: Rectangle; until: number };
+  look: CatLook;
+  bubble?: { box: Rectangle; text: string };
+  // Hidden until the cat waves.
+  paw: AbstractMesh;
 }
 
 /** Draws one room at a time and walks the cats in it. Knows nothing about the network. */
@@ -83,10 +89,12 @@ export class RoomScene {
     const existing = this.cats.get(cat.playerId);
     if (existing) {
       existing.target.set(cat.x, 0, cat.z);
+      existing.look.pose = cat.pose ?? undefined;
       return;
     }
 
-    const root = buildCat(this.scene, `cat-${cat.playerId}`, cat.furColor);
+    // The anchor (name, bubbles) and the paw hang off the root, which poses don't squash.
+    const { root, body, paw } = buildCat(this.scene, `cat-${cat.playerId}`, cat.furColor);
     root.position.set(cat.x, 0, cat.z);
     const anchor = MeshBuilder.CreateBox(`anchor-${cat.playerId}`, { size: 0.01 }, this.scene);
     anchor.parent = root;
@@ -104,11 +112,14 @@ export class RoomScene {
     label.linkWithMesh(anchor);
     label.linkOffsetY = -6;
 
-    this.cats.set(cat.playerId, { root, anchor, target: new Vector3(cat.x, 0, cat.z) });
+    this.cats.set(cat.playerId, { root, body, paw, anchor, target: new Vector3(cat.x, 0, cat.z), look: new CatLook(cat.pose) });
   }
 
+  /** Sends the cat somewhere new: it gets up (a pose taken while it walks holds until the next walk). */
   walk(playerId: string, x: number, z: number): void {
-    this.cats.get(playerId)?.target.set(x, 0, z);
+    const cat = this.cats.get(playerId);
+    cat?.target.set(x, 0, z);
+    cat?.look.walk();
   }
 
   remove(playerId: string): void {
@@ -126,12 +137,51 @@ export class RoomScene {
   }
 
   speak(playerId: string, text: string): void {
-    const cat = this.cats.get(playerId);
-    if (!cat) {
-      return;
-    }
-    cat.bubble?.box.dispose();
+    this.cats.get(playerId)?.look.say(text, performance.now());
+  }
 
+  /**
+   * Stand-ins until the cat is a modelled, animated one: sit and sleep squash the cat's body into a pose it holds until
+   * it walks (asleep, with a "z z z" over it), wave raises a paw for a moment, and meow is a speech bubble.
+   */
+  emote(playerId: string, emote: Emote): void {
+    this.cats.get(playerId)?.look.emote(emote, performance.now());
+  }
+
+  private step(seconds: number): void {
+    const now = performance.now();
+    for (const [playerId, cat] of this.cats) {
+      const offset = cat.target.subtract(cat.root.position);
+      const distance = offset.length();
+      if (distance > 0.01) {
+        const stride = Math.min(distance, walkSpeed * seconds);
+        cat.root.position.addInPlace(offset.scale(stride / distance));
+        cat.root.rotation.y = Math.atan2(offset.x, offset.z);
+      }
+      this.drawLook(playerId, cat, now);
+    }
+  }
+
+  /** Brings the cat's pose, bubble and paw in line with its look. */
+  private drawLook(playerId: string, cat: CatOnScreen, now: number): void {
+    const [x, y, z] = cat.look.pose ? poseScales[cat.look.pose] : [1, 1, 1];
+    cat.body.scaling.set(x, y, z);
+
+    const text = cat.look.bubbleAt(now);
+    if (text !== cat.bubble?.text) {
+      cat.bubble?.box.dispose();
+      cat.bubble = text === undefined ? undefined : { box: this.bubble(playerId, cat, text), text };
+    }
+
+    const waving = cat.look.wavingAt(now);
+    cat.paw.setEnabled(waving);
+    if (waving) {
+      // Beside the head, however low the pose has it, waving side to side.
+      cat.paw.position.set(0.42 + 0.08 * Math.sin(now / 70), 1.05 * y + 0.15, 0.55 * z);
+    }
+  }
+
+  private bubble(playerId: string, cat: CatOnScreen, text: string): Rectangle {
     const box = new Rectangle(`bubble-${playerId}`);
     box.adaptWidthToChildren = true;
     box.adaptHeightToChildren = true;
@@ -150,24 +200,7 @@ export class RoomScene {
     this.gui?.addControl(box);
     box.linkWithMesh(cat.anchor);
     box.linkOffsetY = -42;
-    cat.bubble = { box, until: performance.now() + bubbleSeconds * 1000 };
-  }
-
-  private step(seconds: number): void {
-    const now = performance.now();
-    for (const cat of this.cats.values()) {
-      const offset = cat.target.subtract(cat.root.position);
-      const distance = offset.length();
-      if (distance > 0.01) {
-        const stride = Math.min(distance, walkSpeed * seconds);
-        cat.root.position.addInPlace(offset.scale(stride / distance));
-        cat.root.rotation.y = Math.atan2(offset.x, offset.z);
-      }
-      if (cat.bubble && now > cat.bubble.until) {
-        cat.bubble.box.dispose();
-        cat.bubble = undefined;
-      }
-    }
+    return box;
   }
 }
 

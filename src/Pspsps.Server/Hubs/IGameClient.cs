@@ -19,6 +19,8 @@ public interface IGameClient
     /// </summary>
     Task RoomLost();
 
+    Task CatEmoted(EmoteView emote);
+
     /// <summary>The player opened the game in another tab, which is the one playing now.</summary>
     Task SessionReplaced();
 }
