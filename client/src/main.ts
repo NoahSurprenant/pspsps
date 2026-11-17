@@ -179,7 +179,9 @@ const connection = new GameConnection({
   // The home's owner stopped letting us in: back to Town Square, in the world we came from.
   sentOut: (message) => {
     overlay.toast(message);
-    pick(() => goTo("town-square").then(() => overlay.toast(message)));
+    // Gone after whatever is loading now (the home itself, just come into): the tap that loads it would drop this.
+    sentOutOfHome = message;
+    leaveHomeIfSentOut();
   },
 });
 
@@ -308,7 +310,24 @@ function pick(go: () => Promise<void>): void {
   picking = true;
   void go().finally(() => {
     picking = false;
+    leaveHomeIfSentOut();
   });
+}
+
+// Why the cat was last sent out of a home, until the page goes back to Town Square.
+let sentOutOfHome: string | undefined;
+
+/** Back to Town Square, in the world the cat is in, once nothing else is loading, if a home sent the cat out. */
+function leaveHomeIfSentOut(): void {
+  const message = sentOutOfHome;
+  if (message === undefined || picking) {
+    return;
+  }
+  sentOutOfHome = undefined;
+  // Not if the page has gone somewhere else meanwhile (the world list, say).
+  if (room?.snapshot.home) {
+    pick(() => goTo("town-square").then(() => overlay.toast(message)));
+  }
 }
 
 function rejoin(reason: "roomLost" | "reconnected"): void {

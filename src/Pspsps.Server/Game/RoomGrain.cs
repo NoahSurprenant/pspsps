@@ -99,7 +99,7 @@ internal sealed class RoomGrain(
             worldId,
             _state.Room.Id,
             // A home is called after its owner as they are called now (Furnish brings the name), not when it opened.
-            _home is null ? _state.Room.Name : $"{_home.OwnerName}'s home",
+            _home is null ? _state.Room.Name : Home.NameOf(_home.OwnerName),
             _state.Room.Width,
             _state.Room.Depth,
             [.. _state.Cats.Select(CatView.From)],

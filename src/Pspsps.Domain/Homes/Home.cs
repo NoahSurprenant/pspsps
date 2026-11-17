@@ -62,11 +62,14 @@ public sealed class Home
     /// <summary>The home as a room, called after its owner (<paramref name="ownerName"/>), with its furniture.</summary>
     public RoomDefinition Room(string ownerName) => RoomOf(ownerName, _furniture);
 
+    /// <summary>What a home is called: after its owner (<paramref name="ownerName"/>).</summary>
+    public static string NameOf(string ownerName) => $"{ownerName}'s home";
+
     /// <summary>A home as a room: called after its owner (<paramref name="ownerName"/>), with <paramref name="furniture"/>.</summary>
     public static RoomDefinition RoomOf(string ownerName, IEnumerable<PlacedFurniture> furniture)
     {
         ArgumentNullException.ThrowIfNull(furniture);
-        return Layout with { Name = $"{ownerName}'s home", Props = [.. furniture.Select(piece => piece.AsProp())] };
+        return Layout with { Name = NameOf(ownerName), Props = [.. furniture.Select(piece => piece.AsProp())] };
     }
 
     /// <summary>
