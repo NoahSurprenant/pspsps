@@ -174,6 +174,71 @@ const designs: Record<string, { size: number; parts: Part[] }> = {
       ball(0.14, [0.18, 0.64, -0.32], palette.pink),
     ],
   },
+  // The furniture players put in their homes, each drawn to fit the circle its shop item takes up (ShopCatalog.cs).
+  // A rug, lying flat: a rose border, a cream middle, three lavender stripes across it. Cats walk over it.
+  rug: {
+    size: 1.3,
+    parts: [
+      box(1.96, 0.03, 1.2, [0, 0.015, 0], palette.rose),
+      box(1.56, 0.036, 0.8, [0, 0.018, 0], palette.cream),
+      ...[-0.45, 0, 0.45].map((x): Part => ({ ...box(0.16, 0.04, 0.8, [x, 0.02, 0], palette.lavender), outlined: false })),
+    ],
+  },
+  // An armchair: a mustard frame, its back and arms, and a cream cushion on the seat.
+  armchair: {
+    size: 0.7,
+    parts: [
+      box(0.8, 0.32, 0.62, [0, 0.16, 0], palette.mustard),
+      box(0.56, 0.12, 0.5, [0, 0.38, -0.04], palette.cream),
+      box(0.8, 0.5, 0.15, [0, 0.62, 0.235], palette.mustard),
+      ...[-1, 1].map((side) => box(0.13, 0.26, 0.62, [side * 0.335, 0.45, 0], palette.mustard)),
+    ],
+  },
+  // A sofa: a teal frame, its back and arms, two seat cushions and two back cushions.
+  sofa: {
+    size: 1.2,
+    parts: [
+      box(1.86, 0.3, 0.76, [0, 0.15, 0], palette.teal),
+      box(1.86, 0.56, 0.16, [0, 0.58, 0.3], palette.teal),
+      ...[-1, 1].flatMap((side) => [
+        box(0.16, 0.5, 0.76, [side * 0.85, 0.25, 0], palette.teal),
+        box(0.74, 0.13, 0.56, [side * 0.38, 0.365, -0.07], palette.cream),
+        box(0.72, 0.38, 0.11, [side * 0.38, 0.6, 0.165], palette.cream),
+      ]),
+    ],
+  },
+  // A floor lamp: a round dark base, a thin pole, a glowing shade.
+  "floor-lamp": {
+    size: 0.4,
+    parts: [
+      cylinder(0.4, 0.06, [0, 0.03, 0], palette.iron, { sides: 16 }),
+      cylinder(0.06, 1.6, [0, 0.86, 0], palette.iron, { sides: 8 }),
+      cylinder(0.46, 0.42, [0, 1.8, 0], palette.glow, { top: 0.28, sides: 16 }),
+    ],
+  },
+  // A bookshelf against nothing in particular: wooden sides, back and shelves, with books in colours on two of them.
+  bookshelf: {
+    size: 0.9,
+    parts: [
+      ...[-1, 1].map((side) => box(0.07, 1.7, 0.34, [side * 0.585, 0.85, 0], palette.wood)),
+      box(1.24, 1.7, 0.04, [0, 0.85, 0.15], palette.darkWood),
+      ...[0.03, 0.6, 1.15, 1.67].map((y) => box(1.1, 0.06, 0.32, [0, y, 0], palette.wood)),
+      ...([
+        [0.06, [[-0.42, 0.34, palette.teal], [-0.29, 0.4, palette.rose], [-0.16, 0.3, palette.mustard], [0.1, 0.38, palette.sage], [0.24, 0.32, palette.lilac]]],
+        [0.63, [[-0.4, 0.36, palette.lilac], [-0.26, 0.3, palette.sage], [0.02, 0.4, palette.teal], [0.16, 0.34, palette.rose], [0.3, 0.38, palette.mustard]]],
+      ] as [number, [number, number, string][]][]).flatMap(([shelf, books]) =>
+        books.map(([x, height, colour]) => box(0.11, height, 0.24, [x, shelf + height / 2, -0.02], colour))),
+    ],
+  },
+  // A cat's round bed: a lilac basket with a cream cushion in it, and a pink ball.
+  "cat-bed": {
+    size: 0.6,
+    parts: [
+      cylinder(0.9, 0.22, [0, 0.11, 0], palette.lilac, { sides: 24 }),
+      cylinder(0.68, 0.1, [0, 0.21, 0], palette.cream, { sides: 24 }),
+      ball(0.14, [0.18, 0.31, -0.12], palette.pink),
+    ],
+  },
 };
 
 /** The kinds of prop drawn here (the server's PropKinds). */

@@ -111,6 +111,9 @@ declare global {
       screenPoint(x: number, z: number): { x: number; y: number } | undefined;
       catOnScreen(playerId: string): { x: number; y: number } | undefined;
       wearing(playerId: string): { fur: string; hat: string | undefined; collar: string | undefined } | undefined;
+      home(): { ownerId: string; visitors: string; furniture: { id: string; itemId: string; x: number; z: number }[] } | undefined;
+      drawnProps(): readonly { kind: string; x: number; z: number }[];
+      decorating(): { picked?: string; selected?: string } | undefined;
     };
   }
 }
@@ -211,4 +214,29 @@ export async function fishFor(hub: HubConnection, world: string, coins: number):
     await new Promise((resolve) => setTimeout(resolve, 1_100));
   }
   return total;
+}
+
+/** Goes to the player's own home, from the friends list (where the way home is); resolves in there. */
+export async function goHome(page: Page): Promise<void> {
+  await page.getByRole("button", { name: "Friends", exact: true }).click();
+  await page.getByRole("button", { name: "Go to your home" }).click();
+  await expect(page.locator(".room-bar strong")).toHaveText(/'s home$/);
+}
+
+/**
+ * Taps (or, with a mouse, clicks) the spot (x, z) on the room's floor where it is drawn, as a player would; fails when
+ * it is off the canvas or under a control.
+ */
+export async function tapFloor(page: Page, x: number, z: number): Promise<void> {
+  const canvas = await page.locator("#game").boundingBox();
+  const at = await page.evaluate(([px, pz]) => window.pspsps?.screenPoint(px, pz), [x, z] as const);
+  if (!canvas || !at) throw new Error("no room drawn");
+  const point = { x: canvas.x + at.x, y: canvas.y + at.y };
+  const on = await page.evaluate(({ x: px, y: py }) => document.elementFromPoint(px, py)?.id, point);
+  if (on !== "game") throw new Error(`the floor at (${x}, ${z}) is under #${on ?? "nothing"}`);
+  if (await page.evaluate(() => matchMedia("(pointer: coarse)").matches)) {
+    await page.touchscreen.tap(point.x, point.y);
+  } else {
+    await page.mouse.click(point.x, point.y);
+  }
 }

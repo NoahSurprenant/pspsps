@@ -1,5 +1,6 @@
 import { isPose } from "./emotes";
-import type { CatView, ChatView, EmoteView, OutfitView, RoomSnapshot } from "./types";
+import { newer, propsOf } from "./home";
+import type { CatView, ChatView, EmoteView, HomeView, OutfitView, RoomSnapshot } from "./types";
 
 /**
  * The room as this browser knows it. Every change is idempotent: the server may send a join for a cat already in the
@@ -11,7 +12,11 @@ export class Room {
   /** Each cat's latest emote, until it walks or leaves. Whether it is sitting or asleep is on the cat (`pose`). */
   readonly emotes = new Map<string, EmoteView>();
 
-  constructor(readonly snapshot: RoomSnapshot) {
+  /** The room as it arrived, and a home's furniture as it has changed since. */
+  snapshot: RoomSnapshot;
+
+  constructor(snapshot: RoomSnapshot) {
+    this.snapshot = snapshot;
     for (const cat of snapshot.cats) {
       this.cats.set(cat.playerId, cat);
     }
@@ -73,6 +78,19 @@ export class Room {
       return false;
     }
     this.cats.set(outfit.playerId, { ...cat, furColor: outfit.furColor, hat: outfit.hat, collar: outfit.collar });
+    return true;
+  }
+
+  /**
+   * The home's owner changed it: its furniture (the room's props) and who may visit are as <home> has them from now on.
+   * False when this room isn't that home, or already has a newer change.
+   */
+  furnish(home: HomeView): boolean {
+    const current = this.snapshot.home;
+    if (!current || current.ownerId !== home.ownerId || newer(current, home) !== home) {
+      return false;
+    }
+    this.snapshot = { ...this.snapshot, home, props: propsOf(home) };
     return true;
   }
 

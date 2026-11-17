@@ -183,7 +183,7 @@ public sealed class HomeTests
         var placed = 0;
         for (var x = -5.5; x <= 5.5 && placed < Home.MaxPieces; x += 0.8)
         {
-            for (var z = -4; z <= 4 && placed < Home.MaxPieces; z += 0.8)
+            for (var z = -4.0; z <= 4 && placed < Home.MaxPieces; z += 0.8)
             {
                 try
                 {

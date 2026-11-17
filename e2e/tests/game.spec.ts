@@ -1,7 +1,7 @@
 import { PNG } from "pngjs";
 import {
-  animation, catEyes, cats, clickCat, emotes, enterWorld, expect, fishFor, goThroughDoor, hubGuest, newPlayer, pixelsNear,
-  pondBlue, roomBarButtons, test, watchErrors,
+  animation, catEyes, cats, clickCat, emotes, enterWorld, expect, fishFor, goHome, goThroughDoor, hubGuest, newPlayer,
+  pixelsNear, pondBlue, roomBarButtons, tapFloor, test, watchErrors,
 } from "./game";
 
 test("the sign-in page loads without errors", async ({ page }) => {
@@ -514,6 +514,78 @@ test("a cat buys a party hat with its catch, and another cat sees it wearing it"
     await expect.poll(async () => (await cats(felix.page))[fisher.id]?.z).toBeLessThan(3);
     await clickCat(felix.page, fisher.id);
     await expect(felix.page.getByRole("dialog", { name: fisher.name }).getByText("Wearing: Party hat")).toBeVisible();
+    expect(felix.errors, "Felix's console errors and uncaught exceptions").toEqual([]);
+  } finally {
+    await felix.close();
+  }
+});
+
+test("a cat buys a plant with its catch, puts it out at home, and a friend visits and sees it", async ({ page: tom, browser, baseURL }) => {
+  // The fishing is real (3-9 s a bite), from the hub: about three catches.
+  test.setTimeout(180_000);
+  const base = baseURL ?? "http://localhost:8080";
+  const felix = await newPlayer(browser);
+  try {
+    const felixId = await enterWorld(felix.page, "Tabby");
+    const fisher = await hubGuest(base);
+    let coins: number;
+    try {
+      // Tom (fishing from the hub, then playing in a browser) asks Felix to be friends; Felix accepts.
+      await fisher.hub.invoke("AddFriend", felixId);
+      coins = await fishFor(fisher.hub, "tabby", 35);
+    } finally {
+      await fisher.hub.stop();
+    }
+    await felix.page.getByRole("button", { name: "Friends", exact: true }).click();
+    await felix.page.getByRole("button", { name: `Accept ${fisher.name}` }).click();
+    await felix.page.getByRole("dialog", { name: "Friends" }).getByRole("button", { name: "Close" }).click();
+
+    const split = fisher.cookie.indexOf("=");
+    await tom.context().addCookies([{ name: fisher.cookie.slice(0, split), value: fisher.cookie.slice(split + 1), url: base }]);
+    await tom.goto("/");
+    await tom.getByRole("button", { name: /^Tabby · / }).click();
+    await expect(tom.locator(".room-bar strong")).toHaveText("Town Square");
+
+    // Tom buys a potted plant in the shop, with the coins he caught.
+    await tom.getByRole("button", { name: "Shop", exact: true }).click();
+    const shop = tom.getByRole("dialog", { name: "Shop" });
+    await shop.getByRole("button", { name: "Buy the Potted plant for 35 coins" }).click();
+    await expect(shop.getByText(`You have 🪙 ${coins - 35}`)).toBeVisible();
+    await expect(shop.getByRole("button", { name: "Buy another Potted plant for 35 coins" })).toBeVisible();
+    await shop.getByRole("button", { name: "Close" }).click();
+
+    // He goes home, decorates, and puts the plant out with a tap on the floor.
+    await goHome(tom);
+    await expect(tom.locator(".room-bar strong")).toHaveText(`${fisher.name}'s home`);
+    await tom.getByRole("button", { name: "Decorate" }).click();
+    await tom.getByRole("button", { name: "Potted plant · 1 left" }).click();
+    await tapFloor(tom, 2.5, 2.5);
+    await expect(tom.getByRole("button", { name: "Turn the Potted plant" })).toBeVisible();
+    const placed = await tom.evaluate(() => window.pspsps?.home()?.furniture.find((piece) => piece.itemId === "plant"));
+    expect(placed?.x).toBeCloseTo(2.5, 1);
+    expect(placed?.z).toBeCloseTo(2.5, 1);
+    // It turns, then he's done.
+    await tom.getByRole("button", { name: "Turn the Potted plant" }).click();
+    await expect.poll(() => tom.evaluate(() => window.pspsps?.home()?.furniture.find((p) => p.itemId === "plant"))).toMatchObject({ quarterTurns: 1 });
+    await tom.getByRole("button", { name: "Done decorating" }).click();
+    await expect(tom.locator(".emote-bar")).toBeVisible();
+
+    // Felix visits Tom's home from his friends list, comes in by its door, and sees the plant where Tom put it.
+    await felix.page.getByRole("button", { name: "Friends", exact: true }).click();
+    await felix.page.getByRole("button", { name: `Visit ${fisher.name}'s home` }).click();
+    await expect(felix.page.locator(".room-bar strong")).toHaveText(`${fisher.name}'s home`);
+    await expect.poll(() => felix.page.evaluate(() => window.pspsps?.drawnProps().map((p) => p.kind))).toContain("plant");
+    await expect.poll(async () => Object.keys(await cats(felix.page))).toContain(fisher.id);
+    expect(await felix.page.evaluate(() => window.pspsps?.room()?.snapshot.worldId)).toBe("tabby");
+    // A visitor has no Decorate.
+    await expect(felix.page.getByRole("button", { name: "Decorate" })).toHaveCount(0);
+
+    // Tom puts it away: Felix sees it go.
+    await tom.getByRole("button", { name: "Decorate" }).click();
+    await tom.getByRole("button", { name: "Potted plant, 1 of 1" }).click();
+    await tom.getByRole("button", { name: "Put the Potted plant away" }).click();
+    await expect.poll(() => felix.page.evaluate(() => window.pspsps?.drawnProps().map((p) => p.kind))).not.toContain("plant");
+
     expect(felix.errors, "Felix's console errors and uncaught exceptions").toEqual([]);
   } finally {
     await felix.close();

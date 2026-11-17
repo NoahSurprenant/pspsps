@@ -1,5 +1,5 @@
 import type { Browser, BrowserContext, Page } from "@playwright/test";
-import { clickCat, enterWorld, expect, goThroughDoor, hubGuest } from "./game";
+import { clickCat, enterWorld, expect, goHome, goThroughDoor, hubGuest, tapFloor } from "./game";
 
 // The game's screens and the browsers they are seen in, shared by the layout and accessibility specs.
 
@@ -11,7 +11,7 @@ export interface Size {
 }
 
 export interface Screen {
-  name: "sign-in" | "worlds" | "town-square" | "cafe" | "player-card" | "friends" | "shop";
+  name: "sign-in" | "worlds" | "town-square" | "cafe" | "player-card" | "friends" | "shop" | "home" | "decorating";
   /** Opens the screen in a fresh page; returns once it is ready, with what to close after (other players), if any. */
   open(page: Page): Promise<(() => Promise<void>) | void>;
 }
@@ -108,6 +108,29 @@ export const SCREENS: Screen[] = [
       expect(await shop.evaluate((dialog) => dialog.scrollTop)).toBe(0);
       await expect(shop.getByRole("button", { name: "Buy the Party hat for 30 coins" })).toBeDisabled();
       await expect(shop.getByText("Your fur now")).toBeVisible();
+    },
+  },
+  {
+    // A new guest's home, gone to from the friends list: the bed it was born with not put out yet.
+    name: "home",
+    open: async (page) => {
+      await enterWorld(page, "Calico");
+      await goHome(page);
+      await expect(page.getByRole("button", { name: "Decorate" })).toBeVisible();
+      await expect(page.getByLabel("Who can visit")).toHaveValue("Friends");
+    },
+  },
+  {
+    // Decorating that home: its bed put out with a tap on the floor, and selected, to turn it or put it away.
+    name: "decorating",
+    open: async (page) => {
+      await enterWorld(page, "Calico");
+      await goHome(page);
+      await page.getByRole("button", { name: "Decorate" }).click();
+      await page.getByRole("button", { name: "Cat bed · 1 left" }).click();
+      await tapFloor(page, 2.5, 2.5);
+      await expect(page.getByRole("button", { name: "Turn the Cat bed" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Cat bed · 0 left" })).toBeDisabled();
     },
   },
 ];

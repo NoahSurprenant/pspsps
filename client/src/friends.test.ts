@@ -62,3 +62,24 @@ describe("sections", () => {
     expect(sections([felix, asker, asked])).toEqual({ friends: [felix], received: [asker], sent: [asked] });
   });
 });
+
+describe("a friend at home", () => {
+  const atHome: Friend = {
+    ...felix,
+    place: { worldId: "", worldName: "", roomId: "home", roomName: "Felix's home", homeOwnerId: "felix" },
+  };
+
+  it("is in their home, which is in no world", () => {
+    expect(whereIs(atHome, { worldId: "tabby", roomId: "town-square" })).toBe("Felix's home");
+  });
+
+  it("is here with the player in the same home, whichever world each came from", () => {
+    expect(whereIs(atHome, { worldId: "calico", roomId: "home", homeOwnerId: "felix" })).toBe("Here with you");
+    expect(canGoTo(atHome, { worldId: "calico", roomId: "home", homeOwnerId: "felix" })).toBe(false);
+  });
+
+  it("isn't here with a player in another home, or in a world's room", () => {
+    expect(canGoTo(atHome, { worldId: "", roomId: "home", homeOwnerId: "tom" })).toBe(true);
+    expect(canGoTo(felix, { worldId: "calico", roomId: "home", homeOwnerId: "felix" })).toBe(true);
+  });
+});

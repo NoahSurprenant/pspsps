@@ -1,8 +1,8 @@
 // Each room's look: the sky (the colour round it), how its floor and back wall are painted, the ground round it, and the
 // backdrop behind its back wall that the fixed camera sees over it.
 import {
-  houses, paintCafeFloor, paintCafeWall, paints, paintStreet, paintTownSquareFloor, paintTownSquareWall, type Brush,
-  type Floorplan,
+  houses, paintCafeFloor, paintCafeWall, paintHomeFloor, paintHomeWall, paints, paintStreet, paintTownSquareFloor,
+  paintTownSquareWall, type Brush, type Floorplan,
 } from "./paint";
 import { ink, palette, type Part } from "./props";
 import type { DoorView } from "./types";
@@ -43,6 +43,15 @@ const looks: Record<string, RoomLook> = {
     paintFloor: paintCafeFloor,
     paintWall: paintCafeWall,
     backdrop: cafeBackdrop,
+  },
+  // Every player's home (src/Pspsps.Domain/Homes/Home.cs, Layout): one look, its furniture the owner's own.
+  home: {
+    sky: "#e9d8c8",
+    floorColour: paints.homeBoard,
+    wallColour: paints.wallpaper,
+    paintFloor: paintHomeFloor,
+    paintWall: paintHomeWall,
+    backdrop: homeBackdrop,
   },
 };
 
@@ -143,5 +152,34 @@ function cafeBackdrop(plan: Floorplan, wallHeight: number): Part[] {
       { shape: "cylinder", diameter: 0.6, top: 0.16, height: 0.36, sides: 16, at: [x, lamp, halfDepth - 1.3], colour: palette.mustard },
     );
   }
+  return parts;
+}
+
+/**
+ * A home's walls: above the back wall's painted front, a picture rail's worth more of wallpaper under a cornice; at the
+ * sides, walls papered like the back, with their skirting. A paper lantern hangs from the ceiling, over the cats' heads.
+ */
+function homeBackdrop(plan: Floorplan, wallHeight: number): Part[] {
+  const [halfWidth, halfDepth] = [plan.width / 2, plan.depth / 2];
+  const upper = 7;
+  const parts: Part[] = [
+    { shape: "box", width: plan.width + 0.7, height: upper, depth: 0.3, at: [0, wallHeight + upper / 2, halfDepth + 0.15], colour: paints.wallpaper },
+    { shape: "box", width: plan.width + 0.9, height: 0.25, depth: 0.45, at: [0, wallHeight + 0.125, halfDepth + 0.05], colour: paints.skirting },
+  ];
+  for (const side of [-1, 1]) {
+    const x = side * (halfWidth + 0.2);
+    parts.push(
+      { shape: "box", width: 0.3, height: wallHeight, depth: plan.depth + 0.3, at: [x, wallHeight / 2, 0.15], colour: paints.wallpaper },
+      { shape: "box", width: 0.36, height: 0.35, depth: plan.depth + 0.36, at: [x, 0.175, 0.15], colour: paints.skirting, outlined: false },
+      { shape: "box", width: 0.4, height: 0.25, depth: plan.depth + 0.4, at: [x, wallHeight + 0.125, 0.15], colour: paints.skirting },
+    );
+  }
+  // A round paper lantern on a cord, over the middle of the room and well above the cats.
+  const lantern = wallHeight - 0.9;
+  const cord = wallHeight + upper - lantern;
+  parts.push(
+    { shape: "box", width: 0.03, height: cord, depth: 0.03, at: [1.5, lantern + cord / 2, halfDepth - 2.5], colour: palette.iron, outlined: false },
+    { shape: "ball", diameter: 0.7, at: [1.5, lantern, halfDepth - 2.5], colour: palette.glow },
+  );
   return parts;
 }

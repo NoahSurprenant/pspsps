@@ -5,9 +5,19 @@ import type { Floorplan } from "./paint";
 const plans: Record<string, Floorplan> = {
   "town-square": { width: 24, depth: 16, pond: { x: -7, z: -3, radius: 2.5 }, doors: [] },
   cafe: { width: 14, depth: 10, pond: null, doors: [] },
+  home: { width: 12, depth: 9, pond: null, doors: [] },
 };
 
 describe("lookOf", () => {
+  it("gives every home one look of its own, indoors", () => {
+    const [home, cafe] = [lookOf("home"), lookOf("cafe")];
+
+    expect(home.paintFloor).toBeDefined();
+    expect(home.paintWall).toBeDefined();
+    expect(home.paintFloor).not.toBe(cafe.paintFloor);
+    expect(home.backdrop(plans.home ?? { width: 12, depth: 9, pond: null, doors: [] }, 4).length).toBeGreaterThan(0);
+  });
+
   it("gives Town Square and the café each their own look", () => {
     const [square, cafe] = [lookOf("town-square"), lookOf("cafe")];
 

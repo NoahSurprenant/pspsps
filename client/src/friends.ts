@@ -9,10 +9,11 @@ export interface FriendButton {
   primary: boolean;
 }
 
-/** Where the player is now: the room showing. */
+/** Where the player is now: the room showing (and whose home it is, when it is one). */
 export interface Here {
   worldId: string;
   roomId: string;
+  homeOwnerId?: string;
 }
 
 /** A line saying where the two stand, for the card; none when there's nothing between them. */
@@ -46,9 +47,15 @@ export function friendButtons(state: FriendState): FriendButton[] {
   }
 }
 
-/** Whether the friend is in the room the player is in. */
+/** Whether the friend is in the room the player is in: the same home, or the same room of the same world. */
 export function isHere(friend: Friend, here: Here | undefined): boolean {
-  return !!friend.place && !!here && friend.place.worldId === here.worldId && friend.place.roomId === here.roomId;
+  if (!friend.place || !here) {
+    return false;
+  }
+  if (friend.place.homeOwnerId || here.homeOwnerId) {
+    return friend.place.homeOwnerId === here.homeOwnerId;
+  }
+  return friend.place.worldId === here.worldId && friend.place.roomId === here.roomId;
 }
 
 /** Where a friend is, as the friends list says it. */
@@ -59,7 +66,8 @@ export function whereIs(friend: Friend, here: Here | undefined): string {
   if (isHere(friend, here)) {
     return "Here with you";
   }
-  return `${friend.place.roomName}, ${friend.place.worldName}`;
+  // A home is in no world.
+  return friend.place.homeOwnerId ? friend.place.roomName : `${friend.place.roomName}, ${friend.place.worldName}`;
 }
 
 /** Whether "Go to" can take the player to the friend: online, and somewhere else. */

@@ -34,7 +34,12 @@ public sealed class ShopMigrationTests
             .SqlQuery<string>($"SELECT player_id::text || ' ' || item_id AS \"Value\" FROM player_items")
             .ToListAsync();
 
-        Assert.That(items, Is.EquivalentTo(new[] { $"{tom} fur-tuxedo", $"{felix} fur-orange" }));
+        Assert.That(items, Is.EquivalentTo(new[]
+        {
+            $"{tom} fur-tuxedo", $"{felix} fur-orange",
+            // And, since homes, the bed every cat has.
+            $"{tom} cat-bed", $"{felix} cat-bed",
+        }));
         var player = await db.Players.SingleAsync(p => p.Id == tom);
         Assert.That(player.Owns("fur-tuxedo"), Is.True);
         await db.Database.EnsureDeletedAsync();

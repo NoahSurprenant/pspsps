@@ -90,3 +90,27 @@ describe("wearingLine", () => {
     expect(wearingLine({})).toBeUndefined();
   });
 });
+
+describe("furniture in the shop", () => {
+  const sofa: ShopItem = { id: "sofa", name: "Sofa", kind: "Furniture", price: 350, furColor: null };
+  const withSofa = (count: number, coins = 400): Shop =>
+    ({ ...shop, items: [...items, sofa], coins, owned: [...shop.owned, ...(count > 0 ? ["sofa"] : [])], counts: { sofa: count } });
+
+  it("sells a piece the player hasn't got, and another of one they have, up to the most a cat keeps", () => {
+    expect(shopRow(withSofa(0), sofa)).toMatchObject({ status: "🪙 350", button: { action: "buy", label: "Buy", ariaLabel: "Buy the Sofa for 350 coins" } });
+    expect(shopRow(withSofa(2), sofa)).toMatchObject({
+      status: "🪙 350 · you have 2", button: { action: "buy", label: "Buy another", ariaLabel: "Buy another Sofa for 350 coins", disabled: false },
+    });
+    expect(shopRow(withSofa(2, 100), sofa)).toMatchObject({ button: { disabled: true }, reason: "need 250 more" });
+    expect(shopRow(withSofa(5), sofa)).toEqual({ item: sofa, status: "You have 5, as many as a cat can keep" });
+  });
+
+  it("never wears furniture, and lists it in its own part after the fur", () => {
+    expect(isWorn(withSofa(1), sofa)).toBe(false);
+    expect(shopSections(withSofa(1)).map((s) => s.title)).toEqual(["Hats", "Collars", "Fur", "Furniture"]);
+  });
+
+  it("says where furniture bought goes", () => {
+    expect(shopMessage("buy", sofa)).toBe("You bought the Sofa! Put it out at home: Friends, then Go home.");
+  });
+});

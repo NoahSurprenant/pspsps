@@ -108,12 +108,42 @@ Coins never go below zero, however many purchases and catches land at once. A ca
 (`coins = coins + n`); a purchase reads the player, applies the rule and saves, with `Coins` as a concurrency token: a
 purchase whose coins changed meanwhile (a catch, a purchase in another tab) is refused by the database and decided
 again on the coins there are now (`ShopService`). A check constraint keeps `coins >= 0` whatever the code does, and
-the key of `player_items` (player, item) keeps a thing from being bought twice.
+the key of `player_items` (player, item) keeps a thing from being bought twice (furniture, which can be had more than
+once, is counted on its one row).
 
 What a cat wears is saved on the player, comes with it into every room (`CatView`, so later arrivals see it in the
 snapshot), and a change is shown live: the hub saves it, then tells the room the player's cat is in
 (`IRoomGrain.Dress`), which updates its `RoomState` and broadcasts `CatDressed`. The browser draws the hats and
 collars in code (`client/src/wearables.ts`), on the cat model's head-top and neck anchors.
+
+## Homes
+
+Every player has a **home** (`Home`, an aggregate of its own, keyed by its owner): a room of their own, in no world's
+catalogue. Every home has the same floor plan (`Home.Layout`), with a door out by the back wall that leads to Town
+Square's spawn point, in whichever world the cat came from; a cat in a home is still in that world (its place there
+counts against the world's cap). A home's room grain is the same `RoomGrain`, keyed `homes/<owner>` (`RoomKey.ForHome`):
+on activation it reads the home from the database instead of the catalogue. The snapshot carries the home
+(`HomeView`), and the hub fills in the world the cat is in.
+
+Furniture is a kind of shop item (`ItemKind.Furniture`), bought like the rest, and a player can have up to five of each
+(`OwnedItem.Count`); every cat is born with its bed. Each piece of furniture's ID is the prop it is drawn as, so the
+browser draws furniture with the rooms' own props (`client/src/props.ts`). The home's rules are on the aggregate: only
+furniture the owner has goes out, each piece at most as many times as they have it, at most 40 pieces, turned a quarter
+at a time, and where the rooms' props may stand (`PropPlacement`: on the floor, off the door, the spawn point and the
+walks between them, and off each other). `Version` is a concurrency token, so two tabs putting pieces out at once are
+decided one after the other (`HomeService`), and a home is saved only once its owner first changes it. A change is
+saved, then shown to whoever is in the home (`IRoomGrain.Furnish`, `HomeChanged`).
+
+The owner chooses who may come in (`HomeVisitors`): their friends (every home starts so), anyone, or nobody; the owner
+always may (`Home.MayVisit`). Visiting checks it (`HomeService.VisitAsync`), and "Go to" a friend who is in a home visits
+that home on the same terms. When the owner makes it stricter, the hub asks the home who is in it, the home's rule says
+who may no longer stay (`HomeService.MustLeaveAsync`), and the room sends them out (`IRoomGrain.SendOut`): each tab
+is told (`SentOut`) and goes back to Town Square in its own world.
+
+In the browser, the way home is at the top of the friends list (the room bar has no room for another button on a folded
+phone). In their own home, the owner has Decorate and who can visit in the dock; decorating (`client/src/home.ts`) picks
+a piece to put out with a tap on the floor (or "Find it a spot", for the keyboard), and selects a piece with a tap (or its
+button) to turn it or put it away.
 
 ## Layers (Clean Architecture)
 
@@ -121,12 +151,12 @@ Dependencies point inwards only: **Domain ← Application ← Infrastructure ←
 enforces this.
 
 - **Domain** (`src/Pspsps.Domain`): the game's rules, no frameworks. Aggregates in the DDD sense: `Player` owns its
-  logins, coins, fur and what it has from the shop. A private constructor for EF Core, named static factories (`CreateGuest`,
-  `CreateWithLogin`), private setters, collections exposed read-only, and methods that refuse invalid changes with a
-  `DomainException`. `Friendship` is another aggregate (Friends, above). Also the in-memory world and room rules
-  (`WorldPopulation`, `RoomState`, `SessionLease`) and the world and room catalogues.
-- **Application** (`src/Pspsps.Application`): use cases (`PlayerService`, `FriendService`, `ShopService`) and the ports they need
-  (`IApplicationDbContext`).
+  logins, coins, fur and what it has from the shop. A private constructor for EF Core, named static factories
+  (`CreateGuest`, `CreateWithLogin`), private setters, collections exposed read-only, and methods that refuse invalid
+  changes with a `DomainException`. `Friendship` and `Home` are other aggregates (Friends and Homes, above). Also the
+  in-memory world and room rules (`WorldPopulation`, `RoomState`, `SessionLease`) and the world and room catalogues.
+- **Application** (`src/Pspsps.Application`): use cases (`PlayerService`, `FriendService`, `ShopService`,
+  `HomeService`) and the ports they need (`IApplicationDbContext`).
 - **Infrastructure** (`src/Pspsps.Infrastructure`): EF Core on PostgreSQL (snake_case names), the migrations, and the
   Data Protection key ring in the database.
 - **Server** (`src/Pspsps.Server`): the host. Sign-in endpoints, the SignalR hub, and the Orleans grains. The hub and

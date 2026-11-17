@@ -11,6 +11,7 @@ using Pspsps.Application.Players;
 using Pspsps.Application.Shop;
 using Pspsps.Domain;
 using Pspsps.Domain.Friends;
+using Pspsps.Domain.Homes;
 using Pspsps.Domain.Players;
 using Pspsps.Domain.Shop;
 using Pspsps.Server.Auth;
@@ -685,6 +686,168 @@ public sealed class GameHubTests
 
         Assert.That(card, Is.EqualTo(new PlayerCardView(Felix, "Felix", "Black", "None", "Top hat", "Bell collar")));
     }
+
+    [Test]
+    public async Task VisitHome_JoinsTheHome_StayingInItsWorld_AndRenewsBoth()
+    {
+        var felixHome = HomeOf(Felix);
+        _homes.VisitAsync(Tom.Id, Felix, Arg.Any<CancellationToken>()).Returns(Plan(Felix, "Felix"));
+        felixHome.Join(default!, default!, default).ReturnsForAnyArgs(HomeSnapshot(Felix));
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+        RenewalsFindEveryCat();
+        felixHome.Renew(default!).ReturnsForAnyArgs(Task.FromResult<IReadOnlyList<string>>([]));
+
+        var there = await hub.VisitHome(Felix);
+
+        Assert.That(there.WorldId, Is.EqualTo("tabby"), "a home is in no world: the cat is still in the one it came from");
+        await _room.Received(1).Leave(Tom.Id, Connection);
+        await felixHome.Received(1).Join(Arg.Is<PlayerCard>(c => c.PlayerId == Tom.Id), Connection, null);
+        await hub.Groups.Received(1).AddToGroupAsync(Connection, RoomKey.ForHome(Felix));
+        await _session.Received(1).Arrived(Connection, RoomKey.ForHome(Felix));
+        await _heartbeat.RenewAsync();
+        await _world.ReceivedWithAnyArgs(1).Renew(default!);
+        await felixHome.ReceivedWithAnyArgs(1).Renew(default!);
+        await _room.DidNotReceiveWithAnyArgs().Renew(default!);
+    }
+
+    [Test]
+    public async Task VisitHome_ThatTheHomeRefuses_LeavesTheCatWhereItIs()
+    {
+        var felixHome = HomeOf(Felix);
+        _homes.VisitAsync(Tom.Id, Felix, Arg.Any<CancellationToken>())
+            .ThrowsAsync(new DomainException("Only friends can visit that home."));
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+
+        var refused = Assert.ThrowsAsync<HubException>(() => hub.VisitHome(Felix));
+
+        Assert.That(refused!.Message, Is.EqualTo("Only friends can visit that home."));
+        await _room.DidNotReceiveWithAnyArgs().Leave(default, default!);
+        await felixHome.DidNotReceiveWithAnyArgs().Join(default!, default!, default);
+    }
+
+    [Test]
+    public void VisitHome_BeforePickingAWorld_IsRefused()
+    {
+        var refused = Assert.ThrowsAsync<HubException>(() => Hub().GoHome());
+
+        Assert.That(refused!.Message, Is.EqualTo("Pick a world first."));
+    }
+
+    [Test]
+    public async Task GoThroughDoor_OutOfAHome_GoesToTheTownSquareOfItsWorld_AtTheSpawnPoint()
+    {
+        var home = HomeOf(Tom.Id);
+        _homes.VisitAsync(Tom.Id, Tom.Id, Arg.Any<CancellationToken>()).Returns(Plan(Tom.Id, "Tom"));
+        home.Join(default!, default!, default).ReturnsForAnyArgs(HomeSnapshot(Tom.Id));
+        home.LeaveThrough(Tom.Id, Connection, "out").Returns(new DoorTarget("town-square", null));
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+        await hub.GoHome();
+        _room.ClearReceivedCalls();
+
+        await hub.GoThroughDoor("out");
+
+        await _room.Received(1).Join(Arg.Is<PlayerCard>(c => c.PlayerId == Tom.Id), Connection, null);
+        await hub.Groups.Received(1).RemoveFromGroupAsync(Connection, RoomKey.ForHome(Tom.Id));
+    }
+
+    [Test]
+    public async Task LetIntoHome_SendsOutWhoTheHomeSaysMustGo_AndShowsTheChange()
+    {
+        var home = HomeOf(Tom.Id);
+        _homes.LetInAsync(Tom.Id, HomeVisitors.Friends, Arg.Any<CancellationToken>()).Returns(Plan(Tom.Id, "Tom", HomeVisitors.Friends));
+        home.CatsHere().Returns([Tom.Id, Felix]);
+        _homes.MustLeaveAsync(Tom.Id, Arg.Is<IReadOnlyCollection<Guid>>(c => c.Count == 2), Arg.Any<CancellationToken>())
+            .Returns([Felix]);
+        var hub = Hub();
+
+        var view = await hub.LetIntoHome("Friends");
+
+        Assert.That(view.Visitors, Is.EqualTo("Friends"));
+        await home.Received(1).Furnish(Arg.Is<HomeView>(h => h.OwnerId == Tom.Id && h.Visitors == "Friends"));
+        await home.Received(1).SendOut(
+            Arg.Is<IReadOnlyList<Guid>>(ids => ids.SequenceEqual(new[] { Felix })),
+            "Tom changed who can visit their home, so you went back to Town Square.");
+    }
+
+    [Test]
+    public async Task LetIntoHome_WithNobodyToSendOut_SendsNoOneOut()
+    {
+        var home = HomeOf(Tom.Id);
+        _homes.LetInAsync(Tom.Id, HomeVisitors.Anyone, Arg.Any<CancellationToken>()).Returns(Plan(Tom.Id, "Tom", HomeVisitors.Anyone));
+        home.CatsHere().Returns([Felix]);
+        _homes.MustLeaveAsync(Tom.Id, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>()).Returns([]);
+
+        await Hub().LetIntoHome("Anyone");
+
+        await home.DidNotReceiveWithAnyArgs().SendOut(default!, default!);
+    }
+
+    [TestCase("Sometimes")]
+    [TestCase("7")]
+    [TestCase("")]
+    public async Task LetIntoHome_SomethingThatIsntAChoice_IsRefused(string visitors)
+    {
+        var refused = Assert.ThrowsAsync<HubException>(() => Hub().LetIntoHome(visitors));
+
+        Assert.That(refused!.Message, Is.EqualTo("That isn't a choice."));
+        await _homes.DidNotReceiveWithAnyArgs().LetInAsync(default, default, default);
+    }
+
+    [Test]
+    public async Task PlaceFurniture_ThatCantBeShown_IsStillSaved()
+    {
+        var home = HomeOf(Tom.Id);
+        _homes.PlaceAsync(Tom.Id, "sofa", 1, 2, 3, Arg.Any<CancellationToken>()).Returns(Plan(Tom.Id, "Tom"));
+        home.Furnish(Arg.Any<HomeView>()).ThrowsAsync(new TimeoutException());
+
+        var view = await Hub().PlaceFurniture("sofa", 1, 2, 3);
+
+        Assert.That(view.OwnerId, Is.EqualTo(Tom.Id));
+        await _homes.Received(1).PlaceAsync(Tom.Id, "sofa", 1, 2, 3, Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public void PlaceFurniture_ThatTheHomeRefuses_IsThePlayersMessage()
+    {
+        _homes.PlaceAsync(Tom.Id, "sofa", null, null, 0, Arg.Any<CancellationToken>())
+            .ThrowsAsync(new DomainException("Buy the Sofa first."));
+
+        var refused = Assert.ThrowsAsync<HubException>(() => Hub().PlaceFurniture("sofa", null, null, 0));
+
+        Assert.That(refused!.Message, Is.EqualTo("Buy the Sofa first."));
+    }
+
+    [Test]
+    public async Task GetFriends_AFriendAtHome_IsInTheirHome_WhichIsInNoWorld()
+    {
+        _friends.ListAsync(Tom.Id, Arg.Any<CancellationToken>())
+            .Returns([new PlayerRelation(Felix, "Felix", FurColor.Black, FriendState.Friends)]);
+        _homes.OpenToAsync(Tom.Id, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(new HashSet<Guid> { Felix });
+        Session(Felix).Locate().Returns(new PlayerPlace(RoomKey.Homes, Felix.ToString()));
+
+        var friend = (await Hub().GetFriends()).Single();
+
+        Assert.That(friend.Place, Is.EqualTo(new FriendPlaceView("", "", "home", "Felix's home", Felix)));
+        Assert.That(friend.CanVisitHome, Is.True);
+    }
+
+    // The grain of <owner>'s home.
+    private IRoomGrain HomeOf(Guid owner)
+    {
+        var home = Substitute.For<IRoomGrain>();
+        _grains.GetGrain<IRoomGrain>(RoomKey.ForHome(owner), null).Returns(home);
+        return home;
+    }
+
+    private static HomePlan Plan(Guid owner, string name, HomeVisitors visitors = HomeVisitors.Friends) =>
+        new(owner, name, visitors, []);
+
+    private static RoomSnapshot HomeSnapshot(Guid owner) =>
+        new(RoomKey.Homes, "home", "A home", 12, 9, [], [], [], null, [], [], new HomeView(owner, "Owner", "Friends", []));
 
     private static Wardrobe Dressed(string? hat, string? collar) =>
         new(Tom.Id, 15, ["fur-grey", "bow"], FurColor.Grey, hat, collar);

@@ -57,6 +57,17 @@ const CHECKS: Record<Screen["name"], Checks> = {
       return typeof mat === "string" ? [mat] : [];
     },
   },
+  // A home: its owner's controls (Decorate, who can visit) in the dock, and its door out to Town Square clickable.
+  home: {
+    parts: [".room-bar", ".home-tools", ".emote-bar", ".chat-bar"],
+    shows: (page) => drawn(page, [["the door's mat", doorMatRed, 2]]),
+    reachable: async (page) => {
+      const mat = await doorMat(page, "town-square");
+      return typeof mat === "string" ? [mat] : [];
+    },
+  },
+  // Decorating: the panel in place of the emotes and the chat, the room above it.
+  decorating: { parts: [".room-bar", ".decorate"] },
   cafe: {
     parts: [".room-bar", ".emote-bar", ".chat-bar"],
     // The door back to the square's mat, among the café's tables and chairs, drawn and clickable.

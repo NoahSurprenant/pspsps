@@ -12,6 +12,8 @@ import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
 import { CreateCylinder } from "@babylonjs/core/Meshes/Builders/cylinderBuilder";
 import { CreateGround } from "@babylonjs/core/Meshes/Builders/groundBuilder";
 import { CreatePlane } from "@babylonjs/core/Meshes/Builders/planeBuilder";
+import { CreateTorus } from "@babylonjs/core/Meshes/Builders/torusBuilder";
+import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Node as BabylonNode } from "@babylonjs/core/node";
 import type { PickingInfo } from "@babylonjs/core/Collisions/pickingInfo";
@@ -32,7 +34,7 @@ import {
 import { besideProp, buildParts, ink, propParts, type Part } from "./props";
 import { CatLook } from "./look";
 import catModelUrl from "./models/cat.glb?url";
-import type { CatView, DoorView, Emote, OutfitView, RoomSnapshot } from "./types";
+import type { CatView, DoorView, Emote, OutfitView, PropView, RoomSnapshot } from "./types";
 
 const walkSpeed = 4; // metres per second
 const sky = Color4.FromHexString("#bfe3f2ff");
@@ -40,6 +42,8 @@ const sky = Color4.FromHexString("#bfe3f2ff");
 const anchorHeight = 1.4;
 /** A door's mat: its own red, which nothing else in a room is (the layout test looks for it). */
 export const doorMatColour = "#c8553d";
+/** The ring round the furniture selected while decorating: the buttons' orange. */
+const selectionColour = "#f0a04b";
 /** How close (in metres) a cat drawn walking somewhere counts as there. */
 const there = 0.05;
 /** How tall a room's back wall is, in metres. */
@@ -89,6 +93,18 @@ export class RoomScene {
   private pondClicked: () => void = () => {};
   private doorClicked: (door: DoorView) => void = () => {};
   private catClicked: (playerId: string) => void = () => {};
+  private editTapped: (x: number, z: number) => void = () => {};
+  // The room showing's back wall and props (one mesh, rebuilt when a home's furniture changes), and the ring round the
+  // piece of furniture selected while decorating.
+  private wall: Part | undefined;
+  private decor: Mesh | undefined;
+  private props: PropView[] = [];
+  private selection: Mesh | undefined;
+  /**
+   * Decorating a home: a tap goes to the furniture or the floor under it (onEditTapped), never to a cat, a door or the
+   * pond, and walks no one.
+   */
+  editing = false;
   // What a tap does, given everything along its ray (multiPick): set for the room showing.
   private tap: (picks: readonly PickingInfo[]) => void = () => {};
   /** The player's own cat: it never takes the pointer, so a tap just behind it still walks or fishes. */
@@ -129,12 +145,19 @@ export class RoomScene {
     this.catClicked = handler;
   }
 
+  /** A tap while decorating: where on the floor, under the furniture or the floor tapped. */
+  onEditTapped(handler: (x: number, z: number) => void): void {
+    this.editTapped = handler;
+  }
+
   /** Replaces whatever room was showing. */
   show(room: RoomSnapshot): void {
     for (const cat of this.cats.values()) {
       cat.arrival?.done(false);
     }
     this.cats.clear();
+    this.editing = false;
+    this.selection = undefined;
     this.scene.dispose();
     this.scene = new Scene(this.engine);
     this.gui = AdvancedDynamicTexture.CreateFullscreenUI("ui", true, this.scene);
@@ -215,8 +238,9 @@ export class RoomScene {
     }
     // The wall and the props: one mesh, drawn in one go. Cats walk through props; a tap on one walks the cat beside it
     // (a tap on the wall does nothing). The backdrop is another, which a tap never tests: it does nothing there.
-    const props = room.props ?? [];
-    const decor = buildParts(this.scene, "decor", [wall, ...props.flatMap(propParts)]);
+    this.wall = wall;
+    this.props = room.props ?? [];
+    this.decor = buildParts(this.scene, "decor", [wall, ...this.props.flatMap(propParts)]);
     const backdrop = buildParts(this.scene, "backdrop", look.backdrop(plan, wallHeight));
     if (backdrop) {
       backdrop.isPickable = false;
@@ -249,10 +273,23 @@ export class RoomScene {
     // mat showing round a tree, still takes the tap.
     this.tap = (picks) => {
       const hits = picks.filter((pick) => pick.hit && pick.pickedMesh).sort((a, b) => a.distance - b.distance);
+      const decor = this.decor;
+      if (this.editing) {
+        // The nearest furniture or floor along the ray (not the wall, which is in the same mesh): the spot on the floor
+        // under it.
+        const onFurniture = (point: Vector3) => this.props.some((p) => Math.hypot(point.x - p.x, point.z - p.z) <= p.radius);
+        const spot = hits.map((pick) => pick.pickedMesh === floor || (pick.pickedMesh === decor && pick.pickedPoint && onFurniture(pick.pickedPoint))
+          ? pick.pickedPoint
+          : null).find((point) => point);
+        if (spot) {
+          this.editTapped(spot.x, spot.z);
+        }
+        return;
+      }
       const catId = hits.map((pick) => catPlayerIdOf(pick.pickedMesh)).find((id) => id !== undefined);
       const door = hits.map((pick) => (pick.pickedMesh ? doors.get(pick.pickedMesh) : undefined)).find((d) => d);
       const beside = hits.filter((pick) => decor && pick.pickedMesh === decor && pick.pickedPoint)
-        .map((pick) => besideProp(props, room, pick.pickedPoint?.x ?? 0, pick.pickedPoint?.z ?? 0)).find((spot) => spot);
+        .map((pick) => besideProp(this.props, room, pick.pickedPoint?.x ?? 0, pick.pickedPoint?.z ?? 0)).find((spot) => spot);
       const ground = hits.find((pick) => pick.pickedMesh === floor)?.pickedPoint;
       if (catId !== undefined) {
         this.catClicked(catId);
@@ -335,6 +372,35 @@ export class RoomScene {
     if (cat) {
       this.dressOnScreen(cat, { fur: outfit.furColor, hat: outfit.hat, collar: outfit.collar });
     }
+  }
+
+  /** A home's furniture changed: the room's props are drawn again as <props>, with the back wall (one mesh). */
+  furnish(props: PropView[]): void {
+    if (!this.wall) {
+      return;
+    }
+    this.decor?.dispose(false, true);
+    this.props = props;
+    this.decor = buildParts(this.scene, "decor", [this.wall, ...props.flatMap(propParts)]);
+  }
+
+  /** Rings the piece of furniture selected while decorating, on the floor round it; none, no ring. */
+  ring(prop: PropView | undefined): void {
+    this.selection?.dispose(false, true);
+    this.selection = undefined;
+    if (!prop) {
+      return;
+    }
+    const ring = CreateTorus("selection", { diameter: prop.radius * 2 + 0.1, thickness: 0.08, tessellation: 48 }, this.scene);
+    ring.position.set(prop.x, 0.06, prop.z);
+    ring.material = flat(this.scene, "selection", selectionColour);
+    ring.isPickable = false;
+    this.selection = ring;
+  }
+
+  /** The props drawn now (for the end-to-end tests): a home's furniture as it was last furnished. */
+  get drawnProps(): readonly PropView[] {
+    return this.props;
   }
 
   /** What a cat is drawn wearing (for the end-to-end tests), if it is in the room and drawn. */

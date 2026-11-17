@@ -35,7 +35,7 @@ export interface OutfitView {
 }
 
 /** Where a shop item goes: on the head, round the neck, or the coat itself. */
-export type ItemKind = "Hat" | "Collar" | "Fur";
+export type ItemKind = "Hat" | "Collar" | "Fur" | "Furniture";
 
 /** Something in the shop (Contracts.cs, ShopItemView); a fur item has its colour. */
 export interface ShopItem {
@@ -46,7 +46,10 @@ export interface ShopItem {
   furColor: FurColor | null;
 }
 
-/** The shop as the player sees it (Contracts.cs, ShopView): what's in it, their coins, what they have and wear. */
+/**
+ * The shop as the player sees it (Contracts.cs, ShopView): what's in it, their coins, what they have (and how many) and
+ * wear.
+ */
 export interface Shop {
   items: ShopItem[];
   coins: number;
@@ -55,6 +58,8 @@ export interface Shop {
   furColor: FurColor;
   hat: string | null;
   collar: string | null;
+  /** How many of each item the player has (furniture can be had more than once); missing from an older server. */
+  counts?: Record<string, number> | null;
 }
 
 export interface ChatView {
@@ -83,6 +88,37 @@ export interface RoomSnapshot {
   doors: DoorView[];
   /** The room's decoration, which cats walk through; null from a server older than props (during a deploy). */
   props: PropView[] | null;
+  /** The player's home this room is, if it is one (missing from an older server). */
+  home?: HomeView | null;
+}
+
+/** Who may come into a player's home, besides its owner (the Domain's HomeVisitors). */
+export type HomeVisitors = "Friends" | "Anyone" | "Nobody";
+
+/**
+ * A player's home (Contracts.cs, HomeView): whose it is, who may visit, the furniture in it, and its version (of two,
+ * the newer is kept).
+ */
+export interface HomeView {
+  ownerId: string;
+  ownerName: string;
+  visitors: HomeVisitors;
+  furniture: FurnitureView[];
+  version: number;
+}
+
+/**
+ * A piece of furniture in a home (Contracts.cs, FurnitureView): its ID, the shop item it is (also the kind of prop it's
+ * drawn as) and its name, where it stands, its circle, and which way it faces in quarter turns.
+ */
+export interface FurnitureView {
+  id: string;
+  itemId: string;
+  name: string;
+  x: number;
+  z: number;
+  radius: number;
+  quarterTurns: number;
 }
 
 /** A door out of a room: a round spot on the floor to walk onto, and the room it leads to. */
@@ -162,6 +198,8 @@ export interface PlayerCard {
   /** The names of the hat and collar the cat wears, if any (not sent with a friends list). */
   hatName?: string | null;
   collarName?: string | null;
+  /** Whether the cat's home would let the player in now. */
+  canVisitHome?: boolean;
 }
 
 /** Where a friend is (Contracts.cs, FriendPlaceView). */
@@ -170,6 +208,8 @@ export interface FriendPlace {
   worldName: string;
   roomId: string;
   roomName: string;
+  /** Whose home it is, when the friend is in one (which is in no world: worldId and worldName are empty). */
+  homeOwnerId?: string | null;
 }
 
 /** A friend or a friend request (Contracts.cs, FriendView); a friend in a room has its place, null otherwise. */
