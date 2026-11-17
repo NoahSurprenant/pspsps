@@ -120,7 +120,7 @@ public sealed class RoomStateTests
     public void Say_MasksFilteredWordsInWhatTheRoomKeeps()
     {
         var state = new RoomState(Room);
-        state.Join(Tom, "Tom", FurColor.Grey, TabA);
+        state.Join(Tom, "Tom", FurColor.Grey, TabA, Now);
         var filter = ChatFilter.Create([new ChatWordList(ChatFilterAction.Mask, ["darn"])]);
 
         var line = state.Say(Tom, "  oh darn  ", filter, Now);
@@ -133,7 +133,7 @@ public sealed class RoomStateTests
     public void Say_RefusesALineWithARefusedWord_AndKeepsNothing()
     {
         var state = new RoomState(Room);
-        state.Join(Tom, "Tom", FurColor.Grey, TabA);
+        state.Join(Tom, "Tom", FurColor.Grey, TabA, Now);
         var filter = ChatFilter.Create([new ChatWordList(ChatFilterAction.Refuse, ["woof"])]);
 
         var refused = Assert.Throws<DomainException>(() => state.Say(Tom, "W 0 0 F", filter, Now));
