@@ -16,7 +16,11 @@ public sealed class ChatFilterOptions
 
 public sealed class ChatWordListOptions
 {
-    public ChatFilterAction Action { get; set; } = ChatFilterAction.Mask;
+    /// <summary>
+    /// <c>Mask</c> or <c>Refuse</c>. Text, not the enum: the binder drops a list whose enum it can't convert without a
+    /// word, which would quietly turn the list off.
+    /// </summary>
+    public string Action { get; set; } = nameof(ChatFilterAction.Mask);
     public string[] Words { get; set; } = [];
 }
 
@@ -81,8 +85,22 @@ public sealed partial class ChatFilters(IConfiguration configuration, ChatFilter
         try
         {
             var options = configuration.GetSection(ChatFilterOptions.SectionName).Get<ChatFilterOptions>() ?? new();
-            read = ChatFilter.Create(
-                (options.Lists ?? []).Select(list => new ChatWordList(list.Action, list.Words ?? [])));
+            var lists = new List<ChatWordList>();
+            foreach (var list in options.Lists ?? [])
+            {
+                // By name only: Enum.TryParse would also take a number.
+                var name = Enum.GetNames<ChatFilterAction>()
+                    .FirstOrDefault(known => string.Equals(known, list.Action?.Trim(), StringComparison.OrdinalIgnoreCase));
+                if (name is null)
+                {
+                    throw new InvalidOperationException(
+                        $"A list's Action is '{list.Action}'; it is {nameof(ChatFilterAction.Mask)} or {nameof(ChatFilterAction.Refuse)}.");
+                }
+
+                lists.Add(new ChatWordList(Enum.Parse<ChatFilterAction>(name), list.Words ?? []));
+            }
+
+            read = ChatFilter.Create(lists);
         }
         catch (InvalidOperationException e)
         {
