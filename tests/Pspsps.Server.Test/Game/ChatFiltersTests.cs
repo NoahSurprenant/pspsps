@@ -27,7 +27,8 @@ public sealed class ChatFiltersTests
 
         Assert.That(filters.Current.Apply("oh darn"), Is.EqualTo("oh ****"));
         Assert.Throws<DomainException>(() => filters.Current.Apply("woof"));
-        Assert.That(filters.Current, Is.SameAs(filters.Current), "built once per configuration");
+        var first = filters.Current;
+        Assert.That(filters.Current, Is.SameAs(first), "built once per configuration");
 
         configuration["ChatFilter:Lists:0:Words:0"] = "heck";
         configuration.Reload();
