@@ -58,8 +58,10 @@ export interface Shop {
   furColor: FurColor;
   hat: string | null;
   collar: string | null;
-  /** How many of each item the player has (furniture can be had more than once); missing from an older server. */
-  counts?: Record<string, number> | null;
+  /** How many of each item the player has (furniture can be had more than once). */
+  counts: Record<string, number>;
+  /** How many of one piece of furniture a player can have. */
+  maxOfEachFurniture: number;
 }
 
 export interface ChatView {

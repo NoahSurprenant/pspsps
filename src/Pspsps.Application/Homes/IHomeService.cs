@@ -12,8 +12,11 @@ public interface IHomeService
     /// <summary>The player's home; a home never changed is empty, and open to their friends.</summary>
     Task<HomePlan> GetAsync(Guid ownerId, CancellationToken cancellationToken);
 
-    /// <summary>The home <paramref name="visitorId"/> wants to come into; refused when the owner doesn't let them in.</summary>
-    Task<HomePlan> VisitAsync(Guid visitorId, Guid ownerId, CancellationToken cancellationToken);
+    /// <summary>
+    /// Checks <paramref name="visitorId"/> may come into <paramref name="ownerId"/>'s home (refused when the owner doesn't
+    /// let them in); returns the owner's name.
+    /// </summary>
+    Task<string> VisitAsync(Guid visitorId, Guid ownerId, CancellationToken cancellationToken);
 
     /// <summary>Which of <paramref name="ownerIds"/> would let <paramref name="visitorId"/> into their homes now.</summary>
     Task<IReadOnlySet<Guid>> OpenToAsync(

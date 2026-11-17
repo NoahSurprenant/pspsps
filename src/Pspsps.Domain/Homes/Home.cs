@@ -30,7 +30,7 @@ public sealed class Home
     private Home(Guid ownerId)
     {
         OwnerId = ownerId;
-        Visitors = HomeVisitors.Friends;
+        Visitors = DefaultVisitors;
     }
 
     /// <summary>
@@ -156,26 +156,38 @@ public sealed class Home
     /// Whether <paramref name="playerId"/> may come in (or stay): the owner always; anyone else as the owner chose,
     /// where <paramref name="areFriends"/> says whether they are the owner's friends.
     /// </summary>
-    public bool MayVisit(Guid playerId, bool areFriends) =>
-        playerId == OwnerId || Visitors switch
+    public bool MayVisit(Guid playerId, bool areFriends) => MayVisit(OwnerId, Visitors, playerId, areFriends);
+
+    /// <summary>Checks that <paramref name="playerId"/> may come in (<see cref="MayVisit(Guid, bool)"/>), saying why not.</summary>
+    public void EnsureCanVisit(Guid playerId, bool areFriends) => EnsureCanVisit(OwnerId, Visitors, playerId, areFriends);
+
+    /// <summary>
+    /// The visiting rule on its own, for a home known only by its owner and its <paramref name="visitors"/> (read without
+    /// its furniture): the owner always; anyone else as the owner chose.
+    /// </summary>
+    public static bool MayVisit(Guid ownerId, HomeVisitors visitors, Guid playerId, bool areFriends) =>
+        playerId == ownerId || visitors switch
         {
             HomeVisitors.Anyone => true,
             HomeVisitors.Friends => areFriends,
             _ => false,
         };
 
-    /// <summary>Checks that <paramref name="playerId"/> may come in (<see cref="MayVisit"/>), saying why not.</summary>
-    public void EnsureCanVisit(Guid playerId, bool areFriends)
+    /// <summary>Checks the visiting rule (<see cref="MayVisit(Guid, HomeVisitors, Guid, bool)"/>), saying why not.</summary>
+    public static void EnsureCanVisit(Guid ownerId, HomeVisitors visitors, Guid playerId, bool areFriends)
     {
-        if (MayVisit(playerId, areFriends))
+        if (MayVisit(ownerId, visitors, playerId, areFriends))
         {
             return;
         }
 
-        throw new DomainException(Visitors == HomeVisitors.Nobody
+        throw new DomainException(visitors == HomeVisitors.Nobody
             ? "That home isn't open to visitors right now."
             : "Only friends can visit that home.");
     }
+
+    /// <summary>Who may visit a home never changed: its owner's friends.</summary>
+    public const HomeVisitors DefaultVisitors = HomeVisitors.Friends;
 
     private ShopItem EnsureCanPutOut(string itemId, int owned)
     {

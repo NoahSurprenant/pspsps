@@ -21,13 +21,13 @@ internal sealed class HomeService(IApplicationDbContext db, TimeProvider time) :
         return HomePlan.Of(await ReadAsync(ownerId, cancellationToken), name);
     }
 
-    public async Task<HomePlan> VisitAsync(Guid visitorId, Guid ownerId, CancellationToken cancellationToken)
+    public async Task<string> VisitAsync(Guid visitorId, Guid ownerId, CancellationToken cancellationToken)
     {
         var name = await OwnerNameAsync(ownerId, cancellationToken);
-        var home = await ReadAsync(ownerId, cancellationToken);
+        var visitors = await VisitorsOfAsync(ownerId, cancellationToken);
         var friends = visitorId != ownerId && (await FriendsOfAsync(visitorId, [ownerId], cancellationToken)).Count > 0;
-        home.EnsureCanVisit(visitorId, friends);
-        return HomePlan.Of(home, name);
+        Home.EnsureCanVisit(ownerId, visitors, visitorId, friends);
+        return name;
     }
 
     public async Task<IReadOnlySet<Guid>> OpenToAsync(
@@ -40,12 +40,14 @@ internal sealed class HomeService(IApplicationDbContext db, TimeProvider time) :
             return new HashSet<Guid>();
         }
 
-        var homes = await db.Homes.AsNoTracking()
+        // Only who may visit, not the homes' furniture.
+        var visitors = await db.Homes
             .Where(h => ids.Contains(h.OwnerId))
-            .ToDictionaryAsync(h => h.OwnerId, cancellationToken);
+            .Select(h => new { h.OwnerId, h.Visitors })
+            .ToDictionaryAsync(h => h.OwnerId, h => h.Visitors, cancellationToken);
         var friends = await FriendsOfAsync(visitorId, ids, cancellationToken);
         return ids
-            .Where(id => (homes.GetValueOrDefault(id) ?? Home.Create(id)).MayVisit(visitorId, friends.Contains(id)))
+            .Where(id => Home.MayVisit(id, visitors.GetValueOrDefault(id, Home.DefaultVisitors), visitorId, friends.Contains(id)))
             .ToHashSet();
     }
 
@@ -77,9 +79,9 @@ internal sealed class HomeService(IApplicationDbContext db, TimeProvider time) :
         Guid ownerId, IReadOnlyCollection<Guid> here, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(here);
-        var home = await ReadAsync(ownerId, cancellationToken);
+        var visitors = await VisitorsOfAsync(ownerId, cancellationToken);
         var friends = await FriendsOfAsync(ownerId, [.. here], cancellationToken);
-        return [.. here.Where(id => !home.MayVisit(id, friends.Contains(id)))];
+        return [.. here.Where(id => !Home.MayVisit(ownerId, visitors, id, friends.Contains(id)))];
     }
 
     // Reads the home (a new one when the owner never changed theirs), applies the change, saves. The home's Version is a
@@ -121,6 +123,13 @@ internal sealed class HomeService(IApplicationDbContext db, TimeProvider time) :
             }
         }
     }
+
+    // Who may visit the owner's home (the default, for a home never changed), read on its own: not its furniture.
+    private async Task<HomeVisitors> VisitorsOfAsync(Guid ownerId, CancellationToken cancellationToken) =>
+        await db.Homes.Where(h => h.OwnerId == ownerId)
+            .Select(h => (HomeVisitors?)h.Visitors)
+            .FirstOrDefaultAsync(cancellationToken)
+        ?? Home.DefaultVisitors;
 
     private async Task<Home> ReadAsync(Guid ownerId, CancellationToken cancellationToken) =>
         await db.Homes.AsNoTracking().FirstOrDefaultAsync(h => h.OwnerId == ownerId, cancellationToken)

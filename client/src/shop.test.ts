@@ -14,7 +14,10 @@ function item(id: string): ShopItem {
   if (!found) throw new Error(`no ${id}`);
   return found;
 }
-const shop: Shop = { items, coins: 50, owned: ["fur-grey", "red-collar"], furColor: "Grey", hat: null, collar: null };
+const shop: Shop = {
+  items, coins: 50, owned: ["fur-grey", "red-collar"], furColor: "Grey", hat: null, collar: null,
+  counts: { "fur-grey": 1, "red-collar": 1 }, maxOfEachFurniture: 5,
+};
 
 describe("shopRow", () => {
   it("sells what the player can afford, at its price", () => {

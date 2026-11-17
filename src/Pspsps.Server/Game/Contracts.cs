@@ -257,11 +257,11 @@ public sealed record ShopItemView(string Id, string Name, string Kind, int Price
 
 /// <summary>
 /// The shop as one player sees it: everything in it, in the catalogue's order, the player's coins, what they have (item
-/// IDs) and what their cat wears.
+/// IDs) and how many of each, what their cat wears, and how many of one piece of furniture a player can have.
 /// </summary>
 public sealed record ShopView(
     IReadOnlyList<ShopItemView> Items, int Coins, IReadOnlyList<string> Owned, string FurColor, string? Hat, string? Collar,
-    IReadOnlyDictionary<string, int>? Counts = null)
+    IReadOnlyDictionary<string, int> Counts, int MaxOfEachFurniture)
 {
     public static ShopView From(Wardrobe wardrobe)
     {
@@ -273,7 +273,8 @@ public sealed record ShopView(
             wardrobe.FurColor.ToString(),
             wardrobe.Hat,
             wardrobe.Collar,
-            wardrobe.Counts ?? wardrobe.Owned.ToDictionary(id => id, _ => 1));
+            wardrobe.Counts,
+            ShopCatalog.MaxOfEachFurniture);
     }
 }
 

@@ -62,7 +62,7 @@ public sealed class HomesTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(wardrobe.Counts!["plant"], Is.EqualTo(2));
+            Assert.That(wardrobe.Counts["plant"], Is.EqualTo(2));
             Assert.That(wardrobe.Coins, Is.EqualTo(30));
             Assert.That(third!.Message, Is.EqualTo("Every Potted plant you have is out already."));
             Assert.That(notOwned!.Message, Is.EqualTo("Buy the Sofa first."));

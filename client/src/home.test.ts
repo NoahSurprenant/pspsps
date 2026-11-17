@@ -13,7 +13,7 @@ const items: ShopItem[] = [
 ];
 const shop: Shop = {
   items, coins: 0, owned: ["fur-grey", "cat-bed", "plant"], furColor: "Grey", hat: null, collar: null,
-  counts: { "fur-grey": 1, "cat-bed": 1, plant: 3 },
+  counts: { "fur-grey": 1, "cat-bed": 1, plant: 3 }, maxOfEachFurniture: 5,
 };
 const bed: FurnitureView = { id: "b1", itemId: "cat-bed", name: "Cat bed", x: 2, z: -1, radius: 0.6, quarterTurns: 1 };
 const plant: FurnitureView = { id: "p1", itemId: "plant", name: "Potted plant", x: 2.9, z: -1, radius: 0.5, quarterTurns: 0 };
@@ -38,10 +38,9 @@ describe("newer", () => {
 });
 
 describe("countOf and furnitureLeft", () => {
-  it("counts what the player has, one of anything from a server that sends no counts", () => {
+  it("counts what the player has", () => {
     expect(countOf(shop, "plant")).toBe(3);
     expect(countOf(shop, "sofa")).toBe(0);
-    expect(countOf({ ...shop, counts: undefined }, "plant")).toBe(1);
   });
 
   it("lists the furniture the player has, in the shop's order, with how many are left to put out", () => {

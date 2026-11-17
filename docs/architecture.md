@@ -138,7 +138,10 @@ The owner chooses who may come in (`HomeVisitors`): their friends (every home st
 always may (`Home.MayVisit`). Visiting checks it (`HomeService.VisitAsync`), and "Go to" a friend who is in a home visits
 that home on the same terms. When the owner makes it stricter, the hub asks the home who is in it, the home's rule says
 who may no longer stay (`HomeService.MustLeaveAsync`), and the room sends them out (`IRoomGrain.SendOut`): each tab
-is told (`SentOut`) and goes back to Town Square in its own world.
+is told (`SentOut`) and goes back to Town Square in its own world. Ending a friendship asks both homes the same way.
+A move into a room or home that fails never leaves the cat in no room: it goes back into the room it left, except
+straight back into another player's home (which may no longer let it in), where the next renewal sends `RoomLost`
+and the browser comes back in by the checked way.
 
 In the browser, the way home is at the top of the friends list (the room bar has no room for another button on a folded
 phone). In their own home, the owner has Decorate and who can visit in the dock; decorating (`client/src/home.ts`) picks

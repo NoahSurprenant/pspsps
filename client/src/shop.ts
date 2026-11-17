@@ -22,9 +22,6 @@ export interface ShopRow {
   reason?: string;
 }
 
-/** How many of one piece of furniture a player can have (the server's ShopCatalog.MaxOfEachFurniture). */
-export const maxOfEachFurniture = 5;
-
 /** The shop's parts, in this order. */
 const sectionTitles: Record<ItemKind, string> = { Hat: "Hats", Collar: "Collars", Fur: "Fur", Furniture: "Furniture" };
 
@@ -65,7 +62,7 @@ export function shopRow(shop: Shop, item: ShopItem): ShopRow {
 /** A piece of furniture: how many the player has, and Buy (or Buy another, until they have as many as a cat keeps). */
 function furnitureRow(shop: Shop, item: ShopItem): ShopRow {
   const owned = countOf(shop, item.id);
-  if (owned >= maxOfEachFurniture) {
+  if (owned >= shop.maxOfEachFurniture) {
     return { item, status: `You have ${owned}, as many as a cat can keep` };
   }
   return owned > 0

@@ -326,8 +326,13 @@ export class Overlay {
     if (again) {
       again.focus();
     } else if (active !== undefined) {
-      // What had the focus went (a piece put away, the last one put out): the panel keeps it, at its heading.
+      // What had the focus went (a piece put away, the last one put out), or the panel just opened: at its heading.
+      panel.scrollTop = 0;
       heading.focus();
+    } else {
+      // Changed from the room (a tap on the floor or a piece): at its top, where the hint and Turn and Put away are, not
+      // scrolled down where the last button pressed was (on a short screen, its heading and Done were off the top).
+      panel.scrollTop = 0;
     }
   }
 
@@ -374,11 +379,11 @@ export class Overlay {
 
   /**
    * Another cat's player card, over the room: its name, its fur, and where the two stand, with the buttons for that
-   * (add, cancel, accept or decline, remove), and "Visit home" when its home would let the player in. `act` runs a
-   * button's change.
+   * (add, cancel, accept or decline, remove), and "Visit home" when <visitHome> is given (main.ts decides when). `act`
+   * runs a button's change.
    */
   showPlayerCard(card: PlayerCard, act: (action: FriendAction) => void, visitHome?: () => void): void {
-    const visit = card.canVisitHome && visitHome ? [button("Visit home", visitHome)] : [];
+    const visit = visitHome ? [button("Visit home", visitHome)] : [];
     const swatch = swatchOf(card.furColor);
     const status = friendStatus(card.friendState);
     const wearing = wearingLine(card);

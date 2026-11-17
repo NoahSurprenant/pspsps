@@ -1,4 +1,4 @@
-import type { FurnitureView, HomeView, HomeVisitors, PropView, Shop, ShopItem } from "./types";
+import type { FurnitureView, HomeView, HomeVisitors, PlayerCard, PropView, Shop, ShopItem } from "./types";
 
 /** A piece of furniture as the room's decoration: its kind (the shop item), where, its circle, and which way it faces. */
 export function propOf(piece: FurnitureView): PropView {
@@ -15,9 +15,9 @@ export function newer(current: HomeView | undefined, next: HomeView): HomeView {
   return current && current.ownerId === next.ownerId && current.version > next.version ? current : next;
 }
 
-/** How many of <itemId> the player has, as the shop says (one of anything owned, from a server that sends no counts). */
+/** How many of <itemId> the player has, as the shop says. */
 export function countOf(shop: Shop, itemId: string): number {
-  return shop.counts?.[itemId] ?? (shop.owned.includes(itemId) ? 1 : 0);
+  return shop.counts[itemId] ?? 0;
 }
 
 /** A piece of furniture the player has: how many, how many are out in their home, and how many are left to put out. */
@@ -96,4 +96,9 @@ export function visitorsMessage(visitors: HomeVisitors): string {
     case "Nobody":
       return "Nobody can visit now.";
   }
+}
+
+/** Whether a player card offers "Visit home": the cat's home lets the player in, and the player isn't in it already. */
+export function canVisitFromCard(card: Pick<PlayerCard, "playerId" | "canVisitHome">, hereHomeOwnerId: string | undefined): boolean {
+  return !!card.canVisitHome && card.playerId !== hereHomeOwnerId;
 }

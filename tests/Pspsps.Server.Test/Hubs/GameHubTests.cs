@@ -602,6 +602,7 @@ public sealed class GameHubTests
             Assert.That(shop.Hat, Is.EqualTo("bow"));
             Assert.That(shop.Coins, Is.EqualTo(15));
             Assert.That(shop.Owned, Is.EqualTo(new[] { "fur-grey", "bow" }));
+            Assert.That(shop.MaxOfEachFurniture, Is.EqualTo(ShopCatalog.MaxOfEachFurniture), "the client keeps the server's limit");
             Assert.That(shop.Items.Select(i => i.Id), Is.EqualTo(ShopCatalog.All.Select(i => i.Id)), "the whole catalogue, in order");
             Assert.That(shop.Items.Single(i => i.Id == "fur-calico"), Is.EqualTo(
                 new ShopItemView("fur-calico", "Calico fur", "Fur", ShopCatalog.PatternedFurPrice, "Calico")));
@@ -691,7 +692,7 @@ public sealed class GameHubTests
     public async Task VisitHome_JoinsTheHome_StayingInItsWorld_AndRenewsBoth()
     {
         var felixHome = HomeOf(Felix);
-        _homes.VisitAsync(Tom.Id, Felix, Arg.Any<CancellationToken>()).Returns(Plan(Felix, "Felix"));
+        _homes.VisitAsync(Tom.Id, Felix, Arg.Any<CancellationToken>()).Returns("Felix");
         felixHome.Join(default!, default!, default).ReturnsForAnyArgs(HomeSnapshot(Felix));
         var hub = Hub();
         await hub.EnterWorld("tabby");
@@ -739,7 +740,7 @@ public sealed class GameHubTests
     public async Task GoThroughDoor_OutOfAHome_GoesToTheTownSquareOfItsWorld_AtTheSpawnPoint()
     {
         var home = HomeOf(Tom.Id);
-        _homes.VisitAsync(Tom.Id, Tom.Id, Arg.Any<CancellationToken>()).Returns(Plan(Tom.Id, "Tom"));
+        _homes.VisitAsync(Tom.Id, Tom.Id, Arg.Any<CancellationToken>()).Returns("Tom");
         home.Join(default!, default!, default).ReturnsForAnyArgs(HomeSnapshot(Tom.Id));
         home.LeaveThrough(Tom.Id, Connection, "out").Returns(new DoorTarget("town-square", null));
         var hub = Hub();
@@ -913,7 +914,7 @@ public sealed class GameHubTests
     {
         // Not a rule broken: the home's grain couldn't read it (the database timed out).
         var felixHome = HomeOf(Felix);
-        _homes.VisitAsync(Tom.Id, Felix, Arg.Any<CancellationToken>()).Returns(Plan(Felix, "Felix"));
+        _homes.VisitAsync(Tom.Id, Felix, Arg.Any<CancellationToken>()).Returns("Felix");
         felixHome.Join(default!, default!, default).ThrowsAsyncForAnyArgs(new TimeoutException());
         var hub = Hub();
         await hub.EnterWorld("tabby");
@@ -931,7 +932,7 @@ public sealed class GameHubTests
     {
         // The home may no longer let the cat in: it goes back through the checked way, after the renewal says it's lost.
         var felixHome = HomeOf(Felix);
-        _homes.VisitAsync(Tom.Id, Felix, Arg.Any<CancellationToken>()).Returns(Plan(Felix, "Felix"));
+        _homes.VisitAsync(Tom.Id, Felix, Arg.Any<CancellationToken>()).Returns("Felix");
         felixHome.Join(default!, default!, default).ReturnsForAnyArgs(HomeSnapshot(Felix));
         felixHome.LeaveThrough(Tom.Id, Connection, "out").Returns(new DoorTarget("town-square", null));
         felixHome.Renew(default!).ReturnsForAnyArgs(Task.FromResult<IReadOnlyList<string>>([Connection]));
@@ -969,7 +970,7 @@ public sealed class GameHubTests
     public async Task GoToRoom_IntoAFullRoom_FromAHomeThatSentTheCatOut_DoesntGoBackIntoTheHome()
     {
         var felixHome = HomeOf(Felix);
-        _homes.VisitAsync(Tom.Id, Felix, Arg.Any<CancellationToken>()).Returns(Plan(Felix, "Felix"));
+        _homes.VisitAsync(Tom.Id, Felix, Arg.Any<CancellationToken>()).Returns("Felix");
         felixHome.Join(default!, default!, default).ReturnsForAnyArgs(HomeSnapshot(Felix));
         var hub = Hub();
         await hub.EnterWorld("tabby");
@@ -1006,7 +1007,7 @@ public sealed class GameHubTests
     public async Task GoToRoom_FullFromAnotherPlayersHome_DoesntGoBackInto_ButLetsTheRenewalSendTheTabBack()
     {
         var felixHome = HomeOf(Felix);
-        _homes.VisitAsync(Tom.Id, Felix, Arg.Any<CancellationToken>()).Returns(Plan(Felix, "Felix"));
+        _homes.VisitAsync(Tom.Id, Felix, Arg.Any<CancellationToken>()).Returns("Felix");
         felixHome.Join(default!, default!, default).ReturnsForAnyArgs(HomeSnapshot(Felix));
         felixHome.Renew(default!).ReturnsForAnyArgs(Task.FromResult<IReadOnlyList<string>>([]));
         var hub = Hub();
@@ -1027,7 +1028,7 @@ public sealed class GameHubTests
     {
         var felixHome = HomeOf(Felix);
         _homes.VisitAsync(Tom.Id, Felix, Arg.Any<CancellationToken>()).Returns(
-            Task.FromResult(Plan(Felix, "Felix")), Task.FromException<HomePlan>(new TimeoutException()));
+            Task.FromResult("Felix"), Task.FromException<string>(new TimeoutException()));
         felixHome.Join(default!, default!, default).ReturnsForAnyArgs(HomeSnapshot(Felix));
         var hub = Hub();
         await hub.EnterWorld("tabby");
@@ -1062,7 +1063,7 @@ public sealed class GameHubTests
     public async Task VisitHome_ThatIsFull_ComesBackIntoTheRoomItLeft_AndSaysWhy()
     {
         var felixHome = HomeOf(Felix);
-        _homes.VisitAsync(Tom.Id, Felix, Arg.Any<CancellationToken>()).Returns(Plan(Felix, "Felix"));
+        _homes.VisitAsync(Tom.Id, Felix, Arg.Any<CancellationToken>()).Returns("Felix");
         felixHome.Join(default!, default!, default).ThrowsAsyncForAnyArgs(new GameRuleException("Felix's home is full."));
         var hub = Hub();
         await hub.EnterWorld("tabby");
@@ -1083,8 +1084,8 @@ public sealed class GameHubTests
         // missed this cat, so the cat checks again once in, and goes back out.
         var felixHome = HomeOf(Felix);
         _homes.VisitAsync(Tom.Id, Felix, Arg.Any<CancellationToken>()).Returns(
-            Task.FromResult(Plan(Felix, "Felix")),
-            Task.FromException<HomePlan>(new DomainException("That home isn't open to visitors right now.")));
+            Task.FromResult("Felix"),
+            Task.FromException<string>(new DomainException("That home isn't open to visitors right now.")));
         felixHome.Join(default!, default!, default).ReturnsForAnyArgs(HomeSnapshot(Felix));
         var hub = Hub();
         await hub.EnterWorld("tabby");
@@ -1114,7 +1115,7 @@ public sealed class GameHubTests
         new(RoomKey.Homes, "home", "A home", 12, 9, [], [], [], null, [], [], new HomeView(owner, "Owner", "Friends", []));
 
     private static Wardrobe Dressed(string? hat, string? collar) =>
-        new(Tom.Id, 15, ["fur-grey", "bow"], FurColor.Grey, hat, collar);
+        new(Tom.Id, 15, new Dictionary<string, int> { ["fur-grey"] = 1, ["bow"] = 1 }, FurColor.Grey, hat, collar);
 
     private GameHub Hub()
     {

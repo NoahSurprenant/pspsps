@@ -10,7 +10,7 @@ import type { CatAnimation } from "./cat";
 import type { RoomScene } from "./scene";
 import { Overlay, type DecorateActions, type Note } from "./ui";
 import {
-  decoratingHint, furnitureLeft, isOwnHome, pieceAt, propOf, propsOf, visitorsMessage, type Decorating,
+  canVisitFromCard, decoratingHint, furnitureLeft, isOwnHome, pieceAt, propOf, propsOf, visitorsMessage, type Decorating,
 } from "./home";
 import type { FriendAction } from "./friends";
 import { shopMessage, showsOutfit, type ShopAction } from "./shop";
@@ -451,10 +451,12 @@ async function openCard(playerId: string): Promise<void> {
 }
 
 function showCard(card: PlayerCard): void {
-  overlay.showPlayerCard(card, (action) => void changeFriendship(action, card.playerId), () => {
+  // "Visit home", unless the player is in that home already.
+  const visit = canVisitFromCard(card, room?.snapshot.home?.ownerId) ? () => {
     overlay.closeDialog();
     visitHome(card.playerId);
-  });
+  } : undefined;
+  overlay.showPlayerCard(card, (action) => void changeFriendship(action, card.playerId), visit);
 }
 
 /**
