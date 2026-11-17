@@ -101,9 +101,11 @@ grep -qx '            nodeAffinity:' <<< "$placed" || fail "the backup pod ignor
 [[ "$(env_value "$(backup --set backup.connectTimeoutSeconds=30)" BACKUP_CONNECT_SECONDS)" == 30 ]] \
   || fail "BACKUP_CONNECT_SECONDS doesn't follow backup.connectTimeoutSeconds"
 
-# Settings the chart refuses: keep 1 leaves no dump while a run deletes the previous one.
+# Settings the chart refuses: keep 1 leaves no dump while a run deletes the previous one; a connect wait as long as
+# the job's deadline ends in DeadlineExceeded, with no retry and no word of why.
 for bad in backup.keep=1 backup.keep=0 backup.activeDeadlineSeconds=0 backup.connectTimeoutSeconds=0 \
-  postgres.enabled=false; do
+  postgres.enabled=false backup.connectTimeoutSeconds=3600 \
+  backup.activeDeadlineSeconds=100,backup.connectTimeoutSeconds=100; do
   if backup --set "$bad" > /dev/null 2>&1; then fail "rendered with backups on and $bad"; fi
 done
 
