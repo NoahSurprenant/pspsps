@@ -14,6 +14,9 @@ public sealed class PostgresFixture
 
     public static GameFactory Game => _game ?? throw new InvalidOperationException("The fixture hasn't started.");
 
+    public static string ConnectionString =>
+        _container?.GetConnectionString() ?? throw new InvalidOperationException("The fixture hasn't started.");
+
     [OneTimeSetUp]
     public async Task StartAsync()
     {

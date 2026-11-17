@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../../src/Pspsps.Server/Pspsps.Server.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" />
+    <PackageReference Include="NSubstitute" />
+    <PackageReference Include="OpenTelemetry.Exporter.InMemory" />
+  </ItemGroup>
+</Project>

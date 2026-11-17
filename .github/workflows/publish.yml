@@ -53,6 +53,7 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: SOURCE_REVISION=${{ github.sha }}
       - name: Sign
         env:
           DIGEST: ${{ steps.build.outputs.digest }}
