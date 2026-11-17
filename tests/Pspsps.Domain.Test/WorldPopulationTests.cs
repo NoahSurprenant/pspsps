@@ -82,4 +82,17 @@ public sealed class WorldPopulationTests
         Assert.That(population.Count, Is.EqualTo(2));
         Assert.That(population.RemoveExpired(Now + SessionLease.Duration), Is.Zero, "counted back in with fresh leases");
     }
+
+    [Test]
+    public void Renew_ArrivingAfterTheTabLeft_DoesNotCountItBackIn()
+    {
+        // The heartbeat read the tab's place just before it left (another world, or the tab closed).
+        var population = new WorldPopulation(World);
+        population.TryEnter(Tom, TabA, Now);
+        population.Leave(Tom, TabA);
+
+        population.Renew(Tom, TabA, Now + TimeSpan.FromSeconds(1));
+
+        Assert.That(population.Count, Is.Zero);
+    }
 }

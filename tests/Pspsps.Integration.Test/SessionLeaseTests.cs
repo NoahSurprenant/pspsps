@@ -1,8 +1,10 @@
+using System.Diagnostics.Metrics;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.DependencyInjection;
 using Pspsps.Domain;
 using Pspsps.Server.Game;
 using Pspsps.Server.Hubs;
+using Pspsps.Server.Telemetry;
 
 namespace Pspsps.Integration.Test;
 
@@ -72,5 +74,67 @@ public sealed class SessionLeaseTests
         await felixHub.InvokeAsync<RoomSnapshot>("EnterWorld", WorldId);
         var room = await felixHub.InvokeAsync<RoomSnapshot>("GoToRoom", "cafe");
         Assert.That(room.Cats.Select(c => c.PlayerId), Does.Contain(felix.Id));
+    }
+
+    [Test]
+    public async Task ATabWhoseRoomLostItsCat_HearsNothingMoreFromThatRoom()
+    {
+        var (felix, felixHub) = await Game.ConnectGuestAsync();
+        var (tom, tomHub) = await Game.ConnectGuestAsync();
+        await using var _ = felixHub;
+        await using var __ = tomHub;
+        var lost = new TaskCompletionSource();
+        felixHub.On("RoomLost", () => lost.TrySetResult());
+        var felixSees = new Recorder(felixHub);
+        foreach (var hub in new[] { felixHub, tomHub })
+        {
+            await hub.InvokeAsync<RoomSnapshot>("EnterWorld", "siamese");
+            await hub.InvokeAsync<RoomSnapshot>("GoToRoom", "cafe");
+        }
+
+        var grains = Game.Services.GetRequiredService<IGrainFactory>();
+        await grains.GetGrain<IRoomGrain>(RoomKey.For("siamese", "cafe")).Leave(felix.Id, felixHub.ConnectionId!);
+        await Game.Get<SessionHeartbeat>().RenewAsync();
+        await lost.Task.WaitAsync(TimeSpan.FromSeconds(10));
+
+        await tomHub.InvokeAsync("Move", 2.0, 2.0);
+        await tomHub.InvokeAsync("Say", "anyone?");
+
+        Assert.That(await felixSees.Saw<ChatView>("ChatSaid", c => c.PlayerId == tom.Id, TimeSpan.FromSeconds(2)), Is.False);
+    }
+
+    [Test]
+    public async Task ARenewalThatWakesAnEmptyRoom_DoesNotCountItActive()
+    {
+        var activeRooms = new List<long>();
+        using var listener = new MeterListener
+        {
+            InstrumentPublished = (instrument, l) =>
+            {
+                if (instrument is { Name: "pspsps.rooms.active", Meter.Name: GameMetrics.MeterName })
+                {
+                    l.EnableMeasurementEvents(instrument);
+                }
+            },
+        };
+        listener.SetMeasurementEventCallback<long>((_, value, _, _) =>
+        {
+            lock (activeRooms)
+            {
+                activeRooms.Add(value);
+            }
+        });
+        listener.Start();
+
+        // A room grain nobody has activated (the room's actor only checks the room part of its key).
+        var grains = Game.Services.GetRequiredService<IGrainFactory>();
+        var lost = await grains.GetGrain<IRoomGrain>(RoomKey.For( world-{Guid.NewGuid():N}", "cafe"))
+            .Renew([new PlayerSession(Guid.NewGuid(), "a-tab-on-a-live-pod")]);
+
+        Assert.That(lost, Is.EqualTo(new[] { "a-tab-on-a-live-pod" }));
+        lock (activeRooms)
+        {
+            Assert.That(activeRooms, Does.Not.Contain(1L), "an empty room isn't an active one");
+        }
     }
 }
