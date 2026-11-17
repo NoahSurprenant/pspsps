@@ -59,24 +59,41 @@ declare global {
           cats: Map<string, { x: number; z: number; pose: string | null }>;
           chat: { playerId: string; text: string }[];
           emotes: Map<string, { playerId: string; emote: string }>;
-          snapshot: { worldId: string };
+          snapshot: {
+            worldId: string;
+            roomId: string;
+            doors: { id: string; x: number; z: number; radius: number; toRoomId: string }[];
+          };
         }
         | undefined;
       coins(): number;
       fishing(): "idle" | "casting" | "waiting" | "bite" | "reeling";
+      animation(playerId: string): string | undefined;
+      screenPoint(x: number, z: number): { x: number; y: number } | undefined;
       catOnScreen(playerId: string): { x: number; y: number } | undefined;
     };
   }
 }
 
+/** The animation a cat is playing on this page ("idle", "walk", ...), once it is drawn (window.pspsps). */
+export function animation(page: Page, playerId: string): Promise<string | undefined> {
+  return page.evaluate((id) => window.pspsps?.animation(id), playerId);
+}
+
 /** Town Square's pond water (#5fb3d9). */
 export const pondBlue: [number, number, number] = [0x5f, 0xb3, 0xd9];
 
-/** How many pixels (sampled) are within a small distance of <rgb>. */
-export function pixelsNear(png: Buffer, rgb: [number, number, number]): number {
+/** A cat's eyes (#ffc85a, client/src/cat.ts), whatever its fur: nothing else in a room is this yellow. */
+export const catEyes: [number, number, number] = [0xff, 0xc8, 0x5a];
+
+/** A door's mat (#c8553d, client/src/scene.ts). */
+export const doorMatRed: [number, number, number] = [0xc8, 0x55, 0x3d];
+
+/** How many pixels (every <step>th; by default a sample) are within a small distance of <rgb>. */
+export function pixelsNear(png: Buffer, rgb: [number, number, number], step = 7): number {
   const image = PNG.sync.read(png);
   let near = 0;
-  for (let i = 0; i < image.data.length; i += 4 * 7) {
+  for (let i = 0; i < image.data.length; i += 4 * step) {
     const d = Math.abs(image.data[i]! - rgb[0]) + Math.abs(image.data[i + 1]! - rgb[1]) + Math.abs(image.data[i + 2]! - rgb[2]);
     if (d < 30) near++;
   }
@@ -84,10 +101,12 @@ export function pixelsNear(png: Buffer, rgb: [number, number, number]): number {
 }
 
 /**
- * Clicks (or taps) a cat in the room, once it stands still on screen: a cat that just walked is still on its way on the
- * canvas.
+ * Clicks (or taps) a cat in the room, once it is drawn and stands still on screen: a cat that just walked is still on
+ * its way on the canvas.
  */
 export async function clickCat(page: Page, playerId: string): Promise<void> {
+  // A cat takes taps once its model is drawn.
+  await expect.poll(() => page.evaluate((id) => window.pspsps?.animation(id), playerId)).toBeDefined();
   let last: string | undefined;
   await expect.poll(async () => {
     const at = await page.evaluate((id) => window.pspsps?.catOnScreen(id), playerId);

@@ -45,11 +45,37 @@ public sealed record RoomSnapshot(
     [property: Id(5)] IReadOnlyList<CatView> Cats,
     [property: Id(6)] IReadOnlyList<ChatView> Chat,
     [property: Id(7)] IReadOnlyList<RoomLink> Rooms,
-    [property: Id(8)] PondView? Pond);
+    [property: Id(8)] PondView? Pond,
+    [property: Id(9)] IReadOnlyList<DoorView> Doors);
 
 /// <summary>Where a room's pond is, for drawing it and walking to it.</summary>
 [GenerateSerializer, Immutable]
 public sealed record PondView([property: Id(0)] double X, [property: Id(1)] double Z, [property: Id(2)] double Radius);
+
+/// <summary>
+/// A door out of the room: a round spot on the floor (X, Z, Radius) to walk onto, and the room it leads to, for drawing
+/// it and walking through it.
+/// </summary>
+[GenerateSerializer, Immutable]
+public sealed record DoorView(
+    [property: Id(0)] string Id,
+    [property: Id(1)] double X,
+    [property: Id(2)] double Z,
+    [property: Id(3)] double Radius,
+    [property: Id(4)] string ToRoomId,
+    [property: Id(5)] string ToRoomName)
+{
+    public static DoorView From(Door door)
+    {
+        ArgumentNullException.ThrowIfNull(door);
+        var to = RoomCatalog.Find(door.ToRoom) ?? throw new InvalidOperationException($"No room '{door.ToRoom}'.");
+        return new DoorView(door.Id, door.Spot.X, door.Spot.Z, door.Radius, to.Id, to.Name);
+    }
+}
+
+/// <summary>Where a door a cat went through leads: a room, and the door in it the cat comes in by.</summary>
+[GenerateSerializer, Immutable]
+public sealed record DoorTarget([property: Id(0)] string RoomId, [property: Id(1)] string DoorId);
 
 /// <summary>
 /// How a reel went: "caught" with the fish and the coins it paid, "too-early" or "too-late" with nothing. TotalCoins is

@@ -177,5 +177,47 @@ public sealed class GameHubTests
         Assert.That(await felixSees.Saw<Guid>("CatLeft", id => id == tom.Id, TimeSpan.FromSeconds(2)), Is.False);
     }
 
+    [Test]
+    public async Task ACatGoesThroughADoorItStandsOn_AndArrivesByTheMatchingDoor_ButNotThroughOneAcrossTheRoom()
+    {
+        var (_, tomHub) = await Game.ConnectGuestAsync();
+        var (felix, felixHub) = await Game.ConnectGuestAsync();
+        await using var _ = tomHub;
+        await using var __ = felixHub;
+        var tomSees = Record(tomHub);
+        await tomHub.InvokeAsync<RoomSnapshot>("EnterWorld", "calico");
+        var square = await felixHub.InvokeAsync<RoomSnapshot>("EnterWorld", "calico");
+        var door = square.Doors.Single(d => d.ToRoomId == "cafe");
+        Assert.That(door.ToRoomName, Is.EqualTo("Cat Café"));
+
+        // From the spawn point, across the square: refused, and Felix is still there, walking.
+        var refused = Assert.ThrowsAsync<HubException>(() => felixHub.InvokeAsync<RoomSnapshot>("GoThroughDoor", door.Id));
+        Assert.That(refused!.Message, Does.Contain("Walk up to the door to go through it."));
+        await felixHub.InvokeAsync("Move", door.X, door.Z);
+        Assert.That(await tomSees.Next<(Guid, double, double)>("CatMoved", m => m.Item1 == felix.Id),
+            Is.EqualTo((felix.Id, door.X, door.Z)));
+
+        // On the door: through it, into the café, just inside its door back to the square.
+        var cafe = await felixHub.InvokeAsync<RoomSnapshot>("GoThroughDoor", door.Id);
+
+        Assert.That(cafe.RoomId, Is.EqualTo("cafe"));
+        Assert.That(await tomSees.Next<Guid>("CatLeft", id => id == felix.Id), Is.EqualTo(felix.Id));
+        var back = RoomCatalog.Find("cafe")!.Doors.Single(d => d.ToRoom == "town-square");
+        var felixInCafe = cafe.Cats.Single(c => c.PlayerId == felix.Id);
+        Assert.That((felixInCafe.X, felixInCafe.Z), Is.EqualTo((back.Arrival.X, back.Arrival.Z)));
+        Assert.That(cafe.Doors.Select(d => d.Id), Does.Contain(back.Id));
+
+        // Arriving isn't standing on the door: going straight back is refused until Felix walks onto it.
+        Assert.ThrowsAsync<HubException>(() => felixHub.InvokeAsync<RoomSnapshot>("GoThroughDoor", back.Id));
+        await felixHub.InvokeAsync("Move", back.Spot.X, back.Spot.Z);
+        var again = await felixHub.InvokeAsync<RoomSnapshot>("GoThroughDoor", back.Id);
+
+        Assert.That(again.RoomId, Is.EqualTo("town-square"));
+        var cafeDoor = RoomCatalog.Find("town-square")!.GetDoor(door.Id);
+        var felixInSquare = again.Cats.Single(c => c.PlayerId == felix.Id);
+        Assert.That((felixInSquare.X, felixInSquare.Z), Is.EqualTo((cafeDoor.Arrival.X, cafeDoor.Arrival.Z)));
+        Assert.That(await tomSees.Next<CatView>("CatJoined", c => c.PlayerId == felix.Id), Is.Not.Null);
+    }
+
     private static Recorder Record(HubConnection hub) => new(hub);
 }

@@ -4,6 +4,9 @@ import { defineConfig } from "vitest/config";
 const server = "http://localhost:5080";
 
 export default defineConfig({
+  // The cat model (src/models/cat.glb) is an asset: the scene imports it ?url, and cat.test.ts ?inline, which Vite
+  // otherwise tries to parse as JavaScript.
+  assetsInclude: ["**/*.glb"],
   server: {
     proxy: {
       "/auth": server,

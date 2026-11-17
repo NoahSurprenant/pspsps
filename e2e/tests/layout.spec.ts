@@ -1,7 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
-import { pixelsNear, pondBlue, watchErrors } from "./game";
+import { doorMatRed, pixelsNear, pondBlue, watchErrors } from "./game";
 import { contextFor, SCREENS, type Screen, type Size } from "./screens";
 
 // Every screen at every size: every control and line of text can be reached (on screen, or in a panel that scrolls),
@@ -45,16 +45,22 @@ const CHECKS: Record<Screen["name"], Checks> = {
   friends: { parts: [".sheet"] },
   "town-square": {
     parts: [".room-bar", ".emote-bar", ".chat-bar", ".fishing"],
-    // The pond, drawn: from further off (a narrow screen backs the camera away) the floor's outline once hid it.
-    // Waited for, as software WebGL can be slow to draw the first frames, and seen with the controls hidden.
+    // The pond and the café door's mat, drawn: from further off (a narrow screen backs the camera away) the floor's
+    // outline once hid the pond. Waited for, as software WebGL can be slow to draw the first frames, and seen with the
+    // controls hidden.
     shows: async (page) => {
       await page.locator("#ui").evaluate((ui) => (ui.style.visibility = "hidden"));
       try {
-        await expect.poll(async () => pixelsNear(await page.locator("#game").screenshot(), pondBlue), { timeout: 15_000 })
-          .toBeGreaterThan(20);
-        return [];
-      } catch {
-        return ["the pond is not drawn"];
+        const missing: string[] = [];
+        for (const [what, rgb, least] of [["the pond", pondBlue, 20], ["the door's mat", doorMatRed, 2]] as const) {
+          try {
+            await expect.poll(async () => pixelsNear(await page.locator("#game").screenshot(), rgb), { timeout: 15_000 })
+              .toBeGreaterThan(least);
+          } catch {
+            missing.push(`${what} is not drawn`);
+          }
+        }
+        return missing;
       } finally {
         await page.locator("#ui").evaluate((ui) => (ui.style.visibility = ""));
       }

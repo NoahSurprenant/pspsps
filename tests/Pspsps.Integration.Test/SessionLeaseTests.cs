@@ -32,7 +32,7 @@ public sealed class SessionLeaseTests
         var tom = new PlayerCard(Guid.NewGuid(), "Tom", "Grey");
         const string deadTab = "a-dead-pods-connection";
         Assert.That(await world.TryEnter(tom.PlayerId, deadTab), Is.True);
-        var joined = await room.Join(tom, deadTab);
+        var joined = await room.Join(tom, deadTab, throughDoor: null);
         Assert.That(joined.Cats.Select(c => c.PlayerId), Is.EquivalentTo(new[] { felix.Id, tom.PlayerId }));
         var population = await world.GetPopulation();
 

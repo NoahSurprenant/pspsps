@@ -109,6 +109,11 @@ export class GameConnection {
     return this.hub.invoke<RoomSnapshot>("GoToRoom", roomId);
   }
 
+  /** Goes through a door the cat stands on, into the room it leads to. */
+  goThroughDoor(doorId: string): Promise<RoomSnapshot> {
+    return this.hub.invoke<RoomSnapshot>("GoThroughDoor", doorId);
+  }
+
   move(x: number, z: number): Promise<void> {
     return this.hub.invoke("Move", x, z);
   }

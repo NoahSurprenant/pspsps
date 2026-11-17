@@ -8,17 +8,12 @@ export const emoteBar: readonly { emote: Emote; label: string; key: string }[] =
   { emote: "sleep", label: "Sleep", key: "4" },
 ];
 
-/** How each held pose squashes the cat's body (x, y, z scale). */
-export const poseScales: Record<Pose, readonly [number, number, number]> = {
-  // Sitting: shorter and a little rounder.
-  sit: [1.1, 0.7, 0.9],
-  // Asleep: lying flat, spread out.
-  sleep: [1.25, 0.4, 1.2],
-};
+/** The emotes a cat holds until it walks, each an animation of the cat (cat.ts). */
+export const poses: readonly Pose[] = ["sit", "sleep"];
 
-/** Whether <emote> is one the cat holds until it walks (sit, sleep): the poses are the keys of {@link poseScales}. */
+/** Whether <emote> is one the cat holds until it walks (sit, sleep). */
 export function isPose(emote: Emote): emote is Pose {
-  return emote in poseScales;
+  return (poses as readonly Emote[]).includes(emote);
 }
 
 /** The emote a key press asks for: 1-4 with no modifiers, and never while the player is typing. */

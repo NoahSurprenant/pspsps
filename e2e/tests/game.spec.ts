@@ -1,5 +1,7 @@
 import { PNG } from "pngjs";
-import { cats, clickCat, emotes, enterWorld, expect, hubGuest, newPlayer, pixelsNear, pondBlue, test, watchErrors } from "./game";
+import {
+  animation, catEyes, cats, clickCat, emotes, enterWorld, expect, hubGuest, newPlayer, pixelsNear, pondBlue, test, watchErrors,
+} from "./game";
 
 test("the sign-in page loads without errors", async ({ page }) => {
   await page.goto("/");
@@ -163,10 +165,37 @@ test("a cat that arrives later sees a sleeping cat asleep", async ({ page: tom, 
     await enterWorld(tom, "Siamese");
 
     expect((await cats(tom))[felixId]?.pose).toBe("sleep");
+    await expect.poll(() => animation(tom, felixId)).toBe("sleep");
     expect(felix.errors, "Felix's console errors and uncaught exceptions").toEqual([]);
   } finally {
     await felix.close();
   }
+});
+
+test("a cat is drawn, walks with its walk animation and idles when it stops", async ({ page }) => {
+  const playerId = await enterWorld(page, "Calico");
+
+  // The model loads on the way into the room: the cat idles once it's drawn, facing the camera with its yellow eyes.
+  await expect.poll(() => animation(page, playerId)).toBe("idle");
+  await page.locator("#ui").evaluate((ui) => (ui.style.visibility = "hidden"));
+  await expect.poll(async () => pixelsNear(await page.locator("#game").screenshot(), catEyes, 1)).toBeGreaterThan(10);
+  await page.locator("#ui").evaluate((ui) => (ui.style.visibility = ""));
+
+  // Sent to the middle of the room, 4 m from the spawn point: it walks there (a second), then idles.
+  const canvas = await page.locator("#game").boundingBox();
+  if (!canvas) throw new Error("no canvas");
+  await page.mouse.click(canvas.x + canvas.width / 2, canvas.y + canvas.height / 2);
+  await expect.poll(() => animation(page, playerId), { intervals: [50] }).toBe("walk");
+  await expect.poll(() => animation(page, playerId)).toBe("idle");
+
+  // The poses and the wave are animations too.
+  await page.getByRole("button", { name: "Sit" }).click();
+  await expect.poll(() => animation(page, playerId)).toBe("sit");
+  // The server takes one emote a second.
+  await page.waitForTimeout(1_100);
+  await page.getByRole("button", { name: "Wave" }).click();
+  await expect.poll(() => animation(page, playerId), { intervals: [50] }).toBe("wave");
+  await expect.poll(() => animation(page, playerId)).toBe("sit");
 });
 
 /** How many distinct colours a PNG has (sampled), to tell a drawn room from a flat background. */
@@ -400,4 +429,30 @@ test("the friends list keeps the focus where it was when a request arrives", asy
     await felix.hub.stop();
     await garfield.hub.stop();
   }
+});
+
+test("a guest walks through the café door and comes in by the café's door back", async ({ page }) => {
+  const me = await enterWorld(page, "Tabby");
+  const door = await page.evaluate(() => window.pspsps?.room()?.snapshot.doors.find((d) => d.toRoomId === "cafe"));
+  if (!door) throw new Error("Town Square has no door to the café");
+
+  // Click the door's mat where it is drawn: the cat walks onto it, then through.
+  const canvas = await page.locator("#game").boundingBox();
+  if (!canvas) throw new Error("no canvas");
+  const mat = await page.evaluate(({ x, z }) => window.pspsps?.screenPoint(x, z), door);
+  if (!mat) throw new Error("the door isn't drawn");
+  await page.mouse.click(canvas.x + mat.x, canvas.y + mat.y);
+
+  await expect(page.locator(".room-bar strong")).toHaveText("Cat Café");
+  // In the café, just inside its door back to the square: by it, not on it, and not at the spawn point.
+  const back = await page.evaluate(() => window.pspsps?.room()?.snapshot.doors.find((d) => d.toRoomId === "town-square"));
+  if (!back) throw new Error("the café has no door back");
+  const cat = (await cats(page))[me];
+  if (!cat) throw new Error("the cat isn't in the café");
+  const fromDoor = Math.hypot(cat.x - back.x, cat.z - back.z);
+  expect(fromDoor).toBeGreaterThan(back.radius);
+  expect(fromDoor).toBeLessThan(back.radius + 1);
+  expect(cat).not.toMatchObject({ x: 0, z: 3 });
+  // The room bar still goes anywhere, the quick way.
+  await expect(page.getByRole("button", { name: "Town Square" })).toBeVisible();
 });

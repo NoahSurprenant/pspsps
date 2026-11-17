@@ -23,6 +23,9 @@ internal sealed class RoomGrain(
     private string _key = "";
     private RoomState _state = null!;
 
+    // The room's doors as the browser sees them: catalogue data, the same for every join.
+    private IReadOnlyList<DoorView> _doors = [];
+
     // Counted in pspsps.rooms.active once a cat joins, not on activation: a renewal can wake an empty room for a moment.
     private bool _counted;
 
@@ -38,6 +41,7 @@ internal sealed class RoomGrain(
         var (_, roomId) = RoomKey.Parse(_key);
         var room = RoomCatalog.Find(roomId) ?? throw new InvalidOperationException($"No room '{roomId}'.");
         _state = new RoomState(room);
+        _doors = [.. room.Doors.Select(DoorView.From)];
         this.RegisterGrainTimer(
             static (grain, _) => grain.RemoveExpired(),
             this,
@@ -55,10 +59,10 @@ internal sealed class RoomGrain(
         return Task.CompletedTask;
     }
 
-    public async Task<RoomSnapshot> Join(PlayerCard player, string session)
+    public async Task<RoomSnapshot> Join(PlayerCard player, string session, string? throughDoor)
     {
         var fur = Enum.Parse<FurColor>(player.FurColor);
-        var cat = Rule(() => _state.Join(player.PlayerId, player.DisplayName, fur, session, time.GetUtcNow()));
+        var cat = Rule(() => _state.Join(player.PlayerId, player.DisplayName, fur, session, time.GetUtcNow(), throughDoor));
         if (!_counted)
         {
             _counted = true;
@@ -77,7 +81,8 @@ internal sealed class RoomGrain(
             [.. _state.Cats.Select(CatView.From)],
             [.. _state.RecentChat.Select(ChatView.From)],
             [.. RoomCatalog.All.Where(r => r.Id != _state.Room.Id).Select(r => new RoomLink(r.Id, r.Name))],
-            _state.Room.Pond is { } pond ? new PondView(pond.Center.X, pond.Center.Z, pond.Radius) : null);
+            _state.Room.Pond is { } pond ? new PondView(pond.Center.X, pond.Center.Z, pond.Radius) : null,
+            _doors);
     }
 
     public async Task Leave(Guid playerId, string session)
@@ -87,10 +92,15 @@ internal sealed class RoomGrain(
             await broadcaster.CatLeft(_key, playerId);
         }
 
-        if (_state.Cats.Count == 0)
-        {
-            DeactivateOnIdle();
-        }
+        GoIfEmpty();
+    }
+
+    public async Task<DoorTarget> LeaveThrough(Guid playerId, string session, string doorId)
+    {
+        var door = Rule(() => _state.LeaveThrough(playerId, session, doorId));
+        await broadcaster.CatLeft(_key, playerId);
+        GoIfEmpty();
+        return new DoorTarget(door.ToRoom, door.ToDoor);
     }
 
     public Task<IReadOnlyList<string>> Renew(IReadOnlyList<PlayerSession> sessions)
@@ -212,6 +222,15 @@ internal sealed class RoomGrain(
 
         await Task.WhenAll(expired.Select(playerId => broadcaster.CatLeft(_key, playerId)));
 
+        if (_state.Cats.Count == 0)
+        {
+            DeactivateOnIdle();
+        }
+    }
+
+    // The last cat out: the room goes, and forgets everything.
+    private void GoIfEmpty()
+    {
         if (_state.Cats.Count == 0)
         {
             DeactivateOnIdle();
