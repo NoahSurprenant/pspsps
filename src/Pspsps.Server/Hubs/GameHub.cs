@@ -220,10 +220,10 @@ public sealed partial class GameHub(
         {
             return await JoinRoom(place.WorldId, key, throughDoor: null);
         }
-        catch (HubException) when (place.RoomKey is { } was && !heartbeat.IsClosed(Context.ConnectionId))
+        catch (HubException) when (place.RoomKey is { } left && !heartbeat.IsClosed(Context.ConnectionId))
         {
             // The room is full (or its owner doesn't let the cat in): back into the room it left, and told why.
-            await JoinRoom(place.WorldId, was, throughDoor: null);
+            await JoinRoom(place.WorldId, left, throughDoor: null);
             throw;
         }
     }
