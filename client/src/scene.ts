@@ -3,7 +3,7 @@ import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
 import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
-import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
 import { CreateCylinder } from "@babylonjs/core/Meshes/Builders/cylinderBuilder";
@@ -20,10 +20,14 @@ import { cameraPitch, cameraRadius, fieldOfView } from "./view";
 import { buildCat } from "./cat";
 import { poseScales } from "./emotes";
 import { CatLook } from "./look";
-import type { CatView, Emote, RoomSnapshot } from "./types";
+import type { CatView, DoorView, Emote, RoomSnapshot } from "./types";
 
 const walkSpeed = 4; // metres per second
 const sky = Color4.FromHexString("#bfe3f2ff");
+/** A door's mat: its own red, which nothing else in a room is (the layout test looks for it). */
+export const doorMatColour = "#c8553d";
+/** How close (in metres) a cat drawn walking somewhere counts as there. */
+const there = 0.05;
 
 interface CatOnScreen {
   root: TransformNode;
@@ -35,6 +39,9 @@ interface CatOnScreen {
   bubble?: { box: Rectangle; text: string };
   // Hidden until the cat waves.
   paw: AbstractMesh;
+  // Someone waiting for the cat to be drawn standing at a spot (a walk to a door), told true when it is, false if it
+  // is sent elsewhere first.
+  arrival?: { x: number; z: number; done: (arrived: boolean) => void };
 }
 
 /** Draws one room at a time and walks the cats in it. Knows nothing about the network. */
@@ -44,6 +51,7 @@ export class RoomScene {
   private readonly cats = new Map<string, CatOnScreen>();
   private floorClicked: (x: number, z: number) => void = () => {};
   private pondClicked: () => void = () => {};
+  private doorClicked: (door: DoorView) => void = () => {};
 
   constructor(private readonly engine: AbstractEngine) {
     this.scene = new Scene(this.engine);
@@ -67,8 +75,15 @@ export class RoomScene {
     this.pondClicked = handler;
   }
 
+  onDoorClicked(handler: (door: DoorView) => void): void {
+    this.doorClicked = handler;
+  }
+
   /** Replaces whatever room was showing. */
   show(room: RoomSnapshot): void {
+    for (const cat of this.cats.values()) {
+      cat.arrival?.done(false);
+    }
     this.cats.clear();
     this.scene.dispose();
     this.scene = new Scene(this.engine);
@@ -117,8 +132,19 @@ export class RoomScene {
       pond.material = flat(this.scene, "pond", "#5fb3d9");
     }
 
+    // The doors, each a mat on the floor (and, by the back wall, a doorway in it) that walks the cat through when clicked.
+    const doors = new Map<AbstractMesh, DoorView>();
+    for (const door of room.doors) {
+      for (const part of this.drawDoor(door, room.depth)) {
+        doors.set(part, door);
+      }
+    }
+
     this.scene.onPointerDown = (_event, pick) => {
-      if (pick.hit && pond && pick.pickedMesh === pond) {
+      const door = pick.hit && pick.pickedMesh ? doors.get(pick.pickedMesh) : undefined;
+      if (door) {
+        this.doorClicked(door);
+      } else if (pick.hit && pond && pick.pickedMesh === pond) {
         this.pondClicked();
       } else if (pick.hit && pick.pickedMesh === floor && pick.pickedPoint) {
         this.floorClicked(pick.pickedPoint.x, pick.pickedPoint.z);
@@ -134,7 +160,7 @@ export class RoomScene {
   place(cat: CatView): void {
     const existing = this.cats.get(cat.playerId);
     if (existing) {
-      existing.target.set(cat.x, 0, cat.z);
+      this.sendTo(existing, cat.x, cat.z);
       existing.look.pose = cat.pose ?? undefined;
       return;
     }
@@ -164,8 +190,40 @@ export class RoomScene {
   /** Sends the cat somewhere new: it gets up (a pose taken while it walks holds until the next walk). */
   walk(playerId: string, x: number, z: number): void {
     const cat = this.cats.get(playerId);
-    cat?.target.set(x, 0, z);
-    cat?.look.walk();
+    if (cat) {
+      this.sendTo(cat, x, z);
+      cat.look.walk();
+    }
+  }
+
+  /**
+   * Resolves true once the cat is drawn standing at (x, z), or false if it is sent elsewhere first, leaves, or another
+   * room shows (or the cat isn't here).
+   */
+  reached(playerId: string, x: number, z: number): Promise<boolean> {
+    const cat = this.cats.get(playerId);
+    if (!cat) {
+      return Promise.resolve(false);
+    }
+    cat.arrival?.done(false);
+    return new Promise((resolve) => {
+      cat.arrival = { x, z, done: resolve };
+    });
+  }
+
+  /** Where a spot on the floor is drawn, in CSS pixels from the canvas's top left; undefined until a room shows. */
+  screenPoint(x: number, z: number): { x: number; y: number } | undefined {
+    const camera = this.scene.activeCamera;
+    if (!camera) {
+      return undefined;
+    }
+    const width = this.engine.getRenderWidth();
+    const height = this.engine.getRenderHeight();
+    const point = Vector3.Project(
+      new Vector3(x, 0, z), Matrix.Identity(), camera.getTransformationMatrix(), camera.viewport.toGlobal(width, height));
+    // The canvas may draw at more pixels than it takes on the page.
+    const scale = (this.engine.getRenderingCanvas()?.clientWidth ?? width) / width;
+    return { x: point.x * scale, y: point.y * scale };
   }
 
   remove(playerId: string): void {
@@ -178,6 +236,7 @@ export class RoomScene {
         control.dispose();
       }
     }
+    cat.arrival?.done(false);
     cat.root.dispose();
     this.cats.delete(playerId);
   }
@@ -194,6 +253,61 @@ export class RoomScene {
     this.cats.get(playerId)?.look.emote(emote, performance.now());
   }
 
+  /** Points the cat at a new spot; whoever waited for it to reach another is told it won't. */
+  private sendTo(cat: CatOnScreen, x: number, z: number): void {
+    cat.target.set(x, 0, z);
+    if (cat.arrival && Math.hypot(cat.arrival.x - x, cat.arrival.z - z) > there) {
+      cat.arrival.done(false);
+      cat.arrival = undefined;
+    }
+  }
+
+  /**
+   * Draws a door, flat and outlined like the rest of the room: a mat on the floor over its spot, with a dark edge as the
+   * pond has (not renderOutline, which painted over flat floor things), and, when it is by the back wall, a doorway in
+   * the wall behind it with the name of the room it leads to over it. Returns the parts a click goes through.
+   */
+  private drawDoor(door: DoorView, depth: number): AbstractMesh[] {
+    const name = `door-${door.id}`;
+    const ink = "#2a2230";
+    const matWidth = door.radius * 2;
+    const matDepth = door.radius * 1.4;
+    const edge = CreateBox(`${name}-mat-edge`, { width: matWidth + 0.16, depth: matDepth + 0.16, height: 0.02 }, this.scene);
+    edge.position.set(door.x, 0.01, door.z);
+    edge.material = flat(this.scene, `${name}-mat-edge`, ink);
+    edge.isPickable = false;
+    const mat = CreateBox(`${name}-mat`, { width: matWidth, depth: matDepth, height: 0.02 }, this.scene);
+    mat.position.set(door.x, 0.03, door.z);
+    mat.material = flat(this.scene, `${name}-mat`, doorMatColour);
+
+    // Only a door near the back wall has a doorway in it; one further out is just its mat.
+    const wall = depth / 2;
+    if (wall - door.z > 2) {
+      return [mat];
+    }
+    // Clear of the wall's own outline, which is drawn a little in front of it.
+    const frame = CreateBox(`${name}-frame`, { width: 1.9, height: 2.7, depth: 0.04 }, this.scene);
+    frame.position.set(door.x, 1.35, wall - 0.08);
+    frame.material = flat(this.scene, `${name}-frame`, ink);
+    const panel = CreateBox(`${name}-panel`, { width: 1.6, height: 2.5, depth: 0.04 }, this.scene);
+    panel.position.set(door.x, 1.25, wall - 0.11);
+    panel.material = flat(this.scene, `${name}-panel`, "#8a5a3c");
+
+    const anchor = CreateBox(`${name}-anchor`, { size: 0.01 }, this.scene);
+    anchor.position.set(door.x, 3.1, wall - 0.11);
+    anchor.isVisible = false;
+    anchor.isPickable = false;
+    const label = new TextBlock(`${name}-label`, door.toRoomName);
+    label.color = ink;
+    label.fontSize = 14;
+    label.fontWeight = "bold";
+    label.outlineColor = "white";
+    label.outlineWidth = 3;
+    this.gui?.addControl(label);
+    label.linkWithMesh(anchor);
+    return [mat, frame, panel];
+  }
+
   private step(seconds: number): void {
     const now = performance.now();
     for (const [playerId, cat] of this.cats) {
@@ -203,6 +317,11 @@ export class RoomScene {
         const stride = Math.min(distance, walkSpeed * seconds);
         cat.root.position.addInPlace(offset.scale(stride / distance));
         cat.root.rotation.y = Math.atan2(offset.x, offset.z);
+      }
+      if (cat.arrival && Math.hypot(cat.root.position.x - cat.arrival.x, cat.root.position.z - cat.arrival.z) <= there) {
+        const { done } = cat.arrival;
+        cat.arrival = undefined;
+        done(true);
       }
       this.drawLook(playerId, cat, now);
     }

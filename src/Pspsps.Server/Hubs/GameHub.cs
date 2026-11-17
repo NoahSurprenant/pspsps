@@ -75,7 +75,7 @@ public sealed partial class GameHub(
         }
 
         metrics.EnteredWorld(world.Id);
-        return await JoinRoom(world.Id, RoomCatalog.Default.Id);
+        return await JoinRoom(world.Id, RoomCatalog.Default.Id, throughDoor: null);
     }
 
     public async Task<RoomSnapshot> GoToRoom(string roomId)
@@ -100,7 +100,51 @@ public sealed partial class GameHub(
             await LeaveRoom(key);
         }
 
-        return await JoinRoom(place.WorldId, room.Id);
+        return await JoinRoom(place.WorldId, room.Id, throughDoor: null);
+    }
+
+    /// <summary>
+    /// Goes through a door of the room the cat is in, which the cat must be standing on: into the room it leads to, just
+    /// inside the door there that leads back.
+    /// </summary>
+    public async Task<RoomSnapshot> GoThroughDoor(string doorId)
+    {
+        if (Here?.RoomKey is null)
+        {
+            throw new HubException("You aren't in a room.");
+        }
+
+        await EnsureCurrentTab();
+        // Read after the wait: the heartbeat may have moved it meanwhile (a lost room or world).
+        var place = Here ?? throw new HubException("You aren't in a room.");
+        var key = place.RoomKey ?? throw new HubException("You aren't in a room.");
+
+        // Out of the room before the room lets the cat go, as in GoToRoom, so no renewal meanwhile finds the cat gone.
+        if (!MoveTo(place with { RoomKey = null }))
+        {
+            throw new HubException(ClosedMessage);
+        }
+
+        DoorTarget target;
+        try
+        {
+            target = await grains.GetGrain<IRoomGrain>(key).LeaveThrough(PlayerId, Context.ConnectionId, doorId);
+        }
+        catch (GameRuleException e)
+        {
+            // Not on the door: the cat stays where it is, and the connection stays in its room. Had the tab closed
+            // meanwhile, its disconnect found it in no room, so the cat is taken out here.
+            if (!MoveTo(place))
+            {
+                await LeaveRoom(key);
+                throw new HubException(ClosedMessage);
+            }
+
+            throw new HubException(e.Message);
+        }
+
+        await Groups.RemoveFromGroupAsync(Context.ConnectionId, key);
+        return await JoinRoom(place.WorldId, target.RoomId, target.DoorId);
     }
 
     public Task Move(double x, double z) => InRoom(room => room.Move(PlayerId, x, z));
@@ -184,7 +228,7 @@ public sealed partial class GameHub(
         }
     }
 
-    private async Task<RoomSnapshot> JoinRoom(string worldId, string roomId)
+    private async Task<RoomSnapshot> JoinRoom(string worldId, string roomId, string? throughDoor)
     {
         if (heartbeat.IsClosed(Context.ConnectionId))
         {
@@ -202,7 +246,7 @@ public sealed partial class GameHub(
         try
         {
             var card = new PlayerCard(profile.Id, profile.DisplayName, profile.FurColor.ToString());
-            snapshot = await room.Join(card, Context.ConnectionId);
+            snapshot = await room.Join(card, Context.ConnectionId, throughDoor);
         }
         catch (GameRuleException e)
         {

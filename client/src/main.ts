@@ -1,3 +1,4 @@
+import { DoorWalks, doorAt } from "./doors";
 import { addressNote, linkUrl, loginUrl } from "./link";
 import { GameConnection, fetchMe, fetchProviders, messageOf, playAsGuest, signOut } from "./net";
 import { lazily } from "./lazy";
@@ -7,7 +8,7 @@ import { catchBubble, FishingState, gotAwayMessage, paid, pondEdge, reelMessage,
 import { Room } from "./room";
 import type { RoomScene } from "./scene";
 import { Overlay, type Note } from "./ui";
-import type { Player, RoomSnapshot } from "./types";
+import type { DoorView, Player, RoomSnapshot } from "./types";
 
 const overlay = new Overlay(required<HTMLElement>("#ui"));
 // The 3D scene, made on the way into the first room: Babylon (most of the page's script) loads only then, so the
@@ -31,13 +32,22 @@ const stage = lazily(async (): Promise<RoomScene> => {
   }
   window.addEventListener("resize", () => engine.resize());
   made.onFloorClicked((x, z) => {
-    if (room) {
-      // Walking off reels the line in (the server drops it), with nothing on it.
-      fishing.drop();
-      connection.move(x, z).catch((error: unknown) => overlay.toast(messageOf(error)));
+    if (!room) {
+      return;
     }
+    // Walking onto a door goes through it.
+    const door = doorAt(room.snapshot.doors, x, z);
+    if (door) {
+      void goThrough(door);
+      return;
+    }
+    doorWalks.callOff();
+    // Walking off reels the line in (the server drops it), with nothing on it.
+    fishing.drop();
+    connection.move(x, z).catch((error: unknown) => overlay.toast(messageOf(error)));
   });
   made.onPondClicked(() => void fish());
+  made.onDoorClicked((door) => void goThrough(door));
   scene = made;
   return made;
 });
@@ -48,16 +58,29 @@ let room: Room | undefined;
 let me: Player | undefined;
 // Where the player's fishing line is.
 const fishing = new FishingState((state) => overlay.setFishing(state));
+// The walk to a door, which goes through it once the cat gets there.
+const doorWalks = new DoorWalks();
 // Room events that arrive while the next room loads, for it once its snapshot shows.
 const loading = new PendingEvents<(room: Room) => void>();
 
 // Read-only: the end-to-end tests (e2e/) read the room here, since the cats and chat are drawn on a canvas.
 declare global {
   interface Window {
-    pspsps?: { room(): Room | undefined; coins(): number; fishing(): Fishing };
+    pspsps?: {
+      room(): Room | undefined;
+      coins(): number;
+      fishing(): Fishing;
+      /** Where a spot on the floor is drawn on the canvas, in CSS pixels, to click it; undefined with no room showing. */
+      screenPoint(x: number, z: number): { x: number; y: number } | undefined;
+    };
   }
 }
-window.pspsps = { room: () => room, coins: () => me?.coins ?? 0, fishing: () => fishing.state };
+window.pspsps = {
+  room: () => room,
+  coins: () => me?.coins ?? 0,
+  fishing: () => fishing.state,
+  screenPoint: (x, z) => scene?.screenPoint(x, z),
+};
 
 const connection = new GameConnection({
   catJoined: (cat) => onRoom((here) => {
@@ -127,6 +150,7 @@ async function fish(): Promise<void> {
   if (cast === undefined) {
     return;
   }
+  doorWalks.callOff();
   try {
     const spot = pondEdge(pond, cat);
     await connection.move(spot.x, spot.z);
@@ -139,6 +163,30 @@ async function fish(): Promise<void> {
     fishing.castDone(cast);
   } catch (error) {
     fishing.castFailed(cast);
+    overlay.toast(messageOf(error));
+  }
+}
+
+/**
+ * Walks the player's cat onto a door and, once it is drawn standing there, through it: the server checks the cat is on
+ * it. Called off by any other walk meanwhile.
+ */
+async function goThrough(door: DoorView): Promise<void> {
+  const view = scene;
+  if (!room || !me || !view) {
+    return;
+  }
+  const walk = doorWalks.start();
+  // Walking off reels the line in, as any walk does.
+  fishing.drop();
+  try {
+    await connection.move(door.x, door.z);
+    const there = await view.reached(me.id, door.x, door.z);
+    if (there && doorWalks.isGoing(walk)) {
+      doorWalks.callOff();
+      pick(() => load(() => connection.goThroughDoor(door.id)));
+    }
+  } catch (error) {
     overlay.toast(messageOf(error));
   }
 }

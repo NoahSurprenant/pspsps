@@ -55,10 +55,10 @@ internal sealed class RoomGrain(
         return Task.CompletedTask;
     }
 
-    public async Task<RoomSnapshot> Join(PlayerCard player, string session)
+    public async Task<RoomSnapshot> Join(PlayerCard player, string session, string? throughDoor)
     {
         var fur = Enum.Parse<FurColor>(player.FurColor);
-        var cat = Rule(() => _state.Join(player.PlayerId, player.DisplayName, fur, session, time.GetUtcNow()));
+        var cat = Rule(() => _state.Join(player.PlayerId, player.DisplayName, fur, session, time.GetUtcNow(), throughDoor));
         if (!_counted)
         {
             _counted = true;
@@ -77,7 +77,8 @@ internal sealed class RoomGrain(
             [.. _state.Cats.Select(CatView.From)],
             [.. _state.RecentChat.Select(ChatView.From)],
             [.. RoomCatalog.All.Where(r => r.Id != _state.Room.Id).Select(r => new RoomLink(r.Id, r.Name))],
-            _state.Room.Pond is { } pond ? new PondView(pond.Center.X, pond.Center.Z, pond.Radius) : null);
+            _state.Room.Pond is { } pond ? new PondView(pond.Center.X, pond.Center.Z, pond.Radius) : null,
+            [.. _state.Room.Doors.Select(DoorView.From)]);
     }
 
     public async Task Leave(Guid playerId, string session)
@@ -91,6 +92,19 @@ internal sealed class RoomGrain(
         {
             DeactivateOnIdle();
         }
+    }
+
+    public async Task<DoorTarget> LeaveThrough(Guid playerId, string session, string doorId)
+    {
+        var door = Rule(() => _state.LeaveThrough(playerId, session, doorId));
+        Unschedule(playerId);
+        await broadcaster.CatLeft(_key, playerId);
+        if (_state.Cats.Count == 0)
+        {
+            DeactivateOnIdle();
+        }
+
+        return new DoorTarget(door.ToRoom, door.ToDoor);
     }
 
     public Task<IReadOnlyList<string>> Renew(IReadOnlyList<PlayerSession> sessions)

@@ -51,6 +51,12 @@ A move goes like this:
 3. The grain checks the move against the room's rules (`RoomState`), then broadcasts it to the room's SignalR group.
 4. The Redis backplane carries the broadcast to every pod with a connection in that group.
 
+Rooms are joined by doors, in the room catalogue (`RoomCatalog`): a door (`Door`) is a round spot on a room's floor
+that leads to a door of another room. The browser walks the cat onto it, then calls `GoThroughDoor`; the room's grain
+lets the cat out only if it stands on that door (`RoomState.LeaveThrough`), and the next room puts it just inside
+the matching door (`Door.Arrival`), off it, so it doesn't walk straight back out. The room bar's buttons
+(`GoToRoom`) are the quick way round, and arrive at the spawn point.
+
 Chat goes the same way, through the room's chat filter (`ChatFilter`, a rule of `RoomState.Say`): word lists that
 either star a word out or refuse the whole line, seeing through accents, look-alike letters, digits for letters,
 punctuation inside a word, letters stretched three or more times and spaced-out single letters, but never spelling a
