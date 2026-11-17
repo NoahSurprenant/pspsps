@@ -55,8 +55,9 @@ A move goes like this:
 Rooms are joined by doors, in the room catalogue (`RoomCatalog`): a door (`Door`) is a round spot on a room's floor
 that leads to a door of another room. The browser walks the cat onto it, then calls `GoThroughDoor`; the room's grain
 lets the cat out only if it stands on that door (`RoomState.LeaveThrough`), and the next room puts it just inside
-the matching door (`Door.Arrival`), off it, so it doesn't walk straight back out. The room bar's buttons
-(`GoToRoom`) are the quick way round, and arrive at the spawn point.
+the matching door (`Door.Arrival`), off it, so it doesn't walk straight back out. Doors are the only way round in
+the browser (for the keyboard, each door also has a button, shown once it has focus). `GoToRoom` goes straight to a
+room's spawn point: the browser uses it to rejoin its room after a reconnect, and a map of the world will use it.
 
 A room's props (`Prop`: benches, trees, café tables) are in the catalogue too, and go to the browser with the room;
 they are decoration, which cats walk through. `PropPlacement` keeps them out of the way: on the floor, off the doors,

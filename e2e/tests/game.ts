@@ -34,21 +34,42 @@ export async function enterWorld(page: Page, world: string): Promise<string> {
 }
 
 /**
- * Walks the cat through the door to <toRoomId> by clicking (or, on a phone, tapping) the door's mat where it is drawn, as
- * a player would; resolves once the next room is showing.
+ * Where the room's door to <roomId> has its mat drawn, in page pixels, or why it can't be clicked there: off the canvas,
+ * or under a control drawn over it.
  */
-export async function goThroughDoor(page: Page, toRoomId: string, toRoomName: string): Promise<void> {
-  const door = await page.evaluate((id) => window.pspsps?.room()?.snapshot.doors.find((d) => d.toRoomId === id), toRoomId);
-  if (!door) throw new Error(`no door to ${toRoomId}`);
+export async function doorMat(page: Page, roomId: string): Promise<{ x: number; y: number } | string> {
+  const door = await page.evaluate((to) => window.pspsps?.room()?.snapshot.doors.find((d) => d.toRoomId === to), roomId);
+  if (!door) return `no door to ${roomId}`;
   const canvas = await page.locator("#game").boundingBox();
+  if (!canvas) return "no canvas";
   const mat = await page.evaluate(({ x, z }) => window.pspsps?.screenPoint(x, z), door);
-  if (!canvas || !mat) throw new Error("the door isn't drawn");
+  if (!mat) return `the door to ${roomId} isn't drawn`;
+  const point = { x: canvas.x + mat.x, y: canvas.y + mat.y };
+  const on = await page.evaluate(({ x, y }) => {
+    const top = document.elementFromPoint(x, y);
+    return top?.id === "game" ? undefined : top ? `${top.tagName.toLowerCase()}.${top.className}` : "nothing";
+  }, point);
+  return on ? `the door to ${roomId}'s mat is under ${on}` : point;
+}
+
+/**
+ * Walks the player's cat through the room's door to <roomId> by clicking (or, on a phone, tapping) its mat where it is
+ * drawn, as a player would; resolves in there.
+ */
+export async function goThroughDoor(page: Page, roomId: string, roomName: string): Promise<void> {
+  const mat = await doorMat(page, roomId);
+  if (typeof mat === "string") throw new Error(mat);
   if (await page.evaluate(() => matchMedia("(pointer: coarse)").matches)) {
-    await page.touchscreen.tap(canvas.x + mat.x, canvas.y + mat.y);
+    await page.touchscreen.tap(mat.x, mat.y);
   } else {
-    await page.mouse.click(canvas.x + mat.x, canvas.y + mat.y);
+    await page.mouse.click(mat.x, mat.y);
   }
-  await expect(page.locator(".room-bar strong")).toHaveText(toRoomName);
+  await expect(page.locator(".room-bar strong")).toHaveText(roomName);
+}
+
+/** The buttons in the room bar, by name. */
+export function roomBarButtons(page: Page): Promise<string[]> {
+  return page.locator(".room-bar button").allInnerTexts();
 }
 
 /** A second player, in their own browser context (their own cookie). */

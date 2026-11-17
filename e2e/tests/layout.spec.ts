@@ -1,7 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
-import { doorMatRed, pixelsNear, pondBlue, watchErrors } from "./game";
+import { doorMat, doorMatRed, pixelsNear, pondBlue, watchErrors } from "./game";
 import { contextFor, SCREENS, type Screen, type Size } from "./screens";
 
 // Every screen at every size: every control and line of text can be reached (on screen, or in a panel that scrolls),
@@ -35,6 +35,8 @@ interface Checks {
   parts: string[];
   /** Anything else the screen must show at every size, waited for before the screenshot: what is missing. */
   shows?(page: Page): Promise<string[]>;
+  /** Anything else that must be reachable with the controls showing: what isn't. */
+  reachable?(page: Page): Promise<string[]>;
 }
 
 const CHECKS: Record<Screen["name"], Checks> = {
@@ -48,11 +50,20 @@ const CHECKS: Record<Screen["name"], Checks> = {
     // The pond and the café door's mat, drawn: from further off (a narrow screen backs the camera away) the floor's
     // outline once hid the pond, and props must never cover them.
     shows: (page) => drawn(page, [["the pond", pondBlue, 20], ["the door's mat", doorMatRed, 2]]),
+    // The door is the only way out of the room: its mat must be clickable, not under the room bar or the dock.
+    reachable: async (page) => {
+      const mat = await doorMat(page, "cafe");
+      return typeof mat === "string" ? [mat] : [];
+    },
   },
   cafe: {
     parts: [".room-bar", ".emote-bar", ".chat-bar"],
-    // The door back to the square's mat, among the café's tables and chairs.
+    // The door back to the square's mat, among the café's tables and chairs, drawn and clickable.
     shows: (page) => drawn(page, [["the door's mat", doorMatRed, 2]]),
+    reachable: async (page) => {
+      const mat = await doorMat(page, "town-square");
+      return typeof mat === "string" ? [mat] : [];
+    },
   },
 };
 
@@ -96,6 +107,7 @@ for (const screen of SCREENS) {
 
         const problems = [
           ...missing,
+          ...(checks.reachable ? await checks.reachable(page) : []),
           ...await offScreen(page),
           ...await offScreenOrOverlapping(page, checks.parts),
           ...(size.phone ? await smallTapTargets(page) : []),

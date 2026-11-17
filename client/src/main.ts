@@ -236,7 +236,6 @@ function show(snapshot: RoomSnapshot, view: RoomScene): Room {
   view.show(snapshot);
   overlay.showRoom(
     snapshot,
-    (roomId) => pick(() => goTo(roomId)),
     (text) => connection.say(text).catch((error: unknown) => overlay.toast(messageOf(error))),
     // Between rooms (room undefined while the next one loads) an emote would only be refused.
     (emote) => {
@@ -244,6 +243,7 @@ function show(snapshot: RoomSnapshot, view: RoomScene): Room {
         connection.emote(emote).catch((error: unknown) => overlay.toast(messageOf(error)));
       }
     },
+    (door) => void goThrough(door),
     () => window.location.reload(),
     me?.coins ?? 0,
     snapshot.pond ? { fish: () => void fish(), reel: () => void reel(), state: () => fishing.state } : undefined,
