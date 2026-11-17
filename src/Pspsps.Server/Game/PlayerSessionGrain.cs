@@ -61,13 +61,24 @@ internal sealed class PlayerSessionGrain : Grain, IPlayerSessionGrain
         _check ??= this.RegisterGrainTimer(
             static (grain, _) => grain.Locate(),
             this,
-            new GrainTimerCreationOptions { DueTime = CheckEvery, Period = CheckEvery, KeepAlive = true });
+            // Interleaves like Locate, so the player's own calls never wait behind it.
+            new GrainTimerCreationOptions
+            {
+                DueTime = CheckEvery, Period = CheckEvery, KeepAlive = true, Interleave = true,
+            });
         return Task.CompletedTask;
     }
 
     public async Task<PlayerPlace?> Locate()
     {
-        if (_current is not { } session || _roomKey is not { } key)
+        if (_current is not { } session)
+        {
+            // Asked after a player who isn't playing (a friends list asks after every friend): nothing to keep.
+            DeactivateOnIdle();
+            return null;
+        }
+
+        if (_roomKey is not { } key)
         {
             return null;
         }
@@ -78,8 +89,12 @@ internal sealed class PlayerSessionGrain : Grain, IPlayerSessionGrain
             return new PlayerPlace(worldId, roomId);
         }
 
-        // Calls run one at a time, so nothing moved the pointer while the room answered.
-        Forget();
+        // Other calls ran while the room answered (Locate interleaves): forget the room only if nothing moved the pointer.
+        if (_current == session && _roomKey == key)
+        {
+            Forget();
+        }
+
         return null;
     }
 

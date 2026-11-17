@@ -66,12 +66,17 @@ A **friendship** (`Friendship`, an aggregate of its own) is a request from one p
 one asked accepts it. A pair of players has at most one: its key is the pair in a fixed order, so the database refuses a
 second even when both ask at once (and asking someone who has asked you accepts). Only the one asked accepts or
 declines; the one who asked can take it back; either friend can end it. A declined, taken back or ended friendship is
-deleted, so either can ask again. A player has at most `Friendship.MaxPerPlayer` friendships, requests included. Guests
-have friends like everyone: a guest is a real player (its friendships go with it, and stay when it saves its cat).
+deleted, so either can ask again. A player has at most 100 friends, 20 requests of their own waiting and 50 requests
+waiting for them, counted apart so that cats asking one never stop it asking or accepting others. `Status` is a
+concurrency token: an answer decided on a status that changed meanwhile (a request taken back as it's accepted) is
+refused, never applied. Only friends can go to each other. Guests have friends like everyone: a guest is a real
+player (its friendships go with it, and stay when it saves its cat).
 
 Where a friend is comes from the grains, not the database: the hub tells the player's `PlayerSessionGrain` which room
 its current tab's cat joined, and the friends list asks each friend's session, which asks that room whether the cat is
-still there, played from that tab (the room's lease is the truth). A session that points at a room checks it every lease
+still there, played from that tab (the room's lease is the truth). That question interleaves with the session's other
+calls, so the player's own moves never wait behind friends asking, and a session asked after a player who isn't playing
+goes again at once. A session that points at a room checks it every lease
 (which keeps it from being collected while its player sits idle) and forgets it once the room no longer has the cat. A
 friend between rooms, in the world picker or offline has no place. If the pod holding a session grain dies, the grain
 comes back empty and its player shows offline until they next enter a room. "Go to" a friend takes a place in their

@@ -46,6 +46,8 @@ export class RoomScene {
   private floorClicked: (x: number, z: number) => void = () => {};
   private pondClicked: () => void = () => {};
   private catClicked: (playerId: string) => void = () => {};
+  /** The player's own cat: it never takes the pointer, so a tap just behind it still walks or fishes. */
+  playerId: string | undefined;
 
   constructor(private readonly engine: AbstractEngine) {
     this.scene = new Scene(this.engine);
@@ -174,11 +176,13 @@ export class RoomScene {
 
     // The anchor (name, bubbles) and the paw hang off the root, which poses don't squash.
     const { root, body, paw } = buildCat(this.scene, `cat-${cat.playerId}`, cat.furColor);
-    // Tapping any part of the cat opens its card: whatever it's built from, its meshes take the pointer, and the root
+    // Tapping any part of another cat opens its card: whatever it's built from, its meshes take the pointer, and the root
     // says whose cat it is.
     root.metadata = { catPlayerId: cat.playerId };
-    for (const mesh of root.getChildMeshes(false)) {
-      mesh.isPickable = true;
+    if (cat.playerId !== this.playerId) {
+      for (const mesh of root.getChildMeshes(false)) {
+        mesh.isPickable = true;
+      }
     }
     root.position.set(cat.x, 0, cat.z);
     const anchor = CreateBox(`anchor-${cat.playerId}`, { size: 0.01 }, this.scene);

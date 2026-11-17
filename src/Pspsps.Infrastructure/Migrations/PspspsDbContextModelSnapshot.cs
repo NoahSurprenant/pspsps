@@ -68,6 +68,7 @@ namespace Pspsps.Infrastructure.Migrations
                         .HasColumnName("requester_id");
 
                     b.Property<string>("Status")
+                        .IsConcurrencyToken()
                         .IsRequired()
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)")

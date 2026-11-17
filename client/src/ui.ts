@@ -289,8 +289,13 @@ export class Overlay {
   }
 
   // A modal dialog over the room (the page behind it inert until it closes), replacing any open one. Escape or Close
-  // closes it.
+  // closes it. The same one open already (the list, or the same cat's card) is brought up to date in place instead.
   private openDialog(open: OpenDialog, className: string, ...children: Node[]): void {
+    const current = this.dialog;
+    if (current?.element.open && sameDialog(current.open, open)) {
+      refreshInPlace(current.element, children);
+      return;
+    }
     this.closeDialog();
     const dialog = el("dialog", { className: `sheet ${className}` },
       ...children,
@@ -376,3 +381,29 @@ function noteParagraph(note: Note | undefined): HTMLElement[] {
 
 /** What a dialog over the room shows: a player's card, or the friends list. */
 export type OpenDialog = { kind: "card"; playerId: string } | { kind: "friends" };
+
+function sameDialog(a: OpenDialog, b: OpenDialog): boolean {
+  return a.kind === "friends" ? b.kind === "friends" : b.kind === "card" && a.playerId === b.playerId;
+}
+
+/**
+ * Swaps a dialog's contents (all but its message and Close) for `children`, keeping where the player was: the button
+ * with the focus (found again by its name) and the scroll.
+ */
+function refreshInPlace(dialog: HTMLDialogElement, children: Node[]): void {
+  const focused = document.activeElement instanceof HTMLElement && dialog.contains(document.activeElement)
+    ? nameOf(document.activeElement)
+    : undefined;
+  const scroll = dialog.scrollTop;
+  const kept = [...dialog.children].slice(-2);
+  dialog.replaceChildren(...children, ...kept);
+  dialog.scrollTop = scroll;
+  if (focused !== undefined) {
+    const again = [...dialog.querySelectorAll<HTMLElement>("button")].find((b) => nameOf(b) === focused);
+    (again ?? dialog.querySelector<HTMLElement>("button"))?.focus();
+  }
+}
+
+function nameOf(element: HTMLElement): string {
+  return element.getAttribute("aria-label") ?? element.textContent ?? "";
+}

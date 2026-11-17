@@ -374,7 +374,7 @@ public sealed class GameHubTests
     [Test]
     public async Task GoToFriend_InThisWorld_GoesToTheirRoom()
     {
-        _friends.GetAsync(Tom.Id, Felix, Arg.Any<CancellationToken>())
+        _friends.VisitAsync(Tom.Id, Felix, Arg.Any<CancellationToken>())
             .Returns(new PlayerRelation(Felix, "Felix", FurColor.Black, FriendState.Friends));
         Session(Felix).Locate().Returns(new PlayerPlace("tabby", "cafe"));
         var hub = Hub();
@@ -390,8 +390,8 @@ public sealed class GameHubTests
     [Test]
     public async Task GoToFriend_WhoIsNotAFriend_IsRefused()
     {
-        _friends.GetAsync(Tom.Id, Felix, Arg.Any<CancellationToken>())
-            .Returns(new PlayerRelation(Felix, "Felix", FurColor.Black, FriendState.RequestSent));
+        _friends.VisitAsync(Tom.Id, Felix, Arg.Any<CancellationToken>())
+            .ThrowsAsync(new DomainException("You can only go to your friends."));
         var felixSession = Session(Felix);
         felixSession.Locate().Returns(new PlayerPlace("tabby", "cafe"));
         var hub = Hub();
@@ -407,7 +407,7 @@ public sealed class GameHubTests
     [Test]
     public async Task GoToFriend_WhoIsOffline_SaysSo()
     {
-        _friends.GetAsync(Tom.Id, Felix, Arg.Any<CancellationToken>())
+        _friends.VisitAsync(Tom.Id, Felix, Arg.Any<CancellationToken>())
             .Returns(new PlayerRelation(Felix, "Felix", FurColor.Black, FriendState.Friends));
         Session(Felix).Locate().Returns((PlayerPlace?)null);
         var hub = Hub();
@@ -421,7 +421,7 @@ public sealed class GameHubTests
     // Felix is Tom's friend, in Calico's café; returns Calico's world and café grains.
     private (IWorldGrain World, IRoomGrain Cafe) FriendInCalicoCafe()
     {
-        _friends.GetAsync(Tom.Id, Felix, Arg.Any<CancellationToken>())
+        _friends.VisitAsync(Tom.Id, Felix, Arg.Any<CancellationToken>())
             .Returns(new PlayerRelation(Felix, "Felix", FurColor.Black, FriendState.Friends));
         Session(Felix).Locate().Returns(new PlayerPlace("calico", "cafe"));
         var calico = Substitute.For<IWorldGrain>();

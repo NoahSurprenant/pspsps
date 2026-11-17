@@ -209,10 +209,14 @@ public sealed partial class GameHub(
         }
 
         await EnsureCurrentTab();
-        var relation = await friends.GetAsync(PlayerId, friendId, Context.ConnectionAborted);
-        if (relation is not { State: FriendState.Friends })
+        PlayerRelation relation;
+        try
         {
-            throw new HubException("You can only go to your friends.");
+            relation = await friends.VisitAsync(PlayerId, friendId, Context.ConnectionAborted);
+        }
+        catch (DomainException e)
+        {
+            throw new HubException(e.Message);
         }
 
         var target = await LocateAsync(friendId)
@@ -355,7 +359,16 @@ public sealed partial class GameHub(
             throw new HubException(e.Message);
         }
 
-        await Clients.User(PlayerUserIdProvider.For(otherId)).FriendsChanged(PlayerId);
+        // Saved by now: a tab that isn't told sees it the next time it opens the list or the card.
+        try
+        {
+            await Clients.User(PlayerUserIdProvider.For(otherId)).FriendsChanged(PlayerId);
+        }
+        catch (Exception e)
+        {
+            LogFriendsChangedNotSent(logger, e, otherId);
+        }
+
         return CardOf(relation);
     }
 
@@ -437,6 +450,9 @@ public sealed partial class GameHub(
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't record that player {PlayerId} is in {RoomKey}; friends won't find them there")]
     private static partial void LogArrivalNotRecorded(ILogger logger, Exception exception, Guid playerId, string roomKey);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't tell player {PlayerId} their friendships changed")]
+    private static partial void LogFriendsChangedNotSent(ILogger logger, Exception exception, Guid playerId);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't find where player {PlayerId} is; shown offline")]
     private static partial void LogLocateFailed(ILogger logger, Exception exception, Guid playerId);

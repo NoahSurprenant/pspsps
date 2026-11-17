@@ -29,15 +29,19 @@ internal sealed class FriendService(IApplicationDbContext db, TimeProvider time)
         var now = time.GetUtcNow();
         if (await FindAsync(playerId, otherId, tracked: true, cancellationToken) is { } existing)
         {
-            existing.RequestAgain(playerId, now);
+            existing.RequestAgain(
+                playerId,
+                now,
+                await CountsAsync(playerId, cancellationToken),
+                await CountsAsync(otherId, cancellationToken));
             await SaveAsync(cancellationToken);
             return Relation(other, existing.StateFor(playerId));
         }
 
         var friendship = Friendship.Request(
             playerId, otherId,
-            await CountAsync(playerId, cancellationToken),
-            await CountAsync(otherId, cancellationToken),
+            await CountsAsync(playerId, cancellationToken),
+            await CountsAsync(otherId, cancellationToken),
             now);
         db.Friendships.Add(friendship);
         try
@@ -50,7 +54,11 @@ internal sealed class FriendService(IApplicationDbContext db, TimeProvider time)
             db.Forget(friendship);
             var winner = await FindAsync(playerId, otherId, tracked: true, cancellationToken)
                 ?? throw new DomainException(Changed);
-            winner.RequestAgain(playerId, now);
+            winner.RequestAgain(
+                playerId,
+                now,
+                await CountsAsync(playerId, cancellationToken),
+                await CountsAsync(otherId, cancellationToken));
             await SaveAsync(cancellationToken);
             return Relation(other, winner.StateFor(playerId));
         }
@@ -58,12 +66,16 @@ internal sealed class FriendService(IApplicationDbContext db, TimeProvider time)
         return Relation(other, friendship.StateFor(playerId));
     }
 
-    public Task<PlayerRelation> AcceptAsync(Guid playerId, Guid otherId, CancellationToken cancellationToken) =>
-        ChangeAsync(playerId, otherId, friendship =>
+    public async Task<PlayerRelation> AcceptAsync(Guid playerId, Guid otherId, CancellationToken cancellationToken)
+    {
+        var mine = await CountsAsync(playerId, cancellationToken);
+        var theirs = await CountsAsync(otherId, cancellationToken);
+        return await ChangeAsync(playerId, otherId, friendship =>
         {
-            friendship.Accept(playerId, time.GetUtcNow());
+            friendship.Accept(playerId, time.GetUtcNow(), mine, theirs);
             return false;
         }, cancellationToken);
+    }
 
     public Task<PlayerRelation> DeclineAsync(Guid playerId, Guid otherId, CancellationToken cancellationToken) =>
         ChangeAsync(playerId, otherId, friendship =>
@@ -85,6 +97,15 @@ internal sealed class FriendService(IApplicationDbContext db, TimeProvider time)
             friendship.Unfriend(playerId);
             return true;
         }, cancellationToken);
+
+    public async Task<PlayerRelation> VisitAsync(Guid playerId, Guid friendId, CancellationToken cancellationToken)
+    {
+        var friend = await FindPlayerAsync(friendId, cancellationToken) ?? throw new DomainException(NoSuchCat);
+        var friendship = await FindAsync(playerId, friendId, tracked: false, cancellationToken)
+            ?? throw new DomainException("You can only go to your friends.");
+        friendship.EnsureCanVisit(playerId);
+        return Relation(friend, FriendState.Friends);
+    }
 
     public async Task<IReadOnlyList<PlayerRelation>> ListAsync(Guid playerId, CancellationToken cancellationToken)
     {
@@ -122,7 +143,8 @@ internal sealed class FriendService(IApplicationDbContext db, TimeProvider time)
         return Relation(other, friendship.StateFor(playerId));
     }
 
-    // A friendship changed or deleted by the other meanwhile (a request taken back as it's accepted) is no change at all.
+    // A friendship the other changed or deleted meanwhile (a request taken back as it's accepted): nothing is changed.
+    // Status is a concurrency token, so a decision made on the old status can't overwrite or delete the new one.
     private async Task SaveAsync(CancellationToken cancellationToken)
     {
         try
@@ -138,14 +160,23 @@ internal sealed class FriendService(IApplicationDbContext db, TimeProvider time)
     private IQueryable<Friendship> Of(Guid playerId) =>
         db.Friendships.Where(f => f.FirstPlayerId == playerId || f.SecondPlayerId == playerId);
 
-    private Task<int> CountAsync(Guid playerId, CancellationToken cancellationToken) =>
-        Of(playerId).CountAsync(cancellationToken);
+    private async Task<FriendCounts> CountsAsync(Guid playerId, CancellationToken cancellationToken)
+    {
+        var all = await Of(playerId)
+            .Select(f => new { f.Status, Sent = f.RequesterId == playerId })
+            .ToListAsync(cancellationToken);
+        return new FriendCounts(
+            all.Count(f => f.Status == FriendshipStatus.Accepted),
+            all.Count(f => f.Status == FriendshipStatus.Pending && f.Sent),
+            all.Count(f => f.Status == FriendshipStatus.Pending && !f.Sent));
+    }
 
     private Task<Friendship?> FindAsync(Guid playerId, Guid otherId, bool tracked, CancellationToken cancellationToken)
     {
         var (first, second) = Friendship.PairOf(playerId, otherId);
         var query = tracked ? db.Friendships : db.Friendships.AsNoTracking();
-        return query.FirstOrDefaultAsync(f => f.FirstPlayerId == first && f.SecondPlayerId == second, cancellationToken);
+        return query.FirstOrDefaultAsync(
+            f => f.FirstPlayerId == first && f.SecondPlayerId == second, cancellationToken);
     }
 
     private Task<Player?> FindPlayerAsync(Guid playerId, CancellationToken cancellationToken) =>

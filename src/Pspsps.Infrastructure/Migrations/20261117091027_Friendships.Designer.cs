@@ -12,7 +12,7 @@ using Pspsps.Infrastructure.Persistence;
 namespace Pspsps.Infrastructure.Migrations
 {
     [DbContext(typeof(PspspsDbContext))]
-    [Migration("20261117084302_Friendships")]
+    [Migration("20261117091027_Friendships")]
     partial class Friendships
     {
         /// <inheritdoc />
@@ -71,6 +71,7 @@ namespace Pspsps.Infrastructure.Migrations
                         .HasColumnName("requester_id");
 
                     b.Property<string>("Status")
+                        .IsConcurrencyToken()
                         .IsRequired()
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)")

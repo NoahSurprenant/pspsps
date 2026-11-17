@@ -11,7 +11,9 @@ internal sealed class FriendshipConfiguration : IEntityTypeConfiguration<Friends
     {
         // The pair, in a fixed order, is the key: one friendship per pair, also when both ask at once.
         builder.HasKey(f => new { f.FirstPlayerId, f.SecondPlayerId });
-        builder.Property(f => f.Status).HasConversion<string>().HasMaxLength(16);
+        // A concurrency token: an accept, decline or removal decided on the status it read can't overwrite or delete a
+        // friendship whose status changed meanwhile.
+        builder.Property(f => f.Status).HasConversion<string>().HasMaxLength(16).IsConcurrencyToken();
         builder.Ignore(f => f.AddresseeId);
 
         // A player's friendships go with them.

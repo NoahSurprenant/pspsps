@@ -186,6 +186,7 @@ async function reel(): Promise<void> {
 function show(snapshot: RoomSnapshot, view: RoomScene): Room {
   const shown = new Room(snapshot);
   room = shown;
+  view.playerId = me?.id;
   view.show(snapshot);
   overlay.showRoom(
     snapshot,
@@ -249,7 +250,8 @@ async function goTo(roomId: string): Promise<void> {
  * just before it takes the snapshot, so they are held until the snapshot shows and then replayed onto it, in order;
  * the room's updates are idempotent, so those already in the snapshot change nothing.
  */
-async function load(request: () => Promise<RoomSnapshot>): Promise<void> {
+async function load(request: () => Promise<RoomSnapshot>, staysOnFailure = false): Promise<void> {
+  const was = room;
   room = undefined;
   loading.start();
   let shown: Room;
@@ -259,7 +261,15 @@ async function load(request: () => Promise<RoomSnapshot>): Promise<void> {
     const view = await stage();
     shown = show(await request(), view);
   } catch (error) {
-    loading.cancel();
+    if (staysOnFailure && was) {
+      // The server left the cat where it was (a Go to that failed): it plays on there, with what happened meanwhile.
+      room = was;
+      for (const apply of loading.finish()) {
+        apply(was);
+      }
+    } else {
+      loading.cancel();
+    }
     overlay.toast(messageOf(error));
     return;
   }
@@ -323,16 +333,23 @@ function showCard(card: PlayerCard): void {
   overlay.showPlayerCard(card, (action) => void changeFriendship(action, card.playerId));
 }
 
-/** The friends list, with where each friend is now. */
-async function openFriends(): Promise<void> {
+/**
+ * The friends list, with where each friend is now. A refresh (`refresh`) of the open list updates it in place, and does
+ * nothing if the player closed it meanwhile.
+ */
+async function openFriends(refresh = false): Promise<void> {
   try {
     const list = await connection.getFriends();
+    if (refresh && overlay.openDialogFor?.kind !== "friends") {
+      return;
+    }
     const here = room ? { worldId: room.snapshot.worldId, roomId: room.snapshot.roomId } : undefined;
     overlay.showFriends(list, here, {
       card: (playerId) => void openCard(playerId),
       goTo: (playerId) => {
         overlay.closeDialog();
-        pick(() => load(() => connection.goToFriend(playerId)));
+        // The server goes only once it can: a full world or room, or a friend gone, leaves the cat where it is.
+        pick(() => load(() => connection.goToFriend(playerId), true));
       },
       act: (action, playerId) => void changeFriendship(action, playerId),
     });
@@ -349,7 +366,7 @@ async function changeFriendship(action: FriendAction, playerId: string): Promise
     if (open?.kind === "card" && open.playerId === playerId) {
       showCard(card);
     } else if (open?.kind === "friends") {
-      await openFriends();
+      await openFriends(true);
     }
   } catch (error) {
     overlay.toast(messageOf(error));
@@ -363,7 +380,7 @@ async function changeFriendship(action: FriendAction, playerId: string): Promise
 async function friendsChanged(playerId: string): Promise<void> {
   const open = overlay.openDialogFor;
   if (open?.kind === "friends") {
-    await openFriends();
+    await openFriends(true);
     return;
   }
   try {

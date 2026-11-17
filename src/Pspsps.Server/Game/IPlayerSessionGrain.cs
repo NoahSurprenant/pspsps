@@ -1,3 +1,5 @@
+using Orleans.Concurrency;
+
 namespace Pspsps.Server.Game;
 
 /// <summary>
@@ -26,7 +28,9 @@ public interface IPlayerSessionGrain : IGrainWithGuidKey
 
     /// <summary>
     /// Where the player's cat is, as its room confirms: null when the player is offline, between rooms, or the room no
-    /// longer has their cat (its lease ran out).
+    /// longer has their cat (its lease ran out). Interleaves: the player's own calls (IsCurrent on every move) never
+    /// wait behind friends asking where they are.
     /// </summary>
+    [AlwaysInterleave]
     Task<PlayerPlace?> Locate();
 }

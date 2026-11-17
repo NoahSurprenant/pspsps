@@ -190,10 +190,10 @@ public sealed class FriendsTests
     }
 
     [Test]
-    public async Task Request_ToAPlayerAtTheLimit_IsRefused()
+    public async Task Request_ToAPlayerWithTheMostRequestsWaiting_IsRefused()
     {
         var popular = await NewPlayerAsync();
-        for (var i = 0; i < Friendship.MaxPerPlayer; i++)
+        for (var i = 0; i < Friendship.MaxReceived; i++)
         {
             await Friends().RequestAsync(await NewPlayerAsync(), popular, CancellationToken.None);
         }
@@ -201,7 +201,7 @@ public sealed class FriendsTests
         var refused = Assert.ThrowsAsync<DomainException>(async () =>
             await Friends().RequestAsync(await NewPlayerAsync(), popular, CancellationToken.None));
 
-        Assert.That(refused!.Message, Is.EqualTo("That cat can't take any more friends."));
+        Assert.That(refused!.Message, Is.EqualTo("That cat has too many requests waiting. Try again later."));
     }
 
     [Test]

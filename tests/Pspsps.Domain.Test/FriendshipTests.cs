@@ -10,7 +10,9 @@ public sealed class FriendshipTests
     private static readonly Guid Felix = Guid.NewGuid();
     private static readonly Guid Garfield = Guid.NewGuid();
 
-    private static Friendship TomAsksFelix() => Friendship.Request(Tom, Felix, 0, 0, Now);
+    private static readonly FriendCounts NoFriends = new(0, 0, 0);
+
+    private static Friendship TomAsksFelix() => Friendship.Request(Tom, Felix, NoFriends, NoFriends, Now);
 
     [Test]
     public void Request_IsPending_FromTheRequesterToTheAddressee()
@@ -33,8 +35,8 @@ public sealed class FriendshipTests
     [Test]
     public void Request_KeysThePairTheSameWayWhoeverAsks()
     {
-        var tomAsks = Friendship.Request(Tom, Felix, 0, 0, Now);
-        var felixAsks = Friendship.Request(Felix, Tom, 0, 0, Now);
+        var tomAsks = Friendship.Request(Tom, Felix, NoFriends, NoFriends, Now);
+        var felixAsks = Friendship.Request(Felix, Tom, NoFriends, NoFriends, Now);
 
         Assert.That((felixAsks.FirstPlayerId, felixAsks.SecondPlayerId), Is.EqualTo((tomAsks.FirstPlayerId, tomAsks.SecondPlayerId)));
         Assert.That(tomAsks.FirstPlayerId.CompareTo(tomAsks.SecondPlayerId), Is.Negative);
@@ -43,33 +45,80 @@ public sealed class FriendshipTests
 
     [Test]
     public void Request_ToYourself_IsRefused() =>
-        Assert.That(() => Friendship.Request(Tom, Tom, 0, 0, Now),
+        Assert.That(() => Friendship.Request(Tom, Tom, NoFriends, NoFriends, Now),
             Throws.TypeOf<DomainException>().With.Message.EqualTo("You can't be friends with yourself."));
 
     [Test]
     public void Request_ToNobody_IsRefused() =>
-        Assert.Throws<DomainException>(() => Friendship.Request(Tom, Guid.Empty, 0, 0, Now));
+        Assert.Throws<DomainException>(() => Friendship.Request(Tom, Guid.Empty, NoFriends, NoFriends, Now));
 
     [Test]
     public void Request_WhenTheRequesterHasTheMostFriends_IsRefused() =>
-        Assert.Throws<DomainException>(() => Friendship.Request(Tom, Felix, Friendship.MaxPerPlayer, 0, Now));
+        Assert.Throws<DomainException>(() =>
+            Friendship.Request(Tom, Felix, new FriendCounts(Friendship.MaxFriends, 0, 0), NoFriends, Now));
+
+    [Test]
+    public void Request_WhenTheRequesterHasTheMostRequestsOut_IsRefused() =>
+        Assert.Throws<DomainException>(() =>
+            Friendship.Request(Tom, Felix, new FriendCounts(0, Friendship.MaxSent, 0), NoFriends, Now));
 
     [Test]
     public void Request_WhenTheAddresseeHasTheMostFriends_IsRefused() =>
-        Assert.That(() => Friendship.Request(Tom, Felix, 0, Friendship.MaxPerPlayer, Now),
-            Throws.TypeOf<DomainException>().With.Message.EqualTo("That cat can't take any more friends."));
+        Assert.That(() => Friendship.Request(Tom, Felix, NoFriends, new FriendCounts(Friendship.MaxFriends, 0, 0), Now),
+            Throws.TypeOf<DomainException>().With.Message.EqualTo("That cat has as many friends as it can have."));
 
     [Test]
-    public void Request_JustUnderTheLimit_IsAllowed() =>
-        Assert.That(Friendship.Request(Tom, Felix, Friendship.MaxPerPlayer - 1, Friendship.MaxPerPlayer - 1, Now).Status,
-            Is.EqualTo(FriendshipStatus.Pending));
+    public void Request_WhenTheAddresseeHasTheMostRequestsWaiting_IsRefused() =>
+        Assert.That(() => Friendship.Request(Tom, Felix, NoFriends, new FriendCounts(0, 0, Friendship.MaxReceived), Now),
+            Throws.TypeOf<DomainException>().With.Message.EqualTo("That cat has too many requests waiting. Try again later."));
+
+    [Test]
+    public void Request_RequestsWaitingForTheRequester_DoNotStopThemAsking()
+    {
+        // Many cats asking one fill only the slots for requests to them: they can still ask others.
+        var asks = Friendship.Request(Tom, Felix, new FriendCounts(0, 0, Friendship.MaxReceived), NoFriends, Now);
+
+        Assert.That(asks.Status, Is.EqualTo(FriendshipStatus.Pending));
+    }
+
+    [Test]
+    public void Request_JustUnderTheLimits_IsAllowed()
+    {
+        var almost = new FriendCounts(Friendship.MaxFriends - 1, Friendship.MaxSent - 1, Friendship.MaxReceived - 1);
+
+        Assert.That(Friendship.Request(Tom, Felix, almost, almost, Now).Status, Is.EqualTo(FriendshipStatus.Pending));
+    }
+
+    [Test]
+    public void Accept_WhenEitherHasTheMostFriends_IsRefused()
+    {
+        var full = new FriendCounts(Friendship.MaxFriends, 0, 0);
+
+        Assert.Throws<DomainException>(() => TomAsksFelix().Accept(Felix, Later, full, NoFriends));
+        Assert.That(() => TomAsksFelix().Accept(Felix, Later, NoFriends, full),
+            Throws.TypeOf<DomainException>().With.Message.EqualTo("That cat has as many friends as it can have."));
+    }
+
+    [Test]
+    public void EnsureCanVisit_OnlyAFriend()
+    {
+        var friendship = TomAsksFelix();
+        Assert.That(() => friendship.EnsureCanVisit(Tom),
+            Throws.TypeOf<DomainException>().With.Message.EqualTo("You can only go to your friends."));
+
+        friendship.Accept(Felix, Later, NoFriends, NoFriends);
+
+        Assert.DoesNotThrow(() => friendship.EnsureCanVisit(Tom));
+        Assert.DoesNotThrow(() => friendship.EnsureCanVisit(Felix));
+        Assert.Throws<DomainException>(() => friendship.EnsureCanVisit(Garfield));
+    }
 
     [Test]
     public void Accept_ByTheAddressee_MakesThemFriends()
     {
         var friendship = TomAsksFelix();
 
-        friendship.Accept(Felix, Later);
+        friendship.Accept(Felix, Later, NoFriends, NoFriends);
 
         Assert.Multiple(() =>
         {
@@ -85,21 +134,21 @@ public sealed class FriendshipTests
     {
         var friendship = TomAsksFelix();
 
-        Assert.Throws<DomainException>(() => friendship.Accept(Tom, Later));
+        Assert.Throws<DomainException>(() => friendship.Accept(Tom, Later, NoFriends, NoFriends));
         Assert.That(friendship.Status, Is.EqualTo(FriendshipStatus.Pending));
     }
 
     [Test]
     public void Accept_BySomeoneElse_IsRefused() =>
-        Assert.Throws<DomainException>(() => TomAsksFelix().Accept(Garfield, Later));
+        Assert.Throws<DomainException>(() => TomAsksFelix().Accept(Garfield, Later, NoFriends, NoFriends));
 
     [Test]
     public void Accept_Twice_IsRefused()
     {
         var friendship = TomAsksFelix();
-        friendship.Accept(Felix, Later);
+        friendship.Accept(Felix, Later, NoFriends, NoFriends);
 
-        Assert.Throws<DomainException>(() => friendship.Accept(Felix, Later));
+        Assert.Throws<DomainException>(() => friendship.Accept(Felix, Later, NoFriends, NoFriends));
     }
 
     [Test]
@@ -119,7 +168,7 @@ public sealed class FriendshipTests
     public void Decline_OnceFriends_IsRefused()
     {
         var friendship = TomAsksFelix();
-        friendship.Accept(Felix, Later);
+        friendship.Accept(Felix, Later, NoFriends, NoFriends);
 
         Assert.Throws<DomainException>(() => friendship.Decline(Felix));
     }
@@ -138,7 +187,7 @@ public sealed class FriendshipTests
     public void Unfriend_ByEitherFriend_IsAllowed()
     {
         var friendship = TomAsksFelix();
-        friendship.Accept(Felix, Later);
+        friendship.Accept(Felix, Later, NoFriends, NoFriends);
 
         Assert.DoesNotThrow(() => friendship.Unfriend(Tom));
         Assert.DoesNotThrow(() => friendship.Unfriend(Felix));
@@ -154,7 +203,7 @@ public sealed class FriendshipTests
     {
         var friendship = TomAsksFelix();
 
-        friendship.RequestAgain(Felix, Later);
+        friendship.RequestAgain(Felix, Later, NoFriends, NoFriends);
 
         Assert.That(friendship.Status, Is.EqualTo(FriendshipStatus.Accepted));
         Assert.That(friendship.AcceptedAt, Is.EqualTo(Later));
@@ -162,22 +211,22 @@ public sealed class FriendshipTests
 
     [Test]
     public void RequestAgain_ByTheRequester_IsADuplicate() =>
-        Assert.That(() => TomAsksFelix().RequestAgain(Tom, Later),
+        Assert.That(() => TomAsksFelix().RequestAgain(Tom, Later, NoFriends, NoFriends),
             Throws.TypeOf<DomainException>().With.Message.EqualTo("You've already asked. Wait for an answer."));
 
     [Test]
     public void RequestAgain_WhenFriends_IsRefused()
     {
         var friendship = TomAsksFelix();
-        friendship.Accept(Felix, Later);
+        friendship.Accept(Felix, Later, NoFriends, NoFriends);
 
-        Assert.That(() => friendship.RequestAgain(Tom, Later),
+        Assert.That(() => friendship.RequestAgain(Tom, Later, NoFriends, NoFriends),
             Throws.TypeOf<DomainException>().With.Message.EqualTo("You're already friends."));
     }
 
     [Test]
     public void RequestAgain_BySomeoneElse_IsRefused() =>
-        Assert.Throws<DomainException>(() => TomAsksFelix().RequestAgain(Garfield, Later));
+        Assert.Throws<DomainException>(() => TomAsksFelix().RequestAgain(Garfield, Later, NoFriends, NoFriends));
 
     [Test]
     public void OtherThan_IsTheOtherOne_AndRefusesAStranger()

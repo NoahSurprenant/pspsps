@@ -24,6 +24,11 @@ public interface IFriendService
     /// <summary>Ends a friendship.</summary>
     Task<PlayerRelation> UnfriendAsync(Guid playerId, Guid otherId, CancellationToken cancellationToken);
 
-    /// <summary>The player's friends and requests both ways: friends first, then requests to them, then theirs; by name.</summary>
+    /// <summary>The friend the player may go to; refused unless they're friends.</summary>
+    Task<PlayerRelation> VisitAsync(Guid playerId, Guid friendId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The player's friends and requests both ways: friends first, then requests to them, then theirs; by name.
+    /// </summary>
     Task<IReadOnlyList<PlayerRelation>> ListAsync(Guid playerId, CancellationToken cancellationToken);
 }

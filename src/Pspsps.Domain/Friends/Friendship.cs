@@ -8,8 +8,20 @@ namespace Pspsps.Domain.Friends;
 /// </summary>
 public sealed class Friendship
 {
-    /// <summary>How many friendships (friends and requests, both ways) a player can have.</summary>
-    public const int MaxPerPlayer = 100;
+    /// <summary>How many friends a player can have.</summary>
+    public const int MaxFriends = 100;
+
+    /// <summary>How many of a player's own requests can wait for an answer at once.</summary>
+    public const int MaxSent = 20;
+
+    /// <summary>
+    /// How many requests can wait for a player's answer at once. Counted apart from their friends and their own
+    /// requests, so cats asking one never stop it asking others or accepting.
+    /// </summary>
+    public const int MaxReceived = 50;
+
+    private const string YouAreFull = "You have as many friends as you can have. Remove some first.";
+    private const string TheyAreFull = "That cat has as many friends as it can have.";
 
     private Friendship()
     {
@@ -47,13 +59,14 @@ public sealed class Friendship
         one.CompareTo(other) <= 0 ? (one, other) : (other, one);
 
     /// <summary>
-    /// <paramref name="requesterId"/> asks <paramref name="addresseeId"/> to be friends. Each has
-    /// <paramref name="requesterCount"/> and <paramref name="addresseeCount"/> friendships already (friends and
-    /// requests); neither may be at <see cref="MaxPerPlayer"/>. For a pair that already has a friendship, use
+    /// <paramref name="requesterId"/> asks <paramref name="addresseeId"/> to be friends, each with the friendships they
+    /// have already: neither may have <see cref="MaxFriends"/>, the requester <see cref="MaxSent"/> requests out, or
+    /// the addressee <see cref="MaxReceived"/> waiting. The limits keep the friends list short; requests at the same
+    /// moment can pass one or two over, which is harmless. For a pair that already has a friendship, use
     /// <see cref="RequestAgain"/> on it instead.
     /// </summary>
     public static Friendship Request(
-        Guid requesterId, Guid addresseeId, int requesterCount, int addresseeCount, DateTimeOffset now)
+        Guid requesterId, Guid addresseeId, FriendCounts requester, FriendCounts addressee, DateTimeOffset now)
     {
         if (requesterId == Guid.Empty || addresseeId == Guid.Empty)
         {
@@ -65,14 +78,24 @@ public sealed class Friendship
             throw new DomainException("You can't be friends with yourself.");
         }
 
-        if (requesterCount >= MaxPerPlayer)
+        if (requester.Friends >= MaxFriends)
         {
-            throw new DomainException($"You have {MaxPerPlayer} friends and requests already. Remove some first.");
+            throw new DomainException(YouAreFull);
         }
 
-        if (addresseeCount >= MaxPerPlayer)
+        if (requester.Sent >= MaxSent)
         {
-            throw new DomainException("That cat can't take any more friends.");
+            throw new DomainException("You have too many requests waiting for an answer. Wait, or take some back.");
+        }
+
+        if (addressee.Friends >= MaxFriends)
+        {
+            throw new DomainException(TheyAreFull);
+        }
+
+        if (addressee.Received >= MaxReceived)
+        {
+            throw new DomainException("That cat has too many requests waiting. Try again later.");
         }
 
         return new Friendship(requesterId, addresseeId, now);
@@ -105,14 +128,14 @@ public sealed class Friendship
 
     /// <summary>
     /// <paramref name="playerId"/> asks again where this friendship already exists. Asking someone who has asked you is
-    /// accepting; asking twice, or asking a friend, is refused.
+    /// accepting (<see cref="Accept"/>, with the same counts); asking twice, or asking a friend, is refused.
     /// </summary>
-    public void RequestAgain(Guid playerId, DateTimeOffset now)
+    public void RequestAgain(Guid playerId, DateTimeOffset now, FriendCounts mine, FriendCounts theirs)
     {
         switch (StateFor(playerId))
         {
             case FriendState.RequestReceived:
-                Accept(playerId, now);
+                Accept(playerId, now, mine, theirs);
                 break;
             case FriendState.RequestSent:
                 throw new DomainException("You've already asked. Wait for an answer.");
@@ -123,10 +146,23 @@ public sealed class Friendship
         }
     }
 
-    /// <summary>The addressee, and only they, accept a pending request.</summary>
-    public void Accept(Guid playerId, DateTimeOffset now)
+    /// <summary>
+    /// The addressee, and only they, accept a pending request, unless either has <see cref="MaxFriends"/>:
+    /// <paramref name="mine"/> are the addressee's friendships, <paramref name="theirs"/> the requester's.
+    /// </summary>
+    public void Accept(Guid playerId, DateTimeOffset now, FriendCounts mine, FriendCounts theirs)
     {
         EnsureReceived(playerId);
+        if (mine.Friends >= MaxFriends)
+        {
+            throw new DomainException(YouAreFull);
+        }
+
+        if (theirs.Friends >= MaxFriends)
+        {
+            throw new DomainException(TheyAreFull);
+        }
+
         Status = FriendshipStatus.Accepted;
         AcceptedAt = now;
     }
@@ -137,7 +173,9 @@ public sealed class Friendship
     /// </summary>
     public void Decline(Guid playerId) => EnsureReceived(playerId);
 
-    /// <summary>Checks that <paramref name="playerId"/> may take the request back: its requester, while it's pending.</summary>
+    /// <summary>
+    /// Checks that <paramref name="playerId"/> may take the request back: its requester, while it's pending.
+    /// </summary>
     public void Cancel(Guid playerId)
     {
         if (StateFor(playerId) != FriendState.RequestSent)
@@ -152,6 +190,15 @@ public sealed class Friendship
         if (StateFor(playerId) != FriendState.Friends)
         {
             throw new DomainException("You aren't friends.");
+        }
+    }
+
+    /// <summary>Checks that <paramref name="playerId"/> may go to the other: only friends go to each other.</summary>
+    public void EnsureCanVisit(Guid playerId)
+    {
+        if (StateFor(playerId) != FriendState.Friends)
+        {
+            throw new DomainException("You can only go to your friends.");
         }
     }
 
