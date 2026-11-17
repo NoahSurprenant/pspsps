@@ -8,7 +8,8 @@ namespace Pspsps.Server.Game;
 
 /// <summary>
 /// Holds a room's <see cref="RoomState"/> in memory and broadcasts every change. Calls run one at a time. Kept alive while
-/// cats are in it (idle cats are still there), deactivated by the last one leaving.
+/// cats are in it (idle cats are still there), deactivated by the last one leaving. Takes out cats whose session stopped
+/// renewing its lease (<see cref="SessionLease"/>).
 /// </summary>
 [KeepAlive]
 internal sealed class RoomGrain(
@@ -20,26 +21,42 @@ internal sealed class RoomGrain(
     private string _key = "";
     private RoomState _state = null!;
 
+    // Counted in pspsps.rooms.active once a cat joins, not on activation: a renewal can wake an empty room for a moment.
+    private bool _counted;
+
     public override Task OnActivateAsync(CancellationToken cancellationToken)
     {
         _key = this.GetPrimaryKeyString();
         var (_, roomId) = RoomKey.Parse(_key);
         var room = RoomCatalog.Find(roomId) ?? throw new InvalidOperationException($"No room '{roomId}'.");
         _state = new RoomState(room);
-        metrics.RoomActivated();
+        this.RegisterGrainTimer(
+            static (grain, _) => grain.RemoveExpired(),
+            this,
+            new GrainTimerCreationOptions { DueTime = SessionLease.RenewEvery, Period = SessionLease.RenewEvery });
         return Task.CompletedTask;
     }
 
     public override Task OnDeactivateAsync(DeactivationReason reason, CancellationToken cancellationToken)
     {
-        metrics.RoomDeactivated();
+        if (_counted)
+        {
+            metrics.RoomDeactivated();
+        }
+
         return Task.CompletedTask;
     }
 
     public async Task<RoomSnapshot> Join(PlayerCard player, string session)
     {
         var fur = Enum.Parse<FurColor>(player.FurColor);
-        var cat = Rule(() => _state.Join(player.PlayerId, player.DisplayName, fur, session));
+        var cat = Rule(() => _state.Join(player.PlayerId, player.DisplayName, fur, session, time.GetUtcNow()));
+        if (!_counted)
+        {
+            _counted = true;
+            metrics.RoomActivated();
+        }
+
         await broadcaster.CatJoined(_key, CatView.From(cat));
 
         var (worldId, _) = RoomKey.Parse(_key);
@@ -67,6 +84,24 @@ internal sealed class RoomGrain(
         }
     }
 
+    public Task<IReadOnlyList<string>> Renew(IReadOnlyList<PlayerSession> sessions)
+    {
+        var now = time.GetUtcNow();
+        var lost = sessions
+            .Where(s => _state.Renew(s.PlayerId, s.Session, now) == CatRenewal.Gone)
+            .Select(s => s.Session)
+            .ToList();
+
+        // A renewal can be what activated this room (it came back empty after its pod died): the tabs are told and stop
+        // renewing here, so an empty room goes again rather than waiting for its timer.
+        if (_state.Cats.Count == 0)
+        {
+            DeactivateOnIdle();
+        }
+
+        return Task.FromResult<IReadOnlyList<string>>(lost);
+    }
+
     public async Task Move(Guid playerId, double x, double z)
     {
         var position = Rule(() => _state.Move(playerId, new Position(x, z)));
@@ -83,6 +118,23 @@ internal sealed class RoomGrain(
     {
         var done = Rule(() => _state.Emote(playerId, emote, time.GetUtcNow()));
         await broadcaster.CatEmoted(_key, EmoteView.From(done));
+    }
+
+    // Cats whose pod died without closing their connections: nothing renews their leases.
+    private async Task RemoveExpired()
+    {
+        var expired = _state.RemoveExpired(time.GetUtcNow());
+        if (expired.Count > 0)
+        {
+            metrics.LeasesExpired("room", expired.Count);
+        }
+
+        await Task.WhenAll(expired.Select(playerId => broadcaster.CatLeft(_key, playerId)));
+
+        if (_state.Cats.Count == 0)
+        {
+            DeactivateOnIdle();
+        }
     }
 
     // DomainException stays in this pod; callers get a GameRuleException, which Orleans knows how to copy.
