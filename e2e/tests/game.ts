@@ -58,17 +58,25 @@ declare global {
           cats: Map<string, { x: number; z: number; pose: string | null }>;
           chat: { playerId: string; text: string }[];
           emotes: Map<string, { playerId: string; emote: string }>;
-          snapshot: { worldId: string };
+          snapshot: {
+            worldId: string;
+            roomId: string;
+            doors: { id: string; x: number; z: number; radius: number; toRoomId: string }[];
+          };
         }
         | undefined;
       coins(): number;
       fishing(): "idle" | "casting" | "waiting" | "bite" | "reeling";
+      screenPoint(x: number, z: number): { x: number; y: number } | undefined;
     };
   }
 }
 
 /** Town Square's pond water (#5fb3d9). */
 export const pondBlue: [number, number, number] = [0x5f, 0xb3, 0xd9];
+
+/** A door's mat (#c8553d, client/src/scene.ts). */
+export const doorMatRed: [number, number, number] = [0xc8, 0x55, 0x3d];
 
 /** How many pixels (sampled) are within a small distance of <rgb>. */
 export function pixelsNear(png: Buffer, rgb: [number, number, number]): number {

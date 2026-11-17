@@ -6,7 +6,7 @@ const tom: CatView = { playerId: "tom", displayName: "Tom", furColor: "Grey", x:
 const felix: CatView = { playerId: "felix", displayName: "Felix", furColor: "Tuxedo", x: 1, z: 1, pose: null };
 
 function snapshot(cats: CatView[]): RoomSnapshot {
-  return { worldId: "tabby", roomId: "town-square", roomName: "Town Square", width: 24, depth: 16, cats, chat: [], rooms: [], pond: null };
+  return { worldId: "tabby", roomId: "town-square", roomName: "Town Square", width: 24, depth: 16, cats, chat: [], rooms: [], pond: null, doors: [] };
 }
 
 describe("Room", () => {

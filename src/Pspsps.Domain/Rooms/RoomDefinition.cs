@@ -1,14 +1,21 @@
 namespace Pspsps.Domain.Rooms;
 
 /// <summary>
-/// A room's layout: a rectangular floor centred on the origin, where cats arrive, how many fit, and a pond to fish in if it
-/// has one.
+/// A room's layout: a rectangular floor centred on the origin, where cats arrive, how many fit, a pond to fish in if it
+/// has one, and the doors out of it.
 /// </summary>
 public sealed record RoomDefinition(
     string Id, string Name, double Width, double Depth, Position Spawn, int Capacity, Pond? Pond = null)
 {
+    /// <summary>The doors out of this room, each to a door of another room.</summary>
+    public IReadOnlyList<Door> Doors { get; init; } = [];
+
     /// <summary>The nearest spot on the floor to <paramref name="target"/>.</summary>
     public Position Clamp(Position target) => new(
         Math.Clamp(target.X, -Width / 2, Width / 2),
         Math.Clamp(target.Z, -Depth / 2, Depth / 2));
+
+    /// <summary>The door with this ID; a <see cref="DomainException"/> when the room has none such.</summary>
+    public Door GetDoor(string doorId) =>
+        Doors.FirstOrDefault(d => d.Id == doorId) ?? throw new DomainException("There's no such door here.");
 }
