@@ -1,6 +1,8 @@
 import { emoteBar, emoteForKey, isTyping } from "./emotes";
 import type { Fishing } from "./fishing";
-import type { Emote, Player, RoomSnapshot, WorldSummary } from "./types";
+import { canGoTo, friendButtons, friendStatus, sections, whereIs, type FriendAction, type Here } from "./friends";
+import { coatOf } from "./fur";
+import type { Emote, Friend, Player, PlayerCard, RoomSnapshot, WorldSummary } from "./types";
 
 /** A message for the player on a panel; an error shows in red. */
 export interface Note {
@@ -26,6 +28,11 @@ export class Overlay {
   // Listeners that belong to what is showing (the room's emote keys): every show* ends them.
   private showing = new AbortController();
   private fishing: FishingControls | undefined;
+  // The player card or friends list open over the room, if any.
+  private dialog: { element: HTMLDialogElement; open: OpenDialog } | undefined;
+
+  /** Opens the friends list: the room bar has a Friends button once this is set. */
+  onFriends: (() => void) | undefined;
 
   constructor(private readonly root: HTMLElement) {}
 
@@ -118,6 +125,7 @@ export class Overlay {
         el("strong", { text: room.roomName }),
         ...room.rooms.map((link) => button(link.name, () => goTo(link.id))),
         el("span", { className: "coins", id: "coins", text: coinText(coins) }),
+        ...(this.onFriends ? [button("Friends", this.onFriends)] : []),
         button("Worlds", leave, "quiet"),
       ),
       el("div", { className: "dock" },
@@ -197,14 +205,132 @@ export class Overlay {
     }
   }
 
+  /**
+   * Another cat's player card, over the room: its name, its fur, and where the two stand, with the buttons for that
+   * (add, cancel, accept or decline, remove). `act` runs a button's change.
+   */
+  showPlayerCard(card: PlayerCard, act: (action: FriendAction) => void): void {
+    const coat = coatOf(card.furColor);
+    const swatch = el("span", { className: "swatch" });
+    swatch.style.background = `linear-gradient(135deg, ${coat.body} 55%, ${coat.accent} 55%)`;
+    swatch.setAttribute("aria-hidden", "true");
+    const status = friendStatus(card.friendState);
+    this.openDialog({ kind: "card", playerId: card.playerId }, "player-card",
+      el("h2", { text: card.displayName, id: "dialog-title" }),
+      el("p", { className: "fur" }, swatch, el("span", { text: `${card.furColor} fur` })),
+      // What the cat wears goes here once there's a shop.
+      ...(status ? [el("p", { text: status, className: "friend-status" })] : []),
+      el("div", { className: "actions" },
+        ...friendButtons(card.friendState).map((b) => button(b.label, () => act(b.action), b.primary ? "primary" : ""))),
+    );
+  }
+
+  /**
+   * The friends list, over the room: each friend with where they are and "Go to", then requests to the player (accept,
+   * decline) and the player's own (cancel). A friend's name opens their card.
+   */
+  showFriends(
+    list: Friend[],
+    here: Here | undefined,
+    actions: { card: (playerId: string) => void; goTo: (playerId: string) => void; act: (action: FriendAction, playerId: string) => void },
+  ): void {
+    const { friends, received, sent } = sections(list);
+    const name = (friend: Friend) => {
+      const open = button(friend.displayName, () => actions.card(friend.playerId), "name");
+      open.setAttribute("aria-label", `${friend.displayName}'s card`);
+      return open;
+    };
+    const labelled = (text: string, label: string, onClick: () => void, className = "") => {
+      const pick = button(text, onClick, className);
+      pick.setAttribute("aria-label", label);
+      return pick;
+    };
+    const row = (friend: Friend, ...children: Node[]) =>
+      el("li", { className: "friend" }, name(friend), ...children);
+
+    const parts: Node[] = [el("h2", { text: "Friends", id: "dialog-title" })];
+    if (list.length === 0) {
+      parts.push(el("p", { text: "No friends yet. Tap a cat to see its card and add it." }));
+    }
+    if (friends.length > 0) {
+      parts.push(el("ul", { className: "friend-list" }, ...friends.map((friend) => {
+        const go = labelled("Go to", `Go to ${friend.displayName}`, () => actions.goTo(friend.playerId), "primary");
+        go.disabled = !canGoTo(friend, here);
+        return row(friend,
+          el("span", { className: friend.place ? "where online" : "where", text: whereIs(friend, here) }),
+          go);
+      })));
+    }
+    if (received.length > 0) {
+      parts.push(el("h3", { text: "Asking you" }), el("ul", { className: "friend-list" }, ...received.map((friend) => row(friend,
+        el("span", { className: "actions" },
+          labelled("Accept", `Accept ${friend.displayName}`, () => actions.act("accept", friend.playerId), "primary"),
+          labelled("Decline", `Decline ${friend.displayName}`, () => actions.act("decline", friend.playerId)))))));
+    }
+    if (sent.length > 0) {
+      parts.push(el("h3", { text: "You asked" }), el("ul", { className: "friend-list" }, ...sent.map((friend) => row(friend,
+        labelled("Cancel", `Cancel the request to ${friend.displayName}`, () => actions.act("cancel", friend.playerId))))));
+    }
+    this.openDialog({ kind: "friends" }, "friends", ...parts);
+  }
+
+  /** What is open over the room: a player card (whose), the friends list, or nothing. */
+  get openDialogFor(): OpenDialog | undefined {
+    return this.dialog?.element.open ? this.dialog.open : undefined;
+  }
+
+  closeDialog(): void {
+    const dialog = this.dialog;
+    this.dialog = undefined;
+    if (dialog?.element.open) {
+      dialog.element.close();
+    }
+    dialog?.element.remove();
+  }
+
+  // A modal dialog over the room (the page behind it inert until it closes), replacing any open one. Escape or Close
+  // closes it.
+  private openDialog(open: OpenDialog, className: string, ...children: Node[]): void {
+    this.closeDialog();
+    const dialog = el("dialog", { className: `sheet ${className}` },
+      ...children,
+      el("p", { className: "dialog-message", id: "dialog-message" }),
+      button("Close", () => this.closeDialog(), "quiet"),
+    );
+    dialog.setAttribute("aria-labelledby", "dialog-title");
+    dialog.addEventListener("close", () => {
+      if (this.dialog?.element === dialog) {
+        this.closeDialog();
+      }
+    });
+    // A tap on the backdrop (outside the sheet) closes it too.
+    dialog.addEventListener("click", (event) => {
+      if (event.target === dialog) {
+        const r = dialog.getBoundingClientRect();
+        if (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) {
+          this.closeDialog();
+        }
+      }
+    });
+    this.root.append(dialog);
+    this.dialog = { element: dialog, open };
+    dialog.showModal();
+  }
+
   /** Shows <children> in place of whatever was showing, and ends the old view's listeners. */
   private replace(...children: Node[]): void {
+    this.closeDialog();
     this.showing.abort();
     this.showing = new AbortController();
     this.root.replaceChildren(...children);
   }
 
   toast(message: string): void {
+    // Said in the open card or list too: the toast is behind it.
+    const inDialog = this.dialog?.element.querySelector<HTMLElement>("#dialog-message");
+    if (inDialog) {
+      inDialog.textContent = message;
+    }
     const toast = this.root.querySelector<HTMLElement>("#toast");
     if (!toast) {
       return;
@@ -247,3 +373,6 @@ function button(text: string, onClick: () => void, className = ""): HTMLButtonEl
 function noteParagraph(note: Note | undefined): HTMLElement[] {
   return note ? [el("p", { text: note.text, className: note.error ? "error" : "note" })] : [];
 }
+
+/** What a dialog over the room shows: a player's card, or the friends list. */
+export type OpenDialog = { kind: "card"; playerId: string } | { kind: "friends" };

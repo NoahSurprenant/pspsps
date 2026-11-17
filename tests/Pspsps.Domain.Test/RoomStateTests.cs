@@ -324,4 +324,21 @@ public sealed class RoomStateTests
         Assert.That(state.Renew(Tom, TabA, Now), Is.EqualTo(CatRenewal.Gone));
         Assert.That(state.Cats, Is.Empty);
     }
+
+    [Test]
+    public void Has_IsTheCatPlayedFromThatSession_NotATakenOverOrGoneOne()
+    {
+        var state = new RoomState(Room);
+        state.Join(Tom, "Tom", FurColor.Grey, TabA, Now);
+
+        Assert.That(state.Has(Tom, TabA), Is.True);
+        Assert.That(state.Has(Felix, TabA), Is.False);
+
+        state.Join(Tom, "Tom", FurColor.Grey, TabB, Now);
+        Assert.That(state.Has(Tom, TabA), Is.False);
+        Assert.That(state.Has(Tom, TabB), Is.True);
+
+        state.Leave(Tom, TabB);
+        Assert.That(state.Has(Tom, TabB), Is.False);
+    }
 }

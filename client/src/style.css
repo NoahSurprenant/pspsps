@@ -226,3 +226,124 @@ button:disabled {
     animation: none;
   }
 }
+
+/* A player card or the friends list: a modal sheet over the room, which scrolls when it's taller than the screen. */
+.sheet {
+  box-sizing: border-box;
+  width: min(24rem, calc(100% - 1rem));
+  max-height: calc(100% - 1rem);
+  overflow-y: auto;
+  padding: 1.25rem 1.25rem 0.75rem;
+  background: var(--paper);
+  color: var(--ink);
+  border: 3px solid var(--ink);
+  border-radius: 1.25rem;
+  box-shadow: 0 6px 0 var(--ink);
+}
+
+.sheet[open] {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.sheet::backdrop {
+  background: rgb(42 34 48 / 0.4);
+}
+
+.sheet h2 {
+  margin: 0;
+  font-size: 1.6rem;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.sheet h3 {
+  margin: 0.4rem 0 0;
+  font-size: 1rem;
+}
+
+.sheet p {
+  margin: 0;
+  text-align: center;
+}
+
+.sheet .actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.fur {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.swatch {
+  display: inline-block;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+}
+
+.friend-status {
+  font-weight: bold;
+}
+
+/* What the last button did, when it couldn't (the toast is behind the sheet). */
+.dialog-message {
+  padding: 0.4rem 0.75rem;
+  border: 2px solid var(--ink);
+  border-radius: 0.75rem;
+  background: #fdebd3;
+}
+
+.dialog-message:empty {
+  display: none;
+}
+
+.friend-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* A friend: their name (which opens their card) and the buttons on one line, where they are under it. */
+.friend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  padding: 0.4rem 0.5rem;
+  background: white;
+  border: 2px solid var(--ink);
+  border-radius: 0.9rem;
+}
+
+.friend button.name {
+  flex: 1 1 6rem;
+  min-width: 0;
+  padding-left: 0.4rem;
+  text-align: left;
+  overflow-wrap: anywhere;
+  border-color: transparent;
+  background: transparent;
+}
+
+.friend .where {
+  order: 2;
+  flex: 1 1 100%;
+  padding-left: 0.4rem;
+}
+
+.friend .where.online::before {
+  content: "● ";
+  color: #2e7d32;
+}

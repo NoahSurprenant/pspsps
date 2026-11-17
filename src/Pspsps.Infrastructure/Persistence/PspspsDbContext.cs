@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Pspsps.Application.Abstractions;
+using Pspsps.Domain.Friends;
 using Pspsps.Domain.Players;
 
 namespace Pspsps.Infrastructure.Persistence;
@@ -10,6 +11,8 @@ public sealed class PspspsDbContext(DbContextOptions<PspspsDbContext> options)
     : DbContext(options), IApplicationDbContext, IDataProtectionKeyContext
 {
     public DbSet<Player> Players => Set<Player>();
+
+    public DbSet<Friendship> Friendships => Set<Friendship>();
 
     /// <summary>The ASP.NET Core key ring, shared by every server pod so a sign-in cookie works on all of them.</summary>
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
@@ -27,6 +30,12 @@ public sealed class PspspsDbContext(DbContextOptions<PspspsDbContext> options)
         }
 
         Entry(player).State = EntityState.Detached;
+    }
+
+    public void Forget(Friendship friendship)
+    {
+        ArgumentNullException.ThrowIfNull(friendship);
+        Entry(friendship).State = EntityState.Detached;
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>

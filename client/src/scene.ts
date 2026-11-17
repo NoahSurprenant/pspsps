@@ -3,12 +3,13 @@ import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
 import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
-import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
 import { CreateCylinder } from "@babylonjs/core/Meshes/Builders/cylinderBuilder";
 import { CreateGround } from "@babylonjs/core/Meshes/Builders/groundBuilder";
 import type { TransformNode } from "@babylonjs/core/Meshes/transformNode";
+import type { Node as BabylonNode } from "@babylonjs/core/node";
 import { Scene } from "@babylonjs/core/scene";
 // For their side effects: picking what a pointer touches, and the meshes' drawn outlines (renderOutline).
 import "@babylonjs/core/Culling/ray";
@@ -44,6 +45,7 @@ export class RoomScene {
   private readonly cats = new Map<string, CatOnScreen>();
   private floorClicked: (x: number, z: number) => void = () => {};
   private pondClicked: () => void = () => {};
+  private catClicked: (playerId: string) => void = () => {};
 
   constructor(private readonly engine: AbstractEngine) {
     this.scene = new Scene(this.engine);
@@ -65,6 +67,34 @@ export class RoomScene {
 
   onPondClicked(handler: () => void): void {
     this.pondClicked = handler;
+  }
+
+  /** A tap or click on a cat: its player's ID. */
+  onCatClicked(handler: (playerId: string) => void): void {
+    this.catClicked = handler;
+  }
+
+  /**
+   * Where the middle of a cat is on the page, in CSS pixels from the canvas's top left; undefined when it isn't in the
+   * room. For the end-to-end tests, which click cats.
+   */
+  screenPositionOf(playerId: string): { x: number; y: number } | undefined {
+    const cat = this.cats.get(playerId);
+    const camera = this.scene.activeCamera;
+    if (!cat || !camera) {
+      return undefined;
+    }
+    const width = this.engine.getRenderWidth();
+    const height = this.engine.getRenderHeight();
+    const point = Vector3.Project(
+      cat.root.position.add(new Vector3(0, 0.6, 0)),
+      Matrix.Identity(),
+      this.scene.getTransformMatrix(),
+      camera.viewport.toGlobal(width, height),
+    );
+    const canvas = this.engine.getRenderingCanvas();
+    const scale = canvas && width > 0 ? canvas.clientWidth / width : 1;
+    return { x: point.x * scale, y: point.y * scale };
   }
 
   /** Replaces whatever room was showing. */
@@ -118,7 +148,10 @@ export class RoomScene {
     }
 
     this.scene.onPointerDown = (_event, pick) => {
-      if (pick.hit && pond && pick.pickedMesh === pond) {
+      const catId = pick.hit ? catPlayerIdOf(pick.pickedMesh) : undefined;
+      if (catId !== undefined) {
+        this.catClicked(catId);
+      } else if (pick.hit && pond && pick.pickedMesh === pond) {
         this.pondClicked();
       } else if (pick.hit && pick.pickedMesh === floor && pick.pickedPoint) {
         this.floorClicked(pick.pickedPoint.x, pick.pickedPoint.z);
@@ -141,6 +174,12 @@ export class RoomScene {
 
     // The anchor (name, bubbles) and the paw hang off the root, which poses don't squash.
     const { root, body, paw } = buildCat(this.scene, `cat-${cat.playerId}`, cat.furColor);
+    // Tapping any part of the cat opens its card: whatever it's built from, its meshes take the pointer, and the root
+    // says whose cat it is.
+    root.metadata = { catPlayerId: cat.playerId };
+    for (const mesh of root.getChildMeshes(false)) {
+      mesh.isPickable = true;
+    }
     root.position.set(cat.x, 0, cat.z);
     const anchor = CreateBox(`anchor-${cat.playerId}`, { size: 0.01 }, this.scene);
     anchor.parent = root;
@@ -248,6 +287,17 @@ export class RoomScene {
     box.linkOffsetY = -42;
     return box;
   }
+}
+
+/** The player whose cat a picked mesh is part of (a cat's root carries the ID), if any. */
+export function catPlayerIdOf(mesh: BabylonNode | null | undefined): string | undefined {
+  for (let node = mesh; node; node = node.parent) {
+    const id: unknown = (node.metadata as { catPlayerId?: unknown } | null)?.catPlayerId;
+    if (typeof id === "string") {
+      return id;
+    }
+  }
+  return undefined;
 }
 
 function flat(scene: Scene, name: string, hex: string): StandardMaterial {

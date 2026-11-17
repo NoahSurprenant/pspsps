@@ -97,3 +97,23 @@ public sealed class GameRuleException(string message) : Exception(message);
 /// <summary>One browser tab's session (its connection ID) of a player, as the pod holding it renews its lease.</summary>
 [GenerateSerializer, Immutable]
 public sealed record PlayerSession([property: Id(0)] Guid PlayerId, [property: Id(1)] string Session);
+
+/// <summary>Where a player's cat is: a room of a world.</summary>
+[GenerateSerializer, Immutable]
+public sealed record PlayerPlace([property: Id(0)] string WorldId, [property: Id(1)] string RoomId);
+
+/// <summary>
+/// A player card: another cat, and where the player looking stands with them (FriendState: "None", "RequestSent",
+/// "RequestReceived" or "Friends"). What it wears comes with the shop.
+/// </summary>
+public sealed record PlayerCardView(Guid PlayerId, string DisplayName, string FurColor, string FriendState);
+
+/// <summary>
+/// One of the player's friends or friend requests (as <see cref="PlayerCardView"/>), and for a friend in a room, where:
+/// null when they're offline (or between rooms).
+/// </summary>
+public sealed record FriendView(
+    Guid PlayerId, string DisplayName, string FurColor, string FriendState, FriendPlaceView? Place);
+
+/// <summary>Where a friend is, with the names to show.</summary>
+public sealed record FriendPlaceView(string WorldId, string WorldName, string RoomId, string RoomName);

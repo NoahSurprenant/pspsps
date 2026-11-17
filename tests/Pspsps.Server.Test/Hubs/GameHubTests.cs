@@ -5,7 +5,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
+using Pspsps.Application.Friends;
 using Pspsps.Application.Players;
+using Pspsps.Domain;
+using Pspsps.Domain.Friends;
 using Pspsps.Domain.Players;
 using Pspsps.Server.Auth;
 using Pspsps.Server.Game;
@@ -19,12 +22,14 @@ public sealed class GameHubTests
 {
     private const string Connection = "tom-tab";
     private static readonly PlayerProfile Tom = new(Guid.NewGuid(), "Tom", FurColor.Grey, 0, IsGuest: true);
+    private static readonly Guid Felix = Guid.NewGuid();
 
     private ServiceProvider _services = null!;
     private IGrainFactory _grains = null!;
     private IWorldGrain _world = null!;
     private IRoomGrain _room = null!;
     private IPlayerService _players = null!;
+    private IFriendService _friends = null!;
     private IPlayerSessionGrain _session = null!;
     private IRoomGrain _cafe = null!;
     private IHubCallerClients<IGameClient> _clients = null!;
@@ -47,6 +52,7 @@ public sealed class GameHubTests
         session.IsCurrent(Connection).Returns(true);
         _world.TryEnter(Tom.Id, Connection).Returns(true);
         _players = Substitute.For<IPlayerService>();
+        _friends = Substitute.For<IFriendService>();
         _players.FindAsync(Tom.Id, Arg.Any<CancellationToken>()).Returns(Tom);
         _heartbeat = new SessionHeartbeat(
             _grains,
@@ -213,6 +219,210 @@ public sealed class GameHubTests
         await room.DidNotReceiveWithAnyArgs().CatFished(default!);
     }
 
+    [Test]
+    public async Task EnterWorld_RecordsWhereTheCatIs_ForFriendsToFind()
+    {
+        var hub = Hub();
+
+        await hub.EnterWorld("tabby");
+
+        await _session.Received(1).Arrived(Connection, "tabby/town-square");
+    }
+
+    [Test]
+    public async Task EnterWorld_WhenRecordingWhereTheCatIsFails_StillEntersTheRoom()
+    {
+        _session.Arrived(Connection, Arg.Any<string>()).ThrowsAsync(new TimeoutException());
+        var hub = Hub();
+
+        await hub.EnterWorld("tabby");
+
+        Assert.That(_heartbeat.PlaceOf(Connection), Is.EqualTo(new ConnectionPlace(Tom.Id, "tabby", "tabby/town-square")));
+    }
+
+    [Test]
+    public async Task AddFriend_TellsTheOtherPlayersTabs_AndReturnsTheCard()
+    {
+        _friends.RequestAsync(Tom.Id, Felix, Arg.Any<CancellationToken>())
+            .Returns(new PlayerRelation(Felix, "Felix", FurColor.Black, FriendState.RequestSent));
+        var hub = Hub();
+        var felixTabs = Substitute.For<IGameClient>();
+        _clients.User(Felix.ToString()).Returns(felixTabs);
+
+        var card = await hub.AddFriend(Felix);
+
+        Assert.That(card, Is.EqualTo(new PlayerCardView(Felix, "Felix", "Black", "RequestSent")));
+        await felixTabs.Received(1).FriendsChanged(Tom.Id);
+    }
+
+    [Test]
+    public async Task AcceptFriend_ARuleBroken_IsThePlayersMessage_AndNobodyIsTold()
+    {
+        _friends.AcceptAsync(Tom.Id, Felix, Arg.Any<CancellationToken>())
+            .ThrowsAsync(new DomainException("There's no request to you to answer."));
+        var hub = Hub();
+        var felixTabs = Substitute.For<IGameClient>();
+        _clients.User(Felix.ToString()).Returns(felixTabs);
+
+        var refused = Assert.ThrowsAsync<HubException>(() => hub.AcceptFriend(Felix));
+
+        Assert.That(refused!.Message, Is.EqualTo("There's no request to you to answer."));
+        await felixTabs.DidNotReceiveWithAnyArgs().FriendsChanged(default);
+    }
+
+    [Test]
+    public async Task GetFriends_ShowsWhereEachFriendIs_AsTheirSessionFindsThem()
+    {
+        var garfield = Guid.NewGuid();
+        var oddie = Guid.NewGuid();
+        var nermal = Guid.NewGuid();
+        _friends.ListAsync(Tom.Id, Arg.Any<CancellationToken>()).Returns(
+        [
+            new PlayerRelation(Felix, "Felix", FurColor.Black, FriendState.Friends),
+            new PlayerRelation(garfield, "Garfield", FurColor.Orange, FriendState.Friends),
+            new PlayerRelation(nermal, "Nermal", FurColor.Grey, FriendState.Friends),
+            new PlayerRelation(oddie, "Oddie", FurColor.Cream, FriendState.RequestReceived),
+        ]);
+        Session(Felix).Locate().Returns(new PlayerPlace("calico", "cafe"));
+        Session(garfield).Locate().Returns((PlayerPlace?)null);
+        Session(nermal).Locate().ThrowsAsync(new TimeoutException());
+        var oddieSession = Session(oddie);
+        var hub = Hub();
+
+        var list = await hub.GetFriends();
+
+        Assert.That(list, Is.EqualTo(new[]
+        {
+            new FriendView(Felix, "Felix", "Black", "Friends", new FriendPlaceView("calico", "Calico", "cafe", "Cat Café")),
+            new FriendView(garfield, "Garfield", "Orange", "Friends", null),
+            new FriendView(nermal, "Nermal", "Grey", "Friends", null),
+            new FriendView(oddie, "Oddie", "Cream", "RequestReceived", null),
+        }));
+        await oddieSession.DidNotReceive().Locate();
+    }
+
+    [Test]
+    public async Task GoToFriend_InAnotherWorld_TakesAPlaceThereBeforeLeavingThisOne()
+    {
+        var (calico, calicoCafe) = FriendInCalicoCafe();
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+
+        await hub.GoToFriend(Felix);
+
+        Received.InOrder(() =>
+        {
+            calico.TryEnter(Tom.Id, Connection);
+            calicoCafe.Join(Arg.Any<PlayerCard>(), Connection);
+            _room.Leave(Tom.Id, Connection);
+            _world.Leave(Tom.Id, Connection);
+        });
+        Assert.That(_heartbeat.PlaceOf(Connection), Is.EqualTo(new ConnectionPlace(Tom.Id, "calico", "calico/cafe")));
+        await _session.Received(1).Arrived(Connection, "calico/cafe");
+    }
+
+    [Test]
+    public async Task GoToFriend_WhenTheirWorldIsFull_StaysWhereItIs()
+    {
+        var (calico, calicoCafe) = FriendInCalicoCafe();
+        calico.TryEnter(Tom.Id, Connection).Returns(false);
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+
+        var refused = Assert.ThrowsAsync<HubException>(() => hub.GoToFriend(Felix));
+
+        Assert.That(refused!.Message, Does.Contain("Calico is full"));
+        await calicoCafe.DidNotReceiveWithAnyArgs().Join(default!, default!);
+        await _room.DidNotReceiveWithAnyArgs().Leave(default, default!);
+        await _world.DidNotReceiveWithAnyArgs().Leave(default, default!);
+        Assert.That(_heartbeat.PlaceOf(Connection), Is.EqualTo(new ConnectionPlace(Tom.Id, "tabby", "tabby/town-square")));
+    }
+
+    [Test]
+    public async Task GoToFriend_WhenTheirRoomIsFull_GivesBackThePlaceInTheirWorld_AndStays()
+    {
+        var (calico, calicoCafe) = FriendInCalicoCafe();
+        calicoCafe.Join(Arg.Any<PlayerCard>(), Connection).ThrowsAsync(new GameRuleException("Cat Café is full."));
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+
+        var refused = Assert.ThrowsAsync<HubException>(() => hub.GoToFriend(Felix));
+
+        Assert.That(refused!.Message, Is.EqualTo("Cat Café is full."));
+        await calico.Received(1).Leave(Tom.Id, Connection);
+        await _room.DidNotReceiveWithAnyArgs().Leave(default, default!);
+        await _world.DidNotReceiveWithAnyArgs().Leave(default, default!);
+        Assert.That(_heartbeat.PlaceOf(Connection), Is.EqualTo(new ConnectionPlace(Tom.Id, "tabby", "tabby/town-square")));
+    }
+
+    [Test]
+    public async Task GoToFriend_InThisWorld_GoesToTheirRoom()
+    {
+        _friends.GetAsync(Tom.Id, Felix, Arg.Any<CancellationToken>())
+            .Returns(new PlayerRelation(Felix, "Felix", FurColor.Black, FriendState.Friends));
+        Session(Felix).Locate().Returns(new PlayerPlace("tabby", "cafe"));
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+
+        await hub.GoToFriend(Felix);
+
+        await _cafe.Received(1).Join(Arg.Any<PlayerCard>(), Connection);
+        await _world.DidNotReceiveWithAnyArgs().Leave(default, default!);
+        Assert.That(_heartbeat.PlaceOf(Connection), Is.EqualTo(new ConnectionPlace(Tom.Id, "tabby", "tabby/cafe")));
+    }
+
+    [Test]
+    public async Task GoToFriend_WhoIsNotAFriend_IsRefused()
+    {
+        _friends.GetAsync(Tom.Id, Felix, Arg.Any<CancellationToken>())
+            .Returns(new PlayerRelation(Felix, "Felix", FurColor.Black, FriendState.RequestSent));
+        var felixSession = Session(Felix);
+        felixSession.Locate().Returns(new PlayerPlace("tabby", "cafe"));
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+
+        var refused = Assert.ThrowsAsync<HubException>(() => hub.GoToFriend(Felix));
+
+        Assert.That(refused!.Message, Is.EqualTo("You can only go to your friends."));
+        await felixSession.DidNotReceive().Locate();
+        await _cafe.DidNotReceiveWithAnyArgs().Join(default!, default!);
+    }
+
+    [Test]
+    public async Task GoToFriend_WhoIsOffline_SaysSo()
+    {
+        _friends.GetAsync(Tom.Id, Felix, Arg.Any<CancellationToken>())
+            .Returns(new PlayerRelation(Felix, "Felix", FurColor.Black, FriendState.Friends));
+        Session(Felix).Locate().Returns((PlayerPlace?)null);
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+
+        var refused = Assert.ThrowsAsync<HubException>(() => hub.GoToFriend(Felix));
+
+        Assert.That(refused!.Message, Is.EqualTo("Felix isn't in a room right now."));
+    }
+
+    // Felix is Tom's friend, in Calico's café; returns Calico's world and café grains.
+    private (IWorldGrain World, IRoomGrain Cafe) FriendInCalicoCafe()
+    {
+        _friends.GetAsync(Tom.Id, Felix, Arg.Any<CancellationToken>())
+            .Returns(new PlayerRelation(Felix, "Felix", FurColor.Black, FriendState.Friends));
+        Session(Felix).Locate().Returns(new PlayerPlace("calico", "cafe"));
+        var calico = Substitute.For<IWorldGrain>();
+        var calicoCafe = Substitute.For<IRoomGrain>();
+        _grains.GetGrain<IWorldGrain>("calico", null).Returns(calico);
+        _grains.GetGrain<IRoomGrain>("calico/cafe", null).Returns(calicoCafe);
+        calico.TryEnter(Tom.Id, Connection).Returns(true);
+        return (calico, calicoCafe);
+    }
+
+    private IPlayerSessionGrain Session(Guid playerId)
+    {
+        var session = Substitute.For<IPlayerSessionGrain>();
+        _grains.GetGrain<IPlayerSessionGrain>(playerId, null).Returns(session);
+        return session;
+    }
+
     private GameHub Hub()
     {
         var context = Substitute.For<HubCallerContext>();
@@ -221,7 +431,7 @@ public sealed class GameHubTests
         context.Items.Returns(new ConnectionItems());
         context.ConnectionAborted.Returns(CancellationToken.None);
         var metrics = new GameMetrics(_services.GetRequiredService<IMeterFactory>());
-        return new GameHub(_grains, _players, _heartbeat, metrics, NullLogger<GameHub>.Instance)
+        return new GameHub(_grains, _players, _friends, _heartbeat, metrics, NullLogger<GameHub>.Instance)
         {
             Context = context,
             Groups = Substitute.For<IGroupManager>(),

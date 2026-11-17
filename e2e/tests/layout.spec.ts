@@ -40,6 +40,9 @@ interface Checks {
 const CHECKS: Record<Screen["name"], Checks> = {
   "sign-in": { parts: [".panel"] },
   worlds: { parts: [".panel"] },
+  // A sheet over the room: the room's parts are behind it (inert), so only the sheet itself must fit.
+  "player-card": { parts: [".sheet"] },
+  friends: { parts: [".sheet"] },
   "town-square": {
     parts: [".room-bar", ".emote-bar", ".chat-bar", ".fishing"],
     // The pond, drawn: from further off (a narrow screen backs the camera away) the floor's outline once hid it.
@@ -64,10 +67,11 @@ for (const screen of SCREENS) {
   for (const [index, size] of SIZES.entries()) {
     test(`${screen.name} at ${size.device} ${size.width}x${size.height}`, async ({ browser }) => {
       const context = await contextFor(browser, size);
+      let close: (() => Promise<void>) | undefined;
       try {
         const page = await context.newPage();
         const errors = watchErrors(page);
-        await screen.open(page);
+        close = (await screen.open(page)) ?? undefined;
         const missing = checks.shows ? await checks.shows(page) : [];
 
         const dir = join("screenshots", screen.name);
@@ -84,6 +88,7 @@ for (const screen of SCREENS) {
         expect(problems, `${screen.name} at ${size.width}x${size.height}`).toEqual([]);
         expect(errors, "console errors and uncaught exceptions").toEqual([]);
       } finally {
+        await close?.();
         await context.close();
       }
     });

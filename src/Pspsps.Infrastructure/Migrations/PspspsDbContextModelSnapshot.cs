@@ -45,6 +45,46 @@ namespace Pspsps.Infrastructure.Migrations
                     b.ToTable("data_protection_keys", (string)null);
                 });
 
+            modelBuilder.Entity("Pspsps.Domain.Friends.Friendship", b =>
+                {
+                    b.Property<Guid>("FirstPlayerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("first_player_id");
+
+                    b.Property<Guid>("SecondPlayerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("second_player_id");
+
+                    b.Property<DateTimeOffset?>("AcceptedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("accepted_at");
+
+                    b.Property<DateTimeOffset>("RequestedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("requested_at");
+
+                    b.Property<Guid>("RequesterId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("requester_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("status");
+
+                    b.HasKey("FirstPlayerId", "SecondPlayerId")
+                        .HasName("pk_friendships");
+
+                    b.HasIndex("SecondPlayerId")
+                        .HasDatabaseName("ix_friendships_second_player_id");
+
+                    b.ToTable("friendships", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_friendships_requester_in_pair", "requester_id = first_player_id OR requester_id = second_player_id");
+                        });
+                });
+
             modelBuilder.Entity("Pspsps.Domain.Players.Player", b =>
                 {
                     b.Property<Guid>("Id")
@@ -79,6 +119,23 @@ namespace Pspsps.Infrastructure.Migrations
                         .HasName("pk_players");
 
                     b.ToTable("players", (string)null);
+                });
+
+            modelBuilder.Entity("Pspsps.Domain.Friends.Friendship", b =>
+                {
+                    b.HasOne("Pspsps.Domain.Players.Player", null)
+                        .WithMany()
+                        .HasForeignKey("FirstPlayerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_friendships_players_first_player_id");
+
+                    b.HasOne("Pspsps.Domain.Players.Player", null)
+                        .WithMany()
+                        .HasForeignKey("SecondPlayerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_friendships_players_second_player_id");
                 });
 
             modelBuilder.Entity("Pspsps.Domain.Players.Player", b =>

@@ -1,6 +1,7 @@
 import { HubConnectionBuilder, HubConnectionState, LogLevel, type HubConnection } from "@microsoft/signalr";
+import type { FriendAction } from "./friends";
 import type {
-  CatchView, CatView, ChatView, Emote, EmoteView, Player, ReelView, RoomSnapshot, WorldSummary,
+  CatchView, CatView, ChatView, Emote, EmoteView, Friend, Player, PlayerCard, ReelView, RoomSnapshot, WorldSummary,
 } from "./types";
 
 export interface GameEvents {
@@ -22,6 +23,8 @@ export interface GameEvents {
   worldLost(message: string): void;
   /** The player opened the game in another tab, which plays now; this one has stopped. */
   replaced(): void;
+  /** Another player asked this one to be friends, answered, took a request back or ended a friendship. */
+  friendsChanged(playerId: string): void;
 }
 
 export async function fetchMe(): Promise<Player | null> {
@@ -52,6 +55,15 @@ export async function signOut(): Promise<void> {
   await fetch("/auth/logout", { method: "POST" });
 }
 
+/** The hub method for each change to a friendship. */
+export const friendMethods: Record<FriendAction, string> = {
+  add: "AddFriend",
+  accept: "AcceptFriend",
+  decline: "DeclineFriend",
+  cancel: "CancelFriendRequest",
+  remove: "RemoveFriend",
+};
+
 /** The one realtime connection (src/Pspsps.Server/Hubs/GameHub.cs). */
 export class GameConnection {
   private readonly hub: HubConnection;
@@ -73,6 +85,7 @@ export class GameConnection {
     this.hub.onreconnected(() => events.reconnected());
     this.hub.on("RoomLost", () => events.roomLost());
     this.hub.on("WorldLost", (message: string) => events.worldLost(message));
+    this.hub.on("FriendsChanged", (playerId: string) => events.friendsChanged(playerId));
     this.hub.on("SessionReplaced", () => {
       void this.hub.stop().then(() => events.replaced());
     });
@@ -114,6 +127,24 @@ export class GameConnection {
 
   emote(emote: Emote): Promise<void> {
     return this.hub.invoke("Emote", emote);
+  }
+
+  getPlayerCard(playerId: string): Promise<PlayerCard> {
+    return this.hub.invoke<PlayerCard>("GetPlayerCard", playerId);
+  }
+
+  /** A change to the friendship with another cat; the card as it is after. */
+  changeFriendship(action: FriendAction, playerId: string): Promise<PlayerCard> {
+    return this.hub.invoke<PlayerCard>(friendMethods[action], playerId);
+  }
+
+  getFriends(): Promise<Friend[]> {
+    return this.hub.invoke<Friend[]>("GetFriends");
+  }
+
+  /** Goes to the friend's room, in whichever world it is. */
+  goToFriend(playerId: string): Promise<RoomSnapshot> {
+    return this.hub.invoke<RoomSnapshot>("GoToFriend", playerId);
   }
 }
 

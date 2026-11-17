@@ -17,15 +17,17 @@ for (const screen of SCREENS) {
   for (const size of SIZES) {
     test(`${screen.name} is accessible on a ${size.device}`, async ({ browser }) => {
       const context = await contextFor(browser, size);
+      let close: (() => Promise<void>) | undefined;
       try {
         const page = await context.newPage();
-        await screen.open(page);
+        close = (await screen.open(page)) ?? undefined;
         const { violations } = await new AxeBuilder({ page }).withTags(TAGS).analyze();
         const serious = violations
           .filter((v) => v.impact === "serious" || v.impact === "critical")
           .flatMap((v) => v.nodes.map((node) => `${v.id} (${v.impact}): ${node.target.join(" ")} - ${v.help}`));
         expect(serious, `${screen.name} on a ${size.device}`).toEqual([]);
       } finally {
+        await close?.();
         await context.close();
       }
     });

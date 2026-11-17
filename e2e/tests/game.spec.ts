@@ -1,5 +1,5 @@
 import { PNG } from "pngjs";
-import { cats, emotes, enterWorld, expect, newPlayer, pixelsNear, pondBlue, test, watchErrors } from "./game";
+import { cats, clickCat, emotes, enterWorld, expect, newPlayer, pixelsNear, pondBlue, test, watchErrors } from "./game";
 
 test("the sign-in page loads without errors", async ({ page }) => {
   await page.goto("/");
@@ -289,4 +289,57 @@ test("a bite not reeled in gets away, and the cat can fish again", async ({ page
   await expect(page.locator("#toast")).toHaveText("It got away!", { timeout: 5_000 });
   await expect(page.getByRole("button", { name: "🎣 Fish" })).toBeVisible();
   expect(await page.evaluate(() => window.pspsps?.fishing())).toBe("idle");
+});
+
+test("two cats befriend each other from their cards, and one goes to the other", async ({ page: tom, browser }) => {
+  const felix = await newPlayer(browser);
+  try {
+    const tomId = await enterWorld(tom, "Siamese");
+    const felixId = await enterWorld(felix.page, "Siamese");
+    const tomName = await tom.evaluate(async () => ((await (await fetch("/api/me")).json()) as { displayName: string }).displayName);
+    const felixName = await felix.page.evaluate(async () => ((await (await fetch("/api/me")).json()) as { displayName: string }).displayName);
+    await expect.poll(async () => Object.keys(await cats(tom))).toContain(felixId);
+
+    // Both cats start on the same spot: Felix walks off, so Tom can tap him.
+    const canvas = await felix.page.locator("#game").boundingBox();
+    if (!canvas) throw new Error("no canvas");
+    await felix.page.mouse.click(canvas.x + canvas.width / 2, canvas.y + canvas.height / 2);
+    await expect.poll(async () => (await cats(tom))[felixId]?.z).toBeLessThan(3);
+
+    // Tom taps Felix: his card, with Felix's fur, and "Add friend".
+    await clickCat(tom, felixId);
+    const card = tom.getByRole("dialog", { name: felixName });
+    await expect(card).toBeVisible();
+    await expect(card.getByText(/ fur$/)).toBeVisible();
+    await card.getByRole("button", { name: "Add friend" }).click();
+    await expect(card.getByText("Friend request sent.")).toBeVisible();
+    await card.getByRole("button", { name: "Close" }).click();
+
+    // Felix is told, taps Tom, and accepts on Tom's card.
+    await expect(felix.page.getByText(`${tomName} wants to be friends!`)).toBeVisible();
+    await clickCat(felix.page, tomId);
+    const tomsCard = felix.page.getByRole("dialog", { name: tomName });
+    await tomsCard.getByRole("button", { name: "Accept" }).click();
+    await expect(tomsCard.getByText("You're friends.")).toBeVisible();
+    await tomsCard.getByRole("button", { name: "Close" }).click();
+
+    // Felix moves to another world, and its café; Tom's friends list says so, and Tom goes to him.
+    await felix.page.getByRole("button", { name: "Worlds" }).click();
+    await felix.page.getByRole("button", { name: /^Calico · / }).click();
+    await expect(felix.page.locator(".room-bar strong")).toHaveText("Town Square");
+    await felix.page.getByRole("button", { name: "Cat Café" }).click();
+    await expect(felix.page.locator(".room-bar strong")).toHaveText("Cat Café");
+    await tom.getByRole("button", { name: "Friends", exact: true }).click();
+    const list = tom.getByRole("dialog", { name: "Friends" });
+    await expect(list.getByText("Cat Café, Calico")).toBeVisible();
+    await list.getByRole("button", { name: `Go to ${felixName}` }).click();
+
+    await expect(tom.locator(".room-bar strong")).toHaveText("Cat Café");
+    await expect.poll(async () => Object.keys(await cats(tom)).sort()).toEqual([tomId, felixId].sort());
+    expect(await tom.evaluate(() => window.pspsps?.room()?.snapshot.worldId)).toBe("calico");
+
+    expect(felix.errors, "Felix's console errors and uncaught exceptions").toEqual([]);
+  } finally {
+    await felix.close();
+  }
 });

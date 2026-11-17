@@ -1,3 +1,4 @@
+import { HubConnectionBuilder, LogLevel, type HubConnection } from "@microsoft/signalr";
 import { expect, test as base, type Browser, type Page } from "@playwright/test";
 import { PNG } from "pngjs";
 
@@ -63,6 +64,7 @@ declare global {
         | undefined;
       coins(): number;
       fishing(): "idle" | "casting" | "waiting" | "bite" | "reeling";
+      catOnScreen(playerId: string): { x: number; y: number } | undefined;
     };
   }
 }
@@ -79,4 +81,46 @@ export function pixelsNear(png: Buffer, rgb: [number, number, number]): number {
     if (d < 30) near++;
   }
   return near;
+}
+
+/**
+ * Clicks (or taps) a cat in the room, once it stands still on screen: a cat that just walked is still on its way on the
+ * canvas.
+ */
+export async function clickCat(page: Page, playerId: string): Promise<void> {
+  let last: string | undefined;
+  await expect.poll(async () => {
+    const at = await page.evaluate((id) => window.pspsps?.catOnScreen(id), playerId);
+    const now = at ? JSON.stringify(at) : undefined;
+    const still = now !== undefined && now === last;
+    last = now;
+    return still;
+  }, { intervals: [250] }).toBe(true);
+  const at = await page.evaluate((id) => window.pspsps?.catOnScreen(id), playerId);
+  const canvas = await page.locator("#game").boundingBox();
+  if (!at || !canvas) throw new Error(`no cat ${playerId} on screen`);
+  // A phone is tapped, as a player would.
+  if (await page.evaluate(() => matchMedia("(pointer: coarse)").matches)) {
+    await page.touchscreen.tap(canvas.x + at.x, canvas.y + at.y);
+  } else {
+    await page.mouse.click(canvas.x + at.x, canvas.y + at.y);
+  }
+}
+
+/**
+ * Another player without a browser: a new guest on the game's hub, from Node. For setting up a screen (a friend
+ * elsewhere, a request waiting) without drawing a room for them. Close it after.
+ */
+export async function hubGuest(baseUrl: string): Promise<{ id: string; name: string; hub: HubConnection }> {
+  const response = await fetch(new URL("/auth/guest", baseUrl), { method: "POST" });
+  expect(response.ok).toBe(true);
+  const cookie = response.headers.getSetCookie().find((c) => c.startsWith("pspsps="))?.split(";")[0];
+  if (!cookie) throw new Error("no game cookie for the guest");
+  const { id, displayName } = (await response.json()) as { id: string; displayName: string };
+  const hub = new HubConnectionBuilder()
+    .withUrl(new URL("/hubs/game", baseUrl).toString(), { headers: { Cookie: cookie } })
+    .configureLogging(LogLevel.Warning)
+    .build();
+  await hub.start();
+  return { id, name: displayName, hub };
 }
