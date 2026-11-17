@@ -128,7 +128,7 @@ public sealed class SessionLeaseTests
 
         // A room grain nobody has activated (the room's actor only checks the room part of its key).
         var grains = Game.Services.GetRequiredService<IGrainFactory>();
-        var lost = await grains.GetGrain<IRoomGrain>(RoomKey.For( world-{Guid.NewGuid():N}", "cafe"))
+        var lost = await grains.GetGrain<IRoomGrain>(RoomKey.For($"world-{Guid.NewGuid():N}", "cafe"))
             .Renew([new PlayerSession(Guid.NewGuid(), "a-tab-on-a-live-pod")]);
 
         Assert.That(lost, Is.EqualTo(new[] { "a-tab-on-a-live-pod" }));
