@@ -1,49 +1,188 @@
+using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Pspsps.Domain;
+using Microsoft.Extensions.Logging;
 using Pspsps.Server.Game;
 
 namespace Pspsps.Server.Test.Game;
 
+/// <summary>The chat filter as the server builds it: from chat-filter/chat-filter.json under a scratch content root.</summary>
 public sealed class ChatFiltersTests
 {
-    [Test]
-    public void Current_FollowsTheConfiguration_WithoutARestart()
+    private const string Darn = """{ "ChatFilter": { "Lists": [ { "Action": "Mask", "Words": [ "darn" ] } ] } }""";
+    private const string Heck = """{ "ChatFilter": { "Lists": [ { "Action": "Mask", "Words": [ "heck" ] } ] } }""";
+
+    private string _root = null!;
+    private WebApplication? _app;
+    private LogRecorder _logs = null!;
+
+    [SetUp]
+    public void MakeContentRoot()
     {
-        var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["ChatFilter:Lists:0:Action"] = "Mask",
-                ["ChatFilter:Lists:0:Words:0"] = "darn",
-                ["ChatFilter:Lists:1:Action"] = "Refuse",
-                ["ChatFilter:Lists:1:Words:0"] = "woof",
-            })
-            .Build();
-        using var services = new ServiceCollection()
-            .Configure<ChatFilterOptions>(configuration.GetSection(ChatFilterOptions.SectionName))
-            .AddSingleton<ChatFilters>()
-            .BuildServiceProvider();
-        var filters = services.GetRequiredService<ChatFilters>();
+        _root = Directory.CreateTempSubdirectory("chat-filter-test-").FullName;
+        _logs = new LogRecorder();
+    }
 
-        Assert.That(filters.Current.Apply("oh darn"), Is.EqualTo("oh ****"));
-        Assert.Throws<DomainException>(() => filters.Current.Apply("woof"));
-        var first = filters.Current;
-        Assert.That(filters.Current, Is.SameAs(first), "built once per configuration");
+    [TearDown]
+    public async Task CleanUp()
+    {
+        if (_app is not null)
+        {
+            await _app.DisposeAsync();
+            _app = null;
+        }
 
-        configuration["ChatFilter:Lists:0:Words:0"] = "heck";
-        configuration.Reload();
-
-        Assert.That(filters.Current.Apply("oh darn, heck"), Is.EqualTo("oh darn, ****"));
+        Directory.Delete(_root, recursive: true);
     }
 
     [Test]
-    public void Current_WithNoLists_LetsEverythingThrough()
+    public void Current_FollowsTheFile_WithoutARestart()
     {
-        using var services = new ServiceCollection()
-            .Configure<ChatFilterOptions>(new ConfigurationBuilder().Build())
-            .AddSingleton<ChatFilters>()
-            .BuildServiceProvider();
+        WriteFile(Darn);
+        var filters = Start();
+        Assert.That(filters.Current.Apply("oh darn"), Is.EqualTo("oh ****"));
+        var first = filters.Current;
+        Assert.That(filters.Current, Is.SameAs(first), "built once per configuration");
 
-        Assert.That(services.GetRequiredService<ChatFilters>().Current.Apply("darn woof"), Is.EqualTo("darn woof"));
+        WriteFile(Heck);
+        Reload();
+
+        Assert.That(filters.Current.Apply("oh darn, heck"), Is.EqualTo("oh darn, ****"));
+        Assert.That(_logs.Warnings, Is.Empty);
+    }
+
+    [Test]
+    public void Current_AfterAnEditThatCannotBeRead_KeepsTheLastGoodFilterAndWarns()
+    {
+        WriteFile(Darn);
+        var filters = Start();
+        Assert.That(filters.Current.Apply("darn"), Is.EqualTo("****"));
+
+        WriteFile("""{ "ChatFilter": { "Lists": [ { "Action": "Block", "Words": [ "heck" ] } ] } }""");
+        Reload();
+
+        Assert.That(() => filters.Current, Throws.Nothing);
+        Assert.That(filters.Current.Apply("darn heck"), Is.EqualTo("**** heck"));
+        Assert.That(_logs.Warnings, Is.Not.Empty);
+    }
+
+    [Test]
+    public void Current_AfterTheFileBreaks_KeepsTheLastGoodFilterAndWarns()
+    {
+        WriteFile(Darn);
+        var filters = Start();
+        Assert.That(filters.Current.Apply("darn"), Is.EqualTo("****"));
+
+        WriteFile("""{ "ChatFilter": { "Lists": [ """);
+        Assert.That(Reload, Throws.Nothing);
+
+        Assert.That(filters.Current.Apply("darn"), Is.EqualTo("****"));
+        Assert.That(_logs.Warnings, Is.Not.Empty);
+        Assert.That(_logs.Warnings, Has.All.Contain("chat-filter.json"));
+    }
+
+    [Test]
+    public void Current_AfterTheFileGoesMissing_KeepsTheLastGoodFilterAndWarns()
+    {
+        WriteFile(Darn);
+        var filters = Start();
+        Assert.That(filters.Current.Apply("darn"), Is.EqualTo("****"));
+
+        File.Delete(FilePath);
+        Reload();
+
+        Assert.That(filters.Current.Apply("darn"), Is.EqualTo("****"));
+        Assert.That(_logs.Warnings, Is.Not.Empty);
+        Assert.That(_logs.Warnings, Has.All.Contain("chat-filter.json"));
+    }
+
+    [Test]
+    public void Current_WithNoFile_LetsEverythingThroughAndWarns()
+    {
+        var filters = Start();
+
+        Assert.That(filters.Current.Apply("darn heck"), Is.EqualTo("darn heck"));
+        Assert.That(_logs.Warnings, Has.Count.EqualTo(1));
+        Assert.That(_logs.Warnings[0], Does.Contain("chat-filter.json"));
+    }
+
+    [Test]
+    public void AddChatFilter_EnvironmentVariablesStillOverrideTheFile()
+    {
+        WriteFile(Darn);
+        const string Variable = "ChatFilter__Lists__0__Words__0";
+        Environment.SetEnvironmentVariable(Variable, "heck");
+        try
+        {
+            var filters = Start();
+
+            Assert.That(filters.Current.Apply("darn heck"), Is.EqualTo("darn ****"));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(Variable, null);
+        }
+    }
+
+    private string FilePath => Path.Combine(_root, "chat-filter", "chat-filter.json");
+
+    private void WriteFile(string json)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
+        File.WriteAllText(FilePath, json);
+    }
+
+    private ChatFilters Start()
+    {
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+        {
+            ContentRootPath = _root,
+            EnvironmentName = "Testing",
+        });
+        builder.Logging.ClearProviders().AddProvider(_logs);
+        builder.AddChatFilter();
+        _app = builder.Build();
+        return _app.Services.GetRequiredService<ChatFilters>();
+    }
+
+    private void Reload() => ((IConfigurationRoot)_app!.Configuration).Reload();
+
+    /// <summary>Every warning (and worse) logged, as text.</summary>
+    private sealed class LogRecorder : ILoggerProvider, ILogger
+    {
+        private readonly List<string> _warnings = [];
+
+        public IReadOnlyList<string> Warnings
+        {
+            get
+            {
+                lock (_warnings)
+                {
+                    return [.. _warnings];
+                }
+            }
+        }
+
+        public ILogger CreateLogger(string categoryName) => this;
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => logLevel >= LogLevel.Warning;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            if (IsEnabled(logLevel))
+            {
+                lock (_warnings)
+                {
+                    _warnings.Add(formatter(state, exception));
+                }
+            }
+        }
+
+        public void Dispose()
+        {
+        }
     }
 }
