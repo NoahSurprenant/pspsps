@@ -8,7 +8,8 @@ with `pg_dump --format=custom` onto a volume (the chart's own PersistentVolumeCl
 
 Dumps are named `pspsps-<UTC time>.dump`, e.g. `pspsps-20261117T030000Z.dump`. Each run:
 
-1. checks that it can reach the database, and stops with nothing changed when it can't;
+1. waits for the database to answer (a new pod's network can take a moment to be allowed), checking every 5 s for
+   up to `backup.connectTimeoutSeconds`, then checks it can log in; it stops with nothing changed when either fails;
 2. writes the new dump to a `.partial` file of its own and renames it when `pg_dump` succeeds, so a failed run never
    counts as a backup or costs one. A `.partial` file older than `backup.activeDeadlineSeconds` is from a run that
    died, and is deleted; younger ones may belong to a run still going, and are left alone. A run stopped by a signal

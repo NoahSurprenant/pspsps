@@ -3,6 +3,7 @@
 # The connection comes from libpq's PGHOST, PGPORT, PGUSER, PGPASSWORD and PGDATABASE.
 # BACKUP_STALE_SECONDS (optional): a .partial file older than this is from a run that died, and is deleted; the chart
 # passes the job's activeDeadlineSeconds, past which no run is still going. Unset: none are deleted.
+# BACKUP_CONNECT_SECONDS (default 120): how long to wait for the database to answer before giving up.
 # The chart's backup CronJob runs it as the container's PID 1; CI runs it against a real PostgreSQL
 # (tests/chart/backup-test.sh).
 #
@@ -13,6 +14,7 @@ set -eu
 dir="${BACKUP_DIR:?BACKUP_DIR is not set}"
 keep="${BACKUP_KEEP:-}"
 stale="${BACKUP_STALE_SECONDS:-}"
+connect="${BACKUP_CONNECT_SECONDS:-120}"
 
 # Whole numbers with no leading zero (which shell arithmetic would read as octal).
 whole() {
@@ -23,6 +25,10 @@ whole() {
 # With 1, a new dump could only be made room for by deleting the only one.
 if ! whole "$keep" || [ "$keep" -lt 2 ]; then
   echo "BACKUP_KEEP must be a whole number of at least 2, not '$keep'." >&2
+  exit 1
+fi
+if ! whole "$connect"; then
+  echo "BACKUP_CONNECT_SECONDS must be a whole number of seconds, not '$connect'." >&2
   exit 1
 fi
 if [ -n "$stale" ] && ! whole "$stale"; then
@@ -47,7 +53,18 @@ trap cleanup EXIT
 trap 'echo "Stopped by a signal." >&2; exit 143' TERM
 trap 'echo "Stopped by a signal." >&2; exit 130' INT
 
-# Before anything changes on the volume.
+# Before anything changes on the volume. A new pod's network can take a moment to be allowed, so its first connections
+# may be refused: wait up to BACKUP_CONNECT_SECONDS for PostgreSQL to answer, then check that we can log in (a wrong
+# password fails at once).
+deadline=$(( $(date +%s) + connect ))
+until pg_isready -q -t 5; do
+  if [ "$(date +%s)" -ge "$deadline" ]; then
+    echo "The database didn't answer within ${connect}s: nothing changed." >&2
+    exit 1
+  fi
+  echo "Waiting for the database..."
+  sleep 5
+done
 if ! psql -X -qtA -c 'select 1' > /dev/null; then
   echo "Can't reach the database: nothing changed." >&2
   exit 1
