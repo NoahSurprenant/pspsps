@@ -60,7 +60,7 @@ public sealed class ShopTests
 
         Assert.That(profile, Is.EqualTo(guest with
         {
-            Coins = 500 - 250 - 20 - 150, FurColor = FurColor.Tuxedo, Hat = "top-hat", Collar = null,
+            Coins = 500 - 250 - 20 - 150, FurColor = FurColor.Tuxedo, Hat = "top-hat", Collar = null, OutfitVersion = 4,
         }));
     }
 
