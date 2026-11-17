@@ -16,7 +16,7 @@ import "@babylonjs/core/Rendering/outlineRenderer";
 import { AdvancedDynamicTexture } from "@babylonjs/gui/2D/advancedDynamicTexture";
 import { Rectangle } from "@babylonjs/gui/2D/controls/rectangle";
 import { TextBlock } from "@babylonjs/gui/2D/controls/textBlock";
-import { cameraRadius, fieldOfView } from "./view";
+import { cameraPitch, cameraRadius, fieldOfView } from "./view";
 import { buildCat } from "./cat";
 import { poseScales } from "./emotes";
 import { CatLook } from "./look";
@@ -76,7 +76,7 @@ export class RoomScene {
     this.gui = AdvancedDynamicTexture.CreateFullscreenUI("ui", true, this.scene);
 
     // A fixed, angled camera: the player never steers it, like a painted backdrop.
-    const camera = new ArcRotateCamera("camera", -Math.PI / 2, 0.95, 1, Vector3.Zero(), this.scene);
+    const camera = new ArcRotateCamera("camera", -Math.PI / 2, cameraPitch, 1, Vector3.Zero(), this.scene);
     camera.fov = fieldOfView;
     // Back far enough for the screen's shape, now and whenever it changes (a phone turned on its side).
     const fit = () => {
