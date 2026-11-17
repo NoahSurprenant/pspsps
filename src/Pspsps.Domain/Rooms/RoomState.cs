@@ -38,12 +38,18 @@ public sealed class RoomState(RoomDefinition room)
 
     /// <summary>
     /// Puts a cat at the room's spawn point, controlled by <paramref name="session"/>, whose lease starts
-    /// <paramref name="now"/>. A cat already here (the player's other tab) keeps its spot and passes to the new session.
+    /// <paramref name="now"/>. A cat already here (the player's other tab) keeps its spot and passes to the new session;
+    /// a line the other tab cast is reeled in, with nothing on it (the new tab never cast it).
     /// </summary>
     public CatInRoom Join(Guid playerId, string displayName, FurColor furColor, string session, DateTimeOffset now)
     {
         if (_cats.TryGetValue(playerId, out var existing))
         {
+            if (!Controls(playerId, session))
+            {
+                _lines.Remove(playerId);
+            }
+
             _leases[playerId] = SessionLease.Start(session, now);
             return existing;
         }
@@ -127,8 +133,6 @@ public sealed class RoomState(RoomDefinition room)
         return position;
     }
 
-    public bool IsFishing(Guid playerId) => _lines.ContainsKey(playerId);
-
     /// <summary>The cat's line in the water, if any: a bite applies only to the line it was cast for.</summary>
     public FishingLine? LineOf(Guid playerId) => _lines.GetValueOrDefault(playerId);
 
@@ -156,8 +160,25 @@ public sealed class RoomState(RoomDefinition room)
     }
 
     /// <summary>
-    /// Reels the cat's line in: a fish if it's right at the bite, nothing if too early or too late. Either way the line is
-    /// out of the water after. <paramref name="roll"/> in [0, 1) picks the fish.
+    /// The fish bites <paramref name="line"/> at <paramref name="now"/>, if it is still the cat's line (it may have been
+    /// reeled in, walked off or taken over since). Returns the session to tell (the one controlling the cat), or null
+    /// when there's nobody to tell.
+    /// </summary>
+    public string? Bite(Guid playerId, FishingLine line, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(line);
+        if (!ReferenceEquals(LineOf(playerId), line) || !_leases.TryGetValue(playerId, out var lease))
+        {
+            return null;
+        }
+
+        line.Bite(now);
+        return lease.Session;
+    }
+
+    /// <summary>
+    /// Reels the cat's line in: a fish if it's within the bite window (from when the cat was told), nothing if too early
+    /// or too late. Either way the line is out of the water after. <paramref name="roll"/> in [0, 1) picks the fish.
     /// </summary>
     public ReelResult Reel(Guid playerId, DateTimeOffset now, double roll)
     {

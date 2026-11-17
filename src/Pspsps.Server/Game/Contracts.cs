@@ -1,3 +1,4 @@
+using Pspsps.Domain.Fishing;
 using Pspsps.Domain.Rooms;
 
 namespace Pspsps.Server.Game;
@@ -52,7 +53,7 @@ public sealed record PondView([property: Id(0)] double X, [property: Id(1)] doub
 
 /// <summary>
 /// How a reel went: "caught" with the fish and its coins, "too-early" or "too-late" with nothing. TotalCoins is the
-/// player's coins after it (filled in by the hub, which pays).
+/// player's coins after it (filled in by the hub, which pays). IsCatch and Coins are the Domain's (ReelResult).
 /// </summary>
 [GenerateSerializer, Immutable]
 public sealed record ReelView(
@@ -60,7 +61,21 @@ public sealed record ReelView(
     [property: Id(1)] string? FishId,
     [property: Id(2)] string? FishName,
     [property: Id(3)] int Coins,
-    [property: Id(4)] int TotalCoins);
+    [property: Id(4)] int TotalCoins,
+    [property: Id(5)] bool IsCatch)
+{
+    public static ReelView From(ReelResult result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+        var outcome = result.Outcome switch
+        {
+            ReelOutcome.Caught => "caught",
+            ReelOutcome.TooEarly => "too-early",
+            _ => "too-late",
+        };
+        return new ReelView(outcome, result.Fish?.Id, result.Fish?.Name, result.Coins, 0, result.IsCatch);
+    }
+}
 
 /// <summary>A catch, shown to everyone in the room.</summary>
 [GenerateSerializer, Immutable]

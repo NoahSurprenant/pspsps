@@ -10,11 +10,18 @@ public enum ReelOutcome
     TooLate,
 }
 
-public sealed record ReelResult(ReelOutcome Outcome, Fish? Fish);
+/// <summary>How a reel went, and what it pays: a catch pays its fish's coins (even none), anything else nothing.</summary>
+public sealed record ReelResult(ReelOutcome Outcome, Fish? Fish)
+{
+    public bool IsCatch => Outcome == ReelOutcome.Caught;
+
+    public int Coins => Fish?.Coins ?? 0;
+}
 
 /// <summary>
-/// One cat's line in the water. The bite comes at a time only the server knows; the cat has <see cref="BiteWindow"/>
-/// from then to reel it in. Lives in memory in the room, like the cat.
+/// One cat's line in the water. The bite comes at a time only the server knows (<see cref="BiteAt"/>); the cat has
+/// <see cref="BiteWindow"/> to reel it in from when it is told (<see cref="BitAt"/>), however late that is. Lives in
+/// memory in the room, like the cat.
 /// </summary>
 public sealed class FishingLine
 {
@@ -27,7 +34,11 @@ public sealed class FishingLine
         BiteAt = biteAt;
     }
 
+    /// <summary>When the fish is due to bite: when the room should tell the cat.</summary>
     public DateTimeOffset BiteAt { get; }
+
+    /// <summary>When the cat was told of the bite, or null while it hasn't been yet.</summary>
+    public DateTimeOffset? BitAt { get; private set; }
 
     /// <summary>Casts at <paramref name="now"/>; <paramref name="roll"/> in [0, 1) picks the wait for the bite.</summary>
     public static FishingLine Cast(DateTimeOffset now, double roll)
@@ -40,15 +51,21 @@ public sealed class FishingLine
         return new FishingLine(now + ShortestWait + ((LongestWait - ShortestWait) * roll));
     }
 
+    /// <summary>
+    /// The fish bites, and the cat is told, at <paramref name="now"/> (the room's timer can fire later than
+    /// <see cref="BiteAt"/>): the window to reel runs from here. A line bites once.
+    /// </summary>
+    public void Bite(DateTimeOffset now) => BitAt ??= now;
+
     /// <summary>Reels in at <paramref name="now"/>; <paramref name="roll"/> in [0, 1) picks the fish when caught.</summary>
     public ReelResult Reel(DateTimeOffset now, double roll)
     {
-        if (now < BiteAt)
+        if (BitAt is not { } bit || now < bit)
         {
             return new ReelResult(ReelOutcome.TooEarly, null);
         }
 
-        if (now > BiteAt + BiteWindow)
+        if (now > bit + BiteWindow)
         {
             return new ReelResult(ReelOutcome.TooLate, null);
         }

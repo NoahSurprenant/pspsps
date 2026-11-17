@@ -8,6 +8,9 @@ namespace Pspsps.Application.Players;
 
 internal sealed class PlayerService(IApplicationDbContext db, TimeProvider time, Random random) : IPlayerService
 {
+    // How many times an earning is tried when other earnings for the same player keep saving first.
+    private const int EarnAttempts = 5;
+
     public async Task<PlayerProfile> SignInWithLoginAsync(
         LoginProvider provider, string providerKey, string? profileName, CancellationToken cancellationToken)
     {
@@ -103,14 +106,27 @@ internal sealed class PlayerService(IApplicationDbContext db, TimeProvider time,
         return player is null ? null : PlayerProfile.From(player);
     }
 
-    // Only the player's current tab earns (one tab per player), so two earnings for one player don't race.
+    // Two earnings for one player can race (a tab replaced while its reel is paid, a new tab on another pod paying at the
+    // same time): the player's row version (xmin) refuses the later save, and the earning is applied again on the
+    // player as saved by the other.
     public async Task<PlayerProfile> EarnCoinsAsync(Guid playerId, int coins, CancellationToken cancellationToken)
     {
-        var player = await db.Players.FirstOrDefaultAsync(p => p.Id == playerId, cancellationToken)
-            ?? throw new DomainException("Your cat wasn't found. Sign in again.");
-        player.EarnCoins(coins);
-        await db.SaveChangesAsync(cancellationToken);
-        return PlayerProfile.From(player);
+        for (var attempt = 1; ; attempt++)
+        {
+            var player = await db.Players.FirstOrDefaultAsync(p => p.Id == playerId, cancellationToken)
+                ?? throw new DomainException("Your cat wasn't found. Sign in again.");
+            player.EarnCoins(coins);
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+                return PlayerProfile.From(player);
+            }
+            catch (DbUpdateConcurrencyException) when (attempt < EarnAttempts)
+            {
+                // Read it again, as saved by the other earning, and add to that.
+                db.Forget(player);
+            }
+        }
     }
 
     /// <summary>The player (at most one) who signs in with this login.</summary>
