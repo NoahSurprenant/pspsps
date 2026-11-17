@@ -18,15 +18,7 @@ public sealed record CatView(
     [property: Id(5)] string? Pose)
 {
     public static CatView From(CatInRoom cat) =>
-        new(cat.PlayerId, cat.DisplayName, cat.FurColor.ToString(), cat.Position.X, cat.Position.Z, PoseName(cat.Pose));
-
-    /// <summary>The held pose by its emote's name ("sit", "sleep"), or null when standing.</summary>
-    private static string? PoseName(CatPose pose) => pose switch
-    {
-        CatPose.Sitting => "sit",
-        CatPose.Sleeping => "sleep",
-        _ => null,
-    };
+        new(cat.PlayerId, cat.DisplayName, cat.FurColor.ToString(), cat.Position.X, cat.Position.Z, Emotes.NameOf(cat.Pose));
 }
 
 [GenerateSerializer, Immutable]
@@ -35,7 +27,7 @@ public sealed record ChatView([property: Id(0)] Guid PlayerId, [property: Id(1)]
     public static ChatView From(ChatLine line) => new(line.PlayerId, line.Text, line.At);
 }
 
-/// <summary>A cat did an emote (one of RoomState.Emotes: "sit", "meow", "wave", "sleep").</summary>
+/// <summary>A cat did an emote (one of Emotes.All: "sit", "meow", "wave", "sleep").</summary>
 [GenerateSerializer, Immutable]
 public sealed record EmoteView([property: Id(0)] Guid PlayerId, [property: Id(1)] string Emote, [property: Id(2)] DateTimeOffset At)
 {

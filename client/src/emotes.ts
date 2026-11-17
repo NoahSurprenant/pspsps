@@ -16,6 +16,11 @@ export const poseScales: Record<Pose, readonly [number, number, number]> = {
   sleep: [1.25, 0.4, 1.2],
 };
 
+/** Whether <emote> is one the cat holds until it walks (sit, sleep): the poses are the keys of {@link poseScales}. */
+export function isPose(emote: Emote): emote is Pose {
+  return emote in poseScales;
+}
+
 /** The emote a key press asks for: 1-4 with no modifiers, and never while the player is typing. */
 export function emoteForKey(event: Pick<KeyboardEvent, "key" | "altKey" | "ctrlKey" | "metaKey" | "repeat" | "target">): Emote | undefined {
   if (event.altKey || event.ctrlKey || event.metaKey || event.repeat || isTyping(event.target)) {

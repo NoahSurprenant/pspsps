@@ -19,7 +19,8 @@ interface CatOnScreen {
   target: Vector3;
   look: CatLook;
   bubble?: { box: Rectangle; text: string };
-  paw?: AbstractMesh;
+  // Hidden until the cat waves.
+  paw: AbstractMesh;
 }
 
 /** Draws one room at a time and walks the cats in it. Knows nothing about the network. */
@@ -92,8 +93,8 @@ export class RoomScene {
       return;
     }
 
-    // The anchor (name, bubbles) and a waving paw hang off the root, which poses don't squash.
-    const { root, body } = buildCat(this.scene, `cat-${cat.playerId}`, cat.furColor);
+    // The anchor (name, bubbles) and the paw hang off the root, which poses don't squash.
+    const { root, body, paw } = buildCat(this.scene, `cat-${cat.playerId}`, cat.furColor);
     root.position.set(cat.x, 0, cat.z);
     const anchor = MeshBuilder.CreateBox(`anchor-${cat.playerId}`, { size: 0.01 }, this.scene);
     anchor.parent = root;
@@ -111,7 +112,7 @@ export class RoomScene {
     label.linkWithMesh(anchor);
     label.linkOffsetY = -6;
 
-    this.cats.set(cat.playerId, { root, body, anchor, target: new Vector3(cat.x, 0, cat.z), look: new CatLook(cat.pose) });
+    this.cats.set(cat.playerId, { root, body, paw, anchor, target: new Vector3(cat.x, 0, cat.z), look: new CatLook(cat.pose) });
   }
 
   /** Sends the cat somewhere new: it gets up (a pose taken while it walks holds until the next walk). */
@@ -172,25 +173,12 @@ export class RoomScene {
       cat.bubble = text === undefined ? undefined : { box: this.bubble(playerId, cat, text), text };
     }
 
-    if (!cat.look.wavingAt(now)) {
-      cat.paw?.dispose();
-      cat.paw = undefined;
-      return;
+    const waving = cat.look.wavingAt(now);
+    cat.paw.setEnabled(waving);
+    if (waving) {
+      // Beside the head, however low the pose has it, waving side to side.
+      cat.paw.position.set(0.42 + 0.08 * Math.sin(now / 70), 1.05 * y + 0.15, 0.55 * z);
     }
-    cat.paw ??= this.paw(playerId, cat);
-    // Beside the head, however low the pose has it, waving side to side.
-    cat.paw.position.set(0.42 + 0.08 * Math.sin(now / 70), 1.05 * y + 0.15, 0.55 * z);
-  }
-
-  private paw(playerId: string, cat: CatOnScreen): AbstractMesh {
-    const paw = MeshBuilder.CreateSphere(`paw-${playerId}`, { diameter: 0.24 }, this.scene);
-    paw.material = cat.body.getChildMeshes(true).find((mesh) => mesh.name === "body")?.material ?? null;
-    paw.parent = cat.root;
-    paw.isPickable = false;
-    paw.renderOutline = true;
-    paw.outlineWidth = 0.025;
-    paw.outlineColor = Color3.FromHexString("#2a2230");
-    return paw;
   }
 
   private bubble(playerId: string, cat: CatOnScreen, text: string): Rectangle {

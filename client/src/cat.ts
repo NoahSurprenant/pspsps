@@ -1,4 +1,4 @@
-import { Color3, MeshBuilder, StandardMaterial, TransformNode, type Scene } from "@babylonjs/core";
+import { Color3, MeshBuilder, StandardMaterial, TransformNode, type AbstractMesh, type Scene } from "@babylonjs/core";
 import { coatOf } from "./fur";
 import type { FurColor } from "./types";
 
@@ -7,9 +7,11 @@ const outline = Color3.FromHexString("#2a2230");
 /**
  * A cat built from primitives in flat, unlit colours with dark outlines, for the hand-drawn look. A placeholder until
  * there's a modelled cat. The parts hang off `body`, which poses squash; `root` stays unscaled for whatever is fixed
- * above or beside the cat (its name, bubbles, a waving paw).
+ * above or beside the cat (its name, bubbles) and for `paw`, hidden until the cat waves.
  */
-export function buildCat(scene: Scene, name: string, fur: FurColor): { root: TransformNode; body: TransformNode } {
+export function buildCat(
+  scene: Scene, name: string, fur: FurColor,
+): { root: TransformNode; body: TransformNode; paw: AbstractMesh } {
   const coat = coatOf(fur);
   const main = flat(scene, `${name}-coat`, coat.body);
   const accent = flat(scene, `${name}-accent`, coat.accent);
@@ -32,16 +34,26 @@ export function buildCat(scene: Scene, name: string, fur: FurColor): { root: Tra
     mesh.parent = body;
     mesh.isPickable = false;
     if (!mesh.name.startsWith("eye")) {
-      mesh.renderOutline = true;
-      mesh.outlineWidth = 0.025;
-      mesh.outlineColor = outline;
+      outlined(mesh);
     }
   }
   const tail = parts.at(-1);
   if (tail) {
     tail.rotation.x = -0.6;
   }
-  return { root, body };
+
+  const paw = part(MeshBuilder.CreateSphere("paw", { diameter: 0.24 }, scene), main, 0.42, 1.2, 0.55);
+  paw.parent = root;
+  paw.isPickable = false;
+  outlined(paw);
+  paw.setEnabled(false);
+  return { root, body, paw };
+}
+
+function outlined(mesh: AbstractMesh): void {
+  mesh.renderOutline = true;
+  mesh.outlineWidth = 0.025;
+  mesh.outlineColor = outline;
 }
 
 function flat(scene: Scene, name: string, hex: string): StandardMaterial {

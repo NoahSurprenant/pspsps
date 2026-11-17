@@ -1,3 +1,4 @@
+using Orleans.Runtime;
 using Pspsps.Domain;
 using Pspsps.Domain.Players;
 using Pspsps.Domain.Rooms;
@@ -10,7 +11,10 @@ namespace Pspsps.Server.Game;
 /// cats are in it (idle cats are still there), deactivated by the last one leaving.
 /// </summary>
 [KeepAlive]
-internal sealed class RoomGrain(IRoomBroadcaster broadcaster, TimeProvider time, GameMetrics metrics) : Grain, IRoomGrain
+internal sealed class RoomGrain(
+    IRoomBroadcaster broadcaster,
+    [FromKeyedServices(TimeProviderNames.Grains)] TimeProvider time,
+    GameMetrics metrics) : Grain, IRoomGrain
 {
     private string _key = "";
     private RoomState _state = null!;

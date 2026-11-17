@@ -1,3 +1,4 @@
+import { isPose } from "./emotes";
 import type { CatView, ChatView, EmoteView, RoomSnapshot } from "./types";
 
 /**
@@ -38,11 +39,20 @@ export class Room {
     return moved;
   }
 
-  say(line: ChatView): void {
+  /**
+   * Adds a line said here; false for one it already has (the snapshot may hold a line also sent live) or one from a cat
+   * that isn't in this room (a late line from the room just left).
+   */
+  say(line: ChatView): boolean {
+    const known = this.chat.some((l) => l.playerId === line.playerId && l.at === line.at && l.text === line.text);
+    if (known || !this.cats.has(line.playerId)) {
+      return false;
+    }
     this.chat.push(line);
     if (this.chat.length > Room.chatHistory) {
       this.chat.splice(0, this.chat.length - Room.chatHistory);
     }
+    return true;
   }
 
   emote(emote: EmoteView): void {
@@ -51,7 +61,7 @@ export class Room {
       return;
     }
     this.emotes.set(emote.playerId, emote);
-    if (emote.emote === "sit" || emote.emote === "sleep") {
+    if (isPose(emote.emote)) {
       this.cats.set(emote.playerId, { ...cat, pose: emote.emote });
     }
   }

@@ -58,7 +58,7 @@ public sealed class GameHub(IGrainFactory grains, IPlayerService players, GameMe
 
     public async Task<RoomSnapshot> GoToRoom(string roomId)
     {
-        var worldId = Context.Items[WorldItem] as string ?? throw new HubException("Pick a world first.");
+        var worldId = CurrentWorldId;
         await EnsureCurrentTab();
         var room = RoomCatalog.Find(roomId) ?? throw new HubException("That room doesn't exist.");
         await LeaveRoom();
@@ -70,14 +70,14 @@ public sealed class GameHub(IGrainFactory grains, IPlayerService players, GameMe
     public async Task Say(string text)
     {
         await InRoom(room => room.Say(PlayerId, text));
-        metrics.Said(RoomKey.Parse((string)Context.Items[RoomItem]!).WorldId);
+        metrics.Said(CurrentWorldId);
     }
 
     /// <summary>Sit, meow, wave or sleep: the room shows it to everyone in it.</summary>
     public async Task Emote(string emote)
     {
         await InRoom(room => room.Emote(PlayerId, emote));
-        metrics.Emoted(RoomKey.Parse((string)Context.Items[RoomItem]!).WorldId, emote);
+        metrics.Emoted(CurrentWorldId, emote);
     }
 
     public override async Task OnDisconnectedAsync(Exception? exception)
@@ -88,6 +88,9 @@ public sealed class GameHub(IGrainFactory grains, IPlayerService players, GameMe
     }
 
     private Guid PlayerId => Context.User?.GetPlayerId() ?? throw new HubException("Sign in first.");
+
+    /// <summary>The world this connection is in; set by EnterWorld, which every room call needs first.</summary>
+    private string CurrentWorldId => Context.Items[WorldItem] as string ?? throw new HubException("Pick a world first.");
 
     private IPlayerSessionGrain Session => grains.GetGrain<IPlayerSessionGrain>(PlayerId);
 

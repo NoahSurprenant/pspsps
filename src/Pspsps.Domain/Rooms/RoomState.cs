@@ -11,9 +11,6 @@ public sealed class RoomState(RoomDefinition room)
     public const int MaxChatLength = 120;
     public const int ChatHistory = 20;
 
-    /// <summary>The emotes a cat can do, by the name the browser sends.</summary>
-    public static IReadOnlyList<string> Emotes { get; } = ["sit", "meow", "wave", "sleep"];
-
     /// <summary>How long a cat waits between emotes.</summary>
     public static TimeSpan EmoteCooldown { get; } = TimeSpan.FromSeconds(1);
 
@@ -112,13 +109,13 @@ public sealed class RoomState(RoomDefinition room)
     }
 
     /// <summary>
-    /// The cat does <paramref name="emote"/>, one of <see cref="Emotes"/>, at most once per <see cref="EmoteCooldown"/>.
+    /// The cat does <paramref name="emote"/>, one of <see cref="Emotes.All"/>, at most once per <see cref="EmoteCooldown"/>.
     /// Sit and sleep are held until the cat walks; meow and wave leave the pose as it is.
     /// </summary>
     public CatEmote Emote(Guid playerId, string emote, DateTimeOffset now)
     {
         var cat = Get(playerId);
-        if (!Emotes.Contains(emote))
+        if (!Emotes.IsKnown(emote))
         {
             throw new DomainException("That isn't an emote.");
         }
@@ -129,12 +126,11 @@ public sealed class RoomState(RoomDefinition room)
         }
 
         _lastEmotes[playerId] = now;
-        _cats[playerId] = emote switch
+        if (Emotes.PoseOf(emote) is { } pose)
         {
-            "sit" => cat with { Pose = CatPose.Sitting },
-            "sleep" => cat with { Pose = CatPose.Sleeping },
-            _ => cat,
-        };
+            _cats[playerId] = cat with { Pose = pose };
+        }
+
         return new CatEmote(playerId, emote, now);
     }
 
