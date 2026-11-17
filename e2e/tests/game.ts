@@ -58,6 +58,7 @@ declare global {
           cats: Map<string, { x: number; z: number; pose: string | null }>;
           chat: { playerId: string; text: string }[];
           emotes: Map<string, { playerId: string; emote: string }>;
+          snapshot: { worldId: string };
         }
         | undefined;
       coins(): number;

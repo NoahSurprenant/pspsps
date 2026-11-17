@@ -1,7 +1,8 @@
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
-import { expect, test, type Browser, type BrowserContext, type Page } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { pixelsNear, pondBlue, watchErrors } from "./game";
+import { contextFor, SCREENS, type Screen, type Size } from "./screens";
 
 // Every screen at every size: every control and line of text can be reached (on screen, or in a panel that scrolls),
 // every part is on screen and none sits on another, and on phones the controls are big enough to tap and the text
@@ -11,7 +12,7 @@ import { pixelsNear, pondBlue, watchErrors } from "./game";
 // sizes side by side (contact-sheets.mjs) and links them on the PR.
 
 /** The screen sizes, by device: the name goes in each screenshot's file name, which the contact sheets order by. */
-const SIZES = [
+const SIZES: Size[] = [
   { device: "desktop", width: 1920, height: 1080, phone: false },
   { device: "laptop", width: 1280, height: 720, phone: false },
   { device: "tablet-landscape", width: 1024, height: 768, phone: false },
@@ -22,53 +23,24 @@ const SIZES = [
   { device: "small-phone", width: 360, height: 640, phone: true },
   // The narrowest phone in use: a folding phone, folded.
   { device: "fold-phone", width: 280, height: 653, phone: true },
-] as const;
-
-type Size = (typeof SIZES)[number];
+];
 
 /** Apple's minimum for a tap target (Google's is 48 dp); WCAG 2.2 AA asks 24 CSS px. Phones are held to the larger. */
 const MIN_TAP = 44;
 /** iOS Safari zooms the page into a text box whose font is smaller than this. */
 const MIN_INPUT_FONT = 16;
 
-interface Screen {
-  name: string;
-  /** Opens the screen in a fresh browser context at the size; returns once it is ready. */
-  open(page: Page): Promise<void>;
+interface Checks {
   /** The parts that must each be wholly on screen and not on top of one another. */
   parts: string[];
-  /** Anything else the screen must show at every size: what is missing. */
+  /** Anything else the screen must show at every size, waited for before the screenshot: what is missing. */
   shows?(page: Page): Promise<string[]>;
 }
 
-const SCREENS: Screen[] = [
-  {
-    name: "sign-in",
-    open: async (page) => {
-      await page.goto("/");
-      await expect(page.getByRole("button", { name: "Play as a guest" })).toBeVisible();
-    },
-    parts: [".panel"],
-  },
-  {
-    name: "worlds",
-    open: async (page) => {
-      await page.goto("/");
-      await page.getByRole("button", { name: "Play as a guest" }).click();
-      await expect(page.getByRole("button", { name: /^Tabby · / })).toBeVisible();
-    },
-    parts: [".panel"],
-  },
-  {
-    name: "town-square",
-    open: async (page) => {
-      await page.goto("/");
-      await page.getByRole("button", { name: "Play as a guest" }).click();
-      await page.getByRole("button", { name: /^Calico · / }).click();
-      await expect(page.locator(".room-bar strong")).toHaveText("Town Square");
-      // The scene has drawn a frame or two.
-      await page.waitForTimeout(500);
-    },
+const CHECKS: Record<Screen["name"], Checks> = {
+  "sign-in": { parts: [".panel"] },
+  worlds: { parts: [".panel"] },
+  "town-square": {
     parts: [".room-bar", ".emote-bar", ".chat-bar", ".fishing"],
     // The pond, drawn: from further off (a narrow screen backs the camera away) the floor's outline once hid it.
     // Waited for, as software WebGL can be slow to draw the first frames, and seen with the controls hidden.
@@ -85,9 +57,10 @@ const SCREENS: Screen[] = [
       }
     },
   },
-];
+};
 
 for (const screen of SCREENS) {
+  const checks = CHECKS[screen.name];
   for (const [index, size] of SIZES.entries()) {
     test(`${screen.name} at ${size.device} ${size.width}x${size.height}`, async ({ browser }) => {
       const context = await contextFor(browser, size);
@@ -95,17 +68,18 @@ for (const screen of SCREENS) {
         const page = await context.newPage();
         const errors = watchErrors(page);
         await screen.open(page);
+        const missing = checks.shows ? await checks.shows(page) : [];
 
         const dir = join("screenshots", screen.name);
         await mkdir(dir, { recursive: true });
         await page.screenshot({ path: join(dir, `${index + 1}-${size.device}-${size.width}x${size.height}.png`) });
 
         const problems = [
+          ...missing,
           ...await offScreen(page),
-          ...await offScreenOrOverlapping(page, screen.parts),
+          ...await offScreenOrOverlapping(page, checks.parts),
           ...(size.phone ? await smallTapTargets(page) : []),
           ...(size.phone ? await smallInputs(page) : []),
-          ...(screen.shows ? await screen.shows(page) : []),
         ];
         expect(problems, `${screen.name} at ${size.width}x${size.height}`).toEqual([]);
         expect(errors, "console errors and uncaught exceptions").toEqual([]);
@@ -116,25 +90,14 @@ for (const screen of SCREENS) {
   }
 }
 
-/**
- * A phone gets a phone's browser: touch, the mobile viewport and a high-density screen. Every size gets the sign-in
- * providers production has, which CI's server doesn't: their buttons make the sign-in and world panels their tallest.
- */
-async function contextFor(browser: Browser, size: Size): Promise<BrowserContext> {
-  const context = await browser.newContext({
-    viewport: { width: size.width, height: size.height },
-    ...(size.phone ? { isMobile: true, hasTouch: true, deviceScaleFactor: 2 } : {}),
-  });
-  await context.route("**/auth/providers", (route) => route.fulfill({ json: ["Discord", "Google"] }));
-  return context;
-}
-
+/** How far past an edge a box may sit and still count as on screen: sub-pixel rounding of centred parts. */
+const SLACK = 0.5;
 /**
  * Every control and line of text must be wholly on screen, unless a panel it is in scrolls to it. The page itself never
  * scrolls (the UI is fixed over the canvas), so anything else past an edge can't be reached at all.
  */
 async function offScreen(page: Page): Promise<string[]> {
-  return page.evaluate(() => [...document.querySelectorAll<HTMLElement>("#ui button, #ui input, #ui h1, #ui p, #ui strong, #ui span")]
+  return page.evaluate((slack) => [...document.querySelectorAll<HTMLElement>("#ui button, #ui input, #ui h1, #ui p, #ui strong, #ui span")]
     .filter((element) => element.offsetParent !== null)
     .filter((element) => {
       for (let parent = element.parentElement; parent && parent.id !== "ui"; parent = parent.parentElement) {
@@ -143,8 +106,8 @@ async function offScreen(page: Page): Promise<string[]> {
       return true;
     })
     .map((element) => ({ element, r: element.getBoundingClientRect() }))
-    .filter(({ r }) => r.left < -0.5 || r.top < -0.5 || r.right > window.innerWidth + 0.5 || r.bottom > window.innerHeight + 0.5)
-    .map(({ element, r }) => `"${element.textContent?.trim() || element.getAttribute("placeholder") || element.tagName}" is partly off screen (${[r.left, r.top, r.right, r.bottom].map(Math.round).join(", ")})`));
+    .filter(({ r }) => r.left < -slack || r.top < -slack || r.right > window.innerWidth + slack || r.bottom > window.innerHeight + slack)
+    .map(({ element, r }) => `"${element.textContent?.trim() || element.getAttribute("placeholder") || element.tagName}" is partly off screen (${[r.left, r.top, r.right, r.bottom].map(Math.round).join(", ")})`), SLACK);
 }
 
 /** Each part that exists must be wholly inside the viewport, and no two may overlap. */
@@ -158,7 +121,7 @@ async function offScreenOrOverlapping(page: Page, parts: string[]): Promise<stri
   const { width, height } = page.viewportSize() ?? { width: 0, height: 0 };
   const problems: string[] = [];
   for (const box of boxes) {
-    if (box.left < 0 || box.top < 0 || box.right > width + 0.5 || box.bottom > height + 0.5) {
+    if (box.left < -SLACK || box.top < -SLACK || box.right > width + SLACK || box.bottom > height + SLACK) {
       problems.push(`${box.selector} is partly off screen (${round(box)})`);
     }
   }

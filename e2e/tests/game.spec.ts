@@ -31,6 +31,25 @@ test("a guest picks a world and the room draws", async ({ page }) => {
     .toBeGreaterThan(50);
 });
 
+// The first room waits for the 3D scene to download: on a slow phone a player may tap another world meanwhile.
+test("a world tapped while another is loading is ignored", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Play as a guest" }).click();
+  await expect(page.getByRole("button", { name: /^Calico · / })).toBeVisible();
+  // A slow network: the scene's scripts take a while.
+  await page.route("**/assets/**", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await route.continue();
+  });
+
+  await page.getByRole("button", { name: /^Tabby · / }).click();
+  await page.getByRole("button", { name: /^Calico · / }).click();
+
+  await expect(page.locator(".room-bar strong")).toHaveText("Town Square");
+  await page.waitForTimeout(2000);
+  expect(await page.evaluate(() => window.pspsps?.room()?.snapshot.worldId)).toBe("tabby");
+});
+
 test("two cats see each other walk, chat and leave", async ({ page: tom, browser }) => {
   const felix = await newPlayer(browser);
   try {
