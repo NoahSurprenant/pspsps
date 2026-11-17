@@ -19,8 +19,8 @@ generated_code = true
 # Test names read as sentences: Method_DoesWhat.
 [tests/**.cs]
 dotnet_diagnostic.CA1707.severity = none
-# Performance and locale rules for production code: in tests, inline expected arrays and plain logging calls read
-# better, and they run under a fixed invariant culture in CI.
+# Performance and locale rules are for production code: in tests, inline expected arrays, plain logging calls and
+# default formatting read better, and nothing a test formats reaches a player.
 dotnet_diagnostic.CA1861.severity = none
 dotnet_diagnostic.CA1305.severity = none
 dotnet_diagnostic.CA1848.severity = none
