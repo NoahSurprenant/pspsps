@@ -26,38 +26,35 @@ internal sealed class PlayerService(IApplicationDbContext db, TimeProvider time,
         return PlayerProfile.From(player);
     }
 
-    public async Task<LinkLoginResult> LinkLoginAsync(
+    public async Task<LinkLoginOutcome> LinkLoginAsync(
         Guid playerId, LoginProvider provider, string providerKey, CancellationToken cancellationToken)
     {
-        var owner = await db.Players
-            .AsNoTracking()
-            .FirstOrDefaultAsync(
-                p => p.Logins.Any(l => l.Provider == provider && l.ProviderKey == providerKey), cancellationToken);
-        if (owner is not null)
+        var ownerId = await db.Players
+            .Where(p => p.Logins.Any(l => l.Provider == provider && l.ProviderKey == providerKey))
+            .Select(p => (Guid?)p.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (ownerId is { } owner)
         {
-            return owner.Id == playerId
-                ? new LinkLoginResult(LinkLoginOutcome.Linked, PlayerProfile.From(owner))
-                : new LinkLoginResult(
-                    LinkLoginOutcome.TakenByAnotherPlayer, null, $"That {provider} account already has a cat.");
+            return owner == playerId ? LinkLoginOutcome.Linked : LinkLoginOutcome.TakenByAnotherPlayer;
         }
 
         var player = await db.Players.FirstOrDefaultAsync(p => p.Id == playerId, cancellationToken);
         if (player is null)
         {
-            return new LinkLoginResult(LinkLoginOutcome.PlayerNotFound, null);
+            return LinkLoginOutcome.PlayerNotFound;
         }
 
         try
         {
             player.LinkLogin(provider, providerKey);
         }
-        catch (DomainException refused)
+        catch (DomainException)
         {
-            return new LinkLoginResult(LinkLoginOutcome.Refused, PlayerProfile.From(player), refused.Message);
+            return LinkLoginOutcome.Refused;
         }
 
         await db.SaveChangesAsync(cancellationToken);
-        return new LinkLoginResult(LinkLoginOutcome.Linked, PlayerProfile.From(player));
+        return LinkLoginOutcome.Linked;
     }
 
     public async Task<PlayerProfile> CreateGuestAsync(CancellationToken cancellationToken)

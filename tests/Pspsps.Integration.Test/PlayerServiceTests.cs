@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Pspsps.Application.Abstractions;
 using Pspsps.Application.Players;
 using Pspsps.Domain.Players;
+using Pspsps.Infrastructure.Persistence;
 
 namespace Pspsps.Integration.Test;
 
@@ -59,13 +61,14 @@ public sealed class PlayerServiceTests
             .LinkLoginAsync(guest.Id, LoginProvider.Google, key, CancellationToken.None);
         var signedIn = await Game.Get<IPlayerService>()
             .SignInWithLoginAsync(LoginProvider.Google, key, "Someone Else", CancellationToken.None);
+        var found = await Game.Get<IPlayerService>().FindAsync(guest.Id, CancellationToken.None);
 
         Assert.Multiple(() =>
         {
-            Assert.That(linked.Outcome, Is.EqualTo(LinkLoginOutcome.Linked));
-            Assert.That(linked.Player, Is.EqualTo(guest with { Coins = 40, IsGuest = false }));
+            Assert.That(linked, Is.EqualTo(LinkLoginOutcome.Linked));
+            Assert.That(found, Is.EqualTo(guest with { Coins = 40, IsGuest = false }));
             // Signing in with the login from anywhere now finds the same cat.
-            Assert.That(signedIn, Is.EqualTo(linked.Player));
+            Assert.That(signedIn, Is.EqualTo(found));
         });
     }
 
@@ -85,8 +88,7 @@ public sealed class PlayerServiceTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(result.Outcome, Is.EqualTo(LinkLoginOutcome.TakenByAnotherPlayer));
-            Assert.That(result.Message, Is.EqualTo("That Discord account already has a cat."));
+            Assert.That(result, Is.EqualTo(LinkLoginOutcome.TakenByAnotherPlayer));
             Assert.That(guestAfter, Is.EqualTo(guest));
             Assert.That(ownerAfter, Is.EqualTo(owner));
         });
@@ -102,8 +104,7 @@ public sealed class PlayerServiceTests
         var result = await Game.Get<IPlayerService>()
             .LinkLoginAsync(player.Id, LoginProvider.Discord, key, CancellationToken.None);
 
-        Assert.That(result.Outcome, Is.EqualTo(LinkLoginOutcome.Linked));
-        Assert.That(result.Player, Is.EqualTo(player));
+        Assert.That(result, Is.EqualTo(LinkLoginOutcome.Linked));
     }
 
     [Test]
@@ -115,8 +116,7 @@ public sealed class PlayerServiceTests
         var result = await Game.Get<IPlayerService>()
             .LinkLoginAsync(player.Id, LoginProvider.Discord, NewKey(), CancellationToken.None);
 
-        Assert.That(result.Outcome, Is.EqualTo(LinkLoginOutcome.Refused));
-        Assert.That(result.Message, Is.EqualTo("This cat already has a Discord login."));
+        Assert.That(result, Is.EqualTo(LinkLoginOutcome.Refused));
     }
 
     [Test]
@@ -125,7 +125,36 @@ public sealed class PlayerServiceTests
         var result = await Game.Get<IPlayerService>()
             .LinkLoginAsync(Guid.NewGuid(), LoginProvider.Google, NewKey(), CancellationToken.None);
 
-        Assert.That(result.Outcome, Is.EqualTo(LinkLoginOutcome.PlayerNotFound));
+        Assert.That(result, Is.EqualTo(LinkLoginOutcome.PlayerNotFound));
+    }
+
+    [Test]
+    public async Task LinkLogin_ALoginTakenWhileLinking_IsTakenAndNothingIsLeftToSave()
+    {
+        // Another browser signs in with the same account between the owner check and the save: the save hits the
+        // login's primary key. The interceptor puts that sign-in exactly there.
+        var key = NewKey();
+        var guest = await Game.Get<IPlayerService>().CreateGuestAsync(CancellationToken.None);
+        var options = new DbContextOptionsBuilder<PspspsDbContext>()
+            .UseNpgsql(PostgresFixture.ConnectionString)
+            .UseSnakeCaseNamingConvention()
+            .AddInterceptors(new SignInJustBeforeSaving(LoginProvider.Discord, key))
+            .Options;
+        await using var db = new PspspsDbContext(options);
+
+        var result = await new PlayerService(db, TimeProvider.System, Random.Shared)
+            .LinkLoginAsync(guest.Id, LoginProvider.Discord, key, CancellationToken.None);
+        var guestAfter = await Game.Get<IPlayerService>().FindAsync(guest.Id, CancellationToken.None);
+        var owner = await Game.Get<IPlayerService>()
+            .SignInWithLoginAsync(LoginProvider.Discord, key, "Quick Cat", CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result, Is.EqualTo(LinkLoginOutcome.TakenByAnotherPlayer));
+            Assert.That(db.ChangeTracker.HasChanges(), Is.False, "the refused login is still waiting to be saved");
+            Assert.That(guestAfter, Is.EqualTo(guest));
+            Assert.That(owner.Id, Is.Not.EqualTo(guest.Id));
+        });
     }
 
     /// <summary>A provider user ID no other test uses: the tests share one database.</summary>
@@ -137,5 +166,23 @@ public sealed class PlayerServiceTests
         var player = await db.Players.SingleAsync(p => p.Id == playerId);
         player.EarnCoins(coins);
         await db.SaveChangesAsync();
+    }
+
+    internal static async Task DeleteAsync(Guid playerId)
+    {
+        var db = Game.Get<IApplicationDbContext>();
+        db.Players.Remove(await db.Players.SingleAsync(p => p.Id == playerId));
+        await db.SaveChangesAsync();
+    }
+
+    /// <summary>Signs in with a login in another context just before this one saves.</summary>
+    private sealed class SignInJustBeforeSaving(LoginProvider provider, string key) : SaveChangesInterceptor
+    {
+        public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(
+            DbContextEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default)
+        {
+            await Game.Get<IPlayerService>().SignInWithLoginAsync(provider, key, "Quick Cat", cancellationToken);
+            return result;
+        }
     }
 }

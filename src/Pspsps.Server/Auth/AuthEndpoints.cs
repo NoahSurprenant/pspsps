@@ -91,8 +91,8 @@ public static class AuthEndpoints
             return "/?link=failed";
         }
 
-        var result = await players.LinkLoginAsync(playerId, provider, key, ct);
-        return result.Outcome switch
+        var outcome = await players.LinkLoginAsync(playerId, provider, key, ct);
+        return outcome switch
         {
             LinkLoginOutcome.Linked => "/?link=linked",
             LinkLoginOutcome.TakenByAnotherPlayer => "/?link=taken",

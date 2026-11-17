@@ -1,10 +1,12 @@
 using System.Net.Http.Json;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Pspsps.Application.Players;
+using Pspsps.Server.Auth;
 
 namespace Pspsps.Integration.Test;
 
@@ -15,7 +17,17 @@ public sealed class GameFactory(string connectionString) : WebApplicationFactory
     {
         builder.UseEnvironment("Testing");
         builder.UseSetting("ConnectionStrings:Pspsps", connectionString);
-        builder.ConfigureTestServices(services => services.AddSingleton<IStartupFilter, FakeExternalSignIn>());
+        builder.ConfigureTestServices(services =>
+        {
+            services.AddSingleton<IStartupFilter, FakeExternalSignIn>();
+            services.AddAuthentication().AddRemoteScheme<RemoteAuthenticationOptions, FakeProviderHandler>(
+                FakeProviderHandler.Scheme, null, options =>
+                {
+                    options.CallbackPath = FakeProviderHandler.CallbackPath;
+                    options.Events = new RemoteAuthenticationEvents();
+                    AuthSetup.ConfigureExternal(options);
+                });
+        });
     }
 
     public T Get<T>()

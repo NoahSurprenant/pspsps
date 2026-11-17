@@ -116,6 +116,98 @@ public sealed class GuestUpgradeTests
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
 
+    [Test]
+    public async Task Link_ASecondLoginFromTheSameProvider_IsRefused()
+    {
+        using var browser = NewBrowser();
+        await FinishExternalSignInAsync(browser, FakeExternalSignIn.Url("Discord", PlayerServiceTests.NewKey()));
+        var player = (await MeAsync(browser))!;
+
+        var landed = await FinishExternalSignInAsync(
+            browser, FakeExternalSignIn.Url("Discord", PlayerServiceTests.NewKey(), player.Id));
+        var me = await MeAsync(browser);
+
+        // Not "failed": trying again can't work, and the client says why.
+        Assert.That(landed, Is.EqualTo("/?link=refused"));
+        Assert.That(me, Is.EqualTo(player));
+    }
+
+    [Test]
+    public async Task Link_ForAPlayerThatNoLongerExists_Failed()
+    {
+        using var browser = NewBrowser();
+        var guest = await SignInGuestAsync(browser);
+        await PlayerServiceTests.DeleteAsync(guest.Id);
+
+        var landed = await FinishExternalSignInAsync(
+            browser, FakeExternalSignIn.Url("Google", PlayerServiceTests.NewKey(), guest.Id));
+
+        Assert.That(landed, Is.EqualTo("/?link=failed"));
+    }
+
+    [Test]
+    public async Task Callback_WithoutTheExternalSignIn_WhileSignedIn_SaysTheLinkFailed()
+    {
+        // The external cookie expired (it lasts 10 minutes) or the browser dropped it: no intent to read, but a
+        // signed-in player can only have been saving their cat.
+        using var browser = NewBrowser();
+        await SignInGuestAsync(browser);
+
+        using var response = await browser.GetAsync(new Uri("/auth/callback", UriKind.Relative));
+
+        Assert.That(response.Headers.Location?.OriginalString, Is.EqualTo("/?link=failed"));
+    }
+
+    [Test]
+    public async Task Callback_WithoutTheExternalSignIn_SignedOut_SaysSignInFailed()
+    {
+        using var browser = NewBrowser();
+
+        using var response = await browser.GetAsync(new Uri("/auth/callback", UriKind.Relative));
+
+        Assert.That(response.Headers.Location?.OriginalString, Is.EqualTo("/?signin=failed"));
+    }
+
+    [Test]
+    public async Task ProviderFailure_DuringALink_SaysTheLinkFailedAndClearsTheExternalCookie()
+    {
+        // The guest pressed Cancel on the provider's consent screen.
+        using var browser = NewBrowser();
+        var guest = await SignInGuestAsync(browser);
+
+        using var response = await browser.GetAsync(FakeProviderHandler.Url("Google", guest.Id));
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
+        Assert.That(response.Headers.Location?.OriginalString, Is.EqualTo("/?link=failed"));
+        Assert.That(
+            response.Headers.TryGetValues("Set-Cookie", out var cookies) ? cookies : Enumerable.Empty<string>(),
+            Has.Some.StartsWith("pspsps-external=;"));
+        Assert.That(await MeAsync(browser), Is.EqualTo(guest));
+    }
+
+    [Test]
+    public async Task ProviderFailure_DuringASignIn_SaysSignInFailed()
+    {
+        using var browser = NewBrowser();
+
+        using var response = await browser.GetAsync(FakeProviderHandler.Url("Discord"));
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
+        Assert.That(response.Headers.Location?.OriginalString, Is.EqualTo("/?signin=failed"));
+    }
+
+    [Test]
+    public async Task ProviderFailure_WithTheStateLost_WhileSignedIn_SaysTheLinkFailed()
+    {
+        using var browser = NewBrowser();
+        await SignInGuestAsync(browser);
+
+        using var response = await browser.GetAsync(FakeProviderHandler.Url());
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
+        Assert.That(response.Headers.Location?.OriginalString, Is.EqualTo("/?link=failed"));
+    }
+
     /// <summary>A browser: keeps its cookies, and lets the test see each redirect.</summary>
     private static HttpClient NewBrowser() =>
         Game.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });

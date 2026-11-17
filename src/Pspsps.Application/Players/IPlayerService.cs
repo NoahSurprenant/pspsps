@@ -12,7 +12,7 @@ public interface IPlayerService
     /// Adds an external login to an existing player ("Save your cat" for a guest), keeping their cat and coins. A login
     /// that already belongs to another player is refused, not merged.
     /// </summary>
-    Task<LinkLoginResult> LinkLoginAsync(
+    Task<LinkLoginOutcome> LinkLoginAsync(
         Guid playerId, LoginProvider provider, string providerKey, CancellationToken cancellationToken);
 
     /// <summary>A new guest player with a generated name.</summary>
