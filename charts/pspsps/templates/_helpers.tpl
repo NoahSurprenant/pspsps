@@ -35,6 +35,8 @@ runAsNonRoot: true
 runAsUser: 70
 runAsGroup: 70
 fsGroup: 70
+# Only when the volume's root has the wrong group: not a walk over every file on every start.
+fsGroupChangePolicy: OnRootMismatch
 seccompProfile:
   type: RuntimeDefault
 {{- end -}}

@@ -3,8 +3,8 @@
 {{- if not .Values.postgres.enabled }}
 {{- fail "backup.enabled backs up the chart's PostgreSQL: it needs postgres.enabled" }}
 {{- end }}
-{{- if lt (int $b.keep) 1 }}
-{{- fail "backup.keep must be at least 1" }}
+{{- if lt (int $b.keep) 2 }}
+{{- fail "backup.keep must be at least 2: with 1, making room for a new dump would delete the only one" }}
 {{- end }}
 {{- if lt (int $b.activeDeadlineSeconds) 1 }}
 {{- fail "backup.activeDeadlineSeconds must be at least 1" }}
@@ -127,4 +127,16 @@ spec:
                 name: {{ $name }}
             - name: tmp
               emptyDir: {}
+          {{- with .Values.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.affinity }}
+          affinity:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
 {{- end }}

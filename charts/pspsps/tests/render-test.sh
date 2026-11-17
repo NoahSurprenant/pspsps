@@ -81,7 +81,7 @@ if grep -q 'checksum/' <<< "$cronjob"; then fail "the backup CronJob has a check
 # The backup pod runs as the database's pod does, and neither relabels its whole volume on every start.
 postgres_sc=$(pod_security_context "$(helm template pspsps "$chart" --show-only templates/postgres.yaml)")
 backup_sc=$(pod_security_context "$cronjob")
-grep -qx 'fsGroupChangePolicy: OnRootMismatch' <<< "$postgres_sc" || fail "PostgreSQL's pod has no fsGroupChangePolicy"
+grep -qxE ' *fsGroupChangePolicy: OnRootMismatch' <<< "$postgres_sc" || fail "PostgreSQL's pod has no fsGroupChangePolicy"
 [[ "$postgres_sc" == "$backup_sc" ]] || fail "the backup pod's securityContext isn't PostgreSQL's"
 
 # The backup pod is placed like the server.

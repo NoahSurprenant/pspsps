@@ -8,11 +8,15 @@ with `pg_dump --format=custom` onto a volume (the chart's own PersistentVolumeCl
 
 Dumps are named `pspsps-<UTC time>.dump`, e.g. `pspsps-20261117T030000Z.dump`. Each run:
 
-1. deletes the oldest dumps down to `backup.keep - 1`, so the new one fits even after a full volume made runs fail
-   (size the volume for `backup.keep` dumps);
+1. checks that it can reach the database, and stops with nothing changed when it can't;
 2. writes the new dump to a `.partial` file of its own and renames it when `pg_dump` succeeds, so a failed run never
-   counts as a backup. A `.partial` file older than `backup.activeDeadlineSeconds` is from a run that died, and is
-   deleted; younger ones may belong to a run still going, and are left alone.
+   counts as a backup or costs one. A `.partial` file older than `backup.activeDeadlineSeconds` is from a run that
+   died, and is deleted; younger ones may belong to a run still going, and are left alone. A run stopped by a signal
+   (its deadline, a deleted pod) stops `pg_dump` and deletes its `.partial` file;
+3. only then deletes the oldest dumps beyond `backup.keep`.
+
+Size the volume for `backup.keep + 1` dumps. If it fills up anyway, the run deletes the oldest dump (never the only
+one) and tries once more, so a growing database doesn't stop backups for good.
 
 The job uses the database's own image, so `pg_dump` is always the server's version. The chart's backup claim has
 `helm.sh/resource-policy: keep` (`backup.persistence.keepOnUninstall`), so uninstalling the chart leaves the dumps.
@@ -28,7 +32,10 @@ kubectl config set-context --current --namespace pspsps
 
 ```sh
 kubectl create job --from=cronjob/pspsps-backup pspsps-backup-manual
-kubectl wait --for=condition=complete job/pspsps-backup-manual --timeout=10m
+# Until it completes or fails (after its retries), at most 10 minutes; then how it ended and what it said.
+timeout 10m sh -c 'until kubectl get job/pspsps-backup-manual \
+  -o jsonpath="{.status.conditions[?(@.status==\"True\")].type}" | grep -qE "Complete|Failed"; do sleep 5; done'
+kubectl get job/pspsps-backup-manual -o jsonpath='{.status.conditions[?(@.status=="True")].type}{"\n"}'
 kubectl logs job/pspsps-backup-manual
 kubectl delete job pspsps-backup-manual
 ```
@@ -54,6 +61,7 @@ spec:
     runAsUser: 70
     runAsGroup: 70
     fsGroup: 70
+    fsGroupChangePolicy: OnRootMismatch
     seccompProfile: { type: RuntimeDefault }
   containers:
     - name: shell
@@ -103,10 +111,15 @@ added, rows in `__EFMigrationsHistory`); the server then migrates forward from t
 same steps restore onto a new, empty database, e.g. after losing the database's volume: install the chart as usual
 first.
 
-1. Stop the server, so nothing writes or holds a connection while the restore runs. Argo CD or another controller
-   syncing the chart will scale it back up: pause its sync first.
+1. Stop the backups and the server, so nothing connects while the restore runs: a dump holding a connection makes
+   `dropdb` fail, and one taken mid-restore would be of an empty database. Argo CD or another controller syncing the
+   chart will undo both: pause its sync first.
 
    ```sh
+   kubectl patch cronjob/pspsps-backup -p '{"spec":{"suspend":true}}'
+   # Until no backup (scheduled or manual) is running.
+   until [ -z "$(kubectl get pods -l app.kubernetes.io/instance=pspsps,app.kubernetes.io/component=backup \
+     --field-selector=status.phase!=Succeeded,status.phase!=Failed -o name)" ]; do sleep 5; done
    kubectl scale deploy/pspsps --replicas=0
    kubectl wait --for=delete pod -l app.kubernetes.io/instance=pspsps,app.kubernetes.io/component=server --timeout=2m
    ```
@@ -122,9 +135,10 @@ first.
      --no-owner --single-transaction --exit-on-error < pspsps.dump
    ```
 
-3. Start the server again: its replicas from the chart (`1`, or `cluster.replicas` with `cluster.enabled`), or
-   resume the sync. It applies any migration newer than the dump as it starts.
+3. Start the server again, with its replicas from the chart (`1`, or `cluster.replicas` with `cluster.enabled`), and
+   resume the backups (or resume the sync). The server applies any migration newer than the dump as it starts.
 
    ```sh
    kubectl scale deploy/pspsps --replicas=1
+   kubectl patch cronjob/pspsps-backup -p '{"spec":{"suspend":false}}'
    ```

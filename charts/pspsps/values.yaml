@@ -102,8 +102,9 @@ backup:
   # Cron syntax, in the controller's time zone unless timeZone is set (an IANA name, e.g. Europe/Paris).
   schedule: "0 3 * * *"
   timeZone: ""
-  # How many dumps to keep. Each run first deletes the oldest down to keep - 1, so the volume needs room for keep
-  # dumps; then dumps. A failed run so leaves keep - 1, and with keep 1 none while a run is going: keep at least 2.
+  # How many dumps to keep, at least 2. A run deletes nothing until its new dump is complete, then the oldest beyond
+  # keep; size the volume for keep + 1 dumps. If the volume fills up anyway, the run deletes the oldest dump (never
+  # the only one) and tries once more.
   keep: 7
   # A run still going after this many seconds is stopped (and counts as failed). Also how old a run's unfinished
   # .partial file must be before a later run deletes it.
@@ -112,7 +113,7 @@ backup:
     # A PersistentVolumeClaim to write the dumps to instead of the chart's own (which is made only when this is
     # empty). The pod runs as uid/gid 70 with fsGroup 70: the claim must be writable by them.
     existingClaim: ""
-    # Room for keep dumps.
+    # Room for keep + 1 dumps.
     size: 10Gi
     storageClass: ""
     # helm.sh/resource-policy: keep on the chart's claim, so uninstalling the chart leaves the dumps (delete the claim
@@ -168,6 +169,7 @@ securityContext:
   capabilities:
     drop: [ALL]
 
+# Where the server's pods (and the backup job's) run.
 nodeSelector: {}
 tolerations: []
 affinity: {}
