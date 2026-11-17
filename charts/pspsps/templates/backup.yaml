@@ -6,6 +6,9 @@
 {{- if lt (int $b.keep) 1 }}
 {{- fail "backup.keep must be at least 1" }}
 {{- end }}
+{{- if lt (int $b.activeDeadlineSeconds) 1 }}
+{{- fail "backup.activeDeadlineSeconds must be at least 1" }}
+{{- end }}
 {{- $p := .Values.postgres -}}
 {{- $name := printf "%s-backup" (include "pspsps.fullname" .) -}}
 {{- if not $b.persistence.existingClaim }}
@@ -16,9 +19,15 @@ metadata:
   labels:
     {{- include "pspsps.labels" . | nindent 4 }}
     app.kubernetes.io/component: backup
-  {{- with $b.persistence.annotations }}
+  {{- if or $b.persistence.keepOnUninstall $b.persistence.annotations }}
   annotations:
+    {{- if $b.persistence.keepOnUninstall }}
+    # helm uninstall leaves the dumps, which outlive the database's volume.
+    helm.sh/resource-policy: keep
+    {{- end }}
+    {{- with $b.persistence.annotations }}
     {{- toYaml . | nindent 4 }}
+    {{- end }}
   {{- end }}
 spec:
   accessModes: [ReadWriteOnce]
@@ -60,25 +69,16 @@ spec:
   jobTemplate:
     spec:
       backoffLimit: 2
-      activeDeadlineSeconds: {{ $b.activeDeadlineSeconds }}
+      activeDeadlineSeconds: {{ int $b.activeDeadlineSeconds }}
       template:
         metadata:
           labels:
             {{- include "pspsps.selectorLabels" (dict "root" . "component" "backup") | nindent 12 }}
-          annotations:
-            # A new script reaches the next run.
-            checksum/script: {{ .Files.Get "files/backup.sh" | sha256sum }}
         spec:
           restartPolicy: Never
           automountServiceAccountToken: false
           securityContext:
-            runAsNonRoot: true
-            # The alpine image's postgres user, as in the database's pod.
-            runAsUser: 70
-            runAsGroup: 70
-            fsGroup: 70
-            seccompProfile:
-              type: RuntimeDefault
+            {{- include "pspsps.postgresPodSecurityContext" . | nindent 12 }}
           containers:
             - name: backup
               # The database's own image, so pg_dump matches the server's version.
@@ -103,6 +103,9 @@ spec:
                   value: /backups
                 - name: BACKUP_KEEP
                   value: {{ int $b.keep | quote }}
+                # A .partial file older than a run may last is from a run that died.
+                - name: BACKUP_STALE_SECONDS
+                  value: {{ int $b.activeDeadlineSeconds | quote }}
               resources:
                 {{- toYaml $b.resources | nindent 16 }}
               securityContext:

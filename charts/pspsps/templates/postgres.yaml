@@ -64,13 +64,7 @@ spec:
     spec:
       automountServiceAccountToken: false
       securityContext:
-        runAsNonRoot: true
-        # The alpine image's postgres user.
-        runAsUser: 70
-        runAsGroup: 70
-        fsGroup: 70
-        seccompProfile:
-          type: RuntimeDefault
+        {{- include "pspsps.postgresPodSecurityContext" . | nindent 8 }}
       containers:
         - name: postgres
           image: {{ include "pspsps.imageRef" $p.image }}

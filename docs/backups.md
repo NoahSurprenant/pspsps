@@ -6,9 +6,16 @@ with `pg_dump --format=custom` onto a volume (the chart's own PersistentVolumeCl
 `charts/pspsps/files/backup.sh`; CI runs it and both restores below against a real PostgreSQL
 (`tests/chart/backup-test.sh`).
 
-Dumps are named `pspsps-<UTC time>.dump`, e.g. `pspsps-20261117T030000Z.dump`. A run writes to a `.partial` file and
-renames it when `pg_dump` succeeds, so a failed run never replaces a good dump. The job uses the database's own image,
-so `pg_dump` is always the server's version.
+Dumps are named `pspsps-<UTC time>.dump`, e.g. `pspsps-20261117T030000Z.dump`. Each run:
+
+1. deletes the oldest dumps down to `backup.keep - 1`, so the new one fits even after a full volume made runs fail
+   (size the volume for `backup.keep` dumps);
+2. writes the new dump to a `.partial` file of its own and renames it when `pg_dump` succeeds, so a failed run never
+   counts as a backup. A `.partial` file older than `backup.activeDeadlineSeconds` is from a run that died, and is
+   deleted; younger ones may belong to a run still going, and are left alone.
+
+The job uses the database's own image, so `pg_dump` is always the server's version. The chart's backup claim has
+`helm.sh/resource-policy: keep` (`backup.persistence.keepOnUninstall`), so uninstalling the chart leaves the dumps.
 
 The commands below assume the release is named `pspsps` in namespace `pspsps`; with another release name, the objects
 are `<release>-pspsps-postgres` and so on (or `<release>-postgres` when the release name contains `pspsps`).
@@ -28,12 +35,14 @@ kubectl delete job pspsps-backup-manual
 
 ## Getting a dump out
 
-The dumps are on the backup volume, which only the backup job mounts. Start a pod that mounts it (same user and
-security settings as the job, so a restricted namespace admits it), copy a dump out, and delete the pod. With
-`backup.persistence.existingClaim`, put that claim's name in `claimName`.
+The dumps are on the backup volume, which only the backup job mounts. Start a pod that mounts it (same image, user and
+security settings as the job, so it pulls from wherever `postgres.image` does and a restricted namespace admits it),
+copy a dump out, and delete the pod. With `backup.persistence.existingClaim`, put that claim's name in `claimName`.
 
 ```sh
-kubectl apply -f - <<'YAML'
+# The chart's postgres.image, as the database runs it.
+image=$(kubectl get deploy/pspsps-postgres -o jsonpath='{.spec.template.spec.containers[0].image}')
+kubectl apply -f - <<YAML
 apiVersion: v1
 kind: Pod
 metadata:
@@ -48,7 +57,7 @@ spec:
     seccompProfile: { type: RuntimeDefault }
   containers:
     - name: shell
-      image: docker.io/library/postgres:18-alpine
+      image: $image
       command: ["sleep", "3600"]
       resources:
         requests: { cpu: 10m, memory: 16Mi }
@@ -88,22 +97,29 @@ kubectl exec deploy/pspsps-postgres -- dropdb -U pspsps restore_test
 
 ## Restoring
 
-This replaces the database's contents with the dump's: everything written since the dump is lost.
+This replaces the database with the dump: everything written since the dump is lost. The database is dropped and
+created again empty before the restore, so nothing newer than the dump survives (tables or columns a later migration
+added, rows in `__EFMigrationsHistory`); the server then migrates forward from the dump's migrations as it starts. The
+same steps restore onto a new, empty database, e.g. after losing the database's volume: install the chart as usual
+first.
 
-1. Stop the server, so nothing writes while the restore runs (and it doesn't serve half-restored data). Argo CD or
-   another controller syncing the chart will scale it back up: pause its sync first.
+1. Stop the server, so nothing writes or holds a connection while the restore runs. Argo CD or another controller
+   syncing the chart will scale it back up: pause its sync first.
 
    ```sh
    kubectl scale deploy/pspsps --replicas=0
    kubectl wait --for=delete pod -l app.kubernetes.io/instance=pspsps,app.kubernetes.io/component=server --timeout=2m
    ```
 
-2. Restore. `--clean --if-exists` drops each object before recreating it; `--single-transaction` makes it all or
-   nothing, so a failure leaves the database as it was.
+2. Drop the database and create it again, owned by the app's role (`postgres.username`; the database's name is
+   `postgres.database`), then restore into it. `--single-transaction` makes the restore all or nothing: if it fails,
+   the database is empty and you can run it again.
 
    ```sh
+   kubectl exec deploy/pspsps-postgres -- dropdb -U pspsps pspsps
+   kubectl exec deploy/pspsps-postgres -- createdb -U pspsps -O pspsps pspsps
    kubectl exec -i deploy/pspsps-postgres -- pg_restore -U pspsps -d pspsps \
-     --clean --if-exists --no-owner --single-transaction --exit-on-error < pspsps.dump
+     --no-owner --single-transaction --exit-on-error < pspsps.dump
    ```
 
 3. Start the server again: its replicas from the chart (`1`, or `cluster.replicas` with `cluster.enabled`), or
@@ -112,8 +128,3 @@ This replaces the database's contents with the dump's: everything written since 
    ```sh
    kubectl scale deploy/pspsps --replicas=1
    ```
-
-### Onto a new, empty database
-
-After losing the database's volume, install the chart as usual (the server creates the schema as it starts), stop the
-server as in step 1, then run step 2 and 3: the dump's tables replace the empty ones.

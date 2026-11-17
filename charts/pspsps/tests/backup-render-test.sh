@@ -63,7 +63,7 @@ existing=$(helm template pspsps "$chart" --set backup.enabled=true --set backup.
 grep -q '^ *claimName: dumps$' <<< "$(document "$existing" CronJob pspsps-backup)" || fail "existingClaim is not mounted"
 
 # Settings the chart refuses.
-for bad in "--set backup.keep=0" "--set postgres.enabled=false"; do
+for bad in "--set backup.keep=0" "--set backup.activeDeadlineSeconds=0" "--set postgres.enabled=false"; do
   # shellcheck disable=SC2086
   if helm template pspsps "$chart" --set backup.enabled=true $bad > /dev/null 2>&1; then
     fail "rendered with backup.enabled and $bad"

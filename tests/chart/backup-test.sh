@@ -99,7 +99,10 @@ sql "INSERT INTO \"__EFMigrationsHistory\" VALUES ('20260201000000_Newer', '10.0
 sql "CREATE TABLE newer (id int PRIMARY KEY, cat int NOT NULL REFERENCES backup_test (id));"
 sql "INSERT INTO newer VALUES (1, 1);"
 sql "DELETE FROM backup_test WHERE id > 10; INSERT INTO backup_test VALUES (1000, 'not in the dump');"
-dump | pg pg_restore -U "$user" -d "$db" --clean --if-exists --no-owner --single-transaction --exit-on-error
+# docs/backups.md, "Restoring": the database dropped and created again empty, then the dump into it.
+pg dropdb -U "$user" "$db"
+pg createdb -U "$user" -O "$user" "$db"
+dump | pg pg_restore -U "$user" -d "$db" --no-owner --single-transaction --exit-on-error
 [ "$(sql "SELECT count(*), sum(id) FROM backup_test;")" = "100|5050" ] || fail "the restore did not bring the rows back"
 [ -z "$(sql "SELECT to_regclass('public.newer');")" ] || fail "the newer table survived the restore"
 [ "$(sql "SELECT string_agg(\"MigrationId\", ',') FROM \"__EFMigrationsHistory\";")" = "20260101000000_Initial" ] \
