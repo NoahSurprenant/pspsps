@@ -15,4 +15,8 @@ public static class ClientFiles
         types.Mappings[".glb"] = "model/gltf-binary";
         return new StaticFileOptions { ContentTypeProvider = types };
     }
+
+    /// <summary>Serves the client: <c>index.html</c> for <c>/</c>, and its files with <see cref="Options"/>.</summary>
+    public static IApplicationBuilder UseClientFiles(this IApplicationBuilder app) =>
+        app.UseDefaultFiles().UseStaticFiles(Options());
 }

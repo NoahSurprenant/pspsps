@@ -21,13 +21,13 @@ public class ClientFilesTests
     [TearDown]
     public void DeleteWebRoot() => Directory.Delete(webRoot, recursive: true);
 
-    /// <summary>The server's static files as Program.cs sets them up, index.html as the fallback.</summary>
+    /// <summary>The client's files as Program.cs serves them (UseClientFiles), index.html as the fallback.</summary>
     private async Task<(HttpStatusCode Status, string? ContentType, byte[] Body)> Get(string path)
     {
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions { WebRootPath = webRoot });
         builder.WebHost.UseTestServer();
         await using var app = builder.Build();
-        app.UseStaticFiles(ClientFiles.Options());
+        app.UseClientFiles();
         app.MapFallbackToFile("index.html");
         await app.StartAsync();
 
@@ -52,9 +52,9 @@ public class ClientFilesTests
     }
 
     [Test]
-    public async Task KnownTypes_AreStillServed()
+    public async Task TheRoot_IsIndexHtml()
     {
-        var (status, contentType, _) = await Get("/index.html");
+        var (status, contentType, _) = await Get("/");
 
         Assert.Multiple(() =>
         {

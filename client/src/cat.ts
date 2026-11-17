@@ -1,6 +1,7 @@
 // Babylon by module: the animation runtime (AnimationGroup.start) and the glTF 2.0 loader, for their side effects.
 import "@babylonjs/core/Animations/animatable";
 import "@babylonjs/loaders/glTF/2.0/glTFLoader";
+import { GLTFLoaderAnimationStartMode } from "@babylonjs/loaders/glTF/glTFFileLoader.pure";
 import type { AnimationGroup } from "@babylonjs/core/Animations/animationGroup";
 import type { AssetContainer } from "@babylonjs/core/assetContainer";
 import { LoadAssetContainerAsync } from "@babylonjs/core/Loading/sceneLoader";
@@ -40,6 +41,32 @@ export function animationFor(doing: CatDoing): CatAnimation {
   return doing.meowing ? "meow" : "idle";
 }
 
+/**
+ * Follows one cat's meows, for whether its meow clip shows. A meow that comes while the cat stands idle shows from its
+ * start for as long as it lasts (CatLook.meowingAt), or until the cat does something else; one that comes while the
+ * cat walks, waves or holds a pose is only heard (its bubble), then or later.
+ */
+export class MeowClip {
+  private heard = 0;
+  private showing = false;
+
+  /**
+   * <meows>: how many the cat has made (CatLook.meows); <meowing>: whether the latest still lasts; <otherwise>: the clip
+   * the cat would play without it. Whether the meow clip shows now, and whether it starts again.
+   */
+  next(meows: number, meowing: boolean, otherwise: CatAnimation): { show: boolean; restart: boolean } {
+    const fresh = meows !== this.heard;
+    this.heard = meows;
+    if (fresh) {
+      this.showing = otherwise === "idle";
+    }
+    if (!meowing || otherwise !== "idle") {
+      this.showing = false;
+    }
+    return { show: this.showing, restart: fresh && this.showing };
+  }
+}
+
 /** Whether a clip plays over and over (meow plays once and holds its last frame). */
 export function loops(animation: CatAnimation): boolean {
   return animation !== "meow";
@@ -51,8 +78,8 @@ export function facing(dx: number, dz: number): number {
 }
 
 /** The model's colour parts: each of its meshes is named "<part>.<colour>". */
-export type CatColour = "coat" | "accent" | "eyes" | "pupils" | "dark";
-const catColours: readonly CatColour[] = ["coat", "accent", "eyes", "pupils", "dark"];
+const catColours = ["coat", "accent", "eyes", "pupils", "dark"] as const;
+export type CatColour = (typeof catColours)[number];
 
 const darkFeatures = "#2a2230";
 const eyeColour = "#ffc85a";
@@ -79,11 +106,14 @@ export function colourOfMesh(name: string): CatColour | undefined {
   return catColours.find((known) => known === colour);
 }
 
-/** Reads the model (the bytes of cat.glb) into <scene>, ready to make cats from. No materials: each cat paints its own. */
+/**
+ * Reads the model (the bytes of cat.glb) into <scene>, ready to make cats from. No materials (each cat paints its
+ * own), and no clip playing on it: it is only ever cloned.
+ */
 export async function loadCatModel(scene: Scene, bytes: Uint8Array): Promise<AssetContainer> {
   return LoadAssetContainerAsync(bytes, scene, {
     pluginExtension: ".glb",
-    pluginOptions: { gltf: { skipMaterials: true } },
+    pluginOptions: { gltf: { skipMaterials: true, animationStartMode: GLTFLoaderAnimationStartMode.NONE } },
   });
 }
 
@@ -113,6 +143,11 @@ export class Cat {
     this.coat = coatOf(fur);
     const made = model.instantiateModelsToScene((source) => `${name}-${source}`, false, { doNotInstantiate: true });
     const top = made.rootNodes[0] as TransformNode;
+    const body = top.getChildTransformNodes(false).find((node) => node.name === `${name}-body`);
+    if (!body) {
+      made.dispose();
+      throw new Error("The cat model has no body");
+    }
     top.parent = parent;
     top.scaling.scaleInPlace(modelScale);
 
@@ -146,10 +181,6 @@ export class Cat {
       }
     });
 
-    const body = top.getChildTransformNodes(false).find((node) => node.name === `${name}-body`);
-    if (!body) {
-      throw new Error("The cat model has no body");
-    }
     this.anchors = {
       headTop: anchor(scene, `${name}-head-top`, body, 0, 1.13, 0.1),
       neck: anchor(scene, `${name}-neck`, body, 0, 0.3, 0.63),

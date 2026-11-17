@@ -1,6 +1,6 @@
-// Makes client/public/models/cat.glb from Kenney's Cube Pets cat (CC0; see client/public/models/README.md):
+// Makes client/src/models/cat.glb from Kenney's Cube Pets cat (CC0; see client/src/models/README.md), from client/:
 //
-//   node scripts/cat-model.mjs "<Cube Pets>/Models/GLB format/animal-cat.glb" public/models/cat.glb
+//   node scripts/cat-model.mjs "<Cube Pets>/Models/GLB format/animal-cat.glb" src/models/cat.glb
 //
 // Run it again only to change the model; the game loads the result, never the original. What it does:
 // - Drops the colour-map texture, UVs and tangents (the game draws flat colours) and splits every part into one mesh
@@ -98,6 +98,9 @@ for (const [index, node] of firstPass.entries()) {
 }
 
 function splitByRole(mesh, part) {
+  if (mesh.primitives.length !== 1) {
+    throw new Error(`${part}: ${mesh.primitives.length} primitives; this script reads one per part`);
+  }
   const primitive = mesh.primitives[0];
   const position = source.read(primitive.attributes.POSITION);
   const normal = source.read(primitive.attributes.NORMAL);
@@ -167,6 +170,11 @@ for (const animation of gltf.animations) {
   const channels = [];
   for (const channel of animation.channels) {
     const sampler = animation.samplers[channel.sampler];
+    // Kept as they are, but for the held values cut to one key below, which only LINEAR and STEP keys allow (a
+    // CUBICSPLINE key is three values: in-tangent, value, out-tangent).
+    if (sampler.interpolation === "CUBICSPLINE") {
+      throw new Error(`${animation.name}: CUBICSPLINE keys; this script reads LINEAR and STEP`);
+    }
     const target = partName(gltf.nodes[channel.target.node].name);
     const type = channel.target.path === "rotation" ? "VEC4" : "VEC3";
     let times = source.read(sampler.input);

@@ -4,7 +4,7 @@ import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import { Scene } from "@babylonjs/core/scene";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { animationFor, Cat, catAnimations, colourOf, colourOfMesh, facing, loadCatModel, loops, type CatDoing } from "./cat";
+import { animationFor, Cat, catAnimations, colourOf, colourOfMesh, facing, loadCatModel, loops, MeowClip, type CatDoing } from "./cat";
 import { coatOf } from "./fur";
 import catGlb from "./models/cat.glb?inline";
 
@@ -40,6 +40,36 @@ describe("animationFor", () => {
 
   it("loops everything but the meow, which plays once", () => {
     expect(catAnimations.filter((animation) => !loops(animation))).toEqual(["meow"]);
+  });
+});
+
+describe("MeowClip", () => {
+  it("shows a meow that comes while the cat stands idle, from the start, for as long as it lasts", () => {
+    const clip = new MeowClip();
+    expect(clip.next(0, false, "idle")).toEqual({ show: false, restart: false });
+
+    expect(clip.next(1, true, "idle")).toEqual({ show: true, restart: true });
+    expect(clip.next(1, true, "idle")).toEqual({ show: true, restart: false });
+    // Another meow starts it again.
+    expect(clip.next(2, true, "idle")).toEqual({ show: true, restart: true });
+    expect(clip.next(2, false, "idle")).toEqual({ show: false, restart: false });
+  });
+
+  // Heard (its bubble), not shown: the head doesn't lift a second later, when the meow is long over.
+  it("doesn't show a meow that came while the cat walked, waved or held a pose, even once it's idle again", () => {
+    for (const busy of ["walk", "wave", "sit"] as const) {
+      const clip = new MeowClip();
+      expect(clip.next(1, true, busy)).toEqual({ show: false, restart: false });
+      expect(clip.next(1, true, "idle")).toEqual({ show: false, restart: false });
+    }
+  });
+
+  it("stops showing when the cat walks off mid-meow, and doesn't come back", () => {
+    const clip = new MeowClip();
+    clip.next(1, true, "idle");
+
+    expect(clip.next(1, true, "walk").show).toBe(false);
+    expect(clip.next(1, true, "idle").show).toBe(false);
   });
 });
 
@@ -120,6 +150,27 @@ describe("Cat", () => {
     expect(mesh, meshName).toBeDefined();
     return mesh?.material as StandardMaterial;
   }
+
+  // The model the cats are cloned from stays out of sight: a clip playing on it would animate it every frame for nothing.
+  it("reads the model with none of its clips playing", async () => {
+    const model = await loadCatModel(scene, modelBytes());
+
+    expect(model.animationGroups.map((group) => group.name).sort()).toEqual([...catAnimations].sort());
+    expect(model.animationGroups.filter((group) => group.isPlaying)).toEqual([]);
+  });
+
+  it("refuses a model without a body, leaving nothing of it behind", async () => {
+    const model = await loadCatModel(scene, modelBytes());
+    for (const node of model.transformNodes.filter((node) => node.name === "body")) {
+      node.name = "torso";
+    }
+    const root = new TransformNode("cat-a", scene);
+
+    expect(() => new Cat(scene, model, root, "cat-a", "Grey")).toThrow(/no body/);
+    expect(root.getChildren()).toEqual([]);
+    expect(scene.animationGroups).toEqual([]);
+    expect(scene.materials.filter((material) => material.name.startsWith("cat-a"))).toEqual([]);
+  });
 
   it("has every clip, and idles to start with", async () => {
     const { cat } = await makeCat("cat-a", "Grey");

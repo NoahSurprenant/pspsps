@@ -18,7 +18,7 @@ import { AdvancedDynamicTexture } from "@babylonjs/gui/2D/advancedDynamicTexture
 import { Rectangle } from "@babylonjs/gui/2D/controls/rectangle";
 import { TextBlock } from "@babylonjs/gui/2D/controls/textBlock";
 import { cameraPitch, cameraRadius, fieldOfView } from "./view";
-import { animationFor, Cat, facing, loadCatModel, type CatAnimation } from "./cat";
+import { animationFor, Cat, facing, loadCatModel, MeowClip, type CatAnimation } from "./cat";
 import { lazily } from "./lazy";
 import { CatLook } from "./look";
 import catModelUrl from "./models/cat.glb?url";
@@ -39,6 +39,11 @@ const catModel = lazily(async () => {
   return new Uint8Array(await response.arrayBuffer());
 });
 
+/** The cat model, read into <scene>. */
+async function catModelFor(scene: Scene): Promise<AssetContainer> {
+  return loadCatModel(scene, await catModel());
+}
+
 interface CatOnScreen {
   // Where the cat stands and which way it faces; the model, once loaded, hangs off it.
   root: TransformNode;
@@ -47,8 +52,7 @@ interface CatOnScreen {
   look: CatLook;
   bubble?: { box: Rectangle; text: string };
   model?: Cat;
-  // The meows the model has played (CatLook.meows), so a new meow starts the animation again.
-  meows: number;
+  meow: MeowClip;
 }
 
 /** Draws one room at a time and walks the cats in it. Knows nothing about the network. */
@@ -61,7 +65,11 @@ export class RoomScene {
   private floorClicked: (x: number, z: number) => void = () => {};
   private pondClicked: () => void = () => {};
 
-  constructor(private readonly engine: AbstractEngine) {
+  /** <loadModel> reads the cat model into a room's scene (the tests hand in their own). */
+  constructor(
+    private readonly engine: AbstractEngine,
+    private readonly loadModel: (scene: Scene) => Promise<AssetContainer> = catModelFor,
+  ) {
     this.scene = new Scene(this.engine);
     this.scene.clearColor = sky;
     // One loop for the page; it draws whichever room is showing.
@@ -91,15 +99,22 @@ export class RoomScene {
     this.scene.clearColor = sky;
     this.gui = AdvancedDynamicTexture.CreateFullscreenUI("ui", true, this.scene);
     const scene = this.scene;
-    this.model = catModel()
-      .then((bytes) => loadCatModel(scene, bytes))
+    this.model = this.loadModel(scene)
       .then((model) => {
+        // A room left while its model loaded: the scene and its dispose hooks are gone; nothing else would free it.
+        if (scene.isDisposed) {
+          model.dispose();
+          return undefined;
+        }
         scene.onDisposeObservable.add(() => model.dispose());
         return model;
       })
       .catch((error: unknown) => {
-        // The room still works without its cats drawn: their names and bubbles show.
-        console.error("The cat model didn't load", error);
+        // The room still works without its cats drawn: their names and bubbles show. A room already left doesn't
+        // matter (reading into a scene that's gone fails).
+        if (!scene.isDisposed) {
+          console.error("The cat model didn't load", error);
+        }
         return undefined;
       });
 
@@ -189,13 +204,19 @@ export class RoomScene {
     label.linkWithMesh(anchor);
     label.linkOffsetY = -6;
 
-    const shown: CatOnScreen = { root, anchor, target: new Vector3(cat.x, 0, cat.z), look: new CatLook(cat.pose), meows: 0 };
+    const look = new CatLook(cat.pose);
+    const shown: CatOnScreen = { root, anchor, target: new Vector3(cat.x, 0, cat.z), look, meow: new MeowClip() };
     this.cats.set(cat.playerId, shown);
     const scene = this.scene;
     void this.model.then((model) => {
       // Not for a cat that left, or a room that's gone, meanwhile.
       if (model && this.cats.get(cat.playerId) === shown && this.scene === scene && !root.isDisposed()) {
-        shown.model = new Cat(scene, model, root, name, cat.furColor);
+        try {
+          shown.model = new Cat(scene, model, root, name, cat.furColor);
+        } catch (error) {
+          // That cat goes undrawn; its name and bubbles still show.
+          console.error("A cat couldn't be drawn", error);
+        }
       }
     });
   }
@@ -256,11 +277,9 @@ export class RoomScene {
   /** Brings the cat's animation and bubble in line with its look. */
   private drawLook(playerId: string, cat: CatOnScreen, moving: boolean, now: number): void {
     const { look } = cat;
-    const animation = animationFor({ moving, pose: look.pose, waving: look.wavingAt(now), meowing: look.meowingAt(now) });
-    if (cat.model) {
-      cat.model.play(animation, animation === "meow" && look.meows !== cat.meows);
-      cat.meows = look.meows;
-    }
+    const doing = { moving, pose: look.pose, waving: look.wavingAt(now), meowing: false };
+    const meow = cat.meow.next(look.meows, look.meowingAt(now), animationFor(doing));
+    cat.model?.play(animationFor({ ...doing, meowing: meow.show }), meow.restart);
 
     const text = cat.look.bubbleAt(now);
     if (text !== cat.bubble?.text) {
