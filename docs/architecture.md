@@ -38,9 +38,11 @@ A move goes like this:
 4. The Redis backplane carries the broadcast to every pod with a connection in that group.
 
 Chat goes the same way, through the room's chat filter (`ChatFilter`, a rule of `RoomState.Say`): word lists that
-either star a word out or refuse the whole line, seeing through spacing, punctuation, digits for letters and stretched
-letters. The lists are configuration, in `chat-filter/chat-filter.json` next to the server (a few placeholders in the
-repository; a deployment mounts its own, with the chart's `chatFilter` values), reread when the file changes.
+either star a word out or refuse the whole line, seeing through accents, look-alike letters, digits for letters,
+stretched letters and spaced-out single letters, but never spelling a word across real words. The lists are
+configuration, in `chat-filter/chat-filter.json` next to the server (a few placeholders in the repository; a deployment
+mounts its own, with the chart's `chatFilter` values), reread when the file changes. A file that goes missing or
+can't be read is logged as a warning, and the last good lists stay in force.
 
 ## Layers (Clean Architecture)
 

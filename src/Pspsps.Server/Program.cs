@@ -73,6 +73,9 @@ try
 
     var app = builder.Build();
 
+    // Read the chat filter's word lists now, so a missing or broken file is logged at startup, not at the first line.
+    _ = app.Services.GetRequiredService<ChatFilters>().Current;
+
     await using (var scope = app.Services.CreateAsyncScope())
     {
         // EF Core takes a database lock while migrating, so pods starting together don't race.

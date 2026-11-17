@@ -4,7 +4,10 @@
   // over the chat-filter directory (the Helm chart's chatFilter values do this). The file is reread when it changes.
   //
   // Each list either masks its words (the line is said with them starred out) or refuses them (the line isn't said,
-  // and the player is told why). Spacing, punctuation, digits for letters and stretched letters are seen through.
+  // and the player is told why). One word per entry. Accents, look-alike letters, digits and symbols for letters,
+  // stretched letters and spaced-out single letters are seen through; an entry with any other character, no letter, or
+  // a single letter ("69") is matched only as written. Environment variables (ChatFilter__Lists__0__Words__0) still
+  // override this file. If the file goes missing or can't be read, the server warns and keeps the last good lists.
   "ChatFilter": {
     "Lists": [
       {
