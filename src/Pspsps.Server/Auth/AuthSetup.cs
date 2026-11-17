@@ -68,10 +68,14 @@ public static class AuthSetup
 
     public static AuthenticationProperties Persistent() => new() { IsPersistent = true };
 
-    /// <summary>What every Discord and Google sign-in shares: it lands in the external cookie.</summary>
+    /// <summary>
+    /// What every Discord and Google sign-in shares: it lands in the external cookie, and a failure on the way back
+    /// returns to the game with a message.
+    /// </summary>
     public static void ConfigureExternal(RemoteAuthenticationOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
         options.SignInScheme = ExternalScheme;
+        options.Events.OnRemoteFailure = ExternalSignInFailure.OnRemoteFailure;
     }
 }

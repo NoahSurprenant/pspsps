@@ -22,7 +22,7 @@ public static class AuthEndpoints
         {
             if (user.GetPlayerId() is not { } playerId)
             {
-                return Results.Redirect("/?link=failed");
+                return Results.Redirect(ExternalSignInFailure.LinkFailed);
             }
 
             return SchemeFor(providers, provider) is { } scheme
@@ -40,7 +40,8 @@ public static class AuthEndpoints
             if (!external.Succeeded || key is null || intent is null
                 || !Enum.TryParse<LoginProvider>(intent.Scheme, out var provider))
             {
-                return Results.Redirect(intent?.LinkToPlayer is null ? "/?signin=failed" : "/?link=failed");
+                return Results.Redirect(
+                    ExternalSignInFailure.RedirectFor(intent, signedIn: http.User.GetPlayerId() is not null));
             }
 
             if (intent.LinkToPlayer is { } playerId)
@@ -78,9 +79,9 @@ public static class AuthEndpoints
         providers.FirstOrDefault(p => string.Equals(p, provider, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
-    /// Links the login to the cat that asked, and says how it went (?link=linked, taken or failed). The game cookie must
-    /// still be that cat's: a link finished after signing out, or as someone else, changes nothing. The player stays
-    /// signed in as themselves either way; a login that already has a cat is refused, never merged.
+    /// Links the login to the cat that asked, and says how it went (?link=linked, taken, refused or failed). The game
+    /// cookie must still be that cat's: a link finished after signing out, or as someone else, changes nothing. The
+    /// player stays signed in as themselves either way; a login that already has a cat is refused, never merged.
     /// </summary>
     private static async Task<string> LinkAsync(
         ClaimsPrincipal user, Guid playerId, LoginProvider provider, string key, IPlayerService players,
@@ -88,7 +89,7 @@ public static class AuthEndpoints
     {
         if (user.GetPlayerId() != playerId)
         {
-            return "/?link=failed";
+            return ExternalSignInFailure.LinkFailed;
         }
 
         var outcome = await players.LinkLoginAsync(playerId, provider, key, ct);
@@ -96,7 +97,8 @@ public static class AuthEndpoints
         {
             LinkLoginOutcome.Linked => "/?link=linked",
             LinkLoginOutcome.TakenByAnotherPlayer => "/?link=taken",
-            _ => "/?link=failed",
+            LinkLoginOutcome.Refused => "/?link=refused",
+            _ => ExternalSignInFailure.LinkFailed,
         };
     }
 }

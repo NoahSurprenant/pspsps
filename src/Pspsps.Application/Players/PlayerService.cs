@@ -53,7 +53,17 @@ internal sealed class PlayerService(IApplicationDbContext db, TimeProvider time,
             return LinkLoginOutcome.Refused;
         }
 
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException saving) when (db.IsUniqueViolation(saving))
+        {
+            // Another request gave the login a cat between the check above and this save.
+            db.DiscardChanges();
+            return LinkLoginOutcome.TakenByAnotherPlayer;
+        }
+
         return LinkLoginOutcome.Linked;
     }
 

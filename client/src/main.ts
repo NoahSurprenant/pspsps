@@ -1,5 +1,5 @@
 import { Engine } from "@babylonjs/core";
-import { linkMessage, linkUrl } from "./link";
+import { addressNote, linkUrl } from "./link";
 import { GameConnection, fetchMe, fetchProviders, messageOf, playAsGuest, signOut } from "./net";
 import { Room } from "./room";
 import { RoomScene } from "./scene";
@@ -95,40 +95,43 @@ async function goTo(roomId: string): Promise<void> {
   }
 }
 
-async function pickWorld(player: Player, note?: Note): Promise<void> {
+/** The world list; `providers` when they're already known (a guest who just signed in from the sign-in panel). */
+async function pickWorld(player: Player, providers?: string[], note?: Note): Promise<void> {
   await connection.start();
   // A guest can save their cat with any provider the server offers.
-  const providers = player.isGuest ? await fetchProviders() : [];
+  const [saveWith, worlds] = await Promise.all([
+    providers ?? (player.isGuest ? fetchProviders() : []),
+    connection.getWorlds(),
+  ]);
   overlay.showWorlds(
     player,
-    await connection.getWorlds(),
+    worlds,
     (worldId) => void enter(worldId),
     () => void signOut().then(() => window.location.reload()),
-    { providers, link: (provider) => window.location.assign(linkUrl(provider)) },
+    { providers: saveWith, link: (provider) => window.location.assign(linkUrl(provider)) },
     note,
   );
 }
 
 async function start(): Promise<void> {
-  const search = window.location.search;
-  // How saving the cat went, said once: a reload doesn't say it again.
-  const linked = linkMessage(search);
-  if (linked) {
+  // How signing in or saving the cat went, said once: a reload doesn't say it again.
+  const note = addressNote(window.location.search);
+  if (note) {
     window.history.replaceState(null, "", window.location.pathname);
   }
 
   const player = await fetchMe();
   if (player) {
-    await pickWorld(player, linked);
+    await pickWorld(player, undefined, note);
     return;
   }
 
-  const failed = new URLSearchParams(search).get("signin") === "failed";
+  const providers = await fetchProviders();
   overlay.showSignIn(
-    await fetchProviders(),
+    providers,
     (provider) => window.location.assign(`/auth/login/${encodeURIComponent(provider)}`),
-    () => void playAsGuest().then((guest) => pickWorld(guest)).catch((error: unknown) => overlay.toast(messageOf(error))),
-    failed ? "Signing in didn't work. Try again." : linked?.error ? linked.text : undefined,
+    () => void playAsGuest().then((guest) => pickWorld(guest, providers)).catch((error: unknown) => overlay.toast(messageOf(error))),
+    note?.error ? note.text : undefined,
   );
 }
 
