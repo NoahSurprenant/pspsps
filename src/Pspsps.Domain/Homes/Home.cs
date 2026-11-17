@@ -43,6 +43,10 @@ public sealed class Home
             Doors = [new Door(DoorOut, new Position(-4.4, 3.7), Radius: 0.8, ToRoom: "town-square", ToDoor: null)],
         };
 
+    // The placement rules for the layout, its door and spawn point worked out once.
+    private static readonly Func<Prop, IEnumerable<Prop>, IReadOnlyList<PropProblem>> Check =
+        PropPlacement.CheckerFor(Layout);
+
     public Guid OwnerId { get; private set; }
 
     public HomeVisitors Visitors { get; private set; }
@@ -59,8 +63,12 @@ public sealed class Home
     /// <summary>The way a piece turned <paramref name="quarterTurns"/> quarters faces, in radians (a prop's facing).</summary>
     public static double FacingOf(int quarterTurns) => quarterTurns * Math.PI / 2;
 
-    /// <summary>The home as a room, called after its owner (<paramref name="ownerName"/>), with its furniture.</summary>
-    public RoomDefinition Room(string ownerName) => RoomOf(ownerName, _furniture);
+    /// <summary>
+    /// A piece of the furniture <paramref name="itemId"/> as the room's decoration: the one way furniture becomes a prop
+    /// (its kind, its spot, the circle its shop item takes up, and its facing).
+    /// </summary>
+    public static Prop PropOf(string itemId, Position spot, int quarterTurns) =>
+        new(itemId, spot, ShopCatalog.Find(itemId)?.Radius ?? 0, FacingOf(quarterTurns));
 
     /// <summary>What a home is called: after its owner (<paramref name="ownerName"/>).</summary>
     public static string NameOf(string ownerName) => $"{ownerName}'s home";
@@ -79,12 +87,9 @@ public sealed class Home
     public PlacedFurniture Place(string itemId, int owned, Position spot, int quarterTurns, DateTimeOffset now)
     {
         var item = EnsureCanPutOut(itemId, owned);
-        if (quarterTurns is < 0 or >= Turns)
-        {
-            throw new DomainException("Furniture turns a quarter at a time.");
-        }
+        EnsureTurns(quarterTurns);
 
-        var problems = PropPlacement.ProblemsOf(Layout, new Prop(item.Id, spot, item.Radius, FacingOf(quarterTurns)), Props());
+        var problems = Check(PropOf(item.Id, spot, quarterTurns), Props());
         if (problems.Count > 0)
         {
             throw new DomainException(Says(problems[0]));
@@ -95,11 +100,12 @@ public sealed class Home
 
     /// <summary>
     /// Puts out a piece of the furniture <paramref name="itemId"/> wherever it fits, nearest the middle of the room: for
-    /// a player who can't point at the floor (the keyboard).
+    /// a player who can't point at the floor (the keyboard), turned <paramref name="quarterTurns"/> quarters.
     /// </summary>
-    public PlacedFurniture PlaceAnywhere(string itemId, int owned, DateTimeOffset now)
+    public PlacedFurniture PlaceAnywhere(string itemId, int owned, int quarterTurns, DateTimeOffset now)
     {
         var item = EnsureCanPutOut(itemId, owned);
+        EnsureTurns(quarterTurns);
         var props = Props();
         const double step = 0.25;
         var (halfWidth, halfDepth) = (Layout.Width / 2 - item.Radius, Layout.Depth / 2 - item.Radius);
@@ -117,11 +123,11 @@ public sealed class Home
             .OrderBy(s => s.DistanceTo(middle))
             .ThenBy(s => s.X)
             .ThenBy(s => s.Z)
-            .Where(s => PropPlacement.ProblemsOf(Layout, new Prop(item.Id, s, item.Radius), props).Count == 0)
+            .Where(s => Check(PropOf(item.Id, s, quarterTurns), props).Count == 0)
             .Select(s => (Position?)s)
             .FirstOrDefault()
             ?? throw new DomainException($"There's no room left for the {item.Name}. Put something away first.");
-        return Add(item, spot, 0, now);
+        return Add(item, spot, quarterTurns, now);
     }
 
     /// <summary>Turns a piece a quarter (it takes up the same floor whichever way it faces).</summary>
@@ -153,17 +159,9 @@ public sealed class Home
     }
 
     /// <summary>
-    /// Whether <paramref name="playerId"/> may come in (or stay): the owner always; anyone else as the owner chose,
-    /// where <paramref name="areFriends"/> says whether they are the owner's friends.
-    /// </summary>
-    public bool MayVisit(Guid playerId, bool areFriends) => MayVisit(OwnerId, Visitors, playerId, areFriends);
-
-    /// <summary>Checks that <paramref name="playerId"/> may come in (<see cref="MayVisit(Guid, bool)"/>), saying why not.</summary>
-    public void EnsureCanVisit(Guid playerId, bool areFriends) => EnsureCanVisit(OwnerId, Visitors, playerId, areFriends);
-
-    /// <summary>
-    /// The visiting rule on its own, for a home known only by its owner and its <paramref name="visitors"/> (read without
-    /// its furniture): the owner always; anyone else as the owner chose.
+    /// Whether <paramref name="playerId"/> may come in (or stay) to <paramref name="ownerId"/>'s home, which lets in
+    /// <paramref name="visitors"/>: the owner always; anyone else as the owner chose, where <paramref name="areFriends"/>
+    /// says whether they are the owner's friends. Read without the home's furniture.
     /// </summary>
     public static bool MayVisit(Guid ownerId, HomeVisitors visitors, Guid playerId, bool areFriends) =>
         playerId == ownerId || visitors switch
@@ -224,6 +222,14 @@ public sealed class Home
     }
 
     private List<Prop> Props() => [.. _furniture.Select(piece => piece.AsProp())];
+
+    private static void EnsureTurns(int quarterTurns)
+    {
+        if (quarterTurns is < 0 or >= Turns)
+        {
+            throw new DomainException("Furniture turns a quarter at a time.");
+        }
+    }
 
     private PlacedFurniture Get(Guid pieceId) =>
         _furniture.FirstOrDefault(piece => piece.Id == pieceId)

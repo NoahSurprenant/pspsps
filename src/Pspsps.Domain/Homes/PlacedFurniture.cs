@@ -39,7 +39,7 @@ public sealed class PlacedFurniture
     public Position Spot => new(X, Z);
 
     /// <summary>The piece as the room's decoration: its kind, spot, size and facing.</summary>
-    public Prop AsProp() => new(ItemId, Spot, ShopCatalog.Find(ItemId)?.Radius ?? 0, Home.FacingOf(QuarterTurns));
+    public Prop AsProp() => Home.PropOf(ItemId, Spot, QuarterTurns);
 
     internal void Turn() => QuarterTurns = (QuarterTurns + 1) % Home.Turns;
 }

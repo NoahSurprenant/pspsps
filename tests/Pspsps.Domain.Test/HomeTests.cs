@@ -53,7 +53,7 @@ public sealed class HomeTests
             Assert.That(PropKinds.All, Does.Contain(item.Id), item.Id);
             Assert.That(item.Radius, Is.GreaterThan(0), item.Id);
             var home = Home.Create(Owner);
-            Assert.DoesNotThrow(() => home.PlaceAnywhere(item.Id, owned: 1, Now), item.Id);
+            Assert.DoesNotThrow(() => home.PlaceAnywhere(item.Id, owned: 1, 0, Now), item.Id);
         }
     }
 
@@ -68,11 +68,11 @@ public sealed class HomeTests
         {
             Assert.That(home.Furniture, Is.EqualTo(new[] { piece }));
             Assert.That((piece.ItemId, piece.Spot, piece.QuarterTurns), Is.EqualTo((PropKinds.Sofa, Clear, 1)));
-            Assert.That(home.Room("Tom").Props, Is.EqualTo(new[]
+            Assert.That(Home.RoomOf("Tom", home.Furniture).Props, Is.EqualTo(new[]
             {
                 new Prop(PropKinds.Sofa, Clear, ShopCatalog.Find(PropKinds.Sofa)!.Radius, Math.PI / 2),
             }));
-            Assert.That(home.Room("Tom").Name, Is.EqualTo("Tom's home"));
+            Assert.That(Home.RoomOf("Tom", home.Furniture).Name, Is.EqualTo("Tom's home"));
         });
     }
 
@@ -95,7 +95,7 @@ public sealed class HomeTests
         home.Place(PropKinds.Plant, owned: 2, new Position(4, -1), 0, Now);
 
         var third = Assert.Throws<DomainException>(() => home.Place(PropKinds.Plant, owned: 2, new Position(4, -3), 0, Now));
-        var anywhere = Assert.Throws<DomainException>(() => home.PlaceAnywhere(PropKinds.Plant, owned: 2, Now));
+        var anywhere = Assert.Throws<DomainException>(() => home.PlaceAnywhere(PropKinds.Plant, owned: 2, 0, Now));
 
         Assert.Multiple(() =>
         {
@@ -197,7 +197,7 @@ public sealed class HomeTests
             }
         }
 
-        var full = Assert.Throws<DomainException>(() => home.PlaceAnywhere(PropKinds.FloorLamp, owned: 100, Now));
+        var full = Assert.Throws<DomainException>(() => home.PlaceAnywhere(PropKinds.FloorLamp, owned: 100, 0, Now));
 
         Assert.That(placed, Is.EqualTo(Home.MaxPieces));
         Assert.That(full!.Message, Is.EqualTo("Your home is full. Put something away first."));
@@ -208,12 +208,12 @@ public sealed class HomeTests
     {
         var home = Home.Create(Owner);
 
-        var sofa = home.PlaceAnywhere(PropKinds.Sofa, owned: 1, Now);
-        var second = home.PlaceAnywhere(PropKinds.Rug, owned: 1, Now);
+        var sofa = home.PlaceAnywhere(PropKinds.Sofa, owned: 1, 0, Now);
+        var second = home.PlaceAnywhere(PropKinds.Rug, owned: 1, 0, Now);
 
         Assert.Multiple(() =>
         {
-            Assert.That(PropPlacement.Problems(home.Room("Tom")), Is.Empty);
+            Assert.That(PropPlacement.Problems(Home.RoomOf("Tom", home.Furniture)), Is.Empty);
             Assert.That(sofa.Spot.DistanceTo(new Position(0, 0)), Is.LessThan(2));
             Assert.That(second.Spot, Is.Not.EqualTo(sofa.Spot));
         });
@@ -225,19 +225,31 @@ public sealed class HomeTests
         var home = Home.Create(Owner);
         for (var i = 0; i < 6; i++)
         {
-            home.PlaceAnywhere(PropKinds.Sofa, owned: 100, Now);
+            home.PlaceAnywhere(PropKinds.Sofa, owned: 100, 0, Now);
         }
 
         var refused = Assert.Throws<DomainException>(() =>
         {
             for (var i = 0; i < Home.MaxPieces; i++)
             {
-                home.PlaceAnywhere(PropKinds.Sofa, owned: 100, Now);
+                home.PlaceAnywhere(PropKinds.Sofa, owned: 100, 0, Now);
             }
         });
 
         Assert.That(refused!.Message, Is.EqualTo("There's no room left for the Sofa. Put something away first."));
-        Assert.That(PropPlacement.Problems(home.Room("Tom")), Is.Empty, "everything that went in keeps clear");
+        Assert.That(PropPlacement.Problems(Home.RoomOf("Tom", home.Furniture)), Is.Empty, "everything that went in keeps clear");
+    }
+
+    [Test]
+    public void PlaceAnywhere_FacesTheWayAsked_TurnedAQuarterAtATime()
+    {
+        var home = Home.Create(Owner);
+
+        var piece = home.PlaceAnywhere(PropKinds.Sofa, owned: 2, quarterTurns: 1, Now);
+        var refused = Assert.Throws<DomainException>(() => home.PlaceAnywhere(PropKinds.Sofa, owned: 2, quarterTurns: 4, Now));
+
+        Assert.That(piece.QuarterTurns, Is.EqualTo(1));
+        Assert.That(refused!.Message, Is.EqualTo("Furniture turns a quarter at a time."));
     }
 
     [Test]
@@ -249,7 +261,7 @@ public sealed class HomeTests
         home.Turn(piece.Id);
 
         Assert.That(piece.QuarterTurns, Is.Zero);
-        Assert.That(home.Room("Tom").Props.Single().Facing, Is.Zero);
+        Assert.That(Home.RoomOf("Tom", home.Furniture).Props.Single().Facing, Is.Zero);
     }
 
     [Test]
@@ -299,7 +311,7 @@ public sealed class HomeTests
         var home = Home.Create(Owner);
         home.LetIn(visitors);
 
-        Assert.That(home.MayVisit(Visitor, areFriends), Is.EqualTo(may));
+        Assert.That(Home.MayVisit(Owner, home.Visitors, Visitor, areFriends), Is.EqualTo(may));
     }
 
     [TestCase(HomeVisitors.Friends)]
@@ -310,17 +322,17 @@ public sealed class HomeTests
         var home = Home.Create(Owner);
         home.LetIn(visitors);
 
-        Assert.That(home.MayVisit(Owner, areFriends: false), Is.True);
-        Assert.DoesNotThrow(() => home.EnsureCanVisit(Owner, areFriends: false));
+        Assert.That(Home.MayVisit(Owner, home.Visitors, Owner, areFriends: false), Is.True);
+        Assert.DoesNotThrow(() => Home.EnsureCanVisit(Owner, home.Visitors, Owner, areFriends: false));
     }
 
     [Test]
     public void EnsureCanVisit_SaysWhyNot()
     {
         var home = Home.Create(Owner);
-        var notFriends = Assert.Throws<DomainException>(() => home.EnsureCanVisit(Visitor, areFriends: false));
+        var notFriends = Assert.Throws<DomainException>(() => Home.EnsureCanVisit(Owner, home.Visitors, Visitor, areFriends: false));
         home.LetIn(HomeVisitors.Nobody);
-        var closed = Assert.Throws<DomainException>(() => home.EnsureCanVisit(Visitor, areFriends: true));
+        var closed = Assert.Throws<DomainException>(() => Home.EnsureCanVisit(Owner, home.Visitors, Visitor, areFriends: true));
 
         Assert.That(notFriends!.Message, Is.EqualTo("Only friends can visit that home."));
         Assert.That(closed!.Message, Is.EqualTo("That home isn't open to visitors right now."));

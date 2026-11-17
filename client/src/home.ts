@@ -10,9 +10,12 @@ export function propsOf(home: HomeView): PropView[] {
   return home.furniture.map(propOf);
 }
 
-/** Of two views of a home, the newer: changes can arrive out of order (an answer, and the room's broadcast). */
+/**
+ * Of two views of a home, the newer: changes can arrive out of order (an answer, and the room's broadcast), and the same
+ * one twice (the owner's answer and the broadcast of it), which keeps the one there is.
+ */
 export function newer(current: HomeView | undefined, next: HomeView): HomeView {
-  return current && current.ownerId === next.ownerId && current.version > next.version ? current : next;
+  return current && current.ownerId === next.ownerId && current.version >= next.version ? current : next;
 }
 
 /** How many of <itemId> the player has, as the shop says. */

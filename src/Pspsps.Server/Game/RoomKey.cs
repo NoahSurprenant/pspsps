@@ -25,6 +25,10 @@ public static class RoomKey
     public static Guid? HomeOwner(string key)
     {
         var (worldId, roomId) = Parse(key);
-        return worldId == Homes && Guid.TryParse(roomId, out var owner) ? owner : null;
+        return HomeOwner(worldId, roomId);
     }
+
+    /// <summary>Whose home the room <paramref name="roomId"/> of <paramref name="worldId"/> (a key's parts) is, or null.</summary>
+    public static Guid? HomeOwner(string worldId, string roomId) =>
+        worldId == Homes && Guid.TryParse(roomId, out var owner) ? owner : null;
 }

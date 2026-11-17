@@ -62,8 +62,8 @@ internal sealed class RoomGrain(
 
         _state = new RoomState(room);
         _doors = [.. room.Doors.Select(DoorView.From)];
-        // A home's furniture as the room's props, the same way as every change to it after (Furnish).
-        _props = _home?.Props() ?? [.. room.Props.Select(PropView.From)];
+        // A home's furniture is its room's props (Home.PropOf, as every change to it after: HomeView.Props).
+        _props = [.. room.Props.Select(PropView.From)];
         this.RegisterGrainTimer(
             static (grain, _) => grain.RemoveExpired(),
             this,
@@ -256,8 +256,9 @@ internal sealed class RoomGrain(
             if (_state.SendOut(playerId) is { } session)
             {
                 Unschedule(playerId);
-                await broadcaster.CatLeft(_key, playerId);
+                // The tab first, which takes it out of the room's group: it never hears its own cat leave a room it shows.
                 await broadcaster.SentOut(_key, session, message);
+                await broadcaster.CatLeft(_key, playerId);
             }
         }
 

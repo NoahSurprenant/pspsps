@@ -60,9 +60,13 @@ internal sealed class HomeService(IApplicationDbContext db, TimeProvider time) :
             {
                 home.Place(itemId, owned, new Position(across, deep), quarterTurns, time.GetUtcNow());
             }
+            else if (x is null && z is null)
+            {
+                home.PlaceAnywhere(itemId, owned, quarterTurns, time.GetUtcNow());
+            }
             else
             {
-                home.PlaceAnywhere(itemId, owned, time.GetUtcNow());
+                throw new DomainException("Pick a spot on the floor.");
             }
         }, cancellationToken);
 

@@ -22,12 +22,13 @@ public static class PropPlacement
     {
         ArgumentNullException.ThrowIfNull(room);
         var problems = new List<string>();
+        var check = CheckerFor(room);
         for (var i = 0; i < room.Props.Count; i++)
         {
             var prop = room.Props[i];
             var name = $"{room.Id}: the {prop.Kind} at {At(prop.Spot)}";
             // Each pair once: a prop is checked against the props after it.
-            problems.AddRange(ProblemsOf(room, prop, room.Props.Skip(i + 1)).Select(problem => $"{name} {problem.Says}"));
+            problems.AddRange(check(prop, room.Props.Skip(i + 1)).Select(problem => $"{name} {problem.Says}"));
         }
 
         return problems;
@@ -37,9 +38,22 @@ public static class PropPlacement
     /// What is wrong with <paramref name="prop"/> standing where it does in <paramref name="room"/> (its doors, pond and
     /// spawn point), among <paramref name="others"/>; empty when it keeps clear.
     /// </summary>
-    public static IReadOnlyList<PropProblem> ProblemsOf(RoomDefinition room, Prop prop, IEnumerable<Prop> others)
+    public static IReadOnlyList<PropProblem> ProblemsOf(RoomDefinition room, Prop prop, IEnumerable<Prop> others) =>
+        CheckerFor(room)(prop, others);
+
+    /// <summary>
+    /// <see cref="ProblemsOf(RoomDefinition, Prop, IEnumerable{Prop})"/> for one room, its doors, pond and spawn point worked out once: for checking many props, or
+    /// one prop at many spots.
+    /// </summary>
+    public static Func<Prop, IEnumerable<Prop>, IReadOnlyList<PropProblem>> CheckerFor(RoomDefinition room)
     {
         ArgumentNullException.ThrowIfNull(room);
+        var stops = Stops(room);
+        return (prop, others) => ProblemsOf(room, stops, prop, others);
+    }
+
+    private static List<PropProblem> ProblemsOf(RoomDefinition room, List<Stop> stops, Prop prop, IEnumerable<Prop> others)
+    {
         ArgumentNullException.ThrowIfNull(prop);
         ArgumentNullException.ThrowIfNull(others);
         var problems = new List<PropProblem>();
@@ -64,7 +78,6 @@ public static class PropPlacement
             problems.Add(new(PropProblemKind.OffFloor, "is partly off the floor"));
         }
 
-        var stops = Stops(room);
         foreach (var stop in stops)
         {
             if (prop.Spot.DistanceTo(stop.Spot) < prop.Radius + stop.Clear)

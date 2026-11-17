@@ -109,7 +109,10 @@ public sealed record HomeView(
 
     /// <summary>The furniture as the room's decoration.</summary>
     public IReadOnlyList<PropView> Props() =>
-        [.. Furniture.Select(piece => new PropView(piece.ItemId, piece.X, piece.Z, piece.Radius, Home.FacingOf(piece.QuarterTurns)))];
+    [
+        .. Furniture.Select(piece =>
+            PropView.From(Home.PropOf(piece.ItemId, new Position(piece.X, piece.Z), piece.QuarterTurns))),
+    ];
 }
 
 /// <summary>

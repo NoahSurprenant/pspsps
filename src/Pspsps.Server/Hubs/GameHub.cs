@@ -255,8 +255,9 @@ public sealed partial class GameHub(
         }
     }
 
-    // Sends each of the two out of the other's home if it no longer lets them stay (they stopped being friends). Each home
-    // is asked who is in it: the room is the truth, not where the sessions point.
+    // Sends each of the two out of the other's home if it no longer lets them stay (they stopped being friends). The home is
+    // asked who is in it (the room is the truth), unless the other's session says they're somewhere else: a home nobody is
+    // in isn't opened for nothing. A session that doesn't know (its Arrived failed, say) still has the home asked.
     private async Task SendOutOfEachOthersHomes(PlayerRelation other)
     {
         // One after the other: both read the database through this call's one context.
@@ -264,9 +265,16 @@ public sealed partial class GameHub(
             PlayerId, other.PlayerId, async () => (await players.FindAsync(PlayerId, CancellationToken.None))?.DisplayName);
         await SendOutOf(other.PlayerId, PlayerId, () => Task.FromResult<string?>(other.DisplayName));
 
-        async Task SendOutOf(Guid owner, Guid visitor, Func<Task<string?>> ownerName) =>
+        async Task SendOutOf(Guid owner, Guid visitor, Func<Task<string?>> ownerName)
+        {
+            if (await LocateAsync(visitor) is { } at && RoomKey.HomeOwner(at.WorldId, at.RoomId) != owner)
+            {
+                return;
+            }
+
             await SendOutWhoMayNotStay(owner, [visitor], async () =>
                 $"You and {await ownerName() ?? "that cat"} aren't friends any more, so you went back to Town Square.");
+        }
     }
 
     // Of <who> (all the cats in it, when null), sends out of <owner>'s home those its rule no longer lets stay, each told
@@ -520,7 +528,7 @@ public sealed partial class GameHub(
         }
 
         // A friend in a home: that home, if its owner lets this player in (the friend's, or another's).
-        if (RoomKey.HomeOwner(RoomKey.For(target.WorldId, target.RoomId)) is { } owner)
+        if (RoomKey.HomeOwner(target.WorldId, target.RoomId) is { } owner)
         {
             return await VisitHome(owner);
         }
@@ -730,7 +738,7 @@ public sealed partial class GameHub(
     // read so far). One at a time: a name not in it is read from the database, and kept in it.
     private async Task<FriendPlaceView?> PlaceViewAsync(PlayerPlace? place, Dictionary<Guid, string?> names)
     {
-        if (place is not null && RoomKey.HomeOwner(RoomKey.For(place.WorldId, place.RoomId)) is { } owner)
+        if (place is not null && RoomKey.HomeOwner(place.WorldId, place.RoomId) is { } owner)
         {
             if (owner == PlayerId)
             {

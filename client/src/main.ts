@@ -321,17 +321,24 @@ function pick(go: () => Promise<void>): void {
 let sentOutOfHome: { ownerId: string; message: string } | undefined;
 
 /**
- * Back to Town Square, in the world the cat is in, once a room shows and nothing else is loading, if the home showing
- * is the one that sent the cat out. Any other room (the player's own home, say) stays.
+ * Back to Town Square, in the world the cat is in, once nothing is loading, if the home showing is the one that sent the
+ * cat out. Any other room (the player's own home, say) stays.
  */
 function leaveHomeIfSentOut(): void {
   const out = sentOutOfHome;
-  if (out === undefined || picking || !room) {
+  if (out === undefined || picking || loads > 0) {
     return;
   }
+  // Looked at once, when whatever was loading has finished, room or not: never later, in a home that lets the cat in.
   sentOutOfHome = undefined;
-  if (room.snapshot.home?.ownerId === out.ownerId) {
-    pick(() => goTo("town-square").then(() => overlay.toast(out.message)));
+  if (room?.snapshot.home?.ownerId === out.ownerId) {
+    pick(async () => {
+      await goTo("town-square");
+      // Said again once out; a walk that failed has said why instead.
+      if (room && !room.snapshot.home) {
+        overlay.toast(out.message);
+      }
+    });
   }
 }
 
@@ -360,7 +367,10 @@ function visitHome(ownerId: string): void {
 
 /** Back into a home after the server forgot the cat there; to Town Square when the home no longer lets it in. */
 async function backInto(ownerId: string): Promise<void> {
-  await load(() => connection.visitHome(ownerId));
+  // After a reconnect the cat is in the world's Town Square already: refused, it stays there. After a lost room the page
+  // still shows the home, which the server no longer has the cat in: refused, it goes to Town Square.
+  const stay = room?.snapshot.home?.ownerId === ownerId ? undefined : room;
+  await load(() => connection.visitHome(ownerId), stay);
   if (!room) {
     await goTo("town-square");
   }
@@ -382,6 +392,7 @@ async function goTo(roomId: string): Promise<void> {
  */
 async function load(request: () => Promise<RoomSnapshot>, stay?: Room): Promise<void> {
   room = undefined;
+  loads++;
   try {
     // The 3D scene before the room (the first room loads it): had it failed after, the server would have the cat in a
     // room the page can't show.
@@ -394,9 +405,14 @@ async function load(request: () => Promise<RoomSnapshot>, stay?: Room): Promise<
     // otherwise.
     room = stay;
     overlay.toast(messageOf(error));
+  } finally {
+    loads--;
   }
   leaveHomeIfSentOut();
 }
+
+// How many rooms are loading (taps go through pick; a rejoin doesn't).
+let loads = 0;
 
 /** The world list; `providers` when they're already known (a guest who just signed in from the sign-in panel). */
 async function pickWorld(player: Player, providers?: string[], note?: Note): Promise<void> {
