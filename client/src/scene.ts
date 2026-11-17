@@ -6,7 +6,7 @@ import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
-import { CreateDisc } from "@babylonjs/core/Meshes/Builders/discBuilder";
+import { CreateCylinder } from "@babylonjs/core/Meshes/Builders/cylinderBuilder";
 import { CreateGround } from "@babylonjs/core/Meshes/Builders/groundBuilder";
 import type { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import { Scene } from "@babylonjs/core/scene";
@@ -102,9 +102,9 @@ export class RoomScene {
     // The pond: a flat disc of water just above the floor. Clicking it fishes, rather than walking into it.
     let pond: AbstractMesh | undefined;
     if (room.pond) {
-      pond = CreateDisc("pond", { radius: room.pond.radius, tessellation: 48 }, this.scene);
-      // Turned to face up: facing down, only its back shows, which the outline pass paints in the outline colour.
-      pond.rotation.x = -Math.PI / 2;
+      // A very flat cylinder, whose top faces up with its own normals (as the cats' parts do), drawn with an outline like
+      // the rest of the room. A disc turned flat drew as a dark shape or not at all.
+      pond = CreateCylinder("pond", { diameter: room.pond.radius * 2, height: 0.04, tessellation: 48 }, this.scene);
       pond.position.set(room.pond.x, 0.02, room.pond.z);
       pond.material = flat(this.scene, "pond", "#5fb3d9");
       pond.renderOutline = true;
