@@ -12,14 +12,26 @@ const scene = new RoomScene(engine);
 
 let room: Room | undefined;
 
+// Read-only: the end-to-end tests (e2e/) read the room here, since the cats and chat are drawn on a canvas.
+declare global {
+  interface Window {
+    pspsps?: { room(): Room | undefined };
+  }
+}
+window.pspsps = { room: () => room };
+
 const connection = new GameConnection({
   catJoined: (cat) => {
-    room?.join(cat);
-    scene.place(cat);
+    if (room) {
+      room.join(cat);
+      scene.place(cat);
+    }
   },
   catLeft: (playerId) => {
-    room?.leave(playerId);
-    scene.remove(playerId);
+    if (room) {
+      room.leave(playerId);
+      scene.remove(playerId);
+    }
   },
   catMoved: (playerId, x, z) => {
     if (room?.move(playerId, x, z)) {
@@ -27,8 +39,10 @@ const connection = new GameConnection({
     }
   },
   chatSaid: (line) => {
-    room?.say(line);
-    scene.speak(line.playerId, line.text);
+    if (room) {
+      room.say(line);
+      scene.speak(line.playerId, line.text);
+    }
   },
   reconnected: () => {
     // The server dropped us from the room with the old connection: walk back in.
@@ -57,6 +71,9 @@ function show(snapshot: RoomSnapshot): void {
 }
 
 async function enter(worldId: string): Promise<void> {
+  // The server announces our own join (and anything else in the new room) before the snapshot arrives; the snapshot
+  // already has it all, so nothing is applied to the old room meanwhile.
+  room = undefined;
   try {
     show(await connection.enterWorld(worldId));
   } catch (error) {
@@ -65,6 +82,7 @@ async function enter(worldId: string): Promise<void> {
 }
 
 async function goTo(roomId: string): Promise<void> {
+  room = undefined;
   try {
     show(await connection.goToRoom(roomId));
   } catch (error) {

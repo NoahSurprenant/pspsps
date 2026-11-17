@@ -429,3 +429,5 @@ FodyWeavers.xsd
 node_modules/
 client/dist/
 src/Pspsps.Server/wwwroot/
+e2e/playwright-report/
+e2e/test-results/
