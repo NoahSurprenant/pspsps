@@ -51,6 +51,14 @@ A move goes like this:
 3. The grain checks the move against the room's rules (`RoomState`), then broadcasts it to the room's SignalR group.
 4. The Redis backplane carries the broadcast to every pod with a connection in that group.
 
+Chat goes the same way, through the room's chat filter (`ChatFilter`, a rule of `RoomState.Say`): word lists that
+either star a word out or refuse the whole line, seeing through accents, look-alike letters, digits for letters,
+punctuation inside a word, letters stretched three or more times and spaced-out single letters, but never spelling a
+word across real words or reading a plain number as one. The lists are configuration, in
+`chat-filter/chat-filter.json` next to the server (empty in the image; a deployment mounts its own with the chart's
+`chatFilter` values, or sets them through environment variables), and the filter is rebuilt on every change. A file
+that goes missing or can't be read, or an unknown action, is logged as a warning and the filter it had stays in force.
+
 ## Layers (Clean Architecture)
 
 Dependencies point inwards only: **Domain ← Application ← Infrastructure ← Server**. `Pspsps.Architecture.Test`

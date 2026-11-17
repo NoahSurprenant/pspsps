@@ -1,0 +1,15 @@
+{{- if and .Values.chatFilter.lists (not .Values.chatFilter.existingConfigMap) }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "pspsps.fullname" . }}-chat-filter
+  labels:
+    {{- include "pspsps.labels" . | nindent 4 }}
+data:
+  chat-filter.json: |
+    {{- $lists := list }}
+    {{- range .Values.chatFilter.lists }}
+    {{- $lists = append $lists (dict "Action" .action "Words" .words) }}
+    {{- end }}
+    {{- dict "ChatFilter" (dict "Lists" $lists) | toPrettyJson | nindent 4 }}
+{{- end }}
