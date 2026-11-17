@@ -8,6 +8,9 @@ namespace Pspsps.Application.Players;
 
 internal sealed class PlayerService(IApplicationDbContext db, TimeProvider time, Random random) : IPlayerService
 {
+    /// <summary>How many times a link is done again when the player's coins changed as it was saved.</summary>
+    private const int LinkAttempts = 5;
+
     public async Task<PlayerProfile> SignInWithLoginAsync(
         LoginProvider provider, string providerKey, string? profileName, CancellationToken cancellationToken)
     {
@@ -41,7 +44,25 @@ internal sealed class PlayerService(IApplicationDbContext db, TimeProvider time,
         return PlayerProfile.From(player);
     }
 
+    // Coins are a concurrency token (a purchase must not spend coins that are gone): a link whose save finds them changed
+    // meanwhile (a catch paid as the guest saves their cat) is refused by the database, and simply done again.
     public async Task<LinkLoginOutcome> LinkLoginAsync(
+        Guid playerId, LoginProvider provider, string providerKey, CancellationToken cancellationToken)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                return await LinkOnceAsync(playerId, provider, providerKey, cancellationToken);
+            }
+            catch (DbUpdateConcurrencyException) when (attempt < LinkAttempts)
+            {
+                // Forgotten already: the next try reads the player again.
+            }
+        }
+    }
+
+    private async Task<LinkLoginOutcome> LinkOnceAsync(
         Guid playerId, LoginProvider provider, string providerKey, CancellationToken cancellationToken)
     {
         if (await OwnerIdAsync(provider, providerKey, cancellationToken) is { } owner)
@@ -72,6 +93,11 @@ internal sealed class PlayerService(IApplicationDbContext db, TimeProvider time,
         try
         {
             await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            db.Forget(player);
+            throw;
         }
         catch (DbUpdateException saving) when (db.IsUniqueViolation(saving))
         {

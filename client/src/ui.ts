@@ -2,7 +2,8 @@ import { emoteBar, emoteForKey, isTyping } from "./emotes";
 import type { Fishing } from "./fishing";
 import { canGoTo, friendButtons, friendStatus, sections, whereIs, type FriendAction, type Here } from "./friends";
 import { coatOf } from "./fur";
-import type { Emote, Friend, Player, PlayerCard, RoomSnapshot, WorldSummary } from "./types";
+import { shopSections, wearingLine, type ShopAction, type ShopRow } from "./shop";
+import type { Emote, FurColor, Friend, Player, PlayerCard, RoomSnapshot, Shop, WorldSummary } from "./types";
 
 /** A message for the player on a panel; an error shows in red. */
 export interface Note {
@@ -33,6 +34,9 @@ export class Overlay {
 
   /** Opens the friends list: the room bar has a Friends button once this is set. */
   onFriends: (() => void) | undefined;
+
+  /** Opens the shop: the room bar has a Shop button once this is set. */
+  onShop: (() => void) | undefined;
 
   constructor(private readonly root: HTMLElement) {}
 
@@ -125,6 +129,7 @@ export class Overlay {
         el("strong", { text: room.roomName }),
         ...room.rooms.map((link) => button(link.name, () => goTo(link.id))),
         el("span", { className: "coins", id: "coins", text: coinText(coins) }),
+        ...(this.onShop ? [button("Shop", this.onShop)] : []),
         ...(this.onFriends ? [button("Friends", this.onFriends)] : []),
         button("Worlds", leave, "quiet"),
       ),
@@ -210,15 +215,13 @@ export class Overlay {
    * (add, cancel, accept or decline, remove). `act` runs a button's change.
    */
   showPlayerCard(card: PlayerCard, act: (action: FriendAction) => void): void {
-    const coat = coatOf(card.furColor);
-    const swatch = el("span", { className: "swatch" });
-    swatch.style.background = `linear-gradient(135deg, ${coat.body} 55%, ${coat.accent} 55%)`;
-    swatch.setAttribute("aria-hidden", "true");
+    const swatch = swatchOf(card.furColor);
     const status = friendStatus(card.friendState);
+    const wearing = wearingLine(card);
     this.openDialog({ kind: "card", playerId: card.playerId }, "player-card",
       el("h2", { text: card.displayName, id: "dialog-title" }),
       el("p", { className: "fur" }, swatch, el("span", { text: `${card.furColor} fur` })),
-      // What the cat wears goes here once there's a shop.
+      ...(wearing ? [el("p", { text: wearing, className: "wearing" })] : []),
       ...(status ? [el("p", { text: status, className: "friend-status" })] : []),
       el("div", { className: "actions" },
         ...friendButtons(card.friendState).map((b) => button(b.label, () => act(b.action), b.primary ? "primary" : ""))),
@@ -274,7 +277,26 @@ export class Overlay {
     this.openDialog({ kind: "friends" }, "friends", ...parts);
   }
 
-  /** What is open over the room: a player card (whose), the friends list, or nothing. */
+  /**
+   * The shop, over the room: the player's coins, then the hats, collars and furs, each with its price and Buy (disabled,
+   * with the coins still needed, when the player can't afford it), or Wear or Take off for what they have. `act` runs
+   * a button's change.
+   */
+  showShop(shop: Shop, act: (action: ShopAction, itemId: string) => void): void {
+    const parts: Node[] = [
+      el("h2", { text: "Shop", id: "dialog-title" }),
+      el("p", { className: "purse", text: `You have ${coinText(shop.coins)}` }),
+    ];
+    for (const section of shopSections(shop)) {
+      parts.push(
+        el("h3", { text: section.title }),
+        el("ul", { className: "shop-list" }, ...section.rows.map((row) => shopItem(row, act))),
+      );
+    }
+    this.openDialog({ kind: "shop" }, "shop", ...parts);
+  }
+
+  /** What is open over the room: a player card (whose), the friends list, the shop, or nothing. */
   get openDialogFor(): OpenDialog | undefined {
     return this.dialog?.element.open ? this.dialog.open : undefined;
   }
@@ -357,6 +379,38 @@ function el<K extends keyof HTMLElementTagNameMap>(
   return element;
 }
 
+/** One item in the shop: a fur's colour, its name, its price or whether it's worn, and its button. */
+function shopItem(row: ShopRow, act: (action: ShopAction, itemId: string) => void): HTMLElement {
+  const { item } = row;
+  const status = el("span", { className: "item-status", id: `item-${item.id}`, text: row.reason ? `${row.status} · ${row.reason}` : row.status });
+  const children: Node[] = [];
+  if (item.furColor) {
+    children.push(swatchOf(item.furColor));
+  }
+  children.push(el("span", { className: "item-name", text: item.name }), status);
+  const action = row.button;
+  if (action) {
+    const pick = button(action.label, () => act(action.action, item.id), action.primary ? "primary" : "");
+    pick.setAttribute("aria-label", action.ariaLabel);
+    // Its price, and why it can't be bought yet.
+    pick.setAttribute("aria-describedby", status.id);
+    pick.disabled = action.disabled;
+    // Found again by its item when the shop is brought up to date (Buy becomes Wear): the focus stays on its row.
+    pick.dataset.focusKey = item.id;
+    children.push(pick);
+  }
+  return el("li", { className: "shop-item" }, ...children);
+}
+
+/** A fur colour as a small round swatch: its body colour, and its accent. */
+function swatchOf(fur: FurColor): HTMLElement {
+  const coat = coatOf(fur);
+  const swatch = el("span", { className: "swatch" });
+  swatch.style.background = `linear-gradient(135deg, ${coat.body} 55%, ${coat.accent} 55%)`;
+  swatch.setAttribute("aria-hidden", "true");
+  return swatch;
+}
+
 function coinText(coins: number): string {
   return `🪙 ${coins}`;
 }
@@ -379,29 +433,37 @@ function noteParagraph(note: Note | undefined): HTMLElement[] {
   return note ? [el("p", { text: note.text, className: note.error ? "error" : "note" })] : [];
 }
 
-/** What a dialog over the room shows: a player's card, or the friends list. */
-export type OpenDialog = { kind: "card"; playerId: string } | { kind: "friends" };
+/** What a dialog over the room shows: a player's card, the friends list, or the shop. */
+export type OpenDialog = { kind: "card"; playerId: string } | { kind: "friends" } | { kind: "shop" };
 
 function sameDialog(a: OpenDialog, b: OpenDialog): boolean {
-  return a.kind === "friends" ? b.kind === "friends" : b.kind === "card" && a.playerId === b.playerId;
+  return a.kind === "card" ? b.kind === "card" && a.playerId === b.playerId : a.kind === b.kind;
 }
 
 /**
  * Swaps a dialog's contents (all but its message and Close) for `children`, keeping where the player was: the button
- * with the focus (found again by its name) and the scroll.
+ * with the focus (found again by its focus key, the shop's item, or else by its name) and the scroll.
  */
 function refreshInPlace(dialog: HTMLDialogElement, children: Node[]): void {
-  const focused = document.activeElement instanceof HTMLElement && dialog.contains(document.activeElement)
-    ? nameOf(document.activeElement)
+  const active = document.activeElement instanceof HTMLElement && dialog.contains(document.activeElement)
+    ? document.activeElement
     : undefined;
+  const key = active?.dataset.focusKey;
+  const focused = active && nameOf(active);
   const scroll = dialog.scrollTop;
   const kept = [...dialog.children].slice(-2);
   dialog.replaceChildren(...children, ...kept);
   dialog.scrollTop = scroll;
   if (focused !== undefined) {
-    const again = [...dialog.querySelectorAll<HTMLElement>("button")].find((b) => nameOf(b) === focused);
-    (again ?? dialog.querySelector<HTMLElement>("button"))?.focus();
+    const buttons = [...dialog.querySelectorAll<HTMLElement>("button")];
+    const again = (key !== undefined ? buttons.find((b) => b.dataset.focusKey === key && !isDisabled(b)) : undefined)
+      ?? buttons.find((b) => nameOf(b) === focused && !isDisabled(b));
+    (again ?? dialog.querySelector<HTMLElement>("button:not(:disabled)"))?.focus();
   }
+}
+
+function isDisabled(element: HTMLElement): boolean {
+  return element instanceof HTMLButtonElement && element.disabled;
 }
 
 function nameOf(element: HTMLElement): string {

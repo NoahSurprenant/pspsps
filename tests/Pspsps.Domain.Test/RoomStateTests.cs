@@ -41,6 +41,45 @@ public sealed class RoomStateTests
     }
 
     [Test]
+    public void Join_WearsWhatThePlayerWears_AndAnotherTabJoiningDressesTheCatAsThePlayerIsNow()
+    {
+        var state = new RoomState(Room);
+
+        var cat = state.Join(Tom, "Tom", FurColor.Grey, TabA, Now, hat: "party-hat");
+        Assert.That((cat.FurColor, cat.Hat, cat.Collar), Is.EqualTo((FurColor.Grey, "party-hat", (string?)null)));
+
+        var again = state.Join(Tom, "Tom", FurColor.Black, TabB, Now, hat: null, collar: "red-collar");
+        Assert.That((again.FurColor, again.Hat, again.Collar), Is.EqualTo((FurColor.Black, (string?)null, "red-collar")));
+        Assert.That(state.Cats.Single(), Is.EqualTo(again));
+    }
+
+    [Test]
+    public void Dress_ChangesWhatTheCatWears_WhereItStands_AndArrivalsSeeIt()
+    {
+        var state = new RoomState(Room);
+        state.Join(Tom, "Tom", FurColor.Grey, TabA, Now);
+        state.Move(Tom, new Position(3, 0));
+
+        var dressed = state.Dress(Tom, FurColor.Tuxedo, "crown", "bell-collar");
+        // Walking and emoting keep it on.
+        state.Move(Tom, new Position(2, 0));
+        state.Emote(Tom, "sit", Now);
+
+        Assert.That(dressed, Is.EqualTo(new CatInRoom(Tom, "Tom", FurColor.Tuxedo, new Position(3, 0), Hat: "crown", Collar: "bell-collar")));
+        var cat = state.Cats.Single();
+        Assert.That((cat.FurColor, cat.Hat, cat.Collar, cat.Pose), Is.EqualTo((FurColor.Tuxedo, "crown", "bell-collar", CatPose.Sitting)));
+    }
+
+    [Test]
+    public void Dress_ACatThatIsntHere_IsNothing()
+    {
+        var state = new RoomState(Room);
+
+        Assert.That(state.Dress(Tom, FurColor.Grey, "bow", null), Is.Null);
+        Assert.That(state.Cats, Is.Empty);
+    }
+
+    [Test]
     public void Join_RefusesAFullRoom()
     {
         var state = new RoomState(Room);

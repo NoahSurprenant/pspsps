@@ -44,12 +44,20 @@ public sealed class RoomState(RoomDefinition room)
 
     /// <summary>
     /// Puts a cat at the room's spawn point, or just inside the door <paramref name="throughDoor"/> when it comes in
-    /// through one, controlled by <paramref name="session"/>, whose lease starts <paramref name="now"/>. A cat already
-    /// here (the player's other tab) keeps its spot and passes to the new session; a line the other tab cast is reeled
-    /// in, with nothing on it (the new tab never cast it).
+    /// through one, controlled by <paramref name="session"/>, whose lease starts <paramref name="now"/>, wearing
+    /// <paramref name="hat"/> and <paramref name="collar"/>. A cat already here (the player's other tab) keeps its spot
+    /// and passes to the new session, dressed as the player is now; a line the other tab cast is reeled in, with nothing
+    /// on it (the new tab never cast it).
     /// </summary>
     public CatInRoom Join(
-        Guid playerId, string displayName, FurColor furColor, string session, DateTimeOffset now, string? throughDoor = null)
+        Guid playerId,
+        string displayName,
+        FurColor furColor,
+        string session,
+        DateTimeOffset now,
+        string? throughDoor = null,
+        string? hat = null,
+        string? collar = null)
     {
         if (_cats.TryGetValue(playerId, out var existing))
         {
@@ -59,7 +67,9 @@ public sealed class RoomState(RoomDefinition room)
             }
 
             _leases[playerId] = SessionLease.Start(session, now);
-            return existing;
+            var dressed = existing with { FurColor = furColor, Hat = hat, Collar = collar };
+            _cats[playerId] = dressed;
+            return dressed;
         }
 
         if (IsFull)
@@ -68,7 +78,7 @@ public sealed class RoomState(RoomDefinition room)
         }
 
         var arrival = throughDoor is null ? Room.Spawn : Room.GetDoor(throughDoor).Arrival;
-        var cat = new CatInRoom(playerId, displayName, furColor, arrival);
+        var cat = new CatInRoom(playerId, displayName, furColor, arrival, Hat: hat, Collar: collar);
         _cats.Add(playerId, cat);
         _leases[playerId] = SessionLease.Start(session, now);
         return cat;
@@ -165,6 +175,22 @@ public sealed class RoomState(RoomDefinition room)
         _cats[playerId] = cat with { Position = position, Pose = CatPose.Standing };
         _lines.Remove(playerId);
         return position;
+    }
+
+    /// <summary>
+    /// The player changed what their cat wears (in the shop, from any of their tabs): the cat here, if it is here, wears
+    /// it from now on, and shows it to cats arriving later. Null when the cat isn't in this room.
+    /// </summary>
+    public CatInRoom? Dress(Guid playerId, FurColor furColor, string? hat, string? collar)
+    {
+        if (!_cats.TryGetValue(playerId, out var cat))
+        {
+            return null;
+        }
+
+        var dressed = cat with { FurColor = furColor, Hat = hat, Collar = collar };
+        _cats[playerId] = dressed;
+        return dressed;
     }
 
     /// <summary>The cat's line in the water, if any: a bite applies only to the line it was cast for.</summary>

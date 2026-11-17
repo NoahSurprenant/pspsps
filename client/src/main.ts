@@ -10,10 +10,12 @@ import type { CatAnimation } from "./cat";
 import type { RoomScene } from "./scene";
 import { Overlay, type Note } from "./ui";
 import type { FriendAction } from "./friends";
-import type { DoorView, Player, PlayerCard, RoomSnapshot } from "./types";
+import { shopMessage, type ShopAction } from "./shop";
+import type { DoorView, OutfitView, Player, PlayerCard, RoomSnapshot, Shop } from "./types";
 
 const overlay = new Overlay(required<HTMLElement>("#ui"));
 overlay.onFriends = () => void openFriends();
+overlay.onShop = () => void openShop();
 // The 3D scene, made on the way into the first room: Babylon (most of the page's script) loads only then, so the
 // sign-in screen and the world list stay light, and nothing draws until there is a room to draw.
 let scene: RoomScene | undefined;
@@ -85,6 +87,8 @@ declare global {
       screenPoint(x: number, z: number): { x: number; y: number } | undefined;
       /** Where a cat in the room is on the page, to click it. */
       catOnScreen(playerId: string): { x: number; y: number } | undefined;
+      /** What a cat in the room is drawn wearing (its fur, hat and collar), once the cat is drawn. */
+      wearing(playerId: string): { fur: string; hat: string | undefined; collar: string | undefined } | undefined;
     };
   }
 }
@@ -95,6 +99,7 @@ window.pspsps = {
   animation: (playerId) => scene?.animationOf(playerId),
   screenPoint: (x, z) => scene?.screenPoint(x, z),
   catOnScreen: (playerId) => scene?.screenPositionOf(playerId),
+  wearing: (playerId) => scene?.wearingOf(playerId),
 };
 
 const connection = new GameConnection({
@@ -120,6 +125,14 @@ const connection = new GameConnection({
     here.emote(emote);
     scene?.emote(emote.playerId, emote.emote);
   }),
+  catDressed: (outfit) => {
+    onRoom((here) => {
+      if (here.dress(outfit)) {
+        scene?.dress(outfit);
+      }
+    });
+    void dressed(outfit);
+  },
   fishBit: () => fishing.bite(),
   fishGotAway: () => {
     if (fishing.gotAway()) {
@@ -430,6 +443,65 @@ async function friendsChanged(playerId: string): Promise<void> {
     }
   } catch {
     // Only a notice: the list shows it when opened.
+  }
+}
+
+/** The shop. A refresh (`refresh`) of the open shop updates it in place, and does nothing if the player closed it. */
+async function openShop(refresh = false): Promise<void> {
+  try {
+    const shop = await connection.getShop();
+    if (refresh && overlay.openDialogFor?.kind !== "shop") {
+      return;
+    }
+    showShop(shop);
+  } catch (error) {
+    overlay.toast(messageOf(error));
+  }
+}
+
+function showShop(shop: Shop): void {
+  if (me) {
+    // The shop's count is the saved one: the room bar shows it too, and a world picked again starts from it.
+    me = { ...me, coins: shop.coins };
+    overlay.setCoins(me.coins);
+  }
+  overlay.showShop(shop, (action, itemId) => void shopAction(action, itemId, shop));
+}
+
+/** Buys, puts on or takes off an item, then shows the shop as it is after, and says what happened. */
+async function shopAction(action: ShopAction, itemId: string, before: Shop): Promise<void> {
+  try {
+    const after = await connection.shop(action, itemId);
+    if (overlay.openDialogFor?.kind === "shop") {
+      showShop(after);
+    } else if (me) {
+      me = { ...me, coins: after.coins };
+      overlay.setCoins(me.coins);
+    }
+    overlay.toast(shopMessage(action, before.items.find((item) => item.id === itemId)));
+  } catch (error) {
+    overlay.toast(messageOf(error));
+  }
+}
+
+/**
+ * A cat changed what it wears: the card showing it is brought up to date; when it's the player's own (from another
+ * tab), the open shop.
+ */
+async function dressed(outfit: OutfitView): Promise<void> {
+  const open = overlay.openDialogFor;
+  if (open?.kind === "shop" && outfit.playerId === me?.id) {
+    await openShop(true);
+  } else if (open?.kind === "card" && open.playerId === outfit.playerId) {
+    try {
+      const card = await connection.getPlayerCard(outfit.playerId);
+      const now = overlay.openDialogFor;
+      if (now?.kind === "card" && now.playerId === outfit.playerId) {
+        showCard(card);
+      }
+    } catch {
+      // Only a refresh: the card shows it when opened again.
+    }
   }
 }
 

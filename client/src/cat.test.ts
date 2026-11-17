@@ -233,8 +233,50 @@ describe("Cat", () => {
     expect(collar.z).toBeGreaterThan(0.3);
   });
 
-  it("leaves nothing behind when its root goes", async () => {
-    const { root } = await makeCat("cat-a", "Grey");
+  it("wears one hat on its head-top and one collar at its neck, outlined, a new one in place of the old", async () => {
+    const { cat } = await makeCat("cat-a", "Grey");
+
+    cat.dress({ fur: "Grey", hat: "party-hat", collar: "bell-collar" });
+    expect(cat.wearing).toEqual({ fur: "Grey", hat: "party-hat", collar: "bell-collar" });
+    const hat = scene.getTransformNodeByName("cat-a-hat");
+    expect(hat?.parent).toBe(cat.anchors.headTop);
+    expect(scene.getTransformNodeByName("cat-a-collar")?.parent).toBe(cat.anchors.neck);
+    expect(hat?.getChildMeshes(false).length).toBeGreaterThan(0);
+    expect(hat?.getChildMeshes(false).every((mesh) => mesh.renderOutline)).toBe(true);
+
+    cat.dress({ fur: "Grey", hat: "crown", collar: "bell-collar" });
+    expect(cat.wearing.hat).toBe("crown");
+    expect(scene.meshes.filter((mesh) => mesh.name.startsWith("cat-a-hat-cone"))).toEqual([]);
+    expect(scene.materials.filter((material) => material.name.startsWith("cat-a-hat-cone"))).toEqual([]);
+    expect(scene.meshes.filter((mesh) => mesh.name.startsWith("cat-a-hat-point")).length).toBe(5);
+  });
+
+  it("takes things off, and leaves off what it can't draw", async () => {
+    const { cat } = await makeCat("cat-a", "Grey");
+    cat.dress({ fur: "Grey", hat: "beanie", collar: "red-collar" });
+
+    cat.dress({ fur: "Grey", hat: null, collar: "a-collar-from-the-future" });
+
+    expect(cat.wearing).toEqual({ fur: "Grey", hat: undefined, collar: undefined });
+    expect(scene.meshes.filter((mesh) => mesh.name.startsWith("cat-a-hat") || mesh.name.startsWith("cat-a-collar"))).toEqual([]);
+  });
+
+  it("changes its coat, and still shuts its eyes asleep in the new one", async () => {
+    const { cat, root } = await makeCat("cat-a", "Grey");
+
+    cat.dress({ fur: "Tuxedo", hat: null, collar: null });
+
+    const tuxedo = coatOf("Tuxedo");
+    expect(cat.wearing.fur).toBe("Tuxedo");
+    expect(materialOf(root, "cat-a-body.coat").emissiveColor.toHexString().toLowerCase()).toBe(tuxedo.body);
+    expect(materialOf(root, "cat-a-tail.accent").emissiveColor.toHexString().toLowerCase()).toBe(tuxedo.accent);
+    cat.play("sleep");
+    expect(materialOf(root, "cat-a-body.eyes").emissiveColor.toHexString().toLowerCase()).toBe(tuxedo.body);
+  });
+
+  it("leaves nothing behind when its root goes, what it wears included", async () => {
+    const { cat, root } = await makeCat("cat-a", "Grey");
+    cat.dress({ fur: "Grey", hat: "top-hat", collar: "green-collar" });
 
     root.dispose();
 

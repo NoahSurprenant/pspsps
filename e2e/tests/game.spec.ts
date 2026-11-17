@@ -1,6 +1,7 @@
 import { PNG } from "pngjs";
 import {
-  animation, catEyes, cats, clickCat, emotes, enterWorld, expect, hubGuest, newPlayer, pixelsNear, pondBlue, test, watchErrors,
+  animation, catEyes, cats, clickCat, emotes, enterWorld, expect, fishFor, hubGuest, newPlayer, pixelsNear, pondBlue, test,
+  watchErrors,
 } from "./game";
 
 test("the sign-in page loads without errors", async ({ page }) => {
@@ -455,4 +456,61 @@ test("a guest walks through the café door and comes in by the café's door back
   expect(cat).not.toMatchObject({ x: 0, z: 3 });
   // The room bar still goes anywhere, the quick way.
   await expect(page.getByRole("button", { name: "Town Square" })).toBeVisible();
+});
+
+test("a cat buys a party hat with its catch, and another cat sees it wearing it", async ({ page: tom, browser, baseURL }) => {
+  // The fishing is real (3-9 s a bite), from the hub: about two catches, rarely more than six.
+  test.setTimeout(180_000);
+  const base = baseURL ?? "http://localhost:8080";
+  const fisher = await hubGuest(base);
+  let coins: number;
+  try {
+    coins = await fishFor(fisher.hub, "siamese", 30);
+  } finally {
+    await fisher.hub.stop();
+  }
+  const felix = await newPlayer(browser);
+  try {
+    // The same player now plays in a browser, with the coins they caught.
+    const split = fisher.cookie.indexOf("=");
+    await tom.context().addCookies([{ name: fisher.cookie.slice(0, split), value: fisher.cookie.slice(split + 1), url: base }]);
+    await tom.goto("/");
+    await tom.getByRole("button", { name: /^Siamese · / }).click();
+    await expect(tom.locator(".room-bar strong")).toHaveText("Town Square");
+    await expect(tom.locator("#coins")).toHaveText(`🪙 ${coins}`);
+    await enterWorld(felix.page, "Siamese");
+    await expect.poll(async () => Object.keys(await cats(felix.page))).toContain(fisher.id);
+
+    // Tom buys the party hat in the shop, then puts it on.
+    await tom.getByRole("button", { name: "Shop", exact: true }).click();
+    const shop = tom.getByRole("dialog", { name: "Shop" });
+    await expect(shop.getByText(`You have 🪙 ${coins}`)).toBeVisible();
+    await expect(shop.getByRole("button", { name: "Buy the Crown for 1000 coins" })).toBeDisabled();
+    await shop.getByRole("button", { name: "Buy the Party hat for 30 coins" }).click();
+    await expect(shop.getByText(`You have 🪙 ${coins - 30}`)).toBeVisible();
+    // The focus stays on the hat's row, now Wear.
+    const wear = shop.getByRole("button", { name: "Wear the Party hat" });
+    await expect(wear).toBeFocused();
+    await wear.click();
+    await expect(shop.getByRole("button", { name: "Take off the Party hat" })).toBeVisible();
+    await shop.getByRole("button", { name: "Close" }).click();
+    await expect(tom.locator("#coins")).toHaveText(`🪙 ${coins - 30}`);
+
+    // Felix's screen has it on Tom's cat: in the room, and drawn on the model.
+    await expect.poll(() => felix.page.evaluate((id) => window.pspsps?.room()?.cats.get(id)?.hat, fisher.id)).toBe("party-hat");
+    await expect.poll(() => felix.page.evaluate((id) => window.pspsps?.wearing(id)?.hat, fisher.id)).toBe("party-hat");
+    // And Tom's own.
+    await expect.poll(() => tom.evaluate((id) => window.pspsps?.wearing(id)?.hat, fisher.id)).toBe("party-hat");
+
+    // Tom walks off the spawn point (where Felix stands), and Felix taps him: his card says what he wears.
+    const canvas = await tom.locator("#game").boundingBox();
+    if (!canvas) throw new Error("no canvas");
+    await tom.mouse.click(canvas.x + canvas.width / 2, canvas.y + canvas.height / 2);
+    await expect.poll(async () => (await cats(felix.page))[fisher.id]?.z).toBeLessThan(3);
+    await clickCat(felix.page, fisher.id);
+    await expect(felix.page.getByRole("dialog", { name: fisher.name }).getByText("Wearing: Party hat")).toBeVisible();
+    expect(felix.errors, "Felix's console errors and uncaught exceptions").toEqual([]);
+  } finally {
+    await felix.close();
+  }
 });

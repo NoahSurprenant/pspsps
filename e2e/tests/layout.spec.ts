@@ -43,6 +43,7 @@ const CHECKS: Record<Screen["name"], Checks> = {
   // A sheet over the room: the room's parts are behind it (inert), so only the sheet itself must fit.
   "player-card": { parts: [".sheet"] },
   friends: { parts: [".sheet"] },
+  shop: { parts: [".sheet"] },
   "town-square": {
     parts: [".room-bar", ".emote-bar", ".chat-bar", ".fishing"],
     // The pond and the café door's mat, drawn: from further off (a narrow screen backs the camera away) the floor's

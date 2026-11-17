@@ -19,11 +19,11 @@ import { AdvancedDynamicTexture } from "@babylonjs/gui/2D/advancedDynamicTexture
 import { Rectangle } from "@babylonjs/gui/2D/controls/rectangle";
 import { TextBlock } from "@babylonjs/gui/2D/controls/textBlock";
 import { cameraPitch, cameraRadius, fieldOfView } from "./view";
-import { animationFor, Cat, facing, loadCatModel, MeowClip, type CatAnimation } from "./cat";
+import { animationFor, Cat, facing, loadCatModel, MeowClip, type CatAnimation, type Outfit } from "./cat";
 import { lazily } from "./lazy";
 import { CatLook } from "./look";
 import catModelUrl from "./models/cat.glb?url";
-import type { CatView, DoorView, Emote, RoomSnapshot } from "./types";
+import type { CatView, DoorView, Emote, OutfitView, RoomSnapshot } from "./types";
 
 const walkSpeed = 4; // metres per second
 const sky = Color4.FromHexString("#bfe3f2ff");
@@ -57,6 +57,10 @@ interface CatOnScreen {
   look: CatLook;
   bubble?: { box: Rectangle; text: string };
   model?: Cat;
+  // What it wears: put on the model once it's drawn, and whenever it changes.
+  outfit: Outfit;
+  // Whether a tap on it opens its card (another player's cat).
+  tappable: boolean;
   meow: MeowClip;
   // Someone waiting for the cat to be drawn standing at a spot (a walk to a door), told true when it is, false if it
   // is sent elsewhere first.
@@ -217,6 +221,7 @@ export class RoomScene {
     if (existing) {
       this.sendTo(existing, cat.x, cat.z);
       existing.look.pose = cat.pose ?? undefined;
+      this.dressOnScreen(existing, outfitOf(cat));
       return;
     }
 
@@ -245,26 +250,38 @@ export class RoomScene {
     label.linkOffsetY = -6;
 
     const look = new CatLook(cat.pose);
-    const shown: CatOnScreen = { root, anchor, target: new Vector3(cat.x, 0, cat.z), look, meow: new MeowClip() };
+    // The player's own cat never takes the pointer, so a tap just behind it still walks or fishes.
+    const shown: CatOnScreen = {
+      root, anchor, target: new Vector3(cat.x, 0, cat.z), look, meow: new MeowClip(), outfit: outfitOf(cat),
+      tappable: cat.playerId !== this.playerId,
+    };
     this.cats.set(cat.playerId, shown);
     const scene = this.scene;
     void this.model.then((model) => {
       // Not for a cat that left, or a room that's gone, meanwhile.
       if (model && this.cats.get(cat.playerId) === shown && this.scene === scene && !root.isDisposed()) {
         try {
-          shown.model = new Cat(scene, model, root, name, cat.furColor);
-          // Tapping any part of another cat opens its card; the player's own never takes the pointer, so a tap just
-          // behind it still walks or fishes. Its name's anchor never does either.
-          const tappable = cat.playerId !== this.playerId;
-          for (const mesh of root.getChildMeshes(false)) {
-            mesh.isPickable = tappable && mesh !== anchor;
-          }
+          shown.model = new Cat(scene, model, root, name, shown.outfit.fur);
+          this.dressOnScreen(shown, shown.outfit);
         } catch (error) {
           // That cat goes undrawn; its name and bubbles still show.
           console.error("A cat couldn't be drawn", error);
         }
       }
     });
+  }
+
+  /** The cat put on or took off something, or changed its fur. */
+  dress(outfit: OutfitView): void {
+    const cat = this.cats.get(outfit.playerId);
+    if (cat) {
+      this.dressOnScreen(cat, { fur: outfit.furColor, hat: outfit.hat, collar: outfit.collar });
+    }
+  }
+
+  /** What a cat is drawn wearing (for the end-to-end tests), if it is in the room and drawn. */
+  wearingOf(playerId: string): { fur: string; hat: string | undefined; collar: string | undefined } | undefined {
+    return this.cats.get(playerId)?.model?.wearing;
   }
 
   /** The animation a cat is playing (for the end-to-end tests), if it is in the room and drawn. */
@@ -349,6 +366,21 @@ export class RoomScene {
    */
   emote(playerId: string, emote: Emote): void {
     this.cats.get(playerId)?.look.emote(emote, performance.now());
+  }
+
+  /**
+   * Dresses the cat (its model, once drawn). Tapping any part of another cat, what it wears included, opens its card;
+   * its name's anchor never takes the pointer.
+   */
+  private dressOnScreen(cat: CatOnScreen, outfit: Outfit): void {
+    cat.outfit = outfit;
+    if (!cat.model) {
+      return;
+    }
+    cat.model.dress(outfit);
+    for (const mesh of cat.root.getChildMeshes(false)) {
+      mesh.isPickable = cat.tappable && mesh !== cat.anchor;
+    }
   }
 
   /** Points the cat at a new spot; whoever waited for it to reach another is told it won't. */
@@ -461,6 +493,11 @@ export class RoomScene {
     box.linkOffsetY = -42;
     return box;
   }
+}
+
+/** What a cat in a room wears. */
+function outfitOf(cat: CatView): Outfit {
+  return { fur: cat.furColor, hat: cat.hat, collar: cat.collar };
 }
 
 /** The player whose cat a picked mesh is part of (a cat's root carries the ID), if any. */

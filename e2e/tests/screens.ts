@@ -11,7 +11,7 @@ export interface Size {
 }
 
 export interface Screen {
-  name: "sign-in" | "worlds" | "town-square" | "player-card" | "friends";
+  name: "sign-in" | "worlds" | "town-square" | "player-card" | "friends" | "shop";
   /** Opens the screen in a fresh page; returns once it is ready, with what to close after (other players), if any. */
   open(page: Page): Promise<(() => Promise<void>) | void>;
 }
@@ -84,6 +84,19 @@ export const SCREENS: Screen[] = [
         throw error;
       }
       return close;
+    },
+  },
+  {
+    // The shop, for a new guest: nothing bought yet, so every Buy waits for coins and says how many, and the coat it
+    // was born with is its fur now.
+    name: "shop",
+    open: async (page) => {
+      await enterWorld(page, "Calico");
+      await page.getByRole("button", { name: "Shop", exact: true }).click();
+      const shop = page.getByRole("dialog", { name: "Shop" });
+      await expect(shop).toBeVisible();
+      await expect(shop.getByRole("button", { name: "Buy the Party hat for 30 coins" })).toBeDisabled();
+      await expect(shop.getByText("Your fur now")).toBeVisible();
     },
   },
 ];

@@ -1,5 +1,5 @@
 import { isPose } from "./emotes";
-import type { CatView, ChatView, EmoteView, RoomSnapshot } from "./types";
+import type { CatView, ChatView, EmoteView, OutfitView, RoomSnapshot } from "./types";
 
 /**
  * The room as this browser knows it. Every change is idempotent: the server may send a join for a cat already in the
@@ -64,6 +64,16 @@ export class Room {
     if (isPose(emote.emote)) {
       this.cats.set(emote.playerId, { ...cat, pose: emote.emote });
     }
+  }
+
+  /** The cat put on or took off something, or changed its fur; false for a cat that isn't here. */
+  dress(outfit: OutfitView): boolean {
+    const cat = this.cats.get(outfit.playerId);
+    if (!cat) {
+      return false;
+    }
+    this.cats.set(outfit.playerId, { ...cat, furColor: outfit.furColor, hat: outfit.hat, collar: outfit.collar });
+    return true;
   }
 
   nameOf(playerId: string): string {

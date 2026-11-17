@@ -347,3 +347,50 @@ button:disabled {
   content: "● ";
   color: #2e7d32;
 }
+
+/* What another cat wears, on its card. */
+.wearing {
+  font-style: italic;
+}
+
+.purse {
+  font-weight: bold;
+}
+
+.shop-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* An item: its name and its price (or whether it's worn) on the left, its button on the right; on a narrow screen the
+   button goes under them. */
+.shop-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  padding: 0.4rem 0.4rem 0.4rem 0.75rem;
+  background: white;
+  border: 2px solid var(--ink);
+  border-radius: 0.9rem;
+}
+
+.shop-item .item-name {
+  flex: 1 1 6rem;
+  min-width: 0;
+  font-weight: bold;
+  overflow-wrap: anywhere;
+}
+
+.shop-item .item-status {
+  order: 3;
+  flex: 1 1 100%;
+}
+
+.shop-item button {
+  margin-left: auto;
+}

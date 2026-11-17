@@ -297,7 +297,7 @@ public sealed class PlayerServiceTests
     /// A context of its own whose first write (a save, or an update statement such as ExecuteUpdate's) runs
     /// <paramref name="first"/> (in another context) just before.
     /// </summary>
-    private static PspspsDbContext RacingContext(Func<CancellationToken, Task> first)
+    internal static PspspsDbContext RacingContext(Func<CancellationToken, Task> first)
     {
         var race = new JustBeforeTheFirstWrite(first);
         return new(new DbContextOptionsBuilder<PspspsDbContext>()

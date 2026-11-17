@@ -183,7 +183,7 @@ internal sealed class FriendService(IApplicationDbContext db, TimeProvider time)
         db.Players.AsNoTracking().FirstOrDefaultAsync(p => p.Id == playerId, cancellationToken);
 
     private static PlayerRelation Relation(Player other, FriendState state) =>
-        new(other.Id, other.DisplayName, other.FurColor, state);
+        new(other.Id, other.DisplayName, other.FurColor, state, other.Hat, other.Collar);
 
     private static int ListOrder(FriendState state) => state switch
     {
