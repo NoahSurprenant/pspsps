@@ -1,6 +1,7 @@
 import { PNG } from "pngjs";
 import {
-  animation, catEyes, cats, clickCat, emotes, enterWorld, expect, hubGuest, newPlayer, pixelsNear, pondBlue, test, watchErrors,
+  animation, catEyes, cats, clickCat, emotes, enterWorld, expect, goThroughDoor, hubGuest, newPlayer, pixelsNear, pondBlue, test,
+  watchErrors,
 } from "./game";
 
 test("the sign-in page loads without errors", async ({ page }) => {
@@ -21,7 +22,6 @@ test("a guest picks a world and the room draws", async ({ page }) => {
   await page.getByRole("button", { name: /^Tabby · / }).click();
 
   await expect(page.locator(".room-bar strong")).toHaveText("Town Square");
-  await expect(page.getByRole("button", { name: "Cat Café" })).toBeVisible();
   // Before a room shows, the canvas is one flat sky; a drawn room has floor, wall, outlines and a cat. The HTML over
   // the canvas is hidden for the capture, so its text can't pass for a room.
   await page.locator("#ui").evaluate((ui) => (ui.style.visibility = "hidden"));
@@ -76,9 +76,8 @@ test("two cats see each other walk, chat and leave", async ({ page: tom, browser
     await expect.poll(() => tom.evaluate(() => window.pspsps?.room()?.chat.map((line) => line.text)))
       .toContain("pspsps");
 
-    // Felix goes to the café: he leaves Tom's room.
-    await felix.page.getByRole("button", { name: "Cat Café" }).click();
-    await expect(felix.page.locator(".room-bar strong")).toHaveText("Cat Café");
+    // Felix goes through the door to the café: he leaves Tom's room.
+    await goThroughDoor(felix.page, "cafe", "Cat Café");
     await expect.poll(async () => Object.keys(await cats(tom))).toEqual([tomId]);
 
     expect(felix.errors, "Felix's console errors and uncaught exceptions").toEqual([]);
@@ -356,8 +355,7 @@ test("two cats befriend each other from their cards, and one goes to the other",
     await felix.page.getByRole("button", { name: "Worlds" }).click();
     await felix.page.getByRole("button", { name: /^Calico · / }).click();
     await expect(felix.page.locator(".room-bar strong")).toHaveText("Town Square");
-    await felix.page.getByRole("button", { name: "Cat Café" }).click();
-    await expect(felix.page.locator(".room-bar strong")).toHaveText("Cat Café");
+    await goThroughDoor(felix.page, "cafe", "Cat Café");
     await tom.getByRole("button", { name: "Friends", exact: true }).click();
     const list = tom.getByRole("dialog", { name: "Friends" });
     await expect(list.getByText("Cat Café, Calico")).toBeVisible();
@@ -453,6 +451,6 @@ test("a guest walks through the café door and comes in by the café's door back
   expect(fromDoor).toBeGreaterThan(back.radius);
   expect(fromDoor).toBeLessThan(back.radius + 1);
   expect(cat).not.toMatchObject({ x: 0, z: 3 });
-  // The room bar still goes anywhere, the quick way.
-  await expect(page.getByRole("button", { name: "Town Square" })).toBeVisible();
+  // Doors are the way around: the room bar has no buttons to other rooms.
+  await expect(page.locator(".room-bar").getByRole("button", { name: "Town Square" })).toHaveCount(0);
 });

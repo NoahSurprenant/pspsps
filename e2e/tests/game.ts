@@ -33,6 +33,18 @@ export async function enterWorld(page: Page, world: string): Promise<string> {
   return page.evaluate(async () => ((await (await fetch("/api/me")).json()) as { id: string }).id);
 }
 
+/** Walks the player's cat through the room's door to <roomId> by clicking its mat where it is drawn; resolves in there. */
+export async function goThroughDoor(page: Page, roomId: string, roomName: string): Promise<void> {
+  const door = await page.evaluate((to) => window.pspsps?.room()?.snapshot.doors.find((d) => d.toRoomId === to), roomId);
+  if (!door) throw new Error(`no door to ${roomId}`);
+  const canvas = await page.locator("#game").boundingBox();
+  if (!canvas) throw new Error("no canvas");
+  const mat = await page.evaluate(({ x, z }) => window.pspsps?.screenPoint(x, z), door);
+  if (!mat) throw new Error("the door isn't drawn");
+  await page.mouse.click(canvas.x + mat.x, canvas.y + mat.y);
+  await expect(page.locator(".room-bar strong")).toHaveText(roomName);
+}
+
 /** A second player, in their own browser context (their own cookie). */
 export async function newPlayer(browser: Browser): Promise<{ page: Page; errors: string[]; close(): Promise<void> }> {
   const context = await browser.newContext();
