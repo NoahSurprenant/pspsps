@@ -11,7 +11,11 @@ public sealed class SessionHeartbeatTests
     private static readonly Guid Felix = Guid.NewGuid();
     private static readonly Guid Garfield = Guid.NewGuid();
 
-    private readonly IGrainFactory _grains = Substitute.For<IGrainFactory>();
+    // NUnit runs every test on one instance of this class: a fresh factory each time.
+    private IGrainFactory _grains = null!;
+
+    [SetUp]
+    public void NewGrainFactory() => _grains = Substitute.For<IGrainFactory>();
 
     [Test]
     public async Task RenewAsync_RenewsEachWorldAndRoomOnce_WithTheConnectionsInIt()
