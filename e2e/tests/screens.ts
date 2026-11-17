@@ -1,5 +1,5 @@
 import type { Browser, BrowserContext, Page } from "@playwright/test";
-import { clickCat, enterWorld, expect, hubGuest } from "./game";
+import { clickCat, enterWorld, expect, goThroughDoor, hubGuest } from "./game";
 
 // The game's screens and the browsers they are seen in, shared by the layout and accessibility specs.
 
@@ -11,7 +11,7 @@ export interface Size {
 }
 
 export interface Screen {
-  name: "sign-in" | "worlds" | "town-square" | "player-card" | "friends" | "shop";
+  name: "sign-in" | "worlds" | "town-square" | "cafe" | "player-card" | "friends" | "shop";
   /** Opens the screen in a fresh page; returns once it is ready, with what to close after (other players), if any. */
   open(page: Page): Promise<(() => Promise<void>) | void>;
 }
@@ -36,6 +36,14 @@ export const SCREENS: Screen[] = [
     name: "town-square",
     open: async (page) => {
       await enterWorld(page, "Calico");
+    },
+  },
+  {
+    // The Cat Café, reached as a player gets there: through the door from the square.
+    name: "cafe",
+    open: async (page) => {
+      await enterWorld(page, "Calico");
+      await goThroughDoor(page, "cafe", "Cat Café");
     },
   },
   {

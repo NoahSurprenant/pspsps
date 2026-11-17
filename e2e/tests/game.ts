@@ -52,11 +52,18 @@ export async function doorMat(page: Page, roomId: string): Promise<{ x: number; 
   return on ? `the door to ${roomId}'s mat is under ${on}` : point;
 }
 
-/** Walks the player's cat through the room's door to <roomId> by clicking its mat where it is drawn; resolves in there. */
+/**
+ * Walks the player's cat through the room's door to <roomId> by clicking (or, on a phone, tapping) its mat where it is
+ * drawn, as a player would; resolves in there.
+ */
 export async function goThroughDoor(page: Page, roomId: string, roomName: string): Promise<void> {
   const mat = await doorMat(page, roomId);
   if (typeof mat === "string") throw new Error(mat);
-  await page.mouse.click(mat.x, mat.y);
+  if (await page.evaluate(() => matchMedia("(pointer: coarse)").matches)) {
+    await page.touchscreen.tap(mat.x, mat.y);
+  } else {
+    await page.mouse.click(mat.x, mat.y);
+  }
   await expect(page.locator(".room-bar strong")).toHaveText(roomName);
 }
 
@@ -64,6 +71,7 @@ export async function goThroughDoor(page: Page, roomId: string, roomName: string
 export function roomBarButtons(page: Page): Promise<string[]> {
   return page.locator(".room-bar button").allInnerTexts();
 }
+
 /** A second player, in their own browser context (their own cookie). */
 export async function newPlayer(browser: Browser): Promise<{ page: Page; errors: string[]; close(): Promise<void> }> {
   const context = await browser.newContext();

@@ -82,11 +82,31 @@ public sealed record RoomSnapshot(
     [property: Id(6)] IReadOnlyList<ChatView> Chat,
     [property: Id(7)] IReadOnlyList<RoomLink> Rooms,
     [property: Id(8)] PondView? Pond,
-    [property: Id(9)] IReadOnlyList<DoorView> Doors);
+    [property: Id(9)] IReadOnlyList<DoorView> Doors,
+    [property: Id(10)] IReadOnlyList<PropView> Props);
 
 /// <summary>Where a room's pond is, for drawing it and walking to it.</summary>
 [GenerateSerializer, Immutable]
 public sealed record PondView([property: Id(0)] double X, [property: Id(1)] double Z, [property: Id(2)] double Radius);
+
+/// <summary>
+/// A piece of the room's decoration, for drawing it: what it is (Kind), where it stands (X, Z), the circle round there it
+/// is drawn inside (Radius), and which way it faces (Facing, radians: 0 faces the front of the room). Cats walk through it.
+/// </summary>
+[GenerateSerializer, Immutable]
+public sealed record PropView(
+    [property: Id(0)] string Kind,
+    [property: Id(1)] double X,
+    [property: Id(2)] double Z,
+    [property: Id(3)] double Radius,
+    [property: Id(4)] double Facing)
+{
+    public static PropView From(Prop prop)
+    {
+        ArgumentNullException.ThrowIfNull(prop);
+        return new PropView(prop.Kind, prop.Spot.X, prop.Spot.Z, prop.Radius, prop.Facing);
+    }
+}
 
 /// <summary>
 /// A door out of the room: a round spot on the floor (X, Z, Radius) to walk onto, and the room it leads to, for drawing

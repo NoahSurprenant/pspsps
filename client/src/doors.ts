@@ -30,3 +30,11 @@ export class DoorWalks {
     return this.going === walk;
   }
 }
+
+/** How near the back wall (in metres) a door has a doorway in the wall behind its mat; one further out is just its mat. */
+const doorwayReach = 2;
+
+/** Whether <door> has a doorway in the back wall of a room <depth> deep (the wall is at +depth / 2). */
+export function hasDoorway(door: Pick<DoorView, "z">, depth: number): boolean {
+  return depth / 2 - door.z <= doorwayReach;
+}
