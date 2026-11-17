@@ -243,6 +243,7 @@ function show(snapshot: RoomSnapshot, view: RoomScene): Room {
         connection.emote(emote).catch((error: unknown) => overlay.toast(messageOf(error)));
       }
     },
+    (door) => void goThrough(door),
     () => window.location.reload(),
     me?.coins ?? 0,
     snapshot.pond ? { fish: () => void fish(), reel: () => void reel(), state: () => fishing.state } : undefined,

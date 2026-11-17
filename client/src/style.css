@@ -347,3 +347,29 @@ button:disabled {
   content: "● ";
   color: #2e7d32;
 }
+
+/* The doors' buttons, for the keyboard (the doors themselves are on the canvas): unseen and untouchable until one has
+   focus, then shown at the top left, over whatever is there, as a skip link is. */
+.doors {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  z-index: 1;
+}
+
+#ui > .doors {
+  pointer-events: none;
+}
+
+.doors button {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.doors button:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
