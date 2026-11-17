@@ -87,23 +87,47 @@ spec:
             {{- end }}
             - name: DOTNET_SHUTDOWNTIMEOUTSECONDS
               value: "45"
+            - name: HealthChecks__MaxAllocatedMegabytes
+              value: {{ .Values.healthChecks.maxAllocatedMegabytes | quote }}
+            {{- with .Values.telemetry }}
+            {{- if .endpoint }}
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ .endpoint | quote }}
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: {{ .protocol | quote }}
+            - name: OTEL_SERVICE_NAME
+              value: {{ .serviceName | quote }}
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: {{ printf "deployment.environment.name=%s" .environment | quote }}
+            - name: OTEL_TRACES_SAMPLER_ARG
+              value: {{ .sampleRatio | quote }}
+            {{- end }}
+            {{- end }}
+            {{- range $i, $network := .Values.forwardedHeaders.knownIPNetworks }}
+            - name: ForwardedHeaders__KnownIPNetworks__{{ $i }}
+              value: {{ $network | quote }}
+            {{- end }}
+            {{- with .Values.forwardedHeaders.forwardedForHeaderName }}
+            - name: ForwardedHeaders__ForwardedForHeaderName
+              value: {{ . | quote }}
+            {{- end }}
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
           startupProbe:
             httpGet:
-              path: /healthz
+              path: /health/live
               port: http
             periodSeconds: 2
             failureThreshold: 90
           livenessProbe:
             httpGet:
-              path: /healthz
+              path: /health/live
               port: http
             periodSeconds: 10
           readinessProbe:
             httpGet:
-              path: /readyz
+              path: /health/ready
               port: http
             periodSeconds: 5
           resources:

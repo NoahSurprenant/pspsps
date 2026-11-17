@@ -5,6 +5,7 @@ using Pspsps.Domain.Rooms;
 using Pspsps.Domain.Worlds;
 using Pspsps.Server.Auth;
 using Pspsps.Server.Game;
+using Pspsps.Server.Telemetry;
 
 namespace Pspsps.Server.Hubs;
 
@@ -13,7 +14,7 @@ namespace Pspsps.Server.Hubs;
 /// may live on any pod. Each connection is in at most one world and one room.
 /// </summary>
 [Authorize]
-public sealed class GameHub(IGrainFactory grains, IPlayerService players) : Hub<IGameClient>
+public sealed class GameHub(IGrainFactory grains, IPlayerService players, GameMetrics metrics) : Hub<IGameClient>
 {
     private const string WorldItem = "world";
     private const string RoomItem = "room";
@@ -51,6 +52,7 @@ public sealed class GameHub(IGrainFactory grains, IPlayerService players) : Hub<
         }
 
         Context.Items[WorldItem] = world.Id;
+        metrics.EnteredWorld(world.Id);
         return await JoinRoom(world.Id, RoomCatalog.Default.Id);
     }
 
@@ -65,7 +67,11 @@ public sealed class GameHub(IGrainFactory grains, IPlayerService players) : Hub<
 
     public Task Move(double x, double z) => InRoom(room => room.Move(PlayerId, x, z));
 
-    public Task Say(string text) => InRoom(room => room.Say(PlayerId, text));
+    public async Task Say(string text)
+    {
+        await InRoom(room => room.Say(PlayerId, text));
+        metrics.Said(RoomKey.Parse((string)Context.Items[RoomItem]!).WorldId);
+    }
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
@@ -124,6 +130,7 @@ public sealed class GameHub(IGrainFactory grains, IPlayerService players) : Hub<
         if (Context.Items[WorldItem] is string worldId)
         {
             Context.Items.Remove(WorldItem);
+            metrics.LeftWorld(worldId);
             await grains.GetGrain<IWorldGrain>(worldId).Leave(PlayerId);
         }
     }

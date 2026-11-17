@@ -64,6 +64,13 @@ spec:
       ports:
         - { protocol: TCP, port: {{ .Values.cluster.kubeApi.port }} }
     {{- end }}
+    {{- with $np.telemetryTo }}
+    - to:
+        {{- toYaml . | nindent 8 }}
+      ports:
+        - { protocol: TCP, port: 4317 }
+        - { protocol: TCP, port: 4318 }
+    {{- end }}
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0

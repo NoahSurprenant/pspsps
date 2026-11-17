@@ -27,6 +27,27 @@ orleans:
   serviceId: pspsps
   clusterId: pspsps
 
+# Logs, metrics and traces over OTLP (OTEL_* environment variables). Off when endpoint is empty.
+telemetry:
+  endpoint: ""
+  # grpc (port 4317) or http/protobuf (4318).
+  protocol: grpc
+  serviceName: pspsps
+  environment: prod
+  # Share of root spans kept (every hub call is a root); calls inside a kept trace are always kept.
+  sampleRatio: "0.1"
+
+# Who may set the client address and scheme through X-Forwarded-* (or the header named below): the proxy in front,
+# as CIDRs. Empty: nobody, so the app sees the proxy as the client and http as the scheme.
+forwardedHeaders:
+  knownIPNetworks: []
+  # e.g. X-Real-IP, when the proxy has already resolved the client.
+  forwardedForHeaderName: ""
+
+healthChecks:
+  # Managed memory above this reports Degraded on /health: about 75% of the server's memory limit.
+  maxAllocatedMegabytes: 576
+
 extraEnv: []
 
 server:
@@ -101,6 +122,8 @@ networkPolicy:
     to:
       - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
         podSelector: { matchLabels: { k8s-app: kube-dns } }
+  # The OTLP collector (telemetry.endpoint), ports 4317 and 4318. Empty: no telemetry egress.
+  telemetryTo: []
 
 podSecurityContext:
   runAsNonRoot: true

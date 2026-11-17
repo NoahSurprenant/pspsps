@@ -1,5 +1,4 @@
 using System.Text.Json.Serialization;
-using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Pspsps.Application;
 using Pspsps.Infrastructure;
@@ -7,80 +6,104 @@ using Pspsps.Infrastructure.Persistence;
 using Pspsps.Server.Auth;
 using Pspsps.Server.Game;
 using Pspsps.Server.Hubs;
+using Pspsps.Server.Telemetry;
+using Serilog;
 using StackExchange.Redis;
 
-var builder = WebApplication.CreateBuilder(args);
-
-var database = builder.Configuration.GetConnectionString("Pspsps")
-    ?? throw new InvalidOperationException("Set ConnectionStrings:Pspsps to the PostgreSQL database.");
-
-// Redis joins the pods into one game: Orleans' membership table and the SignalR backplane. Without it the server is a
-// single local silo, which is all development and the tests need.
-var redis = builder.Configuration.GetConnectionString("Redis");
-
-builder.Services.AddApplication();
-builder.Services.AddInfrastructure(database);
-var providers = builder.AddGameAuthentication();
-
-builder.Services.ConfigureHttpJsonOptions(options =>
-    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
-var signalR = builder.Services.AddSignalR()
-    .AddJsonProtocol(options => options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
-if (!string.IsNullOrEmpty(redis))
+Log.Logger = LoggingExtensions.CreateBootstrapLogger();
+try
 {
-    signalR.AddStackExchangeRedis(redis, options =>
-        options.Configuration.ChannelPrefix = RedisChannel.Literal("pspsps"));
-}
+    var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddSingleton<IRoomBroadcaster, HubRoomBroadcaster>();
+    // Logs, metrics and traces share one resource and go to OTEL_EXPORTER_OTLP_ENDPOINT when it's set
+    // (docs/telemetry.md).
+    var telemetry = TelemetryOptions.FromConfiguration(
+        builder.Configuration, builder.Environment, TelemetryOptions.ServiceVersionOf(typeof(Program).Assembly));
+    builder.AddSerilogLogging(telemetry);
+    builder.Services.AddMetricsAndTracing(telemetry, builder.Configuration);
+    builder.Services.AddSingleton<GameMetrics>();
 
-builder.UseOrleans(silo =>
-{
-    if (string.IsNullOrEmpty(redis))
+    var database = builder.Configuration.GetConnectionString("Pspsps")
+        ?? throw new InvalidOperationException("Set ConnectionStrings:Pspsps to the PostgreSQL database.");
+
+    // Redis joins the pods into one game: Orleans' membership table and the SignalR backplane. Without it the server
+    // is a single local silo, which is all development and the tests need.
+    var redis = builder.Configuration.GetConnectionString("Redis");
+
+    builder.Services.AddApplication();
+    builder.Services.AddInfrastructure(database);
+    var providers = builder.AddGameAuthentication();
+
+    builder.Services.ConfigureHttpJsonOptions(options =>
+        options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+    var signalR = builder.Services.AddSignalR(options => options.AddFilter<HubCallMetricsFilter>())
+        .AddJsonProtocol(options => options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+    if (!string.IsNullOrEmpty(redis))
     {
-        silo.UseLocalhostClustering();
-        return;
+        signalR.AddStackExchangeRedis(redis, options =>
+            options.Configuration.ChannelPrefix = RedisChannel.Literal("pspsps"));
     }
 
-    silo.UseRedisClustering(redis);
-    // In Kubernetes: silo name and address from the pod, IDs from its orleans/* labels, dead pods' silos removed.
-    if (!string.IsNullOrEmpty(builder.Configuration["POD_NAME"]))
+    builder.Services.AddSingleton<IRoomBroadcaster, HubRoomBroadcaster>();
+
+    builder.UseOrleans(silo =>
     {
-        silo.UseKubernetesHosting();
+        // A hub call's trace follows it into the grains it calls, on whichever pod they live.
+        silo.AddActivityPropagation();
+        if (string.IsNullOrEmpty(redis))
+        {
+            silo.UseLocalhostClustering();
+            return;
+        }
+
+        silo.UseRedisClustering(redis);
+        // In Kubernetes: silo name and address from the pod, IDs from its orleans/* labels, dead pods' silos removed.
+        if (!string.IsNullOrEmpty(builder.Configuration["POD_NAME"]))
+        {
+            silo.UseKubernetesHosting();
+        }
+    });
+
+    builder.Services.AddAppHealthChecks(builder.Configuration);
+    // Who may set the client address and scheme (ForwardedHeaders:*): nobody but loopback unless configured.
+    (await builder.Services.ConfigureAppForwardedHeadersAsync(builder.Configuration)).LogTo(Log.Logger);
+
+    var app = builder.Build();
+
+    await using (var scope = app.Services.CreateAsyncScope())
+    {
+        // EF Core takes a database lock while migrating, so pods starting together don't race.
+        await scope.ServiceProvider.GetRequiredService<PspspsDbContext>().Database.MigrateAsync();
     }
-});
 
-builder.Services.AddHealthChecks().AddDbContextCheck<PspspsDbContext>(tags: ["ready"]);
+    // Forwarded headers first: everything after sees the real client address and scheme.
+    app.UseForwardedHeaders();
+    app.UseRequestTelemetry();
+    app.UseDefaultFiles();
+    app.UseStaticFiles();
+    app.UseAuthentication();
+    app.UseAuthorization();
 
-builder.Services.Configure<ForwardedHeadersOptions>(options =>
-{
-    // Behind the cluster's ingress: trust its X-Forwarded-* so OAuth redirects use https and the public host.
-    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
-    options.KnownIPNetworks.Clear();
-    options.KnownProxies.Clear();
-});
+    app.MapAppHealthChecks();
+    // The old probe paths, for a chart from before /health/live and /health/ready.
+    app.MapHealthChecks("/healthz", new() { Predicate = _ => false });
+    app.MapHealthChecks("/readyz", new() { Predicate = check => check.Tags.Contains(HealthCheckExtensions.ReadyTag) });
+    app.MapAuthEndpoints(providers);
+    app.MapHub<GameHub>("/hubs/game");
+    app.MapFallbackToFile("index.html");
 
-var app = builder.Build();
-
-await using (var scope = app.Services.CreateAsyncScope())
-{
-    // EF Core takes a database lock while migrating, so pods starting together don't race.
-    await scope.ServiceProvider.GetRequiredService<PspspsDbContext>().Database.MigrateAsync();
+    await app.RunAsync();
 }
-
-app.UseForwardedHeaders();
-app.UseDefaultFiles();
-app.UseStaticFiles();
-app.UseAuthentication();
-app.UseAuthorization();
-
-app.MapHealthChecks("/healthz", new() { Predicate = _ => false });
-app.MapHealthChecks("/readyz", new() { Predicate = check => check.Tags.Contains("ready") });
-app.MapAuthEndpoints(providers);
-app.MapHub<GameHub>("/hubs/game");
-app.MapFallbackToFile("index.html");
-
-await app.RunAsync();
+catch (Exception ex) when (ex is not HostAbortedException)
+{
+    // HostAbortedException is EF Core's design-time tooling stopping the host on purpose.
+    Log.Fatal(ex, "The server stopped");
+    Environment.ExitCode = 1;
+}
+finally
+{
+    await Log.CloseAndFlushAsync();
+}
 
 /// <summary>The entry point, public for the integration tests' WebApplicationFactory.</summary>
 public partial class Program;

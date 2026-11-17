@@ -1,6 +1,7 @@
 using Pspsps.Domain;
 using Pspsps.Domain.Players;
 using Pspsps.Domain.Rooms;
+using Pspsps.Server.Telemetry;
 
 namespace Pspsps.Server.Game;
 
@@ -9,7 +10,7 @@ namespace Pspsps.Server.Game;
 /// cats are in it (idle cats are still there), deactivated by the last one leaving.
 /// </summary>
 [KeepAlive]
-internal sealed class RoomGrain(IRoomBroadcaster broadcaster, TimeProvider time) : Grain, IRoomGrain
+internal sealed class RoomGrain(IRoomBroadcaster broadcaster, TimeProvider time, GameMetrics metrics) : Grain, IRoomGrain
 {
     private string _key = "";
     private RoomState _state = null!;
@@ -20,6 +21,13 @@ internal sealed class RoomGrain(IRoomBroadcaster broadcaster, TimeProvider time)
         var (_, roomId) = RoomKey.Parse(_key);
         var room = RoomCatalog.Find(roomId) ?? throw new InvalidOperationException($"No room '{roomId}'.");
         _state = new RoomState(room);
+        metrics.RoomActivated();
+        return Task.CompletedTask;
+    }
+
+    public override Task OnDeactivateAsync(DeactivationReason reason, CancellationToken cancellationToken)
+    {
+        metrics.RoomDeactivated();
         return Task.CompletedTask;
     }
 
