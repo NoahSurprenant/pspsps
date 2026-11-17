@@ -109,8 +109,9 @@ backup:
   # A run still going after this many seconds is stopped (and counts as failed). Also how old a run's unfinished
   # .partial file must be before a later run deletes it.
   activeDeadlineSeconds: 3600
-  # How long a run waits for the database to answer before it fails (with nothing changed): a new pod's network can
-  # take a moment to be allowed. Checked every 5 seconds.
+  # How long a run keeps trying to reach the database before it fails (with nothing changed): a new pod's network can
+  # take a moment to be allowed. It tries every 5 seconds, each try given at most the time left, then once more to
+  # log the reason (at most 5 s); a slow name lookup can add to that. Must be below activeDeadlineSeconds.
   connectTimeoutSeconds: 120
   persistence:
     # A PersistentVolumeClaim to write the dumps to instead of the chart's own (which is made only when this is

@@ -14,7 +14,8 @@ set -eu
 dir="${BACKUP_DIR:?BACKUP_DIR is not set}"
 keep="${BACKUP_KEEP:-}"
 stale="${BACKUP_STALE_SECONDS:-}"
-connect="${BACKUP_CONNECT_SECONDS:-120}"
+# Unset: 120; set but empty is a mistake, refused below.
+connect="${BACKUP_CONNECT_SECONDS-120}"
 
 # Whole numbers with no leading zero (which shell arithmetic would read as octal).
 whole() {
@@ -28,7 +29,7 @@ if ! whole "$keep" || [ "$keep" -lt 2 ]; then
   exit 1
 fi
 if ! whole "$connect"; then
-  echo "BACKUP_CONNECT_SECONDS must be a whole number of seconds, not '$connect'." >&2
+  echo "BACKUP_CONNECT_SECONDS must be a whole number of at least 1, not '$connect'." >&2
   exit 1
 fi
 if [ -n "$stale" ] && ! whole "$stale"; then
@@ -53,19 +54,45 @@ trap cleanup EXIT
 trap 'echo "Stopped by a signal." >&2; exit 143' TERM
 trap 'echo "Stopped by a signal." >&2; exit 130' INT
 
+# Runs a command in the background and waits for it, so a signal reaches the traps above at once.
+background() {
+  "$@" &
+  child=$!
+  status=0
+  wait "$child" || status=$?
+  child=""
+  return "$status"
+}
+
 # Before anything changes on the volume. A new pod's network can take a moment to be allowed, so its first connections
-# may be refused: wait up to BACKUP_CONNECT_SECONDS for PostgreSQL to answer, then check that we can log in (a wrong
-# password fails at once).
+# may be refused or dropped: try pg_isready every 5 s until BACKUP_CONNECT_SECONDS have passed, each attempt given at
+# most the time left. Then psql checks that we can log in, and when we never got an answer it says why (a name that
+# doesn't resolve, refused, timed out).
 deadline=$(( $(date +%s) + connect ))
-until pg_isready -q -t 5; do
-  if [ "$(date +%s)" -ge "$deadline" ]; then
-    echo "The database didn't answer within ${connect}s: nothing changed." >&2
-    exit 1
+while :; do
+  attempt=$(date +%s)
+  left=$(( deadline - attempt ))
+  if [ "$left" -le 0 ]; then
+    echo "The database didn't answer within ${connect}s." >&2
+    break
   fi
-  echo "Waiting for the database..."
-  sleep 5
+  status=0
+  background pg_isready -q -t "$(( left < 5 ? left : 5 ))" || status=$?
+  case "$status" in
+    0) break ;;
+    1 | 2) echo "Waiting for the database..." ;;
+    # 3: no attempt was made (bad connection settings): waiting won't help, and psql says what is wrong.
+    *) break ;;
+  esac
+  next=$(( attempt + 5 < deadline ? attempt + 5 : deadline ))
+  pause=$(( next - $(date +%s) ))
+  if [ "$pause" -gt 0 ]; then
+    background sleep "$pause"
+  fi
 done
-if ! psql -X -qtA -c 'select 1' > /dev/null; then
+# connect_timeout bounds a dropped connection (for pg_dump too); libpq's own default is to wait forever.
+export PGCONNECT_TIMEOUT="${PGCONNECT_TIMEOUT:-5}"
+if ! background psql -X -qtA -c 'select 1' > /dev/null; then
   echo "Can't reach the database: nothing changed." >&2
   exit 1
 fi
@@ -84,13 +111,10 @@ name="pspsps-$(date -u +%Y%m%dT%H%M%SZ).dump"
 # This run's own .partial file (another run may be writing its own), so a failed dump never counts as a backup.
 partial="$dir/$name.$(hostname).$$.partial"
 
-# In the background, so a signal reaches the traps above while it runs.
+# Its errors kept, to tell a full volume from other failures.
 dump() {
-  pg_dump --format=custom --file="$partial" 2> "$errors" &
-  child=$!
   status=0
-  wait "$child" || status=$?
-  child=""
+  background pg_dump --format=custom --file="$partial" 2> "$errors" || status=$?
   cat "$errors" >&2
   return "$status"
 }
