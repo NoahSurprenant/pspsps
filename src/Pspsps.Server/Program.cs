@@ -46,6 +46,9 @@ try
     }
 
     builder.Services.AddSingleton<IRoomBroadcaster, HubRoomBroadcaster>();
+    // Renews this pod's connections' leases with their rooms and worlds; a dead pod's cats leave when theirs run out.
+    builder.Services.AddSingleton<SessionHeartbeat>();
+    builder.Services.AddHostedService(services => services.GetRequiredService<SessionHeartbeat>());
 
     builder.UseOrleans(silo =>
     {

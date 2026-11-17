@@ -72,6 +72,21 @@ public sealed class GameMetricsTests
     }
 
     [Test]
+    public void ExpiredLeases_AreCountedByScope()
+    {
+        var metrics = new GameMetrics(_services.GetRequiredService<IMeterFactory>());
+
+        metrics.LeasesExpired("room", 1);
+        metrics.LeasesExpired("world", 2);
+
+        Assert.That(_measurements.Select(m => (m.Instrument, m.Value, m.Tags["scope"])), Is.EqualTo(new[]
+        {
+            ("pspsps.leases.expired", 1.0, (object?)"room"),
+            ("pspsps.leases.expired", 2.0, (object?)"world"),
+        }));
+    }
+
+    [Test]
     public void Emotes_AreCountedByWorldAndEmote()
     {
         var metrics = new GameMetrics(_services.GetRequiredService<IMeterFactory>());
