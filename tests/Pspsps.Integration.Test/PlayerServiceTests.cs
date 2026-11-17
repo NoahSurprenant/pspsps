@@ -1,3 +1,4 @@
+using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Pspsps.Application.Abstractions;
@@ -234,6 +235,45 @@ public sealed class PlayerServiceTests
         Assert.That(db.ChangeTracker.HasChanges(), Is.False, "the new player is still waiting to be saved");
     }
 
+    [Test]
+    public async Task EarnCoins_TwoEarningsForOnePlayerAtOnce_BothCount()
+    {
+        // Another tab (on another pod, say) pays the same cat just before this earning writes.
+        var guest = await Game.Get<IPlayerService>().CreateGuestAsync(CancellationToken.None);
+        await GiveCoinsAsync(guest.Id, 3);
+        await using var db = RacingContext(async ct =>
+            await Game.Get<IPlayerService>().EarnCoinsAsync(guest.Id, 5, ct));
+
+        var paid = await new PlayerService(db, TimeProvider.System, Random.Shared)
+            .EarnCoinsAsync(guest.Id, 7, CancellationToken.None);
+        var saved = await Game.Get<IPlayerService>().FindAsync(guest.Id, CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(paid.Coins, Is.EqualTo(15));
+            Assert.That(saved?.Coins, Is.EqualTo(15), "one earning overwrote the other");
+        });
+    }
+
+    [Test]
+    public async Task LinkLogin_AndAPaymentAtTheSameMoment_BothSucceed()
+    {
+        // A catch is paid while the guest saves their cat: the link mustn't fail, nor undo the coins.
+        var guest = await Game.Get<IPlayerService>().CreateGuestAsync(CancellationToken.None);
+        var key = NewKey();
+        await using var db = RacingContext(async ct =>
+            await Game.Get<IPlayerService>().EarnCoinsAsync(guest.Id, 20, ct));
+
+        var result = await new PlayerService(db, TimeProvider.System, Random.Shared)
+            .LinkLoginAsync(guest.Id, LoginProvider.Google, key, CancellationToken.None);
+        var saved = await Game.Get<IPlayerService>().FindAsync(guest.Id, CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result, Is.EqualTo(LinkLoginOutcome.Linked));
+            Assert.That(saved, Is.EqualTo(guest with { Coins = 20, IsGuest = false }));
+        });
+    }
 
     /// <summary>A provider user ID no other test uses: the tests share one database.</summary>
     internal static string NewKey() => Guid.NewGuid().ToString("N");
@@ -253,28 +293,56 @@ public sealed class PlayerServiceTests
         await db.SaveChangesAsync();
     }
 
-    /// <summary>A context of its own whose first save runs <paramref name="first"/> (in another context) just before.</summary>
-    private static PspspsDbContext RacingContext(Func<CancellationToken, Task> first) =>
-        new(new DbContextOptionsBuilder<PspspsDbContext>()
+    /// <summary>
+    /// A context of its own whose first write (a save, or an update statement such as ExecuteUpdate's) runs
+    /// <paramref name="first"/> (in another context) just before.
+    /// </summary>
+    private static PspspsDbContext RacingContext(Func<CancellationToken, Task> first)
+    {
+        var race = new JustBeforeTheFirstWrite(first);
+        return new(new DbContextOptionsBuilder<PspspsDbContext>()
             .UseNpgsql(PostgresFixture.ConnectionString)
             .UseSnakeCaseNamingConvention()
-            .AddInterceptors(new JustBeforeTheFirstSave(first))
+            .AddInterceptors(race, race.Statements)
             .Options);
+    }
 
-    private sealed class JustBeforeTheFirstSave(Func<CancellationToken, Task> first) : SaveChangesInterceptor
+    private sealed class JustBeforeTheFirstWrite(Func<CancellationToken, Task> first) : SaveChangesInterceptor
     {
         private bool _done;
 
+        /// <summary>Catches writes that don't go through SaveChanges.</summary>
+        public DbCommandInterceptor Statements => new UpdateStatements(this);
+
         public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(
             DbContextEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default)
+        {
+            await RunFirst(cancellationToken);
+            return result;
+        }
+
+        private async Task RunFirst(CancellationToken cancellationToken)
         {
             if (!_done)
             {
                 _done = true;
                 await first(cancellationToken);
             }
+        }
 
-            return result;
+        private sealed class UpdateStatements(JustBeforeTheFirstWrite race) : DbCommandInterceptor
+        {
+            public override async ValueTask<InterceptionResult<int>> NonQueryExecutingAsync(
+                DbCommand command, CommandEventData eventData, InterceptionResult<int> result,
+                CancellationToken cancellationToken = default)
+            {
+                if (command.CommandText.TrimStart().StartsWith("UPDATE", StringComparison.OrdinalIgnoreCase))
+                {
+                    await race.RunFirst(cancellationToken);
+                }
+
+                return result;
+            }
         }
     }
 }

@@ -29,6 +29,7 @@ export class RoomScene {
   private gui: AdvancedDynamicTexture | undefined;
   private readonly cats = new Map<string, CatOnScreen>();
   private floorClicked: (x: number, z: number) => void = () => {};
+  private pondClicked: () => void = () => {};
 
   constructor(private readonly engine: AbstractEngine) {
     this.scene = new Scene(this.engine);
@@ -46,6 +47,10 @@ export class RoomScene {
 
   onFloorClicked(handler: (x: number, z: number) => void): void {
     this.floorClicked = handler;
+  }
+
+  onPondClicked(handler: () => void): void {
+    this.pondClicked = handler;
   }
 
   /** Replaces whatever room was showing. */
@@ -73,8 +78,22 @@ export class RoomScene {
       mesh.outlineColor = Color3.FromHexString("#2a2230");
     }
 
+    // The pond: a flat disc of water just above the floor. Clicking it fishes, rather than walking into it.
+    let pond: AbstractMesh | undefined;
+    if (room.pond) {
+      pond = MeshBuilder.CreateDisc("pond", { radius: room.pond.radius, tessellation: 48 }, this.scene);
+      pond.rotation.x = Math.PI / 2;
+      pond.position.set(room.pond.x, 0.02, room.pond.z);
+      pond.material = flat(this.scene, "pond", "#5fb3d9");
+      pond.renderOutline = true;
+      pond.outlineWidth = 0.04;
+      pond.outlineColor = Color3.FromHexString("#2a2230");
+    }
+
     this.scene.onPointerDown = (_event, pick) => {
-      if (pick.hit && pick.pickedMesh === floor && pick.pickedPoint) {
+      if (pick.hit && pond && pick.pickedMesh === pond) {
+        this.pondClicked();
+      } else if (pick.hit && pick.pickedMesh === floor && pick.pickedPoint) {
         this.floorClicked(pick.pickedPoint.x, pick.pickedPoint.z);
       }
     };

@@ -1,5 +1,7 @@
 import { HubConnectionBuilder, HubConnectionState, LogLevel, type HubConnection } from "@microsoft/signalr";
-import type { CatView, ChatView, Emote, EmoteView, Player, RoomSnapshot, WorldSummary } from "./types";
+import type {
+  CatchView, CatView, ChatView, Emote, EmoteView, Player, ReelView, RoomSnapshot, WorldSummary,
+} from "./types";
 
 export interface GameEvents {
   catJoined(cat: CatView): void;
@@ -7,6 +9,11 @@ export interface GameEvents {
   catMoved(playerId: string, x: number, z: number): void;
   chatSaid(line: ChatView): void;
   catEmoted(emote: EmoteView): void;
+  /** Something bit our line: reel now. */
+  fishBit(): void;
+  fishGotAway(): void;
+  /** A cat in the room caught something. */
+  catFished(caught: CatchView): void;
   /** The connection came back after a drop; the server forgot where we were, so the game re-enters. */
   reconnected(): void;
   /** The room lost our cat (its lease ran out, or the room restarted); the game walks back in. */
@@ -60,6 +67,9 @@ export class GameConnection {
     this.hub.on("CatMoved", (playerId: string, x: number, z: number) => events.catMoved(playerId, x, z));
     this.hub.on("ChatSaid", (line: ChatView) => events.chatSaid(line));
     this.hub.on("CatEmoted", (emote: EmoteView) => events.catEmoted(emote));
+    this.hub.on("FishBit", () => events.fishBit());
+    this.hub.on("FishGotAway", () => events.fishGotAway());
+    this.hub.on("CatFished", (caught: CatchView) => events.catFished(caught));
     this.hub.onreconnected(() => events.reconnected());
     this.hub.on("RoomLost", () => events.roomLost());
     this.hub.on("WorldLost", (message: string) => events.worldLost(message));
@@ -92,6 +102,14 @@ export class GameConnection {
 
   say(text: string): Promise<void> {
     return this.hub.invoke("Say", text);
+  }
+
+  cast(): Promise<void> {
+    return this.hub.invoke("Cast");
+  }
+
+  reel(): Promise<ReelView> {
+    return this.hub.invoke<ReelView>("Reel");
   }
 
   emote(emote: Emote): Promise<void> {

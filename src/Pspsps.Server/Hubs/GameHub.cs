@@ -15,7 +15,8 @@ namespace Pspsps.Server.Hubs;
 /// <see cref="SessionHeartbeat"/>, which renews its leases there.
 /// </summary>
 [Authorize]
-public sealed class GameHub(IGrainFactory grains, IPlayerService players, SessionHeartbeat heartbeat, GameMetrics metrics)
+public sealed partial class GameHub(
+    IGrainFactory grains, IPlayerService players, SessionHeartbeat heartbeat, GameMetrics metrics, ILogger<GameHub> logger)
     : Hub<IGameClient>
 {
     /// <summary>What a replaced tab is told; the client shows the same words.</summary>
@@ -23,6 +24,9 @@ public sealed class GameHub(IGrainFactory grains, IPlayerService players, Sessio
 
     /// <summary>What a call that finishes after its connection closed answers (nobody reads it).</summary>
     public const string ClosedMessage = "This connection has closed.";
+
+    /// <summary>What a catch that couldn't be saved answers: nothing was paid or shown.</summary>
+    public const string CatchNotPaidMessage = "Your catch couldn't be counted, so it got away. Cast again.";
 
     public async Task<IReadOnlyList<WorldSummary>> GetWorlds()
     {
@@ -112,6 +116,38 @@ public sealed class GameHub(IGrainFactory grains, IPlayerService players, Sessio
     {
         var place = await InRoom(room => room.Emote(PlayerId, emote));
         metrics.Emoted(place.WorldId, emote);
+    }
+
+    /// <summary>Casts into the room's pond; the bite comes as FishBit, to the tab playing the cat then.</summary>
+    public Task Cast() => InRoom(room => room.Cast(PlayerId));
+
+    /// <summary>
+    /// Reels in. A catch is paid into the player's coins first, and only once it's saved is the room shown it; a catch
+    /// that can't be paid is shown to nobody, and the player is told.
+    /// </summary>
+    public async Task<ReelView> Reel()
+    {
+        var (place, key, reel) = await InRoom<ReelView>(room => room.Reel(PlayerId));
+        if (reel is not { Outcome: ReelView.Caught, FishId: { } fishId, FishName: { } fishName })
+        {
+            return reel;
+        }
+
+        PlayerProfile paid;
+        try
+        {
+            // Not the connection's token: a tab that closes right after reeling (a refresh) must not cancel the payment.
+            paid = await players.EarnCoinsAsync(PlayerId, reel.Coins, CancellationToken.None);
+        }
+        catch (Exception e)
+        {
+            LogCatchNotPaid(logger, e, PlayerId, fishId);
+            throw new HubException(CatchNotPaidMessage);
+        }
+
+        metrics.Fished(place.WorldId, fishId);
+        await Clients.Group(key).CatFished(new CatchView(PlayerId, fishId, fishName, reel.Coins));
+        return reel with { TotalCoins = paid.Coins };
     }
 
     public override async Task OnDisconnectedAsync(Exception? exception)
@@ -213,18 +249,30 @@ public sealed class GameHub(IGrainFactory grains, IPlayerService players, Sessio
 
     private async Task<ConnectionPlace> InRoom(Func<IRoomGrain, Task> action)
     {
+        var (place, _, _) = await InRoom<bool>(async room =>
+        {
+            await action(room);
+            return true;
+        });
+        return place;
+    }
+
+    // Calls the room the connection is in, as the player's current tab; a rule the call breaks is the player's message.
+    private async Task<(ConnectionPlace Place, string RoomKey, T Result)> InRoom<T>(Func<IRoomGrain, Task<T>> action)
+    {
         var place = Here ?? throw new HubException("You aren't in a room.");
         var key = place.RoomKey ?? throw new HubException("You aren't in a room.");
         await EnsureCurrentTab();
         try
         {
-            await action(grains.GetGrain<IRoomGrain>(key));
+            return (place, key, await action(grains.GetGrain<IRoomGrain>(key)));
         }
         catch (GameRuleException e)
         {
             throw new HubException(e.Message);
         }
-
-        return place;
     }
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Couldn't pay player {PlayerId} for a {FishId}; the catch wasn't shown")]
+    private static partial void LogCatchNotPaid(ILogger logger, Exception exception, Guid playerId, string fishId);
 }

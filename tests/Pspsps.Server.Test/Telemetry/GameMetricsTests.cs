@@ -102,6 +102,19 @@ public sealed class GameMetricsTests
     }
 
     [Test]
+    public void FishCaught_AreCountedByWorldAndFish()
+    {
+        var metrics = new GameMetrics(_services.GetRequiredService<IMeterFactory>());
+
+        metrics.Fished("tabby", "koi");
+
+        Assert.That(_measurements.Select(m => (m.Instrument, m.Value, m.Tags["world"], m.Tags["fish"])), Is.EqualTo(new[]
+        {
+            ("pspsps.fish.caught", 1.0, (object?)"tabby", (object?)"koi"),
+        }));
+    }
+
+    [Test]
     public async Task HubFilter_RecordsEachCallWithItsOutcome()
     {
         var filter = new HubCallMetricsFilter(new GameMetrics(_services.GetRequiredService<IMeterFactory>()));

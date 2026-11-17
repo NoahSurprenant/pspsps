@@ -19,4 +19,7 @@ public interface IPlayerService
     Task<PlayerProfile> CreateGuestAsync(CancellationToken cancellationToken);
 
     Task<PlayerProfile?> FindAsync(Guid playerId, CancellationToken cancellationToken);
+
+    /// <summary>Pays the player <paramref name="coins"/> (a catch, a game's prize); the player as saved after.</summary>
+    Task<PlayerProfile> EarnCoinsAsync(Guid playerId, int coins, CancellationToken cancellationToken);
 }

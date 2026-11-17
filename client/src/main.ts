@@ -3,6 +3,7 @@ import { addressNote, linkUrl, loginUrl } from "./link";
 import { GameConnection, fetchMe, fetchProviders, messageOf, playAsGuest, signOut } from "./net";
 import { PendingEvents } from "./pending";
 import { comeBack } from "./rejoin";
+import { catchBubble, FishingState, gotAwayMessage, paid, pondEdge, reelMessage, type Fishing } from "./fishing";
 import { Room } from "./room";
 import { RoomScene } from "./scene";
 import { Overlay, type Note } from "./ui";
@@ -14,18 +15,21 @@ window.addEventListener("resize", () => engine.resize());
 const scene = new RoomScene(engine);
 
 let room: Room | undefined;
-// Who is playing, once known: the world picker needs it again when a world is lost.
+// Who is playing, once known: the world picker needs it again when a world is lost. Their coins (me.coins) are the
+// ones shown in the room bar, kept up to date by every catch.
 let me: Player | undefined;
+// Where the player's fishing line is.
+const fishing = new FishingState((state) => overlay.setFishing(state));
 // Room events that arrive while the next room loads, for it once its snapshot shows.
 const loading = new PendingEvents<(room: Room) => void>();
 
 // Read-only: the end-to-end tests (e2e/) read the room here, since the cats and chat are drawn on a canvas.
 declare global {
   interface Window {
-    pspsps?: { room(): Room | undefined };
+    pspsps?: { room(): Room | undefined; coins(): number; fishing(): Fishing };
   }
 }
-window.pspsps = { room: () => room };
+window.pspsps = { room: () => room, coins: () => me?.coins ?? 0, fishing: () => fishing.state };
 
 const connection = new GameConnection({
   catJoined: (cat) => onRoom((here) => {
@@ -50,6 +54,13 @@ const connection = new GameConnection({
     here.emote(emote);
     scene.emote(emote.playerId, emote.emote);
   }),
+  fishBit: () => fishing.bite(),
+  fishGotAway: () => {
+    if (fishing.gotAway()) {
+      overlay.toast(gotAwayMessage);
+    }
+  },
+  catFished: (caught) => onRoom(() => scene.speak(caught.playerId, catchBubble(caught.fishName))),
   replaced: () => {
     loading.cancel();
     room = undefined;
@@ -79,9 +90,59 @@ function onRoom(apply: (room: Room) => void): void {
 
 scene.onFloorClicked((x, z) => {
   if (room) {
+    // Walking off reels the line in (the server drops it), with nothing on it.
+    fishing.drop();
     connection.move(x, z).catch((error: unknown) => overlay.toast(messageOf(error)));
   }
 });
+scene.onPondClicked(() => void fish());
+
+/** Walks the player's cat to the pond's edge and casts: once, however many clicks. */
+async function fish(): Promise<void> {
+  const pond = room?.snapshot.pond;
+  const cat = me && room?.cats.get(me.id);
+  if (!pond || !cat) {
+    return;
+  }
+  const cast = fishing.startCast();
+  if (cast === undefined) {
+    return;
+  }
+  try {
+    const spot = pondEdge(pond, cat);
+    await connection.move(spot.x, spot.z);
+    // Not if a floor click meanwhile walked the cat off (and dropped this cast).
+    if (!fishing.isCasting(cast)) {
+      return;
+    }
+    await connection.cast();
+    // Waiting only if still casting: a floor click meanwhile walked off, and the server dropped the line.
+    fishing.castDone(cast);
+  } catch (error) {
+    fishing.castFailed(cast);
+    overlay.toast(messageOf(error));
+  }
+}
+
+/** Reels the line in, once however many clicks and keys: the catch (or why not) as a toast, and the coins it paid. */
+async function reel(): Promise<void> {
+  if (!fishing.startReel()) {
+    return;
+  }
+  try {
+    const result = await connection.reel();
+    overlay.toast(reelMessage(result));
+    if (me) {
+      // Kept on the player: a world picked again (after worldLost) shows these coins, not the page load's.
+      me = paid(me, result);
+      overlay.setCoins(me.coins);
+    }
+  } catch (error) {
+    overlay.toast(messageOf(error));
+  } finally {
+    fishing.reeled();
+  }
+}
 
 function show(snapshot: RoomSnapshot): Room {
   const shown = new Room(snapshot);
@@ -98,7 +159,10 @@ function show(snapshot: RoomSnapshot): Room {
       }
     },
     () => window.location.reload(),
+    me?.coins ?? 0,
+    snapshot.pond ? { fish: () => void fish(), reel: () => void reel(), state: () => fishing.state } : undefined,
   );
+  fishing.drop();
   return shown;
 }
 

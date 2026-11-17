@@ -1,5 +1,6 @@
 using Orleans.Runtime;
 using Pspsps.Domain;
+using Pspsps.Domain.Fishing;
 using Pspsps.Domain.Players;
 using Pspsps.Domain.Rooms;
 using Pspsps.Server.Telemetry;
@@ -16,6 +17,7 @@ internal sealed class RoomGrain(
     IRoomBroadcaster broadcaster,
     ChatFilters chatFilters,
     [FromKeyedServices(TimeProviderNames.Grains)] TimeProvider time,
+    Random random,
     GameMetrics metrics) : Grain, IRoomGrain
 {
     private string _key = "";
@@ -23,6 +25,12 @@ internal sealed class RoomGrain(
 
     // Counted in pspsps.rooms.active once a cat joins, not on activation: a renewal can wake an empty room for a moment.
     private bool _counted;
+
+    // Each cat's pending fishing timer (the bite, then the getaway): one at a time.
+    private readonly Dictionary<Guid, IGrainTimer> _fishingTimers = [];
+
+    // How long after the bite window closes the getaway timer fires, so it never beats a reel at the window's edge.
+    private static readonly TimeSpan GetAwayGrace = TimeSpan.FromMilliseconds(50);
 
     public override Task OnActivateAsync(CancellationToken cancellationToken)
     {
@@ -68,7 +76,8 @@ internal sealed class RoomGrain(
             _state.Room.Depth,
             [.. _state.Cats.Select(CatView.From)],
             [.. _state.RecentChat.Select(ChatView.From)],
-            [.. RoomCatalog.All.Where(r => r.Id != _state.Room.Id).Select(r => new RoomLink(r.Id, r.Name))]);
+            [.. RoomCatalog.All.Where(r => r.Id != _state.Room.Id).Select(r => new RoomLink(r.Id, r.Name))],
+            _state.Room.Pond is { } pond ? new PondView(pond.Center.X, pond.Center.Z, pond.Radius) : null);
     }
 
     public async Task Leave(Guid playerId, string session)
@@ -118,6 +127,67 @@ internal sealed class RoomGrain(
     {
         var done = Rule(() => _state.Emote(playerId, emote, time.GetUtcNow()));
         await broadcaster.CatEmoted(_key, EmoteView.From(done));
+    }
+
+    public Task Cast(Guid playerId)
+    {
+        var now = time.GetUtcNow();
+        var line = Rule(() => _state.Cast(playerId, now, random.NextDouble()));
+        // One shot, at the bite. The grain timer runs on the grain clock and inside the grain, like every call here; it
+        // can fire late (a busy room), and the reel window runs from when it does.
+        Schedule(playerId, line.BiteAt - now, async () =>
+        {
+            // Nobody to tell when the line is gone (reeled early, walked off, left, or taken over by another tab).
+            if (_state.Bite(playerId, line, time.GetUtcNow()) is { } controlling)
+            {
+                await broadcaster.FishBit(controlling);
+                // Then, a little after the window closes (a timer can fire early by a tick), a bite not reeled in
+                // gets away.
+                Schedule(playerId, FishingLine.BiteWindow + GetAwayGrace, async () =>
+                {
+                    if (_state.LetGetAway(playerId, line, time.GetUtcNow()) is { } told)
+                    {
+                        await broadcaster.FishGotAway(told);
+                    }
+                });
+            }
+        });
+        return Task.CompletedTask;
+    }
+
+    public Task<ReelView> Reel(Guid playerId)
+    {
+        var result = Rule(() => _state.Reel(playerId, time.GetUtcNow(), random.NextDouble()));
+        Unschedule(playerId);
+        return Task.FromResult(ReelView.From(result));
+    }
+
+    // At most one pending fishing timer per cat: a new one replaces (disposes) the cat's last.
+    private void Schedule(Guid playerId, TimeSpan due, Func<Task> callback)
+    {
+        Unschedule(playerId);
+        IGrainTimer? timer = null;
+        timer = this.RegisterGrainTimer(
+            async ct =>
+            {
+                if (_fishingTimers.TryGetValue(playerId, out var current) && ReferenceEquals(current, timer))
+                {
+                    _fishingTimers.Remove(playerId);
+                }
+
+                timer?.Dispose();
+                await callback();
+            },
+            new GrainTimerCreationOptions { DueTime = due, Period = Timeout.InfiniteTimeSpan });
+        _fishingTimers[playerId] = timer;
+    }
+
+    private void Unschedule(Guid playerId)
+    {
+        if (_fishingTimers.Remove(playerId, out var timer))
+        {
+            timer.Dispose();
+        }
     }
 
     // Cats whose pod died without closing their connections: nothing renews their leases.

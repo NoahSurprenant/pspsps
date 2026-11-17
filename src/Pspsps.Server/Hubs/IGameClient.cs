@@ -27,6 +27,15 @@ public interface IGameClient
 
     Task CatEmoted(EmoteView emote);
 
+    /// <summary>Something bit this tab's line: reel in within <see cref="Pspsps.Domain.Fishing.FishingLine.BiteWindow"/>.</summary>
+    Task FishBit();
+
+    /// <summary>The bite on this tab's line wasn't reeled in time: it got away, and the line is out of the water.</summary>
+    Task FishGotAway();
+
+    /// <summary>A cat in the room caught something.</summary>
+    Task CatFished(CatchView caught);
+
     /// <summary>The player opened the game in another tab, which is the one playing now.</summary>
     Task SessionReplaced();
 }

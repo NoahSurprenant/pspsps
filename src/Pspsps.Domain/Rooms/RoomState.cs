@@ -1,3 +1,4 @@
+using Pspsps.Domain.Fishing;
 using Pspsps.Domain.Players;
 
 namespace Pspsps.Domain.Rooms;
@@ -14,6 +15,9 @@ public sealed class RoomState(RoomDefinition room)
     /// <summary>How long a cat waits between emotes.</summary>
     public static TimeSpan EmoteCooldown { get; } = TimeSpan.FromSeconds(1);
 
+    /// <summary>How long a cat waits after casting or reeling before casting again: one bite timer at a time, not a flood.</summary>
+    public static TimeSpan CastCooldown { get; } = TimeSpan.FromSeconds(1);
+
     private readonly Dictionary<Guid, CatInRoom> _cats = [];
 
     // Which session (a browser tab's connection) controls each cat, and when it last renewed its lease: a player is one
@@ -23,6 +27,12 @@ public sealed class RoomState(RoomDefinition room)
 
     // When each cat last emoted, for the cooldown.
     private readonly Dictionary<Guid, DateTimeOffset> _lastEmotes = [];
+
+    // Lines in the pond, by cat: cast, waiting for the bite only the server knows.
+    private readonly Dictionary<Guid, FishingLine> _lines = [];
+
+    // When each cat last cast or reeled, for the cast cooldown.
+    private readonly Dictionary<Guid, DateTimeOffset> _lastCasts = [];
 
     public RoomDefinition Room { get; } = room;
 
@@ -34,12 +44,18 @@ public sealed class RoomState(RoomDefinition room)
 
     /// <summary>
     /// Puts a cat at the room's spawn point, controlled by <paramref name="session"/>, whose lease starts
-    /// <paramref name="now"/>. A cat already here (the player's other tab) keeps its spot and passes to the new session.
+    /// <paramref name="now"/>. A cat already here (the player's other tab) keeps its spot and passes to the new session;
+    /// a line the other tab cast is reeled in, with nothing on it (the new tab never cast it).
     /// </summary>
     public CatInRoom Join(Guid playerId, string displayName, FurColor furColor, string session, DateTimeOffset now)
     {
         if (_cats.TryGetValue(playerId, out var existing))
         {
+            if (!Controls(playerId, session))
+            {
+                _lines.Remove(playerId);
+            }
+
             _leases[playerId] = SessionLease.Start(session, now);
             return existing;
         }
@@ -68,6 +84,8 @@ public sealed class RoomState(RoomDefinition room)
 
         _leases.Remove(playerId);
         _lastEmotes.Remove(playerId);
+        _lines.Remove(playerId);
+        _lastCasts.Remove(playerId);
         return _cats.Remove(playerId);
     }
 
@@ -98,12 +116,17 @@ public sealed class RoomState(RoomDefinition room)
             _leases.Remove(playerId);
             _cats.Remove(playerId);
             _lastEmotes.Remove(playerId);
+            _lines.Remove(playerId);
+            _lastCasts.Remove(playerId);
         }
 
         return expired;
     }
 
-    /// <summary>Walks the cat towards <paramref name="target"/>, stopping at the room's walls. Returns where it ends up.</summary>
+    /// <summary>
+    /// Walks the cat towards <paramref name="target"/>, stopping at the room's walls. Returns where it ends up. A cat that
+    /// walks off reels its line in, with nothing on it.
+    /// </summary>
     public Position Move(Guid playerId, Position target)
     {
         var cat = Get(playerId);
@@ -114,7 +137,90 @@ public sealed class RoomState(RoomDefinition room)
 
         var position = Room.Clamp(target);
         _cats[playerId] = cat with { Position = position, Pose = CatPose.Standing };
+        _lines.Remove(playerId);
         return position;
+    }
+
+    /// <summary>The cat's line in the water, if any: a bite applies only to the line it was cast for.</summary>
+    public FishingLine? LineOf(Guid playerId) => _lines.GetValueOrDefault(playerId);
+
+    /// <summary>
+    /// Casts the cat's line into the room's pond: it must stand at the water's edge, with no line already out.
+    /// <paramref name="roll"/> in [0, 1) picks when the fish bites.
+    /// </summary>
+    public FishingLine Cast(Guid playerId, DateTimeOffset now, double roll)
+    {
+        var cat = Get(playerId);
+        var pond = Room.Pond ?? throw new DomainException("There's no water to fish in here.");
+        if (!pond.InReach(cat.Position))
+        {
+            throw new DomainException("Walk up to the pond to fish.");
+        }
+
+        if (_lines.ContainsKey(playerId))
+        {
+            throw new DomainException("Your line is already in the water.");
+        }
+
+        if (_lastCasts.TryGetValue(playerId, out var last) && now - last < CastCooldown)
+        {
+            throw new DomainException("Not so fast: wait a moment before casting again.");
+        }
+
+        var line = FishingLine.Cast(now, roll);
+        _lines[playerId] = line;
+        _lastCasts[playerId] = now;
+        return line;
+    }
+
+    /// <summary>
+    /// The fish bites <paramref name="line"/> at <paramref name="now"/>, if it is still the cat's line (it may have been
+    /// reeled in, walked off or taken over since). Returns the session to tell (the one controlling the cat), or null
+    /// when there's nobody to tell.
+    /// </summary>
+    public string? Bite(Guid playerId, FishingLine line, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(line);
+        if (!ReferenceEquals(LineOf(playerId), line) || !_leases.TryGetValue(playerId, out var lease))
+        {
+            return null;
+        }
+
+        line.Bite(now);
+        return lease.Session;
+    }
+
+    /// <summary>
+    /// A bite on <paramref name="line"/> that wasn't reeled in gets away once its window is over at <paramref name="now"/>:
+    /// the line comes out of the water, empty. Returns the session to tell, or null when the line isn't the cat's any
+    /// more, hasn't bitten, or its window isn't over yet.
+    /// </summary>
+    public string? LetGetAway(Guid playerId, FishingLine line, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(line);
+        if (!ReferenceEquals(LineOf(playerId), line) || !line.HasGotAway(now) || !_leases.TryGetValue(playerId, out var lease))
+        {
+            return null;
+        }
+
+        _lines.Remove(playerId);
+        return lease.Session;
+    }
+
+    /// <summary>
+    /// Reels the cat's line in: a fish if it's within the bite window (from when the cat was told), nothing if too early
+    /// or too late. Either way the line is out of the water after. <paramref name="roll"/> in [0, 1) picks the fish.
+    /// </summary>
+    public ReelResult Reel(Guid playerId, DateTimeOffset now, double roll)
+    {
+        Get(playerId);
+        if (!_lines.Remove(playerId, out var line))
+        {
+            throw new DomainException("Cast your line first.");
+        }
+
+        _lastCasts[playerId] = now;
+        return line.Reel(now, roll);
     }
 
     /// <summary>

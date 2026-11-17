@@ -103,6 +103,24 @@ internal sealed class PlayerService(IApplicationDbContext db, TimeProvider time,
         return player is null ? null : PlayerProfile.From(player);
     }
 
+    // One statement adds the earning (coins = coins + n): two earnings at once (a tab replaced while its reel is paid, a
+    // new tab on another pod) both count, and other saves of the player (a link, a rename) aren't refused because of it.
+    public async Task<PlayerProfile> EarnCoinsAsync(Guid playerId, int coins, CancellationToken cancellationToken)
+    {
+        var earning = Player.Earning(coins);
+        var paid = await db.Players
+            .Where(p => p.Id == playerId)
+            .ExecuteUpdateAsync(s => s.SetProperty(p => p.Coins, p => p.Coins + earning), cancellationToken);
+        if (paid == 0)
+        {
+            throw new DomainException("Your cat wasn't found. Sign in again.");
+        }
+
+        // The total as saved now: with any other earning that landed meanwhile.
+        return await FindAsync(playerId, cancellationToken)
+            ?? throw new DomainException("Your cat wasn't found. Sign in again.");
+    }
+
     /// <summary>The player (at most one) who signs in with this login.</summary>
     private IQueryable<Player> Owning(LoginProvider provider, string providerKey) =>
         db.Players.Where(p => p.Logins.Any(l => l.Provider == provider && l.ProviderKey == providerKey));
