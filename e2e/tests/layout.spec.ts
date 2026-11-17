@@ -3,8 +3,9 @@ import { join } from "node:path";
 import { expect, test, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import { pixelsNear, pondBlue, watchErrors } from "./game";
 
-// Every screen at every size: nothing scrolls sideways, every part is on screen and none sits on another, and on phones
-// the controls are big enough to tap and the text boxes big enough not to zoom the page when tapped.
+// Every screen at every size: every control and line of text can be reached (on screen, or in a panel that scrolls),
+// every part is on screen and none sits on another, and on phones the controls are big enough to tap and the text
+// boxes big enough not to zoom the page when tapped.
 //
 // Each screen and size is screenshotted to screenshots/<screen>/<n>-<device>-<width>x<height>.png; CI puts each screen's
 // sizes side by side (contact-sheets.mjs) and links them on the PR.
@@ -19,6 +20,8 @@ const SIZES = [
   { device: "phone-landscape", width: 844, height: 390, phone: true },
   { device: "phone-portrait", width: 390, height: 844, phone: true },
   { device: "small-phone", width: 360, height: 640, phone: true },
+  // The narrowest phone in use: a folding phone, folded.
+  { device: "fold-phone", width: 280, height: 653, phone: true },
 ] as const;
 
 type Size = (typeof SIZES)[number];
@@ -68,8 +71,19 @@ const SCREENS: Screen[] = [
     },
     parts: [".room-bar", ".emote-bar", ".chat-bar", ".fishing"],
     // The pond, drawn: from further off (a narrow screen backs the camera away) the floor's outline once hid it.
-    shows: async (page) =>
-      pixelsNear(await page.locator("#game").screenshot(), pondBlue) > 20 ? [] : ["the pond is not drawn"],
+    // Waited for, as software WebGL can be slow to draw the first frames, and seen with the controls hidden.
+    shows: async (page) => {
+      await page.locator("#ui").evaluate((ui) => (ui.style.visibility = "hidden"));
+      try {
+        await expect.poll(async () => pixelsNear(await page.locator("#game").screenshot(), pondBlue), { timeout: 15_000 })
+          .toBeGreaterThan(20);
+        return [];
+      } catch {
+        return ["the pond is not drawn"];
+      } finally {
+        await page.locator("#ui").evaluate((ui) => (ui.style.visibility = ""));
+      }
+    },
   },
 ];
 
@@ -87,7 +101,7 @@ for (const screen of SCREENS) {
         await page.screenshot({ path: join(dir, `${index + 1}-${size.device}-${size.width}x${size.height}.png`) });
 
         const problems = [
-          ...await sidewaysScroll(page),
+          ...await offScreen(page),
           ...await offScreenOrOverlapping(page, screen.parts),
           ...(size.phone ? await smallTapTargets(page) : []),
           ...(size.phone ? await smallInputs(page) : []),
@@ -102,20 +116,35 @@ for (const screen of SCREENS) {
   }
 }
 
-/** A phone gets a phone's browser: touch, the mobile viewport and a high-density screen. */
-function contextFor(browser: Browser, size: Size): Promise<BrowserContext> {
-  return browser.newContext({
+/**
+ * A phone gets a phone's browser: touch, the mobile viewport and a high-density screen. Every size gets the sign-in
+ * providers production has, which CI's server doesn't: their buttons make the sign-in and world panels their tallest.
+ */
+async function contextFor(browser: Browser, size: Size): Promise<BrowserContext> {
+  const context = await browser.newContext({
     viewport: { width: size.width, height: size.height },
     ...(size.phone ? { isMobile: true, hasTouch: true, deviceScaleFactor: 2 } : {}),
   });
+  await context.route("**/auth/providers", (route) => route.fulfill({ json: ["Discord", "Google"] }));
+  return context;
 }
 
-async function sidewaysScroll(page: Page): Promise<string[]> {
-  const { scrollWidth, innerWidth } = await page.evaluate(() => ({
-    scrollWidth: document.documentElement.scrollWidth,
-    innerWidth: window.innerWidth,
-  }));
-  return scrollWidth > innerWidth ? [`the page scrolls sideways: ${scrollWidth}px wide in ${innerWidth}px`] : [];
+/**
+ * Every control and line of text must be wholly on screen, unless a panel it is in scrolls to it. The page itself never
+ * scrolls (the UI is fixed over the canvas), so anything else past an edge can't be reached at all.
+ */
+async function offScreen(page: Page): Promise<string[]> {
+  return page.evaluate(() => [...document.querySelectorAll<HTMLElement>("#ui button, #ui input, #ui h1, #ui p, #ui strong, #ui span")]
+    .filter((element) => element.offsetParent !== null)
+    .filter((element) => {
+      for (let parent = element.parentElement; parent && parent.id !== "ui"; parent = parent.parentElement) {
+        if (["auto", "scroll"].includes(getComputedStyle(parent).overflowY)) return false;
+      }
+      return true;
+    })
+    .map((element) => ({ element, r: element.getBoundingClientRect() }))
+    .filter(({ r }) => r.left < -0.5 || r.top < -0.5 || r.right > window.innerWidth + 0.5 || r.bottom > window.innerHeight + 0.5)
+    .map(({ element, r }) => `"${element.textContent?.trim() || element.getAttribute("placeholder") || element.tagName}" is partly off screen (${[r.left, r.top, r.right, r.bottom].map(Math.round).join(", ")})`));
 }
 
 /** Each part that exists must be wholly inside the viewport, and no two may overlap. */

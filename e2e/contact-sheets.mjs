@@ -7,7 +7,7 @@ import { join } from "node:path";
 
 const dir = "screenshots";
 const HEIGHT = 320;
-const ROWS = [["desktop", "laptop"], ["tablet"], ["phone", "small"]];
+const ROWS = [["desktop", "laptop"], ["tablet"], ["phone", "small", "fold"]];
 
 const screens = [];
 for (const entry of await readdir(dir)) {
