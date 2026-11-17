@@ -120,10 +120,12 @@ export class Overlay {
         el("span", { className: "coins", id: "coins", text: coinText(coins) }),
         button("Worlds", leave, "quiet"),
       ),
-      ...(fishing ? [el("div", { className: "fishing", id: "fishing" })] : []),
-      emotes,
-      form,
-      el("div", { className: "toast", id: "toast" }),
+      el("div", { className: "dock" },
+        el("div", { className: "toast", id: "toast" }),
+        ...(fishing ? [el("div", { className: "fishing", id: "fishing" })] : []),
+        emotes,
+        form,
+      ),
     );
 
     // After replace(), which ends the last view's listeners.
