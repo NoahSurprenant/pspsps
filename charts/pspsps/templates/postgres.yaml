@@ -1,6 +1,7 @@
 {{- $p := .Values.postgres -}}
 {{- if $p.enabled }}
 {{- $name := include "pspsps.postgresHost" . -}}
+{{- $probe := `["pg_isready", "-q", "-h", "127.0.0.1", "-p", "5432"]` -}}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -89,21 +90,26 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.existingSecret }}
                   key: POSTGRES_PASSWORD
-          # Over TCP, so the first start's initdb (a server on the socket only) doesn't count as ready. As the app's
-          # user: pg_isready defaults to the OS user (postgres), which has no role, and PostgreSQL logs a FATAL for every
-          # probe.
+            # Defaults for PostgreSQL's own tools (the probes below, psql through kubectl exec), read on every run: the OS
+            # user, postgres, has no role, and a connection as it logs a FATAL. They name the role and database
+            # POSTGRES_USER and POSTGRES_DB created with the volume, so changing them later needs the role renamed too.
+            - name: PGUSER
+              value: {{ $p.username | quote }}
+            - name: PGDATABASE
+              value: {{ $p.database | quote }}
+          # Over TCP, so the first start's initdb (a server on the socket only) doesn't count as ready; as PGUSER.
           startupProbe:
             exec:
-              command: ["pg_isready", "-q", "-h", "127.0.0.1", "-p", "5432", "-U", {{ $p.username | quote }}, "-d", {{ $p.database | quote }}]
+              command: {{ $probe }}
             periodSeconds: 2
             failureThreshold: 60
           livenessProbe:
             exec:
-              command: ["pg_isready", "-q", "-h", "127.0.0.1", "-p", "5432", "-U", {{ $p.username | quote }}, "-d", {{ $p.database | quote }}]
+              command: {{ $probe }}
             periodSeconds: 10
           readinessProbe:
             exec:
-              command: ["pg_isready", "-q", "-h", "127.0.0.1", "-p", "5432", "-U", {{ $p.username | quote }}, "-d", {{ $p.database | quote }}]
+              command: {{ $probe }}
             periodSeconds: 5
           resources:
             {{- toYaml $p.resources | nindent 12 }}
