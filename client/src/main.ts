@@ -18,12 +18,18 @@ let scene: RoomScene | undefined;
 const stage = lazily(async (): Promise<RoomScene> => {
   const [{ Engine }, { RoomScene }] = await Promise.all([import("@babylonjs/core/Engines/engine"), import("./scene")]);
   const canvas = required<HTMLCanvasElement>("#game");
-  const engine = new Engine(canvas, true, { stencil: true });
-  // Babylon makes the canvas the first stop for Tab (tabindex 1); the room is played with the pointer and the
-  // buttons, so it isn't a stop at all.
-  canvas.tabIndex = -1;
+  // Babylon makes the canvas a Tab stop (tabindex 1), again whenever the pointer moves over it; the room is played
+  // with the pointer and the buttons, so it isn't a stop at all.
+  const engine = new Engine(canvas, true, { stencil: true, canvasTabIndex: -1 });
+  let made: RoomScene;
+  try {
+    made = new RoomScene(engine);
+  } catch (error) {
+    // Nothing left behind for the next try: it makes its own engine.
+    engine.dispose();
+    throw error;
+  }
   window.addEventListener("resize", () => engine.resize());
-  const made = new RoomScene(engine);
   made.onFloorClicked((x, z) => {
     if (room) {
       // Walking off reels the line in (the server drops it), with nothing on it.
@@ -163,7 +169,7 @@ function show(snapshot: RoomSnapshot, view: RoomScene): Room {
   view.show(snapshot);
   overlay.showRoom(
     snapshot,
-    (roomId) => void goTo(roomId),
+    (roomId) => pick(() => goTo(roomId)),
     (text) => connection.say(text).catch((error: unknown) => overlay.toast(messageOf(error))),
     // Between rooms (room undefined while the next one loads) an emote would only be refused.
     (emote) => {
@@ -177,6 +183,22 @@ function show(snapshot: RoomSnapshot, view: RoomScene): Room {
   );
   fishing.drop();
   return shown;
+}
+
+let picking = false;
+
+/**
+ * Goes where the player picked, one pick at a time: taps while one loads (the first room downloads the scene) are
+ * ignored, rather than loading two rooms over each other.
+ */
+function pick(go: () => Promise<void>): void {
+  if (picking) {
+    return;
+  }
+  picking = true;
+  void go().finally(() => {
+    picking = false;
+  });
 }
 
 function rejoin(reason: "roomLost" | "reconnected"): void {
@@ -238,7 +260,7 @@ async function pickWorld(player: Player, providers?: string[], note?: Note): Pro
   overlay.showWorlds(
     player,
     worlds,
-    (worldId) => void enter(worldId),
+    (worldId) => pick(() => enter(worldId)),
     () => void signOut().then(() => window.location.reload()),
     { providers: saveWith, link: (provider) => postTo(linkUrl(provider)) },
     note,
