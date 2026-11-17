@@ -25,7 +25,7 @@ internal sealed class HomeService(IApplicationDbContext db, TimeProvider time) :
     {
         var name = await OwnerNameAsync(ownerId, cancellationToken);
         var home = await ReadAsync(ownerId, cancellationToken);
-        var friends = visitorId != ownerId && (await FriendsOfAsync(ownerId, cancellationToken)).Contains(visitorId);
+        var friends = visitorId != ownerId && (await FriendsOfAsync(visitorId, [ownerId], cancellationToken)).Count > 0;
         home.EnsureCanVisit(visitorId, friends);
         return HomePlan.Of(home, name);
     }
@@ -43,7 +43,7 @@ internal sealed class HomeService(IApplicationDbContext db, TimeProvider time) :
         var homes = await db.Homes.AsNoTracking()
             .Where(h => ids.Contains(h.OwnerId))
             .ToDictionaryAsync(h => h.OwnerId, cancellationToken);
-        var friends = await FriendsOfAsync(visitorId, cancellationToken);
+        var friends = await FriendsOfAsync(visitorId, ids, cancellationToken);
         return ids
             .Where(id => (homes.GetValueOrDefault(id) ?? Home.Create(id)).MayVisit(visitorId, friends.Contains(id)))
             .ToHashSet();
@@ -78,7 +78,7 @@ internal sealed class HomeService(IApplicationDbContext db, TimeProvider time) :
     {
         ArgumentNullException.ThrowIfNull(here);
         var home = await ReadAsync(ownerId, cancellationToken);
-        var friends = await FriendsOfAsync(ownerId, cancellationToken);
+        var friends = await FriendsOfAsync(ownerId, [.. here], cancellationToken);
         return [.. here.Where(id => !home.MayVisit(id, friends.Contains(id)))];
     }
 
@@ -130,11 +130,13 @@ internal sealed class HomeService(IApplicationDbContext db, TimeProvider time) :
         await db.Players.Where(p => p.Id == ownerId).Select(p => p.DisplayName).FirstOrDefaultAsync(cancellationToken)
         ?? throw new DomainException(NoSuchCat);
 
-    // The player's friends (accepted, not requests either way).
-    private async Task<HashSet<Guid>> FriendsOfAsync(Guid playerId, CancellationToken cancellationToken)
+    // Which of <among> are the player's friends (accepted, not requests either way): only those friendships are read.
+    private async Task<HashSet<Guid>> FriendsOfAsync(Guid playerId, List<Guid> among, CancellationToken cancellationToken)
     {
         var friends = await db.Friendships.AsNoTracking()
-            .Where(f => (f.FirstPlayerId == playerId || f.SecondPlayerId == playerId) && f.Status == FriendshipStatus.Accepted)
+            .Where(f => f.Status == FriendshipStatus.Accepted && (
+                (f.FirstPlayerId == playerId && among.Contains(f.SecondPlayerId))
+                || (f.SecondPlayerId == playerId && among.Contains(f.FirstPlayerId))))
             .Select(f => f.FirstPlayerId == playerId ? f.SecondPlayerId : f.FirstPlayerId)
             .ToListAsync(cancellationToken);
         return [.. friends];

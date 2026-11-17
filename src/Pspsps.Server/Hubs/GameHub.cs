@@ -130,7 +130,41 @@ public sealed partial class GameHub(
             throw new HubException(ownerId == PlayerId ? "You're home already." : $"You're in {plan.OwnerName}'s home already.");
         }
 
-        return await MoveInto(place, key);
+        var snapshot = await MoveInto(place, key);
+        if (ownerId == PlayerId)
+        {
+            return snapshot;
+        }
+
+        // Checked again, now the cat is in: an owner who made the home stricter meanwhile looked at who was in it when
+        // this cat was still on its way, and missed it. Either that look sees the cat, or this check sees the change.
+        try
+        {
+            await homes.VisitAsync(PlayerId, ownerId, CancellationToken.None);
+        }
+        catch (DomainException e)
+        {
+            await BackOut(place, key);
+            throw new HubException(e.Message);
+        }
+
+        return snapshot;
+    }
+
+    // Takes the cat out of the home <key> it may not stay in, back into the room it came from (if any).
+    private async Task BackOut(ConnectionPlace from, string key)
+    {
+        var now = Here;
+        if (now?.RoomKey != key || !MoveTo(now with { RoomKey = null }))
+        {
+            return;
+        }
+
+        await LeaveRoom(key);
+        if (from.RoomKey is { } was)
+        {
+            await JoinRoom(from.WorldId, was, throughDoor: null);
+        }
     }
 
     /// <summary>Puts out a piece of the player's furniture in their home, at (x, z) or, with no spot, wherever it fits.</summary>
@@ -182,7 +216,44 @@ public sealed partial class GameHub(
             await LeaveRoom(was);
         }
 
-        return await JoinRoom(place.WorldId, key, throughDoor: null);
+        try
+        {
+            return await JoinRoom(place.WorldId, key, throughDoor: null);
+        }
+        catch (HubException) when (place.RoomKey is { } was && !heartbeat.IsClosed(Context.ConnectionId))
+        {
+            // The room is full (or its owner doesn't let the cat in): back into the room it left, and told why.
+            await JoinRoom(place.WorldId, was, throughDoor: null);
+            throw;
+        }
+    }
+
+    // Sends each of the two out of the other's home if it no longer lets them stay (they stopped being friends).
+    private async Task SendOutOfEachOthersHomes(Guid otherId)
+    {
+        foreach (var (owner, visitor) in new[] { (PlayerId, otherId), (otherId, PlayerId) })
+        {
+            try
+            {
+                var room = grains.GetGrain<IRoomGrain>(RoomKey.ForHome(owner));
+                var here = await room.CatsHere();
+                if (!here.Contains(visitor))
+                {
+                    continue;
+                }
+
+                var leaving = await homes.MustLeaveAsync(owner, [visitor], CancellationToken.None);
+                if (leaving.Count > 0)
+                {
+                    var name = (await players.FindAsync(owner, CancellationToken.None))?.DisplayName ?? "That cat";
+                    await room.SendOut(leaving, $"You and {name} aren't friends any more, so you went back to Town Square.");
+                }
+            }
+            catch (Exception e) when (e is not OperationCanceledException)
+            {
+                LogSendOutFailed(logger, e, owner);
+            }
+        }
     }
 
     // Saves a change to the player's home, then shows it to whoever is in it. Saved by then: a home that isn't told shows
@@ -537,6 +608,11 @@ public sealed partial class GameHub(
         Guid otherId, Func<Guid, Guid, CancellationToken, Task<PlayerRelation>> change)
     {
         var relation = await PlayersRule(() => change(PlayerId, otherId, Context.ConnectionAborted));
+        if (relation.State == FriendState.None)
+        {
+            // Not friends (any more): a friends-only home no longer lets either stay.
+            await SendOutOfEachOthersHomes(otherId);
+        }
 
         // Saved by now: a tab that isn't told sees it the next time it opens the list or the card.
         try
@@ -609,9 +685,9 @@ public sealed partial class GameHub(
         }
     }
 
-    // Where a friend is, with the names to show: a home by its owner's name (from <names>, the friends list, when there).
-    // One at a time: a name not in the list is read from the database.
-    private async Task<FriendPlaceView?> PlaceViewAsync(PlayerPlace? place, IReadOnlyDictionary<Guid, string> names)
+    // Where a friend is, with the names to show: a home by its owner's name (from <names>, the friends list and the names
+    // read so far). One at a time: a name not in it is read from the database, and kept in it.
+    private async Task<FriendPlaceView?> PlaceViewAsync(PlayerPlace? place, Dictionary<Guid, string> names)
     {
         if (place is not null && RoomKey.HomeOwner(RoomKey.For(place.WorldId, place.RoomId)) is { } owner)
         {
@@ -620,7 +696,12 @@ public sealed partial class GameHub(
                 return new FriendPlaceView("", "", Home.Layout.Id, "Your home", owner);
             }
 
-            var name = names.GetValueOrDefault(owner) ?? (await players.FindAsync(owner, Context.ConnectionAborted))?.DisplayName;
+            // Read once per list: several friends can be in the same home.
+            if (!names.TryGetValue(owner, out var name) && await players.FindAsync(owner, Context.ConnectionAborted) is { } found)
+            {
+                name = names[owner] = found.DisplayName;
+            }
+
             return name is null ? null : new FriendPlaceView("", "", Home.Layout.Id, $"{name}'s home", owner);
         }
 
@@ -691,6 +772,9 @@ public sealed partial class GameHub(
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't show the room {RoomKey} what player {PlayerId} put on; it shows on their next arrival")]
     private static partial void LogDressNotShown(ILogger logger, Exception exception, Guid playerId, string roomKey);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't send an ex-friend out of the home of player {PlayerId}; they stay until they leave")]
+    private static partial void LogSendOutFailed(ILogger logger, Exception exception, Guid playerId);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't show the home {RoomKey} its owner's change; it shows on the next arrival")]
     private static partial void LogFurnishNotShown(ILogger logger, Exception exception, string roomKey);

@@ -62,7 +62,8 @@ internal sealed class RoomGrain(
 
         _state = new RoomState(room);
         _doors = [.. room.Doors.Select(DoorView.From)];
-        _props = [.. room.Props.Select(PropView.From)];
+        // A home's furniture as the room's props, the same way as every change to it after (Furnish).
+        _props = _home?.Props() ?? [.. room.Props.Select(PropView.From)];
         this.RegisterGrainTimer(
             static (grain, _) => grain.RemoveExpired(),
             this,
@@ -97,7 +98,8 @@ internal sealed class RoomGrain(
         return new RoomSnapshot(
             worldId,
             _state.Room.Id,
-            _state.Room.Name,
+            // A home is called after its owner as they are called now (Furnish brings the name), not when it opened.
+            _home is null ? _state.Room.Name : $"{_home.OwnerName}'s home",
             _state.Room.Width,
             _state.Room.Depth,
             [.. _state.Cats.Select(CatView.From)],
