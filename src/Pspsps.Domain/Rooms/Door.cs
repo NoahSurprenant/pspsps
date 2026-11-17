@@ -10,7 +10,7 @@ public sealed record Door(string Id, Position Spot, double Radius, string ToRoom
     public const double StepIn = 0.75;
 
     /// <summary>Whether a cat standing at <paramref name="cat"/> is on the door, and can go through it.</summary>
-    public bool InReach(Position cat) => Distance(cat, Spot) <= Radius;
+    public bool InReach(Position cat) => cat.DistanceTo(Spot) <= Radius;
 
     /// <summary>
     /// Where a cat coming in through this door stands: just inside it, towards the room's middle (the floor is centred on
@@ -20,7 +20,7 @@ public sealed record Door(string Id, Position Spot, double Radius, string ToRoom
     {
         get
         {
-            var length = Distance(Spot, new Position(0, 0));
+            var length = Spot.DistanceTo(new Position(0, 0));
             if (length == 0)
             {
                 // A door in the middle of the floor has no "inwards": step towards the front.
@@ -30,12 +30,5 @@ public sealed record Door(string Id, Position Spot, double Radius, string ToRoom
             var step = (Radius + StepIn) / length;
             return new Position(Spot.X - (Spot.X * step), Spot.Z - (Spot.Z * step));
         }
-    }
-
-    private static double Distance(Position a, Position b)
-    {
-        var dx = a.X - b.X;
-        var dz = a.Z - b.Z;
-        return Math.Sqrt((dx * dx) + (dz * dz));
     }
 }
