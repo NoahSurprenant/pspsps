@@ -561,8 +561,8 @@ async function setMuted(playerId: string, name: string, muted: boolean): Promise
   }
 }
 
-// Whether a report is on its way: a second tap on Send doesn't send it twice.
-let reporting = false;
+// The cats a report is on its way about: a second tap on Send doesn't send it twice (a report about another cat goes).
+const reporting = new Set<string>();
 
 /** Sends the report form as filled in (or says what it still needs), then goes back to the cat's card. */
 async function sendReport(card: PlayerCard, draft: ReportDraft): Promise<void> {
@@ -571,10 +571,10 @@ async function sendReport(card: PlayerCard, draft: ReportDraft): Promise<void> {
     overlay.toast(request.problem);
     return;
   }
-  if (reporting) {
+  if (reporting.has(card.playerId)) {
     return;
   }
-  reporting = true;
+  reporting.add(card.playerId);
   try {
     const receipt = await connection.report(card.playerId, request);
     applyMutes(receipt.mutes);
@@ -586,7 +586,7 @@ async function sendReport(card: PlayerCard, draft: ReportDraft): Promise<void> {
   } catch (error) {
     overlay.toast(messageOf(error));
   } finally {
-    reporting = false;
+    reporting.delete(card.playerId);
   }
 }
 

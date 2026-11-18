@@ -66,4 +66,13 @@ public sealed class MuteTests
         Assert.That(Mute.HasRoom(new MutesSoFar(Mute.MaxMutes - 1, false)), Is.True);
         Assert.That(Mute.HasRoom(new MutesSoFar(Mute.MaxMutes, false)), Is.False);
     }
+
+    [Test]
+    public void AlongWithReport_MutesTheCat_UnlessMutedAlready_OrEveryMuteIsUsed()
+    {
+        Assert.That(Mute.AlongWithReport(Tom, Felix, None, Now)?.MutedId, Is.EqualTo(Felix));
+        Assert.That(Mute.AlongWithReport(Tom, Felix, new MutesSoFar(1, IncludesThem: true), Now), Is.Null);
+        Assert.That(Mute.AlongWithReport(Tom, Felix, new MutesSoFar(Mute.MaxMutes, false), Now), Is.Null,
+            "the report goes without the mute");
+    }
 }

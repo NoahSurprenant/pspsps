@@ -498,19 +498,29 @@ public sealed partial class GameHub(
         }
 
         // What was said in the room, and whether the reported cat is in it (if not, the lines are kept only if some are its).
+        // Each read on its own: one that fails doesn't lose the other.
+        var room = grains.GetGrain<IRoomGrain>(key);
         IReadOnlyList<ChatView> chat;
-        bool otherIsHere;
         try
         {
-            var room = grains.GetGrain<IRoomGrain>(key);
             chat = await room.RecentChat();
-            otherIsHere = (await room.CatsHere()).Contains(playerId);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
             // Filed without them rather than not at all: the reason and the note still say what happened.
             LogReportChatNotRead(logger, e, key);
             chat = [];
+        }
+
+        bool otherIsHere;
+        try
+        {
+            otherIsHere = (await room.CatsHere()).Contains(playerId);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            // Taken as not here: the lines are still kept if some are the reported cat's.
+            LogReportCatsNotRead(logger, e, key);
             otherIsHere = false;
         }
 
@@ -519,7 +529,8 @@ public sealed partial class GameHub(
             PlayerId, playerId, why, note, place.WorldId, key, [.. chat.Select(l => new ChatLine(l.PlayerId, l.Text, l.At))],
             otherIsHere, alsoMute, Context.ConnectionAborted));
         var receipt = new ReportReceipt(outcome.Muted, Views(outcome.Mutes));
-        if (alsoMute)
+        // Only a change: the player's tabs know the list already otherwise.
+        if (outcome.MuteAdded)
         {
             await TellMutes(receipt.Mutes);
         }
@@ -941,6 +952,9 @@ public sealed partial class GameHub(
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't read the chat of {RoomKey} for a report; filed without it")]
     private static partial void LogReportChatNotRead(ILogger logger, Exception exception, string roomKey);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't read who is in {RoomKey} for a report; the reported cat is taken as not there")]
+    private static partial void LogReportCatsNotRead(ILogger logger, Exception exception, string roomKey);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't find where player {PlayerId} is; shown offline")]
     private static partial void LogLocateFailed(ILogger logger, Exception exception, Guid playerId);

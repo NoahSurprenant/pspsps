@@ -55,11 +55,10 @@ internal sealed class ReportService(IApplicationDbContext db, IMuteService mutes
         Mute? mute = null;
         if (alsoMute)
         {
-            var soFar = await MuteService.SoFarAsync(db, playerId, otherId, cancellationToken);
-            // A player with every mute used still reports: the report matters more than the mute.
-            if (!soFar.IncludesThem && Mute.HasRoom(soFar))
+            mute = Mute.AlongWithReport(
+                playerId, otherId, await MuteService.SoFarAsync(db, playerId, otherId, cancellationToken), now);
+            if (mute is not null)
             {
-                mute = Mute.Create(playerId, otherId, soFar, now);
                 db.Mutes.Add(mute);
             }
         }
@@ -72,10 +71,11 @@ internal sealed class ReportService(IApplicationDbContext db, IMuteService mutes
         {
             // Muted from another tab at the same moment: the report is saved on its own, and they're muted either way.
             db.Forget(mute);
+            mute = null;
             await db.SaveChangesAsync(cancellationToken);
         }
 
         var after = await mutes.ListAsync(playerId, cancellationToken);
-        return new ReportOutcome(after.Any(m => m.PlayerId == otherId), after);
+        return new ReportOutcome(after.Any(m => m.PlayerId == otherId), MuteAdded: mute is not null, after);
     }
 }

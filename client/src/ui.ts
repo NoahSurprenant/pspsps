@@ -454,7 +454,7 @@ export class Overlay {
     mute.checked = draft.alsoMute;
     mute.addEventListener("change", () => (draft.alsoMute = mute.checked));
     const form = el("form", { className: "report-form" },
-      el("p", { text: "The last things said in this room go with your report, for the people who keep the game friendly." }),
+      el("p", { text: "If they're in this room or said something in it, the last things said here go with your report, for the people who keep the game friendly." }),
       reasons,
       el("div", { className: "report-note" }, noteLabel, note),
       choice(mute, "Also mute them"),

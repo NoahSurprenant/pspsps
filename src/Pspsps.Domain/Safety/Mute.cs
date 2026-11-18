@@ -59,6 +59,13 @@ public sealed class Mute
         return new Mute(muterId, mutedId, now);
     }
 
+    /// <summary>
+    /// The mute a report asks for ("Also mute them"): none when the reporter has muted the cat already, or has every mute
+    /// used. The report matters more than the mute, so it never refuses: it is filed either way.
+    /// </summary>
+    public static Mute? AlongWithReport(Guid muterId, Guid mutedId, MutesSoFar soFar, DateTimeOffset now) =>
+        soFar.IncludesThem || !HasRoom(soFar) ? null : Create(muterId, mutedId, soFar, now);
+
     /// <summary>Whether a player with these mutes may mute one more: fewer than <see cref="MaxMutes"/>.</summary>
     public static bool HasRoom(MutesSoFar soFar) => soFar.Count < MaxMutes;
 

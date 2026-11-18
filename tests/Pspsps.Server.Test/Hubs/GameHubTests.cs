@@ -1229,7 +1229,7 @@ public sealed class GameHubTests
         _reports.FileAsync(
                 Tom.Id, Felix, ReportReason.MeanChat, "rude", "tabby", "tabby/town-square",
                 Arg.Any<IReadOnlyList<ChatLine>>(), true, false, Arg.Any<CancellationToken>())
-            .Returns(new ReportOutcome(false, []));
+            .Returns(new ReportOutcome(false, false, []));
         var hub = Hub();
         await hub.EnterWorld("tabby");
         var tomsTabs = Substitute.For<IGameClient>();
@@ -1254,7 +1254,7 @@ public sealed class GameHubTests
         _reports.FileAsync(
                 Tom.Id, Felix, ReportReason.Spam, null, "tabby", "tabby/town-square",
                 Arg.Any<IReadOnlyList<ChatLine>>(), false, true, Arg.Any<CancellationToken>())
-            .Returns(new ReportOutcome(true, after));
+            .Returns(new ReportOutcome(true, true, after));
         var hub = Hub();
         await hub.EnterWorld("tabby");
         var tomsTabs = Substitute.For<IGameClient>();
@@ -1272,7 +1272,7 @@ public sealed class GameHubTests
     {
         _room.RecentChat().ThrowsAsync(new TimeoutException());
         _reports.FileAsync(default, default, default, default, default!, default!, default!, default, default, default)
-            .ReturnsForAnyArgs(new ReportOutcome(false, []));
+            .ReturnsForAnyArgs(new ReportOutcome(false, false, []));
         var hub = Hub();
         await hub.EnterWorld("tabby");
 
@@ -1289,7 +1289,7 @@ public sealed class GameHubTests
         _room.RecentChat().Returns([new ChatView(Felix, "meanie", DateTimeOffset.UnixEpoch)]);
         _room.CatsHere().ThrowsAsync(new TimeoutException());
         _reports.FileAsync(default, default, default, default, default!, default!, default!, default, default, default)
-            .ReturnsForAnyArgs(new ReportOutcome(false, []));
+            .ReturnsForAnyArgs(new ReportOutcome(false, false, []));
         var hub = Hub();
         await hub.EnterWorld("tabby");
 
@@ -1298,6 +1298,24 @@ public sealed class GameHubTests
         await _reports.Received(1).FileAsync(
             Tom.Id, Felix, ReportReason.MeanChat, null, "tabby", "tabby/town-square",
             Arg.Is<IReadOnlyList<ChatLine>>(chat => chat.Count == 1), false, false, Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task Report_AlsoMutingACatMutedAlready_TellsNoTab()
+    {
+        _room.RecentChat().Returns([]);
+        _room.CatsHere().Returns([]);
+        _reports.FileAsync(default, default, default, default, default!, default!, default!, default, default, default)
+            .ReturnsForAnyArgs(new ReportOutcome(true, false, [new MutedPlayer(Felix, "Felix", FurColor.Black)]));
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+        var tomsTabs = Substitute.For<IGameClient>();
+        _clients.User(Tom.Id.ToString()).Returns(tomsTabs);
+
+        var receipt = await hub.Report(Felix, "Spam", null, alsoMute: true);
+
+        Assert.That(receipt.Muted, Is.True);
+        await tomsTabs.DidNotReceiveWithAnyArgs().MutesChanged(default!);
     }
 
     [TestCase("Rude")]

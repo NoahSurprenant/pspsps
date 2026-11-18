@@ -17,11 +17,12 @@ export class Room {
 
   /** @param hides Whose chat the player has muted: their lines, the room's history among them, are never kept here. */
   constructor(snapshot: RoomSnapshot, private readonly hides: (playerId: string) => boolean = () => false) {
-    this.snapshot = snapshot;
+    // Not even in the snapshot as it arrived: nothing here keeps what a muted cat said.
+    this.snapshot = { ...snapshot, chat: snapshot.chat.filter((line) => !hides(line.playerId)) };
     for (const cat of snapshot.cats) {
       this.cats.set(cat.playerId, cat);
     }
-    this.chat.push(...snapshot.chat.filter((line) => !hides(line.playerId)));
+    this.chat.push(...this.snapshot.chat);
   }
 
   join(cat: CatView): void {
@@ -65,6 +66,7 @@ export class Room {
   hush(playerId: string): void {
     const kept = this.chat.filter((line) => line.playerId !== playerId);
     this.chat.splice(0, this.chat.length, ...kept);
+    this.snapshot = { ...this.snapshot, chat: this.snapshot.chat.filter((line) => line.playerId !== playerId) };
   }
 
   emote(emote: EmoteView): void {
