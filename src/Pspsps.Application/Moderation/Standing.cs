@@ -22,3 +22,6 @@ public sealed record ModerationLogLine(
 
 /// <summary>What the admin page shows: who is banned or muted now, and what admins did lately.</summary>
 public sealed record ModerationOverview(IReadOnlyList<SanctionedPlayer> Sanctioned, IReadOnlyList<ModerationLogLine> Recent);
+
+/// <summary>A warning the player hasn't seen yet: its audit line's ID (to say it was seen), and its words.</summary>
+public sealed record PendingWarning(Guid Id, string Text, DateTimeOffset At);

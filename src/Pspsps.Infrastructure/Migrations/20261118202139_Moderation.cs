@@ -24,7 +24,7 @@ namespace Pspsps.Infrastructure.Migrations
                     muted_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     muted_until = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     muted_by = table.Column<Guid>(type: "uuid", nullable: true),
-                    warning = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
+                    warnings_seen_until = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     version = table.Column<int>(type: "integer", nullable: false)
                 },
                 constraints: table =>

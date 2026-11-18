@@ -375,3 +375,6 @@ public sealed record AdminOverviewView(IReadOnlyList<SanctionedPlayerView> Sanct
 
 /// <summary>An admin's action on a player, from the admin page (as the hub's Moderate takes it).</summary>
 public sealed record ModerateRequestView(string? Action, string? Reason, string? Length);
+
+/// <summary>A warning from the admins the player hasn't seen yet: its ID (to say it was seen) and its words.</summary>
+public sealed record WarningView(Guid Id, string Text);

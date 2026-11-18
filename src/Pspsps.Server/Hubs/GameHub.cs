@@ -491,8 +491,16 @@ public sealed partial class GameHub(
         return await GetPlayerCard(playerId);
     }
 
-    /// <summary>The warning an admin left this player, if any: shown once, so it counts as seen from now on.</summary>
-    public Task<string?> TakeWarning() => PlayersRule(() => moderation.TakeWarningAsync(PlayerId, CancellationToken.None));
+    /// <summary>The warnings admins left this player that they haven't seen yet, oldest first.</summary>
+    public async Task<IReadOnlyList<WarningView>> GetWarnings() =>
+        [.. (await moderation.WarningsAsync(PlayerId, Context.ConnectionAborted)).Select(w => new WarningView(w.Id, w.Text))];
+
+    /// <summary>The player closed the warning <paramref name="warningId"/>: it isn't shown again (nor those before it).</summary>
+    public Task SawWarning(Guid warningId) => PlayersRule(async () =>
+    {
+        await moderation.SawWarningAsync(PlayerId, warningId, CancellationToken.None);
+        return true;
+    });
 
     /// <summary>The shop: everything in it, and the player's coins, things and what their cat wears.</summary>
     public async Task<ShopView> GetShop() =>

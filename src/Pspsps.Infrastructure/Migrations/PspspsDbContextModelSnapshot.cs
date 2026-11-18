@@ -199,10 +199,9 @@ namespace Pspsps.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("version");
 
-                    b.Property<string>("Warning")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("warning");
+                    b.Property<DateTimeOffset?>("WarningsSeenUntil")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("warnings_seen_until");
 
                     b.HasKey("PlayerId")
                         .HasName("pk_player_moderation");

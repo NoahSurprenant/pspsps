@@ -1,6 +1,6 @@
 import { HubConnectionBuilder, HubConnectionState, LogLevel, type HubConnection } from "@microsoft/signalr";
 import type { FriendAction } from "./friends";
-import type { ModerationRequest, Sanction } from "./moderation";
+import type { ModerationRequest, Sanction, Warning } from "./moderation";
 import type { ShopAction } from "./shop";
 import type {
   CatchView, CatView, ChatView, Emote, EmoteView, Friend, HomeView, HomeVisitors, OutfitView, Player, PlayerCard, ReelView,
@@ -38,7 +38,7 @@ export interface GameEvents {
   banned(ban: Sanction): void;
   /** An admin muted the player (why, until when), or lifted it (null). */
   muted(mute: Sanction | null): void;
-  /** An admin left the player a warning: fetch it (takeWarning) and show it. */
+  /** An admin left the player a warning: fetch the warnings (getWarnings) and show them. */
   warned(): void;
   /** The connection closed and couldn't come back (not this tab stopping it): the server may have refused it. */
   closed(): void;
@@ -236,9 +236,14 @@ export class GameConnection {
       "Moderate", playerId, request.action, request.reason || null, request.length ?? null);
   }
 
-  /** The warning an admin left this player, if any: shown once, so it counts as seen once fetched. */
-  takeWarning(): Promise<string | null> {
-    return this.hub.invoke<string | null>("TakeWarning");
+  /** The warnings admins left this player that they haven't seen yet, oldest first. */
+  getWarnings(): Promise<Warning[]> {
+    return this.hub.invoke<Warning[]>("GetWarnings");
+  }
+
+  /** The player closed the warning: it isn't shown again. */
+  sawWarning(id: string): Promise<void> {
+    return this.hub.invoke("SawWarning", id);
   }
 }
 

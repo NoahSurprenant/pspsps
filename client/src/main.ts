@@ -189,6 +189,10 @@ const connection = new GameConnection({
   homeChanged: (home) => onRoom((here) => applyHome(home, here)),
   // The home's owner stopped letting us in: back to Town Square, in the world we came from.
   sentOut: (ownerId, message) => {
+    // Banned: the server takes the cat out of its room too; nothing to walk back to.
+    if (isBanned) {
+      return;
+    }
     overlay.toast(message);
     // Gone after whatever is loading now (the home itself, just come into): the tap that loads it would drop this.
     sentOutOfHome = { ownerId, message };
@@ -196,6 +200,7 @@ const connection = new GameConnection({
   },
   // An admin banned the player: this tab has stopped; it says why and until when, and nothing more.
   banned: (ban) => {
+    isBanned = true;
     loading.cancel();
     room = undefined;
     overlay.showBanned(ban);
@@ -215,6 +220,9 @@ const connection = new GameConnection({
     }
   }).catch(() => {}),
 });
+
+// Set once the player is banned in this tab: it has stopped, and does nothing more.
+let isBanned = false;
 
 // The mute the player is under (why, until when), if any: the chat box is off until it ends, by itself or lifted.
 let muted: Sanction | null = null;
@@ -236,28 +244,31 @@ function setMuted(mute: Sanction | null): void {
   }
 }
 
-// Warnings handed over by the server (which counts them as seen), each shown until the player closes it.
+// Warnings from the admins, each shown until the player closes it; only then is the server told it was seen.
 const notices = new Notices();
 
-/** The warning an admin left the player, if any, shown over whatever shows until the player closes it. */
+/** The warnings admins left the player that they haven't seen, shown over whatever shows until closed. */
 async function showWarning(): Promise<void> {
   try {
-    const warning = await connection.takeWarning();
-    if (warning) {
+    for (const warning of await connection.getWarnings()) {
       notices.show(warning);
-      showNotice();
     }
+    showNotice();
   } catch {
-    // Not taken: it is still there, for the next time.
+    // Not read: they are still there, for the next time.
   }
 }
 
 /** Shows the warning waiting, unless it shows already: again after a change of view (a room loading) closed it. */
 function showNotice(): void {
-  const text = notices.current;
-  if (text !== undefined && overlay.openDialogFor?.kind !== "notice") {
-    overlay.showNotice("A word from the admins", text, () => {
-      notices.closed();
+  const warning = notices.current;
+  if (warning !== undefined && overlay.openDialogFor?.kind !== "notice") {
+    overlay.showNotice("A word from the admins", warning.text, () => {
+      const seen = notices.closed();
+      if (seen) {
+        // Not told (the connection dropped): it shows again next time, which is better than never.
+        connection.sawWarning(seen.id).catch(() => {});
+      }
       showNotice();
     });
   }

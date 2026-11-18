@@ -175,11 +175,12 @@ card (Details), and `/admin` shows it to anyone signed in who isn't an admin (40
 configuration changes.
 
 What an admin did to a player is a `PlayerModeration`, an aggregate of its own keyed by the player and made the first
-time an admin acts on them: a ban (until a time, or for good), a mute in every room (until a time), a warning not
-yet shown, and the audit trail (`ModerationEntry`: who, what, when, why, until when). Only an admin acts (a
-`Moderator` is made only from the admin list), never on themselves nor on another admin (the list changes admins), and
-always says why: the player is shown it. A ban or mute ends at its time by itself (`ModerationClock`, a `TimeProvider`
-tests move), or when an admin lifts it; a new one takes the place of the last. `Version` is a concurrency token, so two
+time an admin acts on them: a ban (until a time, or for good), a mute in every room (until a time), up to when the
+player has seen their warnings, and the audit trail (`ModerationEntry`: who, what, when, why, until when; a warning is
+one of its lines). Only an admin acts (a `Moderator` is made only from the admin list), never on themselves nor on
+another admin (the list changes admins; a ban or mute from before a player was listed can still be lifted), and always
+says why: the player is shown it. A ban or mute ends at its time by itself (`ModerationClock`, a `TimeProvider` tests
+move), or when an admin lifts it; a new one takes the place of the last. `Version` is a concurrency token, so two
 admins at once are decided one after the other.
 
 An admin moderates from another cat's card (Moderate, folded away: Warn, Mute for an hour, a day or a week, Ban for a
@@ -193,9 +194,11 @@ database at most once every 5 seconds per player on each pod (`StandingCache`; a
 once), since every move is a call. A ban is put into effect at once (`ModerationEffects`): the player's tabs are told
 (`Banned`), show why and until when, and stop; this pod closes their connections two seconds later; their cat is taken
 out of its room, wherever it is; and `/api/me` tells a page that loads why it can't play. Chat is refused while muted
-(`GameHub.Say`, from the database), and the player's tabs are told at once (`Muted`), which turns their chat box into
-why and until when. A warning is kept until the player's tab takes it (`TakeWarning`: at once when told `Warned`, or on
-their next visit), so it shows once.
+(`PlayerModeration.EnsureMayChat`, asked by `GameHub.Say` with the same per-pod read, so a mute or a lift decided on
+another pod takes up to 5 seconds there), and the player's tabs are told at once (`Muted`), which turns their chat box
+into why and until when. A warning is shown (at once when the tabs are told `Warned`, or on the player's next visit)
+until the player closes it, which tells the server they saw it (`SawWarning`): two warnings meanwhile both show, one
+after the other. When the database can't answer, the last read holds and a player never read plays.
 
 A banned guest who clears their cookies gets a new guest cat: stopping that is out of scope.
 

@@ -16,8 +16,11 @@ public interface IModerationService
     Task<Standing> ModerateAsync(
         Guid adminId, Guid playerId, ModerationRequest request, CancellationToken cancellationToken);
 
-    /// <summary>The warning the player hasn't seen yet, if any, which counts as seen from now on.</summary>
-    Task<string?> TakeWarningAsync(Guid playerId, CancellationToken cancellationToken);
+    /// <summary>The warnings the player hasn't seen yet, oldest first: shown until they have (<see cref="SawWarningAsync"/>).</summary>
+    Task<IReadOnlyList<PendingWarning>> WarningsAsync(Guid playerId, CancellationToken cancellationToken);
+
+    /// <summary>The player has seen the warning <paramref name="warningId"/> (and those before it).</summary>
+    Task SawWarningAsync(Guid playerId, Guid warningId, CancellationToken cancellationToken);
 
     /// <summary>For an admin: who is banned or muted now, and the latest lines of the audit trail.</summary>
     Task<ModerationOverview> OverviewAsync(Guid adminId, CancellationToken cancellationToken);

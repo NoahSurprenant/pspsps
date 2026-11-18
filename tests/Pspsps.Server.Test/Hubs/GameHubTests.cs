@@ -1276,7 +1276,7 @@ public sealed class GameHubTests
     {
         var id = Guid.NewGuid();
         _moderation.WarningsAsync(Tom.Id, Arg.Any<CancellationToken>())
-            .Returns([new PendingWarning(id, "Be nice.", DateTimeOffset.UtcNow)]);
+            .Returns(new List<PendingWarning> { new(id, "Be nice.", DateTimeOffset.UtcNow) });
         var hub = Hub();
 
         Assert.That(await hub.GetWarnings(), Is.EqualTo(new[] { new WarningView(id, "Be nice.") }));

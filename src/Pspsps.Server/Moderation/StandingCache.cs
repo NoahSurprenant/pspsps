@@ -8,9 +8,13 @@ namespace Pspsps.Server.Moderation;
 /// A player's ban and mute, for the hub to refuse their every call and their chat: read from the database at most once
 /// every <see cref="KeepFor"/> per player on this pod (a move is a call), and again at once after a change made on this
 /// pod. A ban or mute decided on another pod is seen here within <see cref="KeepFor"/>; one read here ends at its time.
+/// When the database can't answer, the last read holds (a restart doesn't lift a ban), and a player never read plays: a
+/// short outage doesn't stop the whole game.
 /// </summary>
-public sealed class StandingCache(
-    IServiceScopeFactory scopes, [FromKeyedServices(ModerationClock.Key)] TimeProvider time)
+public sealed partial class StandingCache(
+    IServiceScopeFactory scopes,
+    [FromKeyedServices(ModerationClock.Key)] TimeProvider time,
+    ILogger<StandingCache>? logger = null)
 {
     /// <summary>How long a player's standing, once read, is trusted on this pod.</summary>
     public static readonly TimeSpan KeepFor = TimeSpan.FromSeconds(5);
@@ -20,6 +24,9 @@ public sealed class StandingCache(
 
     // Each player's last read, or a mark that it changed (Forget), which no read that started before can replace.
     private readonly ConcurrentDictionary<Guid, Read> _read = new();
+
+    // When stale reads were last dropped: at most once every KeepFor, not on every miss.
+    private DateTimeOffset _prunedAt = DateTimeOffset.MinValue;
 
     /// <summary>The ban the player is under now, if any.</summary>
     public async Task<Sanction?> BanOfAsync(Guid playerId, CancellationToken cancellationToken)
@@ -47,11 +54,26 @@ public sealed class StandingCache(
             return seen.Standing;
         }
 
-        await using var scope = scopes.CreateAsyncScope();
-        var standing = await scope.ServiceProvider.GetRequiredService<IModerationService>()
-            .StandingAsync(playerId, cancellationToken);
-        if (_read.Count > PruneAbove)
+        Standing standing;
+        try
         {
+            await using var scope = scopes.CreateAsyncScope();
+            standing = await scope.ServiceProvider.GetRequiredService<IModerationService>()
+                .StandingAsync(playerId, cancellationToken);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            if (logger is not null)
+            {
+                LogNotRead(logger, e, playerId);
+            }
+
+            return seen is { Changed: false } ? seen.Standing : Standing.None;
+        }
+
+        if (_read.Count > PruneAbove && now - _prunedAt >= KeepFor)
+        {
+            _prunedAt = now;
             Prune(now);
         }
 
@@ -80,6 +102,9 @@ public sealed class StandingCache(
             }
         }
     }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't read whether player {PlayerId} is banned or muted; the last read holds")]
+    private static partial void LogNotRead(ILogger logger, Exception exception, Guid playerId);
 
     // A class, not a record: compared by reference, so a read replaces only the very entry it saw.
     private sealed class Read(Standing standing, DateTimeOffset at, bool changed)

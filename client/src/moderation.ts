@@ -131,24 +131,37 @@ export function doneMessage(request: ModerationRequest, name: string): string {
   }
 }
 
+/** A warning from the admins the player hasn't seen yet (Contracts.cs, WarningView). */
+export interface Warning {
+  id: string;
+  text: string;
+}
+
 /**
- * Warnings to show, one at a time, until the player closes each: a dialog closed by a change of view (a room loading)
- * isn't read, and the server has counted the warning as seen once it handed it over.
+ * Warnings to show, one at a time, until the player closes each (then the server is told: GameConnection.sawWarning): a
+ * dialog closed by a change of view (a room loading) wasn't read. The same warning fetched twice shows once.
  */
 export class Notices {
-  private readonly waiting: string[] = [];
+  private readonly waiting: Warning[] = [];
+  private readonly seen = new Set<string>();
 
   /** The warning to show now, if any. */
-  get current(): string | undefined {
+  get current(): Warning | undefined {
     return this.waiting[0];
   }
 
-  show(text: string): void {
-    this.waiting.push(text);
+  show(warning: Warning): void {
+    if (!this.seen.has(warning.id) && !this.waiting.some((w) => w.id === warning.id)) {
+      this.waiting.push(warning);
+    }
   }
 
-  /** The player closed the one showing. */
-  closed(): void {
-    this.waiting.shift();
+  /** The player closed the one showing: it is seen. */
+  closed(): Warning | undefined {
+    const warning = this.waiting.shift();
+    if (warning) {
+      this.seen.add(warning.id);
+    }
+    return warning;
   }
 }

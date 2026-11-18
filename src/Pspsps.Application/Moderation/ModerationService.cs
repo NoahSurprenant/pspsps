@@ -63,8 +63,36 @@ internal sealed class ModerationService(
         }, cancellationToken) ?? Standing.None;
     }
 
-    public Task<string?> TakeWarningAsync(Guid playerId, CancellationToken cancellationToken) =>
-        ChangeAsync(playerId, create: false, moderation => moderation.TakeWarning(), cancellationToken);
+    public async Task<IReadOnlyList<PendingWarning>> WarningsAsync(Guid playerId, CancellationToken cancellationToken)
+    {
+        var moderation = await db.Moderation.AsNoTracking()
+            .FirstOrDefaultAsync(m => m.PlayerId == playerId, cancellationToken);
+        if (moderation is null)
+        {
+            return [];
+        }
+
+        var warnings = await db.ModerationEntries.AsNoTracking()
+            .Where(e => e.PlayerId == playerId && e.Kind == ModerationKind.Warned)
+            .OrderBy(e => e.At)
+            .ToListAsync(cancellationToken);
+        return [.. warnings.Where(moderation.IsUnseenWarning).Select(e => new PendingWarning(e.Id, e.Reason ?? "", e.At))];
+    }
+
+    public async Task SawWarningAsync(Guid playerId, Guid warningId, CancellationToken cancellationToken)
+    {
+        var warning = await db.ModerationEntries.AsNoTracking()
+            .FirstOrDefaultAsync(
+                e => e.Id == warningId && e.PlayerId == playerId && e.Kind == ModerationKind.Warned, cancellationToken);
+        if (warning is not null)
+        {
+            await ChangeAsync(playerId, create: false, moderation =>
+            {
+                moderation.SawWarningsUntil(warning.At);
+                return true;
+            }, cancellationToken);
+        }
+    }
 
     public async Task<ModerationOverview> OverviewAsync(Guid adminId, CancellationToken cancellationToken)
     {

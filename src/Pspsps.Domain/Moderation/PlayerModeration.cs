@@ -42,8 +42,11 @@ public sealed class PlayerModeration
 
     public Guid? MutedBy { get; private set; }
 
-    /// <summary>A warning the player hasn't been shown yet; shown once (<see cref="TakeWarning"/>).</summary>
-    public string? Warning { get; private set; }
+    /// <summary>
+    /// Up to when the player has seen their warnings (<see cref="SawWarningsUntil"/>): each warning after is shown to them
+    /// until they have (<see cref="IsUnseenWarning"/>).
+    /// </summary>
+    public DateTimeOffset? WarningsSeenUntil { get; private set; }
 
     /// <summary>Counts every change: two admins acting at once are decided one after the other.</summary>
     public int Version { get; private set; }
@@ -73,13 +76,34 @@ public sealed class PlayerModeration
     /// <summary>The mute in force at <paramref name="now"/>, if any.</summary>
     public Sanction? MuteAt(DateTimeOffset now) => Mute is { } mute && mute.InForceAt(now) ? mute : null;
 
-    /// <summary>Warns the player: <paramref name="message"/> is shown to them once, the next time they play or at once.</summary>
+    /// <summary>
+    /// Warns the player: <paramref name="message"/> is shown to them, at once or the next time they play, until they have
+    /// seen it; another warning meanwhile is shown too, after it.
+    /// </summary>
     public void Warn(Moderator by, string message, DateTimeOffset now)
     {
         EnsureMayModerate(by);
-        var text = ReasonOf(message);
-        Warning = text;
-        Record(ModerationKind.Warned, by, now, text, until: null);
+        Record(ModerationKind.Warned, by, now, ReasonOf(message), until: null);
+    }
+
+    /// <summary>Whether <paramref name="entry"/> (of this player's audit trail) is a warning they haven't seen yet.</summary>
+    public bool IsUnseenWarning(ModerationEntry entry)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+        return entry.PlayerId == PlayerId && entry.Kind == ModerationKind.Warned
+            && (WarningsSeenUntil is not { } seen || entry.At > seen);
+    }
+
+    /// <summary>The player has seen their warnings up to <paramref name="at"/> (one's time): seen stays seen.</summary>
+    public void SawWarningsUntil(DateTimeOffset at)
+    {
+        if (WarningsSeenUntil is { } seen && seen >= at)
+        {
+            return;
+        }
+
+        WarningsSeenUntil = at;
+        Version++;
     }
 
     /// <summary>Mutes the player in every room until <paramref name="until"/>: they can't chat, and are told why.</summary>
@@ -113,10 +137,13 @@ public sealed class PlayerModeration
         Record(ModerationKind.Banned, by, now, text, until);
     }
 
-    /// <summary>Lifts the ban and the mute in force, whichever there are; refused when there is neither.</summary>
+    /// <summary>
+    /// Lifts the ban and the mute in force, whichever there are; refused when there is neither. An admin's too: one decided
+    /// before they were listed as an admin can still be lifted.
+    /// </summary>
     public void Lift(Moderator by, DateTimeOffset now)
     {
-        EnsureMayModerate(by);
+        EnsureMayModerate(by, onAnAdmin: true);
         var banned = BanAt(now) is not null;
         var muted = MuteAt(now) is not null;
         if (!banned && !muted)
@@ -137,9 +164,6 @@ public sealed class PlayerModeration
         }
     }
 
-    /// <summary>Refuses chat while the player is muted (at <paramref name="now"/>), saying why and until when.</summary>
-    public void EnsureMayChat(DateTimeOffset now) => EnsureMayChat(Mute, now);
-
     /// <summary>
     /// Refuses chat under <paramref name="mute"/> (a player's last mute, as read) while it holds at <paramref name="now"/>.
     /// </summary>
@@ -149,19 +173,6 @@ public sealed class PlayerModeration
         {
             throw new DomainException(mute.SaysMuted());
         }
-    }
-
-    /// <summary>The warning not shown yet, if any, which counts as shown from now on.</summary>
-    public string? TakeWarning()
-    {
-        var warning = Warning;
-        if (warning is not null)
-        {
-            Warning = null;
-            Version++;
-        }
-
-        return warning;
     }
 
     /// <summary>A reason (or a warning), as kept: trimmed, said, and short enough to show.</summary>
@@ -181,7 +192,7 @@ public sealed class PlayerModeration
         return text;
     }
 
-    private void EnsureMayModerate(Moderator by)
+    private void EnsureMayModerate(Moderator by, bool onAnAdmin = false)
     {
         ArgumentNullException.ThrowIfNull(by);
         if (by.PlayerId == PlayerId)
@@ -189,7 +200,7 @@ public sealed class PlayerModeration
             throw new DomainException("You can't moderate yourself.");
         }
 
-        if (by.IsAdmin(PlayerId))
+        if (!onAnAdmin && by.IsAdmin(PlayerId))
         {
             throw new DomainException("That cat is an admin. Admins are changed in the server's settings, not moderated.");
         }

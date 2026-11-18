@@ -15,7 +15,6 @@ internal sealed class PlayerModerationConfiguration : IEntityTypeConfiguration<P
         builder.Property(m => m.PlayerId).ValueGeneratedNever();
         builder.Property(m => m.BanReason).HasMaxLength(PlayerModeration.MaxReasonLength);
         builder.Property(m => m.MuteReason).HasMaxLength(PlayerModeration.MaxReasonLength);
-        builder.Property(m => m.Warning).HasMaxLength(PlayerModeration.MaxReasonLength);
         // A concurrency token: a change decided on what it read is refused, and decided again, when another landed
         // meanwhile.
         builder.Property(m => m.Version).IsConcurrencyToken();

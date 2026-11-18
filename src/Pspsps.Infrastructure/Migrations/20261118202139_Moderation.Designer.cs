@@ -12,7 +12,7 @@ using Pspsps.Infrastructure.Persistence;
 namespace Pspsps.Infrastructure.Migrations
 {
     [DbContext(typeof(PspspsDbContext))]
-    [Migration("20261118182837_Moderation")]
+    [Migration("20261118202139_Moderation")]
     partial class Moderation
     {
         /// <inheritdoc />
@@ -202,10 +202,9 @@ namespace Pspsps.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("version");
 
-                    b.Property<string>("Warning")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("warning");
+                    b.Property<DateTimeOffset?>("WarningsSeenUntil")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("warnings_seen_until");
 
                     b.HasKey("PlayerId")
                         .HasName("pk_player_moderation");

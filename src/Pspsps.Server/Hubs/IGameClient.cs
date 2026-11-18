@@ -66,6 +66,6 @@ public interface IGameClient
     /// <summary>An admin muted the player (<paramref name="mute"/>: why, until when), or lifted it (null): chat is off until then.</summary>
     Task Muted(SanctionView? mute);
 
-    /// <summary>An admin warned the player: the tab fetches the warning (TakeWarning), which shows it once.</summary>
+    /// <summary>An admin warned the player: the tab fetches its warnings (GetWarnings) and shows each until it's closed.</summary>
     Task Warned();
 }
