@@ -1283,6 +1283,23 @@ public sealed class GameHubTests
             Arg.Is<IReadOnlyList<ChatLine>>(chat => chat.Count == 0), false, false, Arg.Any<CancellationToken>());
     }
 
+    [Test]
+    public async Task Report_WhenWhoIsInTheRoomCantBeRead_StillFilesTheRoomsChat()
+    {
+        _room.RecentChat().Returns([new ChatView(Felix, "meanie", DateTimeOffset.UnixEpoch)]);
+        _room.CatsHere().ThrowsAsync(new TimeoutException());
+        _reports.FileAsync(default, default, default, default, default!, default!, default!, default, default, default)
+            .ReturnsForAnyArgs(new ReportOutcome(false, []));
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+
+        await hub.Report(Felix, "MeanChat", null, alsoMute: false);
+
+        await _reports.Received(1).FileAsync(
+            Tom.Id, Felix, ReportReason.MeanChat, null, "tabby", "tabby/town-square",
+            Arg.Is<IReadOnlyList<ChatLine>>(chat => chat.Count == 1), false, false, Arg.Any<CancellationToken>());
+    }
+
     [TestCase("Rude")]
     [TestCase("1")]
     [TestCase("MeanChat, Spam")]

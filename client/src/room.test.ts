@@ -149,3 +149,21 @@ describe("Room with muted cats", () => {
     expect(room.chat.map((l) => l.text)).toEqual(["hello", "sorry"]);
   });
 });
+
+describe("Room's snapshot with muted cats", () => {
+  it("keeps no muted cat's lines in the snapshot either, as it arrived or once muted", () => {
+    const muted = new Set(["felix"]);
+    const history = [
+      { playerId: "felix", text: "hi", at: "1" },
+      { playerId: "tom", text: "hello", at: "2" },
+      { playerId: "garfield", text: "hey", at: "3" },
+    ];
+    const room = new Room({ ...snapshot([tom, felix]), chat: history }, (id) => muted.has(id));
+
+    expect(room.snapshot.chat.map((l) => l.text)).toEqual(["hello", "hey"]);
+
+    muted.add("garfield");
+    room.hush("garfield");
+    expect(room.snapshot.chat.map((l) => l.text)).toEqual(["hello"]);
+  });
+});
