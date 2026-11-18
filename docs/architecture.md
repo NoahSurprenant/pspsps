@@ -184,9 +184,12 @@ an inappropriate name, spam, something else) and an optional note (at most 300 c
 cat too ("Also mute them", in the same save). The server keeps who reported whom (and the reported cat's name then),
 the world and room the reporter was in, when, and the room's last chat lines (`ReportedLine`, at most 20, each with its
 speaker's ID and name and when it was said), read from the room's grain (`IRoomGrain.RecentChat`): never what the
-browser says was said. The Domain refuses reporting yourself, more than 10 reports in an hour, and a second open report
-of the same cat within the hour. Every report starts `Open`, for the moderation tools to review; nothing in the game
-shows reports. Guests mute and report like everyone.
+browser says was said. The lines are kept only when the reported cat is in that room or said one of them: a cat
+reported from a card opened elsewhere (the friends list) is reported without strangers' chat. The Domain refuses reporting
+yourself, more than 10 reports in an hour, and a second open report of the same cat within the hour; a player with every
+mute used still reports, unmuted. Every report starts `Open`, for the moderation tools to review; nothing in the game
+shows reports. Reports have no foreign keys to the players, so deleting either player leaves the report for review.
+Guests mute and report like everyone.
 
 ## Layers (Clean Architecture)
 
