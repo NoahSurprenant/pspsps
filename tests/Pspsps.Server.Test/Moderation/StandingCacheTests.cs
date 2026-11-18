@@ -85,13 +85,14 @@ public sealed class StandingCacheTests
     [Test]
     public async Task AMuteRead_IsTheChatRule_UntilItsTime()
     {
-        var mute = new Sanction("Rude", _time.GetUtcNow(), _time.GetUtcNow().AddMinutes(1), Guid.NewGuid());
+        var mute = new Sanction("Rude", _time.GetUtcNow(), _time.GetUtcNow().AddSeconds(2), Guid.NewGuid());
         _moderation.StandingAsync(Felix, Arg.Any<CancellationToken>()).Returns(new Standing(null, mute));
 
         var refused = Assert.ThrowsAsync<DomainException>(() => _cache.EnsureMayChatAsync(Felix, default));
         Assert.That(refused!.Message, Is.EqualTo(mute.SaysMuted()));
 
-        _time.Advance(TimeSpan.FromMinutes(1));
+        // Over at its time, before the read is due again.
+        _time.Advance(TimeSpan.FromSeconds(2));
         await _cache.EnsureMayChatAsync(Felix, default);
         await _moderation.Received(1).StandingAsync(Felix, Arg.Any<CancellationToken>());
     }
