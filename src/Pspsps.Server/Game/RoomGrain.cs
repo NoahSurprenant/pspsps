@@ -248,6 +248,14 @@ internal sealed class RoomGrain(
         return Task.FromResult(here);
     }
 
+    public Task<IReadOnlyList<ChatView>> RecentChat()
+    {
+        IReadOnlyList<ChatView> chat = [.. _state.RecentChat.Select(ChatView.From)];
+        // Asked of a room nobody is in (it came back empty, say): it goes again.
+        GoIfEmpty();
+        return Task.FromResult(chat);
+    }
+
     public async Task SendOut(IReadOnlyList<Guid> playerIds, string message)
     {
         ArgumentNullException.ThrowIfNull(playerIds);

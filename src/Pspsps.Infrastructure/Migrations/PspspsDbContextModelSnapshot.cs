@@ -164,6 +164,103 @@ namespace Pspsps.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Pspsps.Domain.Safety.Mute", b =>
+                {
+                    b.Property<Guid>("MuterId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("muter_id");
+
+                    b.Property<Guid>("MutedId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("muted_id");
+
+                    b.Property<DateTimeOffset>("MutedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("muted_at");
+
+                    b.HasKey("MuterId", "MutedId")
+                        .HasName("pk_mutes");
+
+                    b.HasIndex("MutedId")
+                        .HasDatabaseName("ix_mutes_muted_id");
+
+                    b.ToTable("mutes", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_mutes_not_self", "muter_id <> muted_id");
+                        });
+                });
+
+            modelBuilder.Entity("Pspsps.Domain.Safety.Report", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("FiledAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("filed_at");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("note");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("reason");
+
+                    b.Property<Guid>("ReportedId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reported_id");
+
+                    b.Property<string>("ReportedName")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("reported_name");
+
+                    b.Property<Guid>("ReporterId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reporter_id");
+
+                    b.Property<string>("Room")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("room");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("WorldId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("world_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_reports");
+
+                    b.HasIndex("ReportedId")
+                        .HasDatabaseName("ix_reports_reported_id");
+
+                    b.HasIndex("ReporterId", "FiledAt")
+                        .HasDatabaseName("ix_reports_reporter_id_filed_at");
+
+                    b.HasIndex("Status", "FiledAt")
+                        .HasDatabaseName("ix_reports_status_filed_at");
+
+                    b.ToTable("reports", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_reports_not_self", "reporter_id <> reported_id");
+                        });
+                });
+
             modelBuilder.Entity("Pspsps.Domain.Friends.Friendship", b =>
                 {
                     b.HasOne("Pspsps.Domain.Players.Player", null)
@@ -304,6 +401,67 @@ namespace Pspsps.Infrastructure.Migrations
                     b.Navigation("Items");
 
                     b.Navigation("Logins");
+                });
+
+            modelBuilder.Entity("Pspsps.Domain.Safety.Mute", b =>
+                {
+                    b.HasOne("Pspsps.Domain.Players.Player", null)
+                        .WithMany()
+                        .HasForeignKey("MutedId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_mutes_players_muted_id");
+
+                    b.HasOne("Pspsps.Domain.Players.Player", null)
+                        .WithMany()
+                        .HasForeignKey("MuterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_mutes_players_muter_id");
+                });
+
+            modelBuilder.Entity("Pspsps.Domain.Safety.Report", b =>
+                {
+                    b.OwnsMany("Pspsps.Domain.Safety.ReportedLine", "Context", b1 =>
+                        {
+                            b1.Property<Guid>("ReportId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("report_id");
+
+                            b1.Property<int>("Position")
+                                .HasColumnType("integer")
+                                .HasColumnName("position");
+
+                            b1.Property<DateTimeOffset>("At")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("at");
+
+                            b1.Property<string>("DisplayName")
+                                .IsRequired()
+                                .HasMaxLength(20)
+                                .HasColumnType("character varying(20)")
+                                .HasColumnName("display_name");
+
+                            b1.Property<Guid>("PlayerId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("player_id");
+
+                            b1.Property<string>("Text")
+                                .IsRequired()
+                                .HasColumnType("text")
+                                .HasColumnName("text");
+
+                            b1.HasKey("ReportId", "Position")
+                                .HasName("pk_report_lines");
+
+                            b1.ToTable("report_lines", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("ReportId")
+                                .HasConstraintName("fk_report_lines_reports_report_id");
+                        });
+
+                    b.Navigation("Context");
                 });
 #pragma warning restore 612, 618
         }

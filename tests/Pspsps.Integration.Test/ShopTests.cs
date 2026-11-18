@@ -48,20 +48,22 @@ public sealed class ShopTests
     public async Task Wear_AndTakeOff_AreSaved_AndTheProfileSaysWhatTheCatWears()
     {
         var guest = await Game.Get<IPlayerService>().CreateGuestAsync(CancellationToken.None);
+        // A patterned coat the guest wasn't born with: a guest's fur is random, and it can't buy the one it has.
+        var (fur, furId) = guest.FurColor == FurColor.Tuxedo ? (FurColor.Calico, "fur-calico") : (FurColor.Tuxedo, "fur-tuxedo");
         await GiveCoinsAsync(guest.Id, 500);
         await Shop.BuyAsync(guest.Id, RoomCatalog.ShopId, "top-hat", CancellationToken.None);
         await Shop.BuyAsync(guest.Id, RoomCatalog.ShopId, "green-collar", CancellationToken.None);
-        await Shop.BuyAsync(guest.Id, RoomCatalog.ShopId, "fur-tuxedo", CancellationToken.None);
+        await Shop.BuyAsync(guest.Id, RoomCatalog.ShopId, furId, CancellationToken.None);
 
         await Shop.WearAsync(guest.Id, "top-hat", CancellationToken.None);
         await Shop.WearAsync(guest.Id, "green-collar", CancellationToken.None);
-        await Shop.WearAsync(guest.Id, "fur-tuxedo", CancellationToken.None);
+        await Shop.WearAsync(guest.Id, furId, CancellationToken.None);
         await Shop.TakeOffAsync(guest.Id, "green-collar", CancellationToken.None);
         var profile = await Game.Get<IPlayerService>().FindAsync(guest.Id, CancellationToken.None);
 
         Assert.That(profile, Is.EqualTo(guest with
         {
-            Coins = 500 - 250 - 20 - 150, FurColor = FurColor.Tuxedo, Hat = "top-hat", Collar = null, OutfitVersion = 4,
+            Coins = 500 - 250 - 20 - 150, FurColor = fur, Hat = "top-hat", Collar = null, OutfitVersion = 4,
         }));
     }
 

@@ -1,9 +1,10 @@
 import { HubConnectionBuilder, HubConnectionState, LogLevel, type HubConnection } from "@microsoft/signalr";
 import type { FriendAction } from "./friends";
+import type { ReportRequest } from "./safety";
 import type { ShopAction } from "./shop";
 import type {
-  CatchView, CatView, ChatView, Emote, EmoteView, Friend, HomeView, HomeVisitors, OutfitView, Player, PlayerCard, ReelView,
-  RoomSnapshot, Shop, WorldSummary,
+  CatchView, CatView, ChatView, Emote, EmoteView, Friend, HomeView, HomeVisitors, MutedView, OutfitView, Player, PlayerCard,
+  ReelView, ReportReceipt, RoomSnapshot, Shop, WorldSummary,
 } from "./types";
 
 export interface GameEvents {
@@ -33,6 +34,8 @@ export interface GameEvents {
   homeChanged(home: HomeView): void;
   /** Our cat was sent out of <ownerId>'s home (its owner no longer lets it in): go back to Town Square. */
   sentOut(ownerId: string, message: string): void;
+  /** The player muted or unmuted someone, from this tab or another: everyone muted now. */
+  mutesChanged(mutes: MutedView[]): void;
 }
 
 export async function fetchMe(): Promise<Player | null> {
@@ -104,6 +107,7 @@ export class GameConnection {
     this.hub.on("FriendsChanged", (playerId: string) => events.friendsChanged(playerId));
     this.hub.on("HomeChanged", (home: HomeView) => events.homeChanged(home));
     this.hub.on("SentOut", (ownerId: string, message: string) => events.sentOut(ownerId, message));
+    this.hub.on("MutesChanged", (mutes: MutedView[]) => events.mutesChanged(mutes));
     this.hub.on("SessionReplaced", () => {
       void this.hub.stop().then(() => events.replaced());
     });
@@ -172,6 +176,21 @@ export class GameConnection {
 
   getFriends(): Promise<Friend[]> {
     return this.hub.invoke<Friend[]>("GetFriends");
+  }
+
+  /** The players this one has muted. */
+  getMutes(): Promise<MutedView[]> {
+    return this.hub.invoke<MutedView[]>("GetMutes");
+  }
+
+  /** Mutes (or unmutes) a cat; everyone muted after. */
+  setMuted(playerId: string, muted: boolean): Promise<MutedView[]> {
+    return this.hub.invoke<MutedView[]>(muted ? "Mute" : "Unmute", playerId);
+  }
+
+  /** Reports a cat (the server adds what was said in the room), and mutes it too with `request.alsoMute`. */
+  report(playerId: string, request: ReportRequest): Promise<ReportReceipt> {
+    return this.hub.invoke<ReportReceipt>("Report", playerId, request.reason, request.note, request.alsoMute);
   }
 
   /** Goes to the friend's room, in whichever world it is. */

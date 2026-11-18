@@ -5,6 +5,7 @@ using Pspsps.Application.Abstractions;
 using Pspsps.Domain.Friends;
 using Pspsps.Domain.Homes;
 using Pspsps.Domain.Players;
+using Pspsps.Domain.Safety;
 
 namespace Pspsps.Infrastructure.Persistence;
 
@@ -16,6 +17,10 @@ public sealed class PspspsDbContext(DbContextOptions<PspspsDbContext> options)
     public DbSet<Friendship> Friendships => Set<Friendship>();
 
     public DbSet<Home> Homes => Set<Home>();
+
+    public DbSet<Mute> Mutes => Set<Mute>();
+
+    public DbSet<Report> Reports => Set<Report>();
 
     /// <summary>The ASP.NET Core key ring, shared by every server pod so a sign-in cookie works on all of them.</summary>
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
@@ -61,6 +66,12 @@ public sealed class PspspsDbContext(DbContextOptions<PspspsDbContext> options)
         }
 
         Entry(home).State = EntityState.Detached;
+    }
+
+    public void Forget(Mute mute)
+    {
+        ArgumentNullException.ThrowIfNull(mute);
+        Entry(mute).State = EntityState.Detached;
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>

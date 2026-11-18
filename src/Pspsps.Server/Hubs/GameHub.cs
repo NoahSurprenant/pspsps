@@ -3,11 +3,13 @@ using Microsoft.AspNetCore.SignalR;
 using Pspsps.Application.Friends;
 using Pspsps.Application.Homes;
 using Pspsps.Application.Players;
+using Pspsps.Application.Safety;
 using Pspsps.Application.Shop;
 using Pspsps.Domain;
 using Pspsps.Domain.Friends;
 using Pspsps.Domain.Homes;
 using Pspsps.Domain.Rooms;
+using Pspsps.Domain.Safety;
 using Pspsps.Domain.Shop;
 using Pspsps.Domain.Worlds;
 using Pspsps.Server.Auth;
@@ -28,6 +30,8 @@ public sealed partial class GameHub(
     IFriendService friends,
     IShopService shop,
     IHomeService homes,
+    IMuteService mutes,
+    IReportService reports,
     SessionHeartbeat heartbeat,
     GameMetrics metrics,
     ILogger<GameHub> logger)
@@ -463,6 +467,100 @@ public sealed partial class GameHub(
     public Task<PlayerCardView> RemoveFriend(Guid playerId) =>
         ChangeFriendship(playerId, friends.UnfriendAsync, ending: true);
 
+    /// <summary>The players this one has muted, by name: the browser hides their chat. Asked for on every connect.</summary>
+    public async Task<IReadOnlyList<MutedView>> GetMutes() =>
+        Views(await mutes.ListAsync(PlayerId, Context.ConnectionAborted));
+
+    /// <summary>Mutes the cat: this player's tabs stop showing its chat. Every tab of the player is told.</summary>
+    public Task<IReadOnlyList<MutedView>> Mute(Guid playerId) =>
+        ChangeMutes(() => mutes.MuteAsync(PlayerId, playerId, Context.ConnectionAborted));
+
+    /// <summary>Unmutes the cat. Every tab of the player is told.</summary>
+    public Task<IReadOnlyList<MutedView>> Unmute(Guid playerId) =>
+        ChangeMutes(() => mutes.UnmuteAsync(PlayerId, playerId, Context.ConnectionAborted));
+
+    /// <summary>
+    /// Reports the cat, for review, with a reason (a <see cref="ReportReason"/>'s name) and an optional note; and, with
+    /// <paramref name="alsoMute"/>, mutes it too. The report keeps the last lines said in the room this tab's cat is in,
+    /// read from the room itself: nothing the browser says was said.
+    /// </summary>
+    public async Task<ReportReceipt> Report(Guid playerId, string reason, string? note, bool alsoMute)
+    {
+        // By name only: Enum.TryParse would also take numbers and lists of names.
+        if (!Enum.GetNames<ReportReason>().Contains(reason, StringComparer.Ordinal))
+        {
+            throw new HubException("Pick a reason.");
+        }
+
+        if (Here is not { RoomKey: { } key } place)
+        {
+            throw new HubException("You can only report a cat from a room.");
+        }
+
+        // What was said in the room, and whether the reported cat is in it (if not, the lines are kept only if some are its).
+        // Each read on its own: one that fails doesn't lose the other.
+        var room = grains.GetGrain<IRoomGrain>(key);
+        IReadOnlyList<ChatView> chat;
+        try
+        {
+            chat = await room.RecentChat();
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            // Filed without them rather than not at all: the reason and the note still say what happened.
+            LogReportChatNotRead(logger, e, key);
+            chat = [];
+        }
+
+        bool otherIsHere;
+        try
+        {
+            otherIsHere = (await room.CatsHere()).Contains(playerId);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            // Taken as not here: the lines are still kept if some are the reported cat's.
+            LogReportCatsNotRead(logger, e, key);
+            otherIsHere = false;
+        }
+
+        var why = Enum.Parse<ReportReason>(reason);
+        var outcome = await PlayersRule(() => reports.FileAsync(
+            PlayerId, playerId, why, note, place.WorldId, key, [.. chat.Select(l => new ChatLine(l.PlayerId, l.Text, l.At))],
+            otherIsHere, alsoMute, Context.ConnectionAborted));
+        var receipt = new ReportReceipt(outcome.Muted, Views(outcome.Mutes));
+        // Only a change: the player's tabs know the list already otherwise.
+        if (outcome.MuteAdded)
+        {
+            await TellMutes(receipt.Mutes);
+        }
+
+        return receipt;
+    }
+
+    // A change to the player's mutes; every tab of the player (this one too) is told, and hides that chat.
+    private async Task<IReadOnlyList<MutedView>> ChangeMutes(Func<Task<IReadOnlyList<MutedPlayer>>> change)
+    {
+        var after = Views(await PlayersRule(change));
+        await TellMutes(after);
+        return after;
+    }
+
+    // Saved by then: a tab that isn't told gets the list on its next connect.
+    private async Task TellMutes(IReadOnlyList<MutedView> after)
+    {
+        try
+        {
+            await Clients.User(PlayerUserIdProvider.For(PlayerId)).MutesChanged(after);
+        }
+        catch (Exception e)
+        {
+            LogMutesChangedNotSent(logger, e, PlayerId);
+        }
+    }
+
+    private static IReadOnlyList<MutedView> Views(IReadOnlyList<MutedPlayer> muted) => [.. muted.Select(MutedView.From)];
+
     /// <summary>The shop: everything in it, and the player's coins, things and what their cat wears.</summary>
     public async Task<ShopView> GetShop() =>
         ShopView.From(await PlayersRule(() => shop.GetAsync(PlayerId, Context.ConnectionAborted)));
@@ -848,6 +946,15 @@ public sealed partial class GameHub(
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't tell player {PlayerId} their friendships changed")]
     private static partial void LogFriendsChangedNotSent(ILogger logger, Exception exception, Guid playerId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't tell player {PlayerId}'s tabs their mutes changed")]
+    private static partial void LogMutesChangedNotSent(ILogger logger, Exception exception, Guid playerId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't read the chat of {RoomKey} for a report; filed without it")]
+    private static partial void LogReportChatNotRead(ILogger logger, Exception exception, string roomKey);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't read who is in {RoomKey} for a report; the reported cat is taken as not there")]
+    private static partial void LogReportCatsNotRead(ILogger logger, Exception exception, string roomKey);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't find where player {PlayerId} is; shown offline")]
     private static partial void LogLocateFailed(ILogger logger, Exception exception, Guid playerId);
