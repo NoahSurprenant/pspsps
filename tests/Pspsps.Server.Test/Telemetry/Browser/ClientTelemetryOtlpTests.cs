@@ -65,7 +65,7 @@ public sealed class ClientTelemetryOtlpTests
     public void AStack_KeepsWhatTheBrowserSends()
     {
         var stack = new string('s', 4500);
-        var clean = ClientAttributes.Clean(Attributes($"""{"exception.stacktrace":"{{stack}}","page":"{{stack}}"}"""));
+        var clean = ClientAttributes.Clean(Attributes($$"""{"exception.stacktrace":"{{stack}}","page":"{{stack}}"}"""));
 
         Assert.Multiple(() =>
         {
@@ -250,11 +250,19 @@ public sealed class ClientTelemetryOtlpTests
         var outbox = new ClientTelemetryOutbox(NullLogger<ClientTelemetryOutbox>.Instance, new ForwardFailures(TimeProvider.System));
         var good = Forwarder(collector, new ForwardFailures(TimeProvider.System));
         var calls = 0;
-        outbox.Enqueue(ClientTelemetryValidationTests.Batch(), "");
-        outbox.Enqueue(ClientTelemetryValidationTests.Batch(), "");
+        var failed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var stop = new CancellationTokenSource();
+        outbox.Enqueue(ClientTelemetryValidationTests.Batch(), "");
 
-        var pump = outbox.ForwardAsync(() => ++calls == 1 ? throw new InvalidOperationException("broken") : good, stop.Token);
+        var pump = outbox.ForwardAsync(() =>
+        {
+            if (++calls > 1)
+                return good;
+            failed.SetResult();
+            throw new InvalidOperationException("broken");
+        }, stop.Token);
+        await failed.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        outbox.Enqueue(ClientTelemetryValidationTests.Batch(), "");
         var post = await collector.NextAsync();
         await stop.CancelAsync();
 
