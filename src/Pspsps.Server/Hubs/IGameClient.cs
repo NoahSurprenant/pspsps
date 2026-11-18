@@ -56,4 +56,10 @@ public interface IGameClient
     /// Square, unless the tab has gone elsewhere meanwhile. <paramref name="message"/> says why.
     /// </summary>
     Task SentOut(Guid ownerId, string message);
+
+    /// <summary>
+    /// The player muted or unmuted someone (from any of their tabs): <paramref name="mutes"/> is everyone they have muted
+    /// now, whose chat the tab hides. Sent to every tab of the player.
+    /// </summary>
+    Task MutesChanged(IReadOnlyList<MutedView> mutes);
 }

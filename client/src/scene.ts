@@ -519,6 +519,16 @@ export class RoomScene {
     this.cats.get(playerId)?.look.say(text, performance.now());
   }
 
+  /** The player muted this cat: the line over it goes at once. */
+  hush(playerId: string): void {
+    this.cats.get(playerId)?.look.hush();
+  }
+
+  /** What the bubble over a cat says now, if anything (for the end-to-end tests). */
+  bubbleOf(playerId: string): string | undefined {
+    return this.cats.get(playerId)?.look.bubbleAt(performance.now());
+  }
+
   /**
    * Sit and sleep are poses the cat holds until it walks (asleep, with a "z z z" over it); wave raises a paw for a
    * moment; meow lifts the head with "meow!" over it.

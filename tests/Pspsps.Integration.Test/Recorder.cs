@@ -21,6 +21,7 @@ internal sealed class Recorder
         hub.On<CatchView>("CatFished", c => _events.Writer.TryWrite(("CatFished", c)));
         hub.On<OutfitView>("CatDressed", o => _events.Writer.TryWrite(("CatDressed", o)));
         hub.On<Guid>("FriendsChanged", id => _events.Writer.TryWrite(("FriendsChanged", id)));
+        hub.On<List<MutedView>>("MutesChanged", m => _events.Writer.TryWrite(("MutesChanged", m)));
     }
 
     /// <summary>Whether a matching event arrives within <paramref name="within"/>.</summary>

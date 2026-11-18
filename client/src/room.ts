@@ -15,12 +15,13 @@ export class Room {
   /** The room as it arrived, and a home's furniture as it has changed since. */
   snapshot: RoomSnapshot;
 
-  constructor(snapshot: RoomSnapshot) {
+  /** @param hides Whose chat the player has muted: their lines, the room's history among them, are never kept here. */
+  constructor(snapshot: RoomSnapshot, private readonly hides: (playerId: string) => boolean = () => false) {
     this.snapshot = snapshot;
     for (const cat of snapshot.cats) {
       this.cats.set(cat.playerId, cat);
     }
-    this.chat.push(...snapshot.chat);
+    this.chat.push(...snapshot.chat.filter((line) => !hides(line.playerId)));
   }
 
   join(cat: CatView): void {
@@ -46,11 +47,11 @@ export class Room {
 
   /**
    * Adds a line said here; false for one it already has (the snapshot may hold a line also sent live) or one from a cat
-   * that isn't in this room (a late line from the room just left).
+   * that isn't in this room (a late line from the room just left), or one from a cat the player has muted.
    */
   say(line: ChatView): boolean {
     const known = this.chat.some((l) => l.playerId === line.playerId && l.at === line.at && l.text === line.text);
-    if (known || !this.cats.has(line.playerId)) {
+    if (known || !this.cats.has(line.playerId) || this.hides(line.playerId)) {
       return false;
     }
     this.chat.push(line);
@@ -58,6 +59,12 @@ export class Room {
       this.chat.splice(0, this.chat.length - Room.chatHistory);
     }
     return true;
+  }
+
+  /** The player muted this cat: what it said is no longer kept. */
+  hush(playerId: string): void {
+    const kept = this.chat.filter((line) => line.playerId !== playerId);
+    this.chat.splice(0, this.chat.length, ...kept);
   }
 
   emote(emote: EmoteView): void {

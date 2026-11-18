@@ -4,11 +4,15 @@ import { canGoTo, friendButtons, friendStatus, sections, whereIs, type FriendAct
 import { coatOf } from "./fur";
 import { visitorChoices, type FurnitureLeft } from "./home";
 import {
+  maxNoteLength, mutedStatus, newReportDraft, reportReasons, safetyButtons, type ReportDraft, type SafetyAction,
+} from "./safety";
+import {
   catalogueSections, hasMoreToWear, wardrobeSections, wearingLine, type ShopAction, type ShopRow, type ShopSection,
 } from "./shop";
 import { pageTitle } from "./title";
 import type {
-  DoorView, Emote, FurColor, Friend, FurnitureView, HomeVisitors, Player, PlayerCard, RoomSnapshot, Shop, WorldSummary,
+  DoorView, Emote, FurColor, Friend, FurnitureView, HomeVisitors, MutedView, Player, PlayerCard, RoomSnapshot, Shop,
+  WorldSummary,
 } from "./types";
 
 /** A message for the player on a panel; an error shows in red. */
@@ -394,9 +398,13 @@ export class Overlay {
   /**
    * Another cat's player card, over the room: its name, a picture of the cat as it looks now, its fur, and where the
    * two stand, with the buttons for that (add, cancel, accept or decline, remove), and "Visit home" when <visitHome> is
-   * given (main.ts decides when). `act` runs a button's change.
+   * given (main.ts decides when). `act` runs a button's change. Under them, quieter, Mute (or Unmute, when `muted`) and
+   * Report, which `safety` runs.
    */
-  showPlayerCard(card: PlayerCard, picture: CatPicture, act: (action: FriendAction) => void, visitHome?: () => void): void {
+  showPlayerCard(
+    card: PlayerCard, picture: CatPicture, act: (action: FriendAction) => void, visitHome: (() => void) | undefined,
+    muted: boolean, safety: (action: SafetyAction) => void,
+  ): void {
     const visit = visitHome ? [button("Visit home", visitHome)] : [];
     const swatch = swatchOf(card.furColor);
     const status = friendStatus(card.friendState);
@@ -410,7 +418,53 @@ export class Overlay {
       el("div", { className: "actions" },
         ...friendButtons(card.friendState).map((b) => button(b.label, () => act(b.action), b.primary ? "primary" : "")),
         ...visit),
+      ...(muted ? [el("p", { text: mutedStatus, className: "muted-status" })] : []),
+      el("div", { className: "actions safety" },
+        ...safetyButtons(muted).map((b) => {
+          const pick = button(b.label, () => safety(b.action), "quiet");
+          pick.setAttribute("aria-label", `${b.label} ${card.displayName}`);
+          return pick;
+        })),
     );
+  }
+
+  /**
+   * The report form for another cat, over the room (from its card): a reason from the list, an optional note, and "Also
+   * mute them" (ticked to begin with). `send` takes the form as filled in; `back` goes back to the card.
+   */
+  showReport(playerId: string, name: string, send: (draft: ReportDraft) => void, back: () => void): void {
+    const draft = newReportDraft();
+    const reasons = el("fieldset", { className: "report-reasons" }, el("legend", { text: "What's wrong?" }),
+      ...reportReasons.map(({ reason, label }) => {
+        const pick = el("input");
+        pick.type = "radio";
+        pick.name = "report-reason";
+        pick.value = reason;
+        pick.addEventListener("change", () => (draft.reason = reason));
+        return choice(pick, label);
+      }));
+    const note = el("textarea", { id: "report-note" });
+    note.maxLength = maxNoteLength;
+    note.rows = 3;
+    note.addEventListener("input", () => (draft.note = note.value));
+    const noteLabel = el("label", { text: "Anything to add? (optional)" });
+    noteLabel.htmlFor = note.id;
+    const mute = el("input");
+    mute.type = "checkbox";
+    mute.checked = draft.alsoMute;
+    mute.addEventListener("change", () => (draft.alsoMute = mute.checked));
+    const form = el("form", { className: "report-form" },
+      el("p", { text: "The last things said in this room go with your report, for the people who keep the game friendly." }),
+      reasons,
+      el("div", { className: "report-note" }, noteLabel, note),
+      choice(mute, "Also mute them"),
+      el("div", { className: "actions" }, button("Send report", () => {}, "primary submit"), button("Back", back)),
+    );
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      send({ ...draft });
+    });
+    this.openDialog({ kind: "report", playerId }, "player-card report", openingHeading(`Report ${name}`), form);
   }
 
   /**
@@ -427,8 +481,10 @@ export class Overlay {
       act: (action: FriendAction, playerId: string) => void;
       goHome: () => void;
       visitHome: (playerId: string) => void;
+      unmute: (playerId: string) => void;
     },
     atHome = false,
+    muted: readonly MutedView[] = [],
   ): void {
     const { friends, received, sent } = sections(list);
     const name = (friend: Friend) => {
@@ -478,6 +534,13 @@ export class Overlay {
     if (sent.length > 0) {
       parts.push(el("h3", { text: "You asked" }), el("ul", { className: "friend-list" }, ...sent.map((friend) => row(friend,
         labelled("Cancel", `Cancel the request to ${friend.displayName}`, () => actions.act("cancel", friend.playerId))))));
+    }
+    // Whom the player has muted, to undo it: here, where people are listed, rather than another button in the room.
+    if (muted.length > 0) {
+      parts.push(el("h3", { text: "Muted" }), el("ul", { className: "friend-list muted-list" }, ...muted.map((cat) =>
+        el("li", { className: "friend" },
+          el("span", { className: "name", text: cat.displayName }),
+          labelled("Unmute", `Unmute ${cat.displayName}`, () => actions.unmute(cat.playerId))))));
     }
     this.openDialog({ kind: "friends" }, "friends", ...parts);
   }
@@ -706,6 +769,16 @@ function portrait(picture: CatPicture): HTMLElement {
   return el("figure", { className: "portrait" }, image);
 }
 
+/**
+ * A radio button or checkbox with its label, as one row big enough to tap: the box is drawn by the row (`.mark`), the
+ * input itself spread over all of it, unseen.
+ */
+function choice(input: HTMLInputElement, label: string): HTMLElement {
+  const mark = el("span", { className: input.type === "radio" ? "mark" : "mark check" });
+  mark.setAttribute("aria-hidden", "true");
+  return el("label", { className: "choice" }, input, mark, el("span", { text: label }));
+}
+
 function coinText(coins: number): string {
   return `🪙 ${coins}`;
 }
@@ -716,7 +789,7 @@ function panel(...children: Node[]): HTMLElement {
 
 function button(text: string, onClick: () => void, className = ""): HTMLButtonElement {
   const element = el("button", { text, className });
-  element.type = className === "primary" && text === "Send" ? "submit" : "button";
+  element.type = (className === "primary" && text === "Send") || className.split(" ").includes("submit") ? "submit" : "button";
   if (element.type === "button") {
     element.addEventListener("click", onClick);
   }
@@ -729,10 +802,18 @@ function noteParagraph(note: Note | undefined): HTMLElement[] {
 }
 
 /** What a dialog over the room shows: another player's card, the player's own, the friends list, or the catalogue. */
-export type OpenDialog = { kind: "card"; playerId: string } | { kind: "own-card" } | { kind: "friends" } | { kind: "catalogue" };
+export type OpenDialog =
+  | { kind: "card"; playerId: string }
+  | { kind: "report"; playerId: string }
+  | { kind: "own-card" }
+  | { kind: "friends" }
+  | { kind: "catalogue" };
 
 function sameDialog(a: OpenDialog, b: OpenDialog): boolean {
-  return a.kind === "card" ? b.kind === "card" && a.playerId === b.playerId : a.kind === b.kind;
+  if (a.kind === "card" || a.kind === "report") {
+    return b.kind === a.kind && b.playerId === a.playerId;
+  }
+  return a.kind === b.kind;
 }
 
 /**

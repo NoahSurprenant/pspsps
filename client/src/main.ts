@@ -16,7 +16,10 @@ import {
 } from "./home";
 import type { FriendAction } from "./friends";
 import { describeCat, shopMessage, showsOutfit, type ShopAction } from "./shop";
-import type { DoorView, HomeView, HomeVisitors, OutfitView, Player, PlayerCard, PropView, RoomSnapshot, Shop } from "./types";
+import { Mutes, muteMessage, reportRequest, reportSentMessage, type ReportDraft, type SafetyAction } from "./safety";
+import type {
+  DoorView, HomeView, HomeVisitors, MutedView, OutfitView, Player, PlayerCard, PropView, RoomSnapshot, Shop,
+} from "./types";
 
 const overlay = new Overlay(required<HTMLElement>("#ui"));
 overlay.onFriends = () => void openFriends();
@@ -90,6 +93,8 @@ const fishing = new FishingState((state) => overlay.setFishing(state));
 const doorWalks = new DoorWalks();
 // Room events that arrive while the next room loads, for it once its snapshot shows.
 const loading = new PendingEvents<(room: Room) => void>();
+// Whom the player has muted: their chat lines and bubbles never show here.
+const mutes = new Mutes();
 
 // Read-only: the end-to-end tests (e2e/) read the room here, since the cats and chat are drawn on a canvas.
 declare global {
@@ -112,6 +117,10 @@ declare global {
       drawnProps(): readonly PropView[];
       /** What the owner is doing while decorating their home; undefined when not decorating. */
       decorating(): Decorating | undefined;
+      /** The IDs of the players this one has muted, as this tab knows them. */
+      mutes(): string[];
+      /** What the bubble over a cat in the room says now, if anything. */
+      bubble(playerId: string): string | undefined;
     };
   }
 }
@@ -126,6 +135,8 @@ window.pspsps = {
   home: () => room?.snapshot.home ?? undefined,
   drawnProps: () => scene?.drawnProps ?? [],
   decorating: () => decorating,
+  mutes: () => mutes.list.map((muted) => muted.playerId),
+  bubble: (playerId) => scene?.bubbleOf(playerId),
 };
 
 const connection = new GameConnection({
@@ -172,7 +183,11 @@ const connection = new GameConnection({
     overlay.showReplaced(() => window.location.reload());
   },
   // The server dropped us from the room with the old connection: walk back in.
-  reconnected: () => rejoin("reconnected"),
+  reconnected: () => {
+    // Muted or unmuted elsewhere while the connection was down, maybe.
+    void loadMutes();
+    rejoin("reconnected");
+  },
   // The room no longer has our cat; we are still in the world: go back to the room.
   roomLost: () => rejoin("roomLost"),
   // The world has no room for us any more: pick another.
@@ -193,6 +208,7 @@ const connection = new GameConnection({
     sentOutOfHome = { ownerId, message };
     leaveHomeIfSentOut();
   },
+  mutesChanged: (list) => applyMutes(list),
 });
 
 /** Applies a room event to the room showing, or holds it for the one loading. */
@@ -277,7 +293,7 @@ async function reel(): Promise<void> {
 }
 
 function show(snapshot: RoomSnapshot, view: RoomScene): Room {
-  const shown = new Room(snapshot);
+  const shown = new Room(snapshot, (playerId) => mutes.has(playerId));
   room = shown;
   lastShown = snapshot;
   // Decorating is for the home it started in.
@@ -435,6 +451,8 @@ async function pickWorld(player: Player, providers?: string[], note?: Note): Pro
   const [saveWith, worlds] = await Promise.all([
     providers ?? (player.isGuest ? fetchProviders() : []),
     connection.getWorlds(),
+    // Before any room: its chat history then comes without the lines of the cats the player muted.
+    loadMutes(),
   ]);
   overlay.showWorlds(
     player,
@@ -478,7 +496,11 @@ async function openCard(playerId: string): Promise<void> {
   }
 }
 
+// The card showing (or last shown), to show again as it changes (a mute from another tab).
+let cardShown: PlayerCard | undefined;
+
 function showCard(card: PlayerCard): void {
+  cardShown = card;
   // "Visit home", unless the player is in that home already.
   const visit = canVisitFromCard(card, room?.snapshot.home?.ownerId) ? () => {
     overlay.closeDialog();
@@ -486,7 +508,82 @@ function showCard(card: PlayerCard): void {
   } : undefined;
   const outfit: Outfit = { fur: card.furColor, hat: card.hat ?? null, collar: card.collar ?? null };
   overlay.showPlayerCard(card, pictureOf(card.displayName, outfit, card.hatName, card.collarName),
-    (action) => void changeFriendship(action, card.playerId), visit);
+    (action) => void changeFriendship(action, card.playerId), visit, mutes.has(card.playerId),
+    (action) => safety(action, card));
+}
+
+/** Mute, Unmute or Report, from a cat's card. */
+function safety(action: SafetyAction, card: PlayerCard): void {
+  if (action === "report") {
+    overlay.showReport(card.playerId, card.displayName, (draft) => void sendReport(card, draft), () => showCard(card));
+  } else {
+    void setMuted(card.playerId, card.displayName, action === "mute");
+  }
+}
+
+/** The player's mutes, as the server has them now; a failure only leaves the ones known. */
+async function loadMutes(): Promise<void> {
+  try {
+    applyMutes(await connection.getMutes());
+  } catch (error) {
+    console.warn("The muted players couldn't be read", error);
+  }
+}
+
+/**
+ * The player's mutes as they are now (changed in this tab or another): what newly muted cats said goes from the room and
+ * from over them, and the card or friends list open shows it.
+ */
+function applyMutes(list: MutedView[]): void {
+  for (const playerId of mutes.set(list)) {
+    room?.hush(playerId);
+    scene?.hush(playerId);
+  }
+  const open = overlay.openDialogFor;
+  if (open?.kind === "card" && cardShown?.playerId === open.playerId) {
+    showCard(cardShown);
+  } else if (open?.kind === "friends") {
+    void openFriends(true);
+  }
+}
+
+/** Mutes or unmutes a cat, and says so. */
+async function setMuted(playerId: string, name: string, muted: boolean): Promise<void> {
+  try {
+    applyMutes(await connection.setMuted(playerId, muted));
+    overlay.toast(muteMessage(name, muted));
+  } catch (error) {
+    overlay.toast(messageOf(error));
+  }
+}
+
+// Whether a report is on its way: a second tap on Send doesn't send it twice.
+let reporting = false;
+
+/** Sends the report form as filled in (or says what it still needs), then goes back to the cat's card. */
+async function sendReport(card: PlayerCard, draft: ReportDraft): Promise<void> {
+  const request = reportRequest(draft);
+  if ("problem" in request) {
+    overlay.toast(request.problem);
+    return;
+  }
+  if (reporting) {
+    return;
+  }
+  reporting = true;
+  try {
+    const receipt = await connection.report(card.playerId, request);
+    applyMutes(receipt.mutes);
+    const open = overlay.openDialogFor;
+    if (open?.kind === "report" && open.playerId === card.playerId) {
+      showCard(card);
+    }
+    overlay.toast(reportSentMessage(card.displayName, receipt.muted));
+  } catch (error) {
+    overlay.toast(messageOf(error));
+  } finally {
+    reporting = false;
+  }
 }
 
 /**
@@ -531,7 +628,11 @@ async function openFriends(refresh = false): Promise<void> {
         overlay.closeDialog();
         visitHome(playerId);
       },
-    }, isOwnHome(home, me?.id));
+      unmute: (playerId) => {
+        const name = mutes.list.find((muted) => muted.playerId === playerId)?.displayName ?? "That cat";
+        void setMuted(playerId, name, false);
+      },
+    }, isOwnHome(home, me?.id), mutes.list);
   } catch (error) {
     overlay.toast(messageOf(error));
   }

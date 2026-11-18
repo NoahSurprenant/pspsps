@@ -1,4 +1,5 @@
 using Pspsps.Application.Homes;
+using Pspsps.Application.Safety;
 using Pspsps.Application.Shop;
 using Pspsps.Domain.Fishing;
 using Pspsps.Domain.Homes;
@@ -294,3 +295,16 @@ public sealed record FriendView(
 /// </summary>
 public sealed record FriendPlaceView(
     string WorldId, string WorldName, string RoomId, string RoomName, Guid? HomeOwnerId = null);
+
+/// <summary>A player this one has muted (their chat is hidden from this player's browser), for the list of mutes.</summary>
+public sealed record MutedView(Guid PlayerId, string DisplayName, string FurColor)
+{
+    public static MutedView From(MutedPlayer muted)
+    {
+        ArgumentNullException.ThrowIfNull(muted);
+        return new(muted.PlayerId, muted.DisplayName, muted.FurColor.ToString());
+    }
+}
+
+/// <summary>A report sent: whether the player has the cat they reported muted now, and their mutes after.</summary>
+public sealed record ReportReceipt(bool Muted, IReadOnlyList<MutedView> Mutes);

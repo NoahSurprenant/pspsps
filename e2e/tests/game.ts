@@ -125,6 +125,8 @@ declare global {
       home(): { ownerId: string; visitors: string; furniture: { id: string; itemId: string; x: number; z: number }[] } | undefined;
       drawnProps(): readonly { kind: string; x: number; z: number }[];
       decorating(): { picked?: string; selected?: string } | undefined;
+      mutes(): string[];
+      bubble(playerId: string): string | undefined;
     };
   }
 }
@@ -190,12 +192,27 @@ export async function hubGuest(baseUrl: string): Promise<{ id: string; name: str
   const cookie = response.headers.getSetCookie().find((c) => c.startsWith("pspsps="))?.split(";")[0];
   if (!cookie) throw new Error("no game cookie for the guest");
   const { id, displayName } = (await response.json()) as { id: string; displayName: string };
+  return { id, name: displayName, cookie, hub: await hubWith(baseUrl, cookie) };
+}
+
+/** A hub connection with the game cookie <cookie> ("pspsps=..."): a tab of that player, from Node. Stop it after. */
+export async function hubWith(baseUrl: string, cookie: string): Promise<HubConnection> {
   const hub = new HubConnectionBuilder()
     .withUrl(new URL("/hubs/game", baseUrl).toString(), { headers: { Cookie: cookie } })
     .configureLogging(LogLevel.Warning)
     .build();
   await hub.start();
-  return { id, name: displayName, cookie, hub };
+  return hub;
+}
+
+/**
+ * Another tab of the player signed in on <page>, from Node, which doesn't play (it enters no world, so the page's tab
+ * plays on): for changing what the player has from elsewhere, as their other tab or device would. Stop it after.
+ */
+export async function otherTab(page: Page, baseUrl: string): Promise<HubConnection> {
+  const cookie = (await page.context().cookies(baseUrl)).find((c) => c.name === "pspsps");
+  if (!cookie) throw new Error("the page has no game cookie");
+  return hubWith(baseUrl, `pspsps=${cookie.value}`);
 }
 
 /**

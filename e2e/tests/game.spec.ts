@@ -652,3 +652,109 @@ test("a cat visiting a friend's home goes back to Town Square when they stop bei
     await felix.hub.stop();
   }
 });
+
+test("a cat mutes another from its card and stops seeing its chat, while a third cat still sees it", async ({ page: tom, browser, baseURL }) => {
+  const garfield = await newPlayer(browser);
+  const felix = await hubGuest(baseURL!);
+  try {
+    await felix.hub.invoke("EnterWorld", "siamese");
+    // Off the spawn point, where Tom and Garfield arrive, so Tom can tap him.
+    await felix.hub.invoke("Move", 6, 1);
+    await enterWorld(tom, "Siamese");
+    await enterWorld(garfield.page, "Siamese");
+    const said = (page: typeof tom, id: string) => page.evaluate(
+      (playerId) => window.pspsps?.room()?.chat.filter((line) => line.playerId === playerId).map((line) => line.text) ?? [],
+      id,
+    );
+    const bubble = (page: typeof tom, id: string) => page.evaluate((playerId) => window.pspsps?.bubble(playerId), id);
+
+    // Before the mute, Tom sees what Felix says, over him and in the room.
+    await felix.hub.invoke("Say", "pspsps");
+    await expect.poll(() => said(tom, felix.id)).toEqual(["pspsps"]);
+    await expect.poll(() => bubble(tom, felix.id)).toBe("pspsps");
+
+    // Tom mutes Felix from his card: the line goes, and the card says so.
+    await clickCat(tom, felix.id);
+    const card = tom.getByRole("dialog", { name: felix.name });
+    await card.getByRole("button", { name: `Mute ${felix.name}` }).click();
+    await expect(card.getByText("Muted: you don't see what they say.")).toBeVisible();
+    await expect(card.getByRole("button", { name: `Unmute ${felix.name}` })).toBeVisible();
+    await card.getByRole("button", { name: "Close" }).click();
+    expect(await said(tom, felix.id)).toEqual([]);
+    expect(await bubble(tom, felix.id)).toBeUndefined();
+
+    // Felix speaks again: Garfield sees it, Tom doesn't (and Tom does see Garfield, who spoke after Felix).
+    await felix.hub.invoke("Say", "can you hear me");
+    await expect.poll(() => said(garfield.page, felix.id)).toContain("can you hear me");
+    await garfield.page.getByPlaceholder("Say something…").fill("I can");
+    await garfield.page.getByPlaceholder("Say something…").press("Enter");
+    const garfieldId = await garfield.page.evaluate(async () => ((await (await fetch("/api/me")).json()) as { id: string }).id);
+    await expect.poll(() => said(tom, garfieldId)).toEqual(["I can"]);
+    expect(await said(tom, felix.id)).toEqual([]);
+    expect(await bubble(tom, felix.id)).toBeUndefined();
+    // Felix's cat still shows: it's a game room.
+    expect(Object.keys(await cats(tom))).toContain(felix.id);
+
+    // A reload keeps the mute: the room's history comes back without Felix's lines.
+    await tom.reload();
+    await tom.getByRole("button", { name: /^Siamese · / }).click();
+    await expectRoom(tom, "Town Square");
+    await expect.poll(() => said(tom, garfieldId)).toEqual(["I can"]);
+    expect(await tom.evaluate(() => window.pspsps?.mutes())).toEqual([felix.id]);
+    expect(await said(tom, felix.id)).toEqual([]);
+
+    // Unmuted from the friends list's Muted section, Felix is heard again.
+    await tom.getByRole("button", { name: "Friends", exact: true }).click();
+    const list = tom.getByRole("dialog", { name: "Friends" });
+    await expect(list.getByRole("heading", { name: "Muted" })).toBeVisible();
+    await list.getByRole("button", { name: `Unmute ${felix.name}` }).click();
+    await expect(list.getByRole("heading", { name: "Muted" })).toBeHidden();
+    await list.getByRole("button", { name: "Close" }).click();
+    await felix.hub.invoke("Say", "hello again");
+    await expect.poll(() => said(tom, felix.id)).toEqual(["hello again"]);
+
+    expect(garfield.errors, "Garfield's console errors and uncaught exceptions").toEqual([]);
+  } finally {
+    await felix.hub.stop();
+    await garfield.close();
+  }
+});
+
+test("a cat reports another from its card, muting it too, and can't report it twice", async ({ page: tom, baseURL }) => {
+  const felix = await hubGuest(baseURL!);
+  try {
+    await felix.hub.invoke("EnterWorld", "siamese");
+    await felix.hub.invoke("Move", -6, 1);
+    await enterWorld(tom, "Siamese");
+    await felix.hub.invoke("Say", "your hat is silly");
+
+    await clickCat(tom, felix.id);
+    await tom.getByRole("button", { name: `Report ${felix.name}` }).click();
+    const form = tom.getByRole("dialog", { name: `Report ${felix.name}` });
+    await expect(form.getByRole("heading", { name: `Report ${felix.name}` })).toBeFocused();
+
+    // A reason is needed.
+    await form.getByRole("button", { name: "Send report" }).click();
+    await expect(form.getByText("Pick a reason.")).toBeVisible();
+
+    await form.getByRole("radio", { name: "Mean or hurtful chat" }).check();
+    await form.getByLabel("Anything to add? (optional)").fill("About my hat.");
+    await expect(form.getByRole("checkbox", { name: "Also mute them" })).toBeChecked();
+    await form.getByRole("button", { name: "Send report" }).click();
+
+    // Back on the card: sent, and Felix is muted.
+    const card = tom.getByRole("dialog", { name: felix.name });
+    await expect(card.getByText(`Thanks. Your report was sent, and ${felix.name} is muted.`)).toBeVisible();
+    await expect(card.getByRole("button", { name: `Unmute ${felix.name}` })).toBeVisible();
+    expect(await tom.evaluate(() => window.pspsps?.mutes())).toEqual([felix.id]);
+
+    // The server kept it: a second report of Felix within the hour is refused.
+    await card.getByRole("button", { name: `Report ${felix.name}` }).click();
+    await form.getByRole("radio", { name: "Spam" }).check();
+    await form.getByRole("checkbox", { name: "Also mute them" }).uncheck();
+    await form.getByRole("button", { name: "Send report" }).click();
+    await expect(form.getByText("You've reported that cat already.", { exact: false })).toBeVisible();
+  } finally {
+    await felix.hub.stop();
+  }
+});

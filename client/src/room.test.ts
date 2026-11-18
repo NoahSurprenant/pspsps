@@ -114,3 +114,38 @@ describe("a home's room", () => {
     expect(new Room({ ...snapshot([tom]), home }).furnish({ ...home, ownerId: "felix" })).toBe(false);
   });
 });
+
+describe("Room with muted cats", () => {
+  const line = (playerId: string, text: string, at: string) => ({ playerId, text, at });
+
+  it("keeps no lines of a muted cat from the room's history", () => {
+    const history = [line("felix", "hi", "1"), line("tom", "hello", "2"), line("felix", "go away", "3")];
+    const room = new Room({ ...snapshot([tom, felix]), chat: history }, (id) => id === "felix");
+
+    expect(room.chat).toEqual([line("tom", "hello", "2")]);
+  });
+
+  it("refuses a muted cat's new lines, and takes everyone else's", () => {
+    const room = new Room(snapshot([tom, felix]), (id) => id === "felix");
+
+    expect(room.say(line("felix", "hi", "1"))).toBe(false);
+    expect(room.say(line("tom", "hello", "2"))).toBe(true);
+
+    expect(room.chat.map((l) => l.text)).toEqual(["hello"]);
+  });
+
+  it("forgets what a cat said once it is muted, and keeps what it says once unmuted", () => {
+    const muted = new Set<string>();
+    const room = new Room(snapshot([tom, felix]), (id) => muted.has(id));
+    room.say(line("felix", "hi", "1"));
+    room.say(line("tom", "hello", "2"));
+
+    muted.add("felix");
+    room.hush("felix");
+    expect(room.chat.map((l) => l.text)).toEqual(["hello"]);
+
+    muted.delete("felix");
+    expect(room.say(line("felix", "sorry", "3"))).toBe(true);
+    expect(room.chat.map((l) => l.text)).toEqual(["hello", "sorry"]);
+  });
+});
