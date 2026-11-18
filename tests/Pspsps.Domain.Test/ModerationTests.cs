@@ -42,7 +42,7 @@ public sealed class ModerationTests
         var felix = PlayerModeration.For(Felix);
         var until = Now.AddHours(24);
 
-        felix.BanUntil(Moderator, "  Spamming the square  ", until, Now);
+        felix.BanFor(Moderator, "  Spamming the square  ", TimeSpan.FromHours(24), Now);
 
         var ban = felix.BanAt(Now.AddHours(23));
         Assert.That(ban, Is.EqualTo(new Sanction("Spamming the square", Now, until, Admin)));
@@ -57,7 +57,7 @@ public sealed class ModerationTests
     {
         var felix = PlayerModeration.For(Felix);
 
-        felix.BanUntil(Moderator, "Threats", until: null, Now);
+        felix.BanFor(Moderator, "Threats", length: null, Now);
 
         Assert.That(felix.BanAt(Now.AddYears(50))?.IsPermanent, Is.True);
         Assert.That(felix.BanAt(Now)!.SaysBanned(), Is.EqualTo("Your cat is banned for good. Why: Threats"));
@@ -68,7 +68,7 @@ public sealed class ModerationTests
     {
         var felix = PlayerModeration.For(Felix);
 
-        felix.MuteUntil(Moderator, "Rude in chat", Now.AddHours(1), Now);
+        felix.MuteFor(Moderator, "Rude in chat", TimeSpan.FromHours(1), Now);
 
         Assert.That(felix.MuteAt(Now.AddMinutes(59))?.Reason, Is.EqualTo("Rude in chat"));
         Assert.That(felix.MuteAt(Now.AddHours(1)), Is.Null);
@@ -77,12 +77,16 @@ public sealed class ModerationTests
     }
 
     [Test]
-    public void AMuteOrBan_EndsLaterThanNow()
+    public void AMuteOrBan_LastsOnlyAsLongAsOnOffer()
     {
         var felix = PlayerModeration.For(Felix);
 
-        Assert.Throws<DomainException>(() => felix.MuteUntil(Moderator, "Rude", Now, Now));
-        Assert.Throws<DomainException>(() => felix.BanUntil(Moderator, "Rude", Now.AddSeconds(-1), Now));
+        Assert.That(PlayerModeration.MuteLengths, Is.EqualTo(new[] { TimeSpan.FromHours(1), TimeSpan.FromHours(24), TimeSpan.FromDays(7) }));
+        Assert.That(PlayerModeration.BanLengths, Is.EqualTo(new TimeSpan?[] { TimeSpan.FromHours(24), TimeSpan.FromDays(7), null }));
+        Assert.Throws<DomainException>(() => felix.MuteFor(Moderator, "Rude", TimeSpan.FromMinutes(3), Now));
+        Assert.Throws<DomainException>(() => felix.MuteFor(Moderator, "Rude", TimeSpan.Zero, Now));
+        Assert.Throws<DomainException>(() => felix.BanFor(Moderator, "Rude", TimeSpan.FromDays(365), Now));
+        Assert.Throws<DomainException>(() => felix.BanFor(Moderator, "Rude", TimeSpan.FromHours(1), Now));
         Assert.That(felix.Entries, Is.Empty);
     }
 
@@ -90,9 +94,9 @@ public sealed class ModerationTests
     public void ANewBanOrMute_TakesThePlaceOfTheLast()
     {
         var felix = PlayerModeration.For(Felix);
-        felix.MuteUntil(Moderator, "Rude", Now.AddDays(7), Now);
+        felix.MuteFor(Moderator, "Rude", TimeSpan.FromDays(7), Now);
 
-        felix.MuteUntil(Moderator, "Rude, but sorry now", Now.AddHours(1), Now.AddMinutes(5));
+        felix.MuteFor(Moderator, "Rude, but sorry now", TimeSpan.FromHours(1), Now.AddMinutes(5));
 
         Assert.That(felix.MuteAt(Now.AddHours(2)), Is.Null, "the shorter mute is the one in force");
         Assert.That(felix.MuteAt(Now.AddMinutes(10))?.Reason, Is.EqualTo("Rude, but sorry now"));
@@ -108,8 +112,8 @@ public sealed class ModerationTests
         Assert.Multiple(() =>
         {
             Assert.Throws<DomainException>(() => felix.Warn(Moderator, reason!, Now));
-            Assert.Throws<DomainException>(() => felix.MuteUntil(Moderator, reason!, Now.AddHours(1), Now));
-            Assert.Throws<DomainException>(() => felix.BanUntil(Moderator, reason!, null, Now));
+            Assert.Throws<DomainException>(() => felix.MuteFor(Moderator, reason!, TimeSpan.FromHours(1), Now));
+            Assert.Throws<DomainException>(() => felix.BanFor(Moderator, reason!, length: null, Now));
         });
         Assert.That(felix.Entries, Is.Empty);
     }
@@ -129,9 +133,9 @@ public sealed class ModerationTests
     {
         var admin = PlayerModeration.For(Admin);
 
-        var refused = Assert.Throws<DomainException>(() => admin.BanUntil(Moderator, "Testing", null, Now));
+        var refused = Assert.Throws<DomainException>(() => admin.BanFor(Moderator, "Testing", length: null, Now));
         Assert.That(refused!.Message, Is.EqualTo("You can't moderate yourself."));
-        Assert.Throws<DomainException>(() => admin.MuteUntil(Moderator, "Testing", Now.AddHours(1), Now));
+        Assert.Throws<DomainException>(() => admin.MuteFor(Moderator, "Testing", TimeSpan.FromHours(1), Now));
         Assert.Throws<DomainException>(() => admin.Warn(Moderator, "Testing", Now));
         Assert.That(admin.BanAt(Now), Is.Null);
     }
@@ -141,7 +145,7 @@ public sealed class ModerationTests
     {
         var other = PlayerModeration.For(OtherAdmin);
 
-        var refused = Assert.Throws<DomainException>(() => other.BanUntil(Moderator, "Rogue", null, Now));
+        var refused = Assert.Throws<DomainException>(() => other.BanFor(Moderator, "Rogue", length: null, Now));
         Assert.That(refused!.Message, Does.Contain("admin"));
         Assert.That(other.BanAt(Now), Is.Null);
     }
@@ -150,21 +154,21 @@ public sealed class ModerationTests
     public void ABanFromBeforeThePlayerWasListedAsAnAdmin_CanStillBeLifted()
     {
         var felix = PlayerModeration.For(Felix);
-        felix.BanUntil(Moderator, "Spam", null, Now);
+        felix.BanFor(Moderator, "Spam", length: null, Now);
         var listedSince = Moderator.Of(Admin, new HashSet<Guid> { Admin, Felix });
 
         felix.Lift(listedSince, Now.AddMinutes(1));
 
         Assert.That(felix.BanAt(Now.AddMinutes(1)), Is.Null);
-        Assert.Throws<DomainException>(() => felix.BanUntil(listedSince, "Again", null, Now.AddMinutes(2)), "but not banned again");
+        Assert.Throws<DomainException>(() => felix.BanFor(listedSince, "Again", length: null, Now.AddMinutes(2)), "but not banned again");
     }
 
     [Test]
     public void Lift_EndsTheBanAndTheMute()
     {
         var felix = PlayerModeration.For(Felix);
-        felix.BanUntil(Moderator, "Spam", Now.AddDays(7), Now);
-        felix.MuteUntil(Moderator, "Spam", Now.AddHours(1), Now);
+        felix.BanFor(Moderator, "Spam", TimeSpan.FromDays(7), Now);
+        felix.MuteFor(Moderator, "Spam", TimeSpan.FromHours(1), Now);
 
         felix.Lift(Moderator, Now.AddMinutes(1));
 
@@ -178,8 +182,8 @@ public sealed class ModerationTests
     public void Lift_OnlyWhatIsInForce()
     {
         var felix = PlayerModeration.For(Felix);
-        felix.MuteUntil(Moderator, "Spam", Now.AddHours(1), Now);
-        felix.BanUntil(Moderator, "Spam", Now.AddDays(7), Now);
+        felix.MuteFor(Moderator, "Spam", TimeSpan.FromHours(1), Now);
+        felix.BanFor(Moderator, "Spam", TimeSpan.FromDays(7), Now);
 
         // The mute has ended by itself by now: only the ban is lifted.
         felix.Lift(Moderator, Now.AddHours(2));
@@ -192,7 +196,7 @@ public sealed class ModerationTests
     public void Lift_WithNothingInForce_IsRefused()
     {
         var felix = PlayerModeration.For(Felix);
-        felix.MuteUntil(Moderator, "Spam", Now.AddHours(1), Now);
+        felix.MuteFor(Moderator, "Spam", TimeSpan.FromHours(1), Now);
 
         var refused = Assert.Throws<DomainException>(() => felix.Lift(Moderator, Now.AddHours(1)));
         Assert.That(refused!.Message, Is.EqualTo("That cat isn't banned or muted."));
@@ -203,7 +207,7 @@ public sealed class ModerationTests
     {
         var felix = PlayerModeration.For(Felix);
         PlayerModeration.EnsureMayChat(felix.Mute, Now);
-        felix.MuteUntil(Moderator, "Rude in chat", Now.AddHours(1), Now);
+        felix.MuteFor(Moderator, "Rude in chat", TimeSpan.FromHours(1), Now);
 
         var refused = Assert.Throws<DomainException>(() => PlayerModeration.EnsureMayChat(felix.Mute, Now.AddMinutes(59)));
         Assert.That(refused!.Message, Is.EqualTo("You're muted until 18 Nov 2026 13:00 UTC. Why: Rude in chat"));
@@ -237,14 +241,14 @@ public sealed class ModerationTests
         var other = Moderator.Of(OtherAdmin, Admins);
 
         felix.Warn(Moderator, "Be nice", Now);
-        felix.MuteUntil(other, "Not nice", Now.AddHours(1), Now.AddMinutes(1));
-        felix.BanUntil(Moderator, "Still not nice", null, Now.AddMinutes(2));
+        felix.MuteFor(other, "Not nice", TimeSpan.FromHours(1), Now.AddMinutes(1));
+        felix.BanFor(Moderator, "Still not nice", length: null, Now.AddMinutes(2));
         felix.Lift(other, Now.AddMinutes(3));
 
         Assert.That(felix.Entries.Select(e => (e.PlayerId, e.Kind, e.ByPlayerId, e.At, e.Reason, e.Until)), Is.EqualTo(new[]
         {
             (Felix, ModerationKind.Warned, Admin, Now, (string?)"Be nice", (DateTimeOffset?)null),
-            (Felix, ModerationKind.Muted, OtherAdmin, Now.AddMinutes(1), "Not nice", Now.AddHours(1)),
+            (Felix, ModerationKind.Muted, OtherAdmin, Now.AddMinutes(1), "Not nice", Now.AddMinutes(61)),
             (Felix, ModerationKind.Banned, Admin, Now.AddMinutes(2), "Still not nice", null),
             (Felix, ModerationKind.BanLifted, OtherAdmin, Now.AddMinutes(3), null, null),
             (Felix, ModerationKind.MuteLifted, OtherAdmin, Now.AddMinutes(3), null, null),

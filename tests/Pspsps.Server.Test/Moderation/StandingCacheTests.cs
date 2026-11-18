@@ -46,9 +46,20 @@ public sealed class StandingCacheTests
     {
         Assert.That(await _cache.BanOfAsync(Felix, default), Is.Null);
         var ban = new Sanction("Spam", _time.GetUtcNow(), null, Guid.NewGuid());
-        _moderation.StandingAsync(Felix, Arg.Any<CancellationToken>()).Returns(new Standing(ban, null));
 
-        _cache.Forget(Felix);
+        _cache.Know(Felix, new Standing(ban, null));
+
+        Assert.That(await _cache.BanOfAsync(Felix, default), Is.EqualTo(ban));
+        await _moderation.Received(1).StandingAsync(Felix, Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task AChangeOnThisPod_HoldsWhenTheDatabaseCantAnswer()
+    {
+        var ban = new Sanction("Spam", _time.GetUtcNow(), null, Guid.NewGuid());
+        _cache.Know(Felix, new Standing(ban, null));
+        _moderation.StandingAsync(default, default).ReturnsForAnyArgs(Task.FromException<Standing>(new TimeoutException()));
+        _time.Advance(StandingCache.KeepFor);
 
         Assert.That(await _cache.BanOfAsync(Felix, default), Is.EqualTo(ban));
     }
@@ -73,7 +84,7 @@ public sealed class StandingCacheTests
         var slow = new TaskCompletionSource<Standing>();
         _moderation.StandingAsync(tom, Arg.Any<CancellationToken>()).Returns(slow.Task);
         var reading = _cache.BanOfAsync(tom, default);
-        _cache.Forget(Felix);
+        _cache.Know(Felix, Standing.None);
         slow.SetResult(Standing.None);
         await reading;
 
@@ -118,11 +129,10 @@ public sealed class StandingCacheTests
         _moderation.StandingAsync(Felix, Arg.Any<CancellationToken>()).Returns(slow.Task);
         var reading = _cache.BanOfAsync(Felix, default);
         var ban = new Sanction("Spam", _time.GetUtcNow(), null, Guid.NewGuid());
-        _cache.Forget(Felix);
+        _cache.Know(Felix, new Standing(ban, null));
         slow.SetResult(Standing.None);
         await reading;
 
-        _moderation.StandingAsync(Felix, Arg.Any<CancellationToken>()).Returns(new Standing(ban, null));
-        Assert.That(await _cache.BanOfAsync(Felix, default), Is.EqualTo(ban));
+        Assert.That(await _cache.BanOfAsync(Felix, default), Is.EqualTo(ban), "the change, not the older read");
     }
 }
