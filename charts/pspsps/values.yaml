@@ -61,6 +61,13 @@ chatFilter:
   # src/Pspsps.Server/chat-filter/chat-filter.json. Takes the place of lists.
   existingConfigMap: ""
 
+# The game's admins, by player ID: they warn, mute and ban players, from a player's card in the game and from /admin.
+# A player finds their own ID on their card (a tap on their own cat, then Details) or on /admin. This list is the only
+# way to become an admin; guests can be admins too. Empty: nobody is.
+moderation:
+  adminPlayerIds: []
+  #  - 0196d5a8-6b1e-7c3a-9f00-1234567890ab
+
 extraEnv: []
 
 server:

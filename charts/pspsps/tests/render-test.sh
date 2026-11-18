@@ -155,6 +155,15 @@ for case in "pspsps-chat-filter:${lists[*]}" "my-words:--set chatFilter.existing
   if [[ "$name" == my-words && "$configmaps" -ne 0 ]]; then fail "existingConfigMap still renders a ConfigMap"; fi
 done
 
+# Admins: none by default; each player ID in moderation.adminPlayerIds becomes Moderation__AdminPlayerIds__<n>.
+if grep -q "Moderation__AdminPlayerIds" <<< "$(server)"; then fail "admins render with moderation.adminPlayerIds empty"; fi
+admins=(--set "moderation.adminPlayerIds[0]=0196d5a8-6b1e-7c3a-9f00-1234567890ab"
+  --set "moderation.adminPlayerIds[1]=0196d5a8-6b1e-7c3a-9f00-0000000000cd")
+[[ "$(env_value "$(server "${admins[@]}")" Moderation__AdminPlayerIds__0)" == 0196d5a8-6b1e-7c3a-9f00-1234567890ab ]] \
+  || fail "Moderation__AdminPlayerIds__0 doesn't follow moderation.adminPlayerIds[0]"
+[[ "$(env_value "$(server "${admins[@]}")" Moderation__AdminPlayerIds__1)" == 0196d5a8-6b1e-7c3a-9f00-0000000000cd ]] \
+  || fail "Moderation__AdminPlayerIds__1 doesn't follow moderation.adminPlayerIds[1]"
+
 if (( failures > 0 )); then
   exit 1
 fi

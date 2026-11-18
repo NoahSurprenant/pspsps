@@ -1,10 +1,13 @@
+using Pspsps.Domain.Moderation;
+
 namespace Pspsps.Domain.Safety;
 
 /// <summary>
 /// One player's report of another, for the moderation tools to review: why (<see cref="Reason"/>, and an optional
 /// <see cref="Note"/>), where the reporter was (<see cref="WorldId"/>, <see cref="Room"/>), when, the reported player's
 /// name then, and the room's last chat lines (<see cref="Context"/>) as the server had them: never what the reporter's
-/// browser says was said. An aggregate of its own; it starts <see cref="ReportStatus.Open"/>.
+/// browser says was said. An aggregate of its own; it starts <see cref="ReportStatus.Open"/>, until an admin decides it: dismissed, or
+/// closed with what was done to the reported player (<see cref="Dismiss"/>, <see cref="CloseWith"/>).
 /// </summary>
 public sealed class Report
 {
@@ -71,8 +74,49 @@ public sealed class Report
 
     public ReportStatus Status { get; private set; }
 
+    /// <summary>What the admin who closed it decided; null while it is open.</summary>
+    public ReportDecision? Decision { get; private set; }
+
+    /// <summary>The admin who closed it.</summary>
+    public Guid? ClosedBy { get; private set; }
+
+    public DateTimeOffset? ClosedAt { get; private set; }
+
     /// <summary>The room's last chat lines when the report was filed, oldest first.</summary>
     public IReadOnlyList<ReportedLine> Context => _context.AsReadOnly();
+
+    /// <summary>An admin dismisses the report: nothing to do.</summary>
+    public void Dismiss(Moderator by, DateTimeOffset now) => Close(by, ReportDecision.Dismissed, now);
+
+    /// <summary>
+    /// An admin closes the report with what they did to the reported player (<paramref name="decision"/>: warned, muted or
+    /// banned, which the player's moderation records on its own).
+    /// </summary>
+    public void CloseWith(Moderator by, ReportDecision decision, DateTimeOffset now)
+    {
+        if (decision is not (ReportDecision.Warned or ReportDecision.Muted or ReportDecision.Banned))
+        {
+            throw new DomainException("That isn't something done to a player.");
+        }
+
+        Close(by, decision, now);
+    }
+
+    private void Close(Moderator by, ReportDecision decision, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(by);
+        if (Status != ReportStatus.Open)
+        {
+            throw new DomainException("That report was decided already.");
+        }
+
+        if (by.PlayerId == ReportedId)
+        {
+            throw new DomainException("That report is about you: another admin decides it.");
+        }
+
+        (Status, Decision, ClosedBy, ClosedAt) = (ReportStatus.Closed, decision, by.PlayerId, now);
+    }
 
     /// <summary>
     /// <paramref name="reporterId"/> reports <paramref name="reportedId"/> (called <paramref name="reportedName"/>) from

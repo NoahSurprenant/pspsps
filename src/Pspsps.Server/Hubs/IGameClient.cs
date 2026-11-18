@@ -58,6 +58,18 @@ public interface IGameClient
     Task SentOut(Guid ownerId, string message);
 
     /// <summary>
+    /// An admin banned the player: <paramref name="ban"/> says why and until when. The tab shows it and stops; the server
+    /// closes the connection shortly after, and refuses every call and connection until the ban ends.
+    /// </summary>
+    Task Banned(SanctionView ban);
+
+    /// <summary>An admin muted the player (<paramref name="mute"/>: why, until when), or lifted it (null): chat is off until then.</summary>
+    Task Muted(SanctionView? mute);
+
+    /// <summary>An admin warned the player: the tab fetches its warnings (GetWarnings) and shows each until it's closed.</summary>
+    Task Warned();
+
+    /// <summary>
     /// The player muted or unmuted someone (from any of their tabs): <paramref name="mutes"/> is everyone they have muted
     /// now, whose chat the tab hides. Sent to every tab of the player.
     /// </summary>

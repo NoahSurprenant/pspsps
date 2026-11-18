@@ -1,7 +1,9 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
+using Pspsps.Application.Moderation;
 using Pspsps.Application.Players;
 using Pspsps.Domain.Players;
+using Pspsps.Server.Game;
 
 namespace Pspsps.Server.Auth;
 
@@ -75,9 +77,11 @@ public static class AuthEndpoints
         });
 
         // Asked on every page load: not signed in is an answer (204), not an error the browser would log.
-        app.MapGet("/api/me", async (ClaimsPrincipal user, IPlayerService players, CancellationToken ct) =>
+        // With whether they are an admin, and the ban and mute they are under: a banned player is shown why, not the game.
+        app.MapGet("/api/me", async (
+            ClaimsPrincipal user, IPlayerService players, IModerationService moderation, CancellationToken ct) =>
             user.GetPlayerId() is { } id && await players.FindAsync(id, ct) is { } player
-                ? Results.Ok(player)
+                ? Results.Ok(MeView.From(player, moderation.IsAdmin(id), await moderation.StandingAsync(id, ct)))
                 : Results.NoContent());
     }
 

@@ -1,5 +1,6 @@
 import { HubConnectionBuilder, HubConnectionState, LogLevel, type HubConnection } from "@microsoft/signalr";
 import type { FriendAction } from "./friends";
+import type { ModerationRequest, Sanction, Warning } from "./moderation";
 import type { ReportRequest } from "./safety";
 import type { ShopAction } from "./shop";
 import type {
@@ -36,6 +37,16 @@ export interface GameEvents {
   sentOut(ownerId: string, message: string): void;
   /** The player muted or unmuted someone, from this tab or another: everyone muted now. */
   mutesChanged(mutes: MutedView[]): void;
+  /** An admin banned the player: this tab has stopped; show why and until when. */
+  banned(ban: Sanction): void;
+  /** An admin muted the player (why, until when), or lifted it (null). */
+  muted(mute: Sanction | null): void;
+  /** An admin left the player a warning: fetch the warnings (getWarnings) and show them. */
+  warned(): void;
+  /** The connection closed and couldn't come back (not this tab stopping it): the server may have refused it. */
+  closed(): void;
+  /** The connection dropped, and the tab is trying to come back: a banned player is refused, and is told why. */
+  reconnecting(): void;
 }
 
 export async function fetchMe(): Promise<Player | null> {
@@ -85,6 +96,8 @@ export const shopMethods: Record<ShopAction, string> = {
 /** The one realtime connection (src/Pspsps.Server/Hubs/GameHub.cs). */
 export class GameConnection {
   private readonly hub: HubConnection;
+  // Set once this tab stops the connection itself (replaced, banned): its close is no surprise.
+  private stopping = false;
 
   constructor(events: GameEvents) {
     this.hub = new HubConnectionBuilder()
@@ -109,8 +122,31 @@ export class GameConnection {
     this.hub.on("SentOut", (ownerId: string, message: string) => events.sentOut(ownerId, message));
     this.hub.on("MutesChanged", (mutes: MutedView[]) => events.mutesChanged(mutes));
     this.hub.on("SessionReplaced", () => {
+      this.stopping = true;
       void this.hub.stop().then(() => events.replaced());
     });
+    this.hub.on("Banned", (ban: Sanction) => {
+      // Shown at once, before anything else the server sends as the connection stops (the cat sent out of its room).
+      this.stopping = true;
+      events.banned(ban);
+      void this.hub.stop();
+    });
+    // Dropped: a ban decided on another pod closes the connection, and every try to come back is refused (403). The page
+    // asks why at once, rather than after every retry.
+    this.hub.onreconnecting(() => events.reconnecting());
+    this.hub.on("Muted", (mute: Sanction | null) => events.muted(mute));
+    this.hub.on("Warned", () => events.warned());
+    this.hub.onclose(() => {
+      if (!this.stopping) {
+        events.closed();
+      }
+    });
+  }
+
+  /** Stops the connection for good (the player is banned): no retries. */
+  stop(): void {
+    this.stopping = true;
+    void this.hub.stop();
   }
 
   async start(): Promise<void> {
@@ -224,6 +260,22 @@ export class GameConnection {
   /** Changes who may visit the player's home; whoever may no longer stay is sent out. */
   letIntoHome(visitors: HomeVisitors): Promise<HomeView> {
     return this.hub.invoke<HomeView>("LetIntoHome", visitors);
+  }
+
+  /** An admin's action on another cat (warn, mute, ban, lift); its card as it is after. */
+  moderate(playerId: string, request: ModerationRequest): Promise<PlayerCard> {
+    return this.hub.invoke<PlayerCard>(
+      "Moderate", playerId, request.action, request.reason || null, request.length ?? null);
+  }
+
+  /** The warnings admins left this player that they haven't seen yet, oldest first. */
+  getWarnings(): Promise<Warning[]> {
+    return this.hub.invoke<Warning[]>("GetWarnings");
+  }
+
+  /** The player closed the warning: it isn't shown again. */
+  sawWarning(id: string): Promise<void> {
+    return this.hub.invoke("SawWarning", id);
   }
 }
 

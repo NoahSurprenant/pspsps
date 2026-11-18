@@ -16,7 +16,9 @@ internal sealed class ReportConfiguration : IEntityTypeConfiguration<Report>
         builder.Property(r => r.Note).HasMaxLength(Report.MaxNoteLength);
         builder.Property(r => r.WorldId).HasMaxLength(64);
         builder.Property(r => r.Room).HasMaxLength(128);
-        builder.Property(r => r.Status).HasConversion<string>().HasMaxLength(16);
+        // A concurrency token: two admins deciding the same report at once can't both close it.
+        builder.Property(r => r.Status).HasConversion<string>().HasMaxLength(16).IsConcurrencyToken();
+        builder.Property(r => r.Decision).HasConversion<string>().HasMaxLength(16);
 
         // No foreign keys to the players: a report stays for review when either player is deleted (it keeps the reported
         // cat's name, and its lines their speakers'), and deleting a player is never held up by reports.

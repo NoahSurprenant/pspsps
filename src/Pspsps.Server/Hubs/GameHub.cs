@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Pspsps.Application.Friends;
 using Pspsps.Application.Homes;
+using Pspsps.Application.Moderation;
 using Pspsps.Application.Players;
 using Pspsps.Application.Safety;
 using Pspsps.Application.Shop;
@@ -14,6 +15,7 @@ using Pspsps.Domain.Shop;
 using Pspsps.Domain.Worlds;
 using Pspsps.Server.Auth;
 using Pspsps.Server.Game;
+using Pspsps.Server.Moderation;
 using Pspsps.Server.Telemetry;
 
 namespace Pspsps.Server.Hubs;
@@ -30,6 +32,9 @@ public sealed partial class GameHub(
     IFriendService friends,
     IShopService shop,
     IHomeService homes,
+    IModerationService moderation,
+    IModerationEffects moderationEffects,
+    StandingCache standings,
     IMuteService mutes,
     IReportService reports,
     SessionHeartbeat heartbeat,
@@ -399,6 +404,14 @@ public sealed partial class GameHub(
 
     public async Task Say(string text)
     {
+        // Muted everywhere: refused with why and until when (the browser has turned its chat off already). From this pod's
+        // read of the player's standing, as for the ban: chat doesn't read the database every line.
+        await PlayersRule(async () =>
+        {
+            await standings.EnsureMayChatAsync(PlayerId, Context.ConnectionAborted);
+            return true;
+        });
+
         var place = await InRoom(room => room.Say(PlayerId, text));
         metrics.Said(place.WorldId);
     }
@@ -467,6 +480,31 @@ public sealed partial class GameHub(
     public Task<PlayerCardView> RemoveFriend(Guid playerId) =>
         ChangeFriendship(playerId, friends.UnfriendAsync, ending: true);
 
+    /// <summary>
+    /// An admin acts on another cat, from its card: <paramref name="action"/> "warn", "mute" (<paramref name="length"/>
+    /// "1h", "24h" or "7d"), "ban" ("24h", "7d" or "permanent") or "lift", always saying why (<paramref name="reason"/>,
+    /// which the player is shown; a warning's words). Only admins (the Domain's rule). The player is told at once
+    /// (<see cref="IModerationEffects"/>); the card as it is after.
+    /// </summary>
+    public async Task<PlayerCardView> Moderate(Guid playerId, string action, string? reason, string? length)
+    {
+        var request = await PlayersRule(() => Task.FromResult(ModerationRequest.Parse(action, reason, length)));
+        // Not the connection's token: a change saved must be told, even if the admin's tab closes meanwhile.
+        var standing = await PlayersRule(() => moderation.ModerateAsync(PlayerId, playerId, request, CancellationToken.None));
+        await moderationEffects.AppliedAsync(playerId, request.Action, standing);
+        return await GetPlayerCard(playerId);
+    }
+
+    /// <summary>The warnings admins left this player that they haven't seen yet, oldest first.</summary>
+    public async Task<IReadOnlyList<WarningView>> GetWarnings() =>
+        [.. (await moderation.WarningsAsync(PlayerId, Context.ConnectionAborted)).Select(w => new WarningView(w.Id, w.Text))];
+
+    /// <summary>The player closed the warning <paramref name="warningId"/>: it isn't shown again (nor those before it).</summary>
+    public Task SawWarning(Guid warningId) => PlayersRule(async () =>
+    {
+        await moderation.SawWarningAsync(PlayerId, warningId, CancellationToken.None);
+        return true;
+    });
     /// <summary>The players this one has muted, by name: the browser hides their chat. Asked for on every connect.</summary>
     public async Task<IReadOnlyList<MutedView>> GetMutes() =>
         Views(await mutes.ListAsync(PlayerId, Context.ConnectionAborted));
@@ -788,13 +826,21 @@ public sealed partial class GameHub(
         return await CardOfAsync(relation);
     }
 
-    // The card of another cat, with whether its home would let this player in now.
+    // The card of another cat, with whether its home would let this player in now; for an admin, with its standing too.
     private async Task<PlayerCardView> CardOfAsync(PlayerRelation relation)
     {
         var open = await homes.OpenToAsync(PlayerId, [relation.PlayerId], Context.ConnectionAborted);
+        CardModerationView? standing = null;
+        if (moderation.IsAdmin(PlayerId))
+        {
+            var now = await moderation.StandingAsync(relation.PlayerId, Context.ConnectionAborted);
+            standing = new CardModerationView(
+                moderation.IsAdmin(relation.PlayerId), SanctionView.From(now.Ban), SanctionView.From(now.Mute));
+        }
+
         return new(relation.PlayerId, relation.DisplayName, relation.FurColor.ToString(), relation.State.ToString(),
             ShopCatalog.Find(relation.Hat)?.Name, ShopCatalog.Find(relation.Collar)?.Name, open.Contains(relation.PlayerId),
-            relation.Hat, relation.Collar);
+            relation.Hat, relation.Collar, standing);
     }
 
     // A use case's call: a rule it breaks (a DomainException) is the player's message.
