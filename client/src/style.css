@@ -563,6 +563,8 @@ button:disabled {
 .portrait {
   align-self: center;
   margin: 0;
+  /* A card taller than the screen scrolls: the picture keeps its size, never squashed by the card's column. */
+  flex-shrink: 0;
   width: min(8.5rem, 40vw);
   aspect-ratio: 1;
   border: 2px solid var(--ink);
