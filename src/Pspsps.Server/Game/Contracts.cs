@@ -1,10 +1,15 @@
+using System.Diagnostics.CodeAnalysis;
 using Pspsps.Application.Homes;
+using Pspsps.Application.Moderation;
+using Pspsps.Application.Players;
 using Pspsps.Application.Safety;
 using Pspsps.Application.Shop;
 using Pspsps.Domain.Fishing;
 using Pspsps.Domain.Homes;
+using Pspsps.Domain.Moderation;
 using Pspsps.Domain.Rooms;
 using Pspsps.Domain.Shop;
+using Pspsps.Domain.Worlds;
 
 namespace Pspsps.Server.Game;
 
@@ -243,11 +248,12 @@ public sealed record PlayerPlace([property: Id(0)] string WorldId, [property: Id
 /// <summary>
 /// A player card: another cat, where the player looking stands with them (FriendState: "None", "RequestSent",
 /// "RequestReceived" or "Friends"), the names of the hat and collar it wears, if any, whether its home would let the
-/// player looking in now, and the hat and collar themselves (shop item IDs), for the card's picture of the cat.
+/// player looking in now, and the hat and collar themselves (shop item IDs), for the card's picture of the cat. An admin
+/// looking also gets the cat's standing (<see cref="CardModerationView"/>); anyone else, null.
 /// </summary>
 public sealed record PlayerCardView(
     Guid PlayerId, string DisplayName, string FurColor, string FriendState, string? HatName = null, string? CollarName = null,
-    bool CanVisitHome = false, string? Hat = null, string? Collar = null);
+    bool CanVisitHome = false, string? Hat = null, string? Collar = null, CardModerationView? Moderation = null);
 
 /// <summary>Something in the shop (Kind: "Hat", "Collar" or "Fur"; a fur's colour in FurColor).</summary>
 public sealed record ShopItemView(string Id, string Name, string Kind, int Price, string? FurColor)
@@ -295,6 +301,132 @@ public sealed record FriendView(
 /// </summary>
 public sealed record FriendPlaceView(
     string WorldId, string WorldName, string RoomId, string RoomName, Guid? HomeOwnerId = null);
+
+/// <summary>
+/// A ban or mute as the browser shows it: why, and until when (null: for good). Who decided it isn't shown to the player.
+/// </summary>
+public sealed record SanctionView(string Reason, DateTimeOffset? Until)
+{
+    [return: NotNullIfNotNull(nameof(sanction))]
+    public static SanctionView? From(Sanction? sanction) => sanction is null ? null : new(sanction.Reason, sanction.Until);
+}
+
+/// <summary>
+/// The moderation part of a player card, for an admin only: whether the cat is an admin too (admins aren't moderated),
+/// and the ban and mute it is under now.
+/// </summary>
+public sealed record CardModerationView(bool IsAdmin, SanctionView? Ban, SanctionView? Mute);
+
+/// <summary>
+/// The signed-in player (/api/me): who they are, whether they are an admin, and the ban and mute they're under now (the
+/// browser shows a banned player why, and a muted one why their chat is off).
+/// </summary>
+public sealed record MeView(
+    Guid Id, string DisplayName, string FurColor, int Coins, bool IsGuest, string? Hat, string? Collar, int OutfitVersion,
+    bool IsAdmin, SanctionView? Ban, SanctionView? Mute)
+{
+    public static MeView From(PlayerProfile player, bool isAdmin, Standing standing)
+    {
+        ArgumentNullException.ThrowIfNull(player);
+        ArgumentNullException.ThrowIfNull(standing);
+        return new(player.Id, player.DisplayName, player.FurColor.ToString(), player.Coins, player.IsGuest, player.Hat,
+            player.Collar, player.OutfitVersion, isAdmin, SanctionView.From(standing.Ban), SanctionView.From(standing.Mute));
+    }
+}
+
+/// <summary>A ban or mute in force, for the admin page: why, since and until when, and which admin decided it.</summary>
+public sealed record AdminSanctionView(string Reason, DateTimeOffset Since, DateTimeOffset? Until, Guid ById, string ByName);
+
+/// <summary>A player banned or muted now, on the admin page.</summary>
+public sealed record SanctionedPlayerView(Guid PlayerId, string DisplayName, AdminSanctionView? Ban, AdminSanctionView? Mute)
+{
+    public static SanctionedPlayerView From(SanctionedPlayer player)
+    {
+        ArgumentNullException.ThrowIfNull(player);
+        return new(player.PlayerId, player.DisplayName, Of(player.Ban, player.BannedByName), Of(player.Mute, player.MutedByName));
+    }
+
+    private static AdminSanctionView? Of(Sanction? sanction, string? byName) =>
+        sanction is null ? null : new(sanction.Reason, sanction.Since, sanction.Until, sanction.By, byName ?? "");
+}
+
+/// <summary>
+/// A line of the audit trail on the admin page. Kind: "Warned", "Muted", "Banned", "MuteLifted" or "BanLifted".
+/// </summary>
+public sealed record ModerationLogView(
+    Guid PlayerId, string PlayerName, string Kind, Guid ById, string ByName, DateTimeOffset At, string? Reason,
+    DateTimeOffset? Until)
+{
+    public static ModerationLogView From(ModerationLogLine line)
+    {
+        ArgumentNullException.ThrowIfNull(line);
+        return new(line.PlayerId, line.PlayerName, line.Kind.ToString(), line.ByPlayerId, line.ByName, line.At, line.Reason,
+            line.Until);
+    }
+}
+
+/// <summary>
+/// The admin page: the open reports (oldest first), who is banned or muted now, and what admins did lately (newest
+/// first).
+/// </summary>
+public sealed record AdminOverviewView(
+    IReadOnlyList<OpenReportView> Reports, IReadOnlyList<SanctionedPlayerView> Sanctioned, IReadOnlyList<ModerationLogView> Recent)
+{
+    public static AdminOverviewView From(ModerationOverview overview)
+    {
+        ArgumentNullException.ThrowIfNull(overview);
+        return new(
+            [.. overview.Reports.Select(OpenReportView.From)],
+            [.. overview.Sanctioned.Select(SanctionedPlayerView.From)],
+            [.. overview.Recent.Select(ModerationLogView.From)]);
+    }
+}
+
+/// <summary>A line of a report's chat, as the room had it: who said it (their name then), what, and when.</summary>
+public sealed record ReportLineView(Guid PlayerId, string DisplayName, string Text, DateTimeOffset At);
+
+/// <summary>
+/// An open report on the admin page: who reported whom, why (Reason: a ReportReason's name) and the note, where (Place,
+/// to read: "Town Square, Tabby", or "A home"), when, and the room's last chat lines, oldest first.
+/// </summary>
+public sealed record OpenReportView(
+    Guid Id, Guid ReporterId, string ReporterName, Guid ReportedId, string ReportedName, string Reason, string? Note,
+    string Place, DateTimeOffset FiledAt, IReadOnlyList<ReportLineView> Context)
+{
+    public static OpenReportView From(OpenReport report)
+    {
+        ArgumentNullException.ThrowIfNull(report);
+        return new(
+            report.Id, report.ReporterId, report.ReporterName, report.ReportedId, report.ReportedName, report.Reason.ToString(),
+            report.Note, PlaceOf(report.WorldId, report.Room), report.FiledAt,
+            [.. report.Context.Select(line => new ReportLineView(line.PlayerId, line.DisplayName, line.Text, line.At))]);
+    }
+
+    /// <summary>Where a report was filed, to read: the room and the world, or a home (which is in no world).</summary>
+    public static string PlaceOf(string worldId, string room)
+    {
+        ArgumentNullException.ThrowIfNull(room);
+        var roomId = room;
+        if (room.Contains('/', StringComparison.Ordinal))
+        {
+            if (RoomKey.HomeOwner(room) is not null)
+            {
+                return "A home";
+            }
+
+            roomId = RoomKey.Parse(room).RoomId;
+        }
+
+        var roomName = RoomCatalog.Find(roomId)?.Name ?? roomId;
+        return WorldCatalog.Find(worldId) is { } world ? $"{roomName}, {world.Name}" : roomName;
+    }
+}
+
+/// <summary>An admin's action on a player, from the admin page (as the hub's Moderate takes it).</summary>
+public sealed record ModerateRequestView(string? Action, string? Reason, string? Length);
+
+/// <summary>A warning from the admins the player hasn't seen yet: its ID (to say it was seen) and its words.</summary>
+public sealed record WarningView(Guid Id, string Text);
 
 /// <summary>A player this one has muted (their chat is hidden from this player's browser), for the list of mutes.</summary>
 public sealed record MutedView(Guid PlayerId, string DisplayName, string FurColor)

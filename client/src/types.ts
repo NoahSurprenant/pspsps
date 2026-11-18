@@ -1,5 +1,7 @@
 // What the server sends (src/Pspsps.Server/Game/Contracts.cs), as JSON.
 
+import type { CardModeration, Sanction } from "./moderation";
+
 export type FurColor = "Orange" | "Black" | "White" | "Grey" | "Cream" | "Brown" | "Calico" | "Tuxedo";
 
 export interface Player {
@@ -11,6 +13,12 @@ export interface Player {
   /** The hat and collar the cat wears (shop item IDs), if any. */
   hat: string | null;
   collar: string | null;
+  /** Whether the player is an admin (listed by player ID in the server's settings; missing from an older server). */
+  isAdmin?: boolean;
+  /** The ban the player is under now, if any: the page shows why, not the game. */
+  ban?: Sanction | null;
+  /** The mute the player is under now, if any: their chat is off until then. */
+  mute?: Sanction | null;
 }
 
 export interface CatView {
@@ -205,6 +213,8 @@ export interface PlayerCard {
   /** The hat and collar it wears (shop item IDs), for its picture (missing from an older server). */
   hat?: string | null;
   collar?: string | null;
+  /** For an admin only: the cat's ban and mute, and whether it is an admin too. */
+  moderation?: CardModeration | null;
 }
 
 /** Where a friend is (Contracts.cs, FriendPlaceView). */

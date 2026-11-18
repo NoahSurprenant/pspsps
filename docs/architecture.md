@@ -187,9 +187,52 @@ speaker's ID and name and when it was said), read from the room's grain (`IRoomG
 browser says was said. The lines are kept only when the reported cat is in that room or said one of them: a cat
 reported from a card opened elsewhere (the friends list) is reported without strangers' chat. The Domain refuses reporting
 yourself, more than 10 reports in an hour, and a second open report of the same cat within the hour; a player with every
-mute used still reports, unmuted. Every report starts `Open`, for the moderation tools to review; nothing in the game
-shows reports. Reports have no foreign keys to the players, so deleting either player leaves the report for review.
+mute used still reports, unmuted. Every report starts `Open`, for the admins to decide on `/admin` (Moderation, below);
+nothing in the game shows reports. Reports have no foreign keys to the players, so deleting either player leaves the
+report for review.
 Guests mute and report like everyone.
+
+## Moderation
+
+Admins are listed by player ID in the server's settings (`Moderation:AdminPlayerIds`; the chart's
+`moderation.adminPlayerIds`), the only way to become one; a guest can be an admin. A player finds their own ID on their
+card (Details), and `/admin` shows it to anyone signed in who isn't an admin (403). The list is read again whenever the
+configuration changes.
+
+What an admin did to a player is a `PlayerModeration`, an aggregate of its own keyed by the player and made the first
+time an admin acts on them: a ban (until a time, or for good), a mute in every room (until a time), up to when the
+player has seen their warnings, and the audit trail (`ModerationEntry`: who, what, when, why, until when; a warning is
+one of its lines). Only an admin acts (a `Moderator` is made only from the admin list), never on themselves nor on
+another admin (the list changes admins; a ban or mute from before a player was listed can still be lifted), and always
+says why: the player is shown it. A ban or mute ends at its time by itself (`ModerationClock`, a `TimeProvider` tests
+move), or when an admin lifts it; a new one takes the place of the last. `Version` is a concurrency token, so two
+admins at once are decided one after the other.
+
+An admin moderates from another cat's card (Moderate, folded away: Warn, Mute for an hour, a day or a week, Ban for a
+day, a week or for good, Lift), which only admins are sent the cat's standing for, and from `/admin` (`admin.html`, a
+plain page of the client's with no 3D scene, served to admins only, reading `/api/admin/*`): the open reports, oldest
+first, each with its chat; who is banned or muted now, with Lift; and what admins did lately. The game's own bars get
+nothing new.
+
+A report is decided on `/admin`: dismissed, or the reported player warned, muted or banned (with a reason, which they
+are shown), which closes the report with that decision, who took it and when (`Report.Dismiss`, `Report.CloseWith`), in
+the same save as the player's moderation (`ModerationService.DecideReportAsync`). A report is decided once (its
+`Status` is a concurrency token, so two admins at once can't both close it), and never by the admin it is about. A
+report about a cat that no longer exists can only be dismissed.
+
+The hub refuses a banned player: their connection at the door (the hub's `not-banned` policy, a 403), and every call on
+a connection already open (`ModerationHubFilter`), with why and until when. Whether a player is banned is read from the
+database at most once every 5 seconds per player on each pod (`StandingCache`; a change made on the pod is read at
+once), since every move is a call. A ban is put into effect at once (`ModerationEffects`): the player's tabs are told
+(`Banned`), show why and until when, and stop; this pod closes their connections two seconds later; their cat is taken
+out of its room, wherever it is; and `/api/me` tells a page that loads why it can't play. Chat is refused while muted
+(`PlayerModeration.EnsureMayChat`, asked by `GameHub.Say` with the same per-pod read, so a mute or a lift decided on
+another pod takes up to 5 seconds there), and the player's tabs are told at once (`Muted`), which turns their chat box
+into why and until when. A warning is shown (at once when the tabs are told `Warned`, or on the player's next visit)
+until the player closes it, which tells the server they saw it (`SawWarning`): two warnings meanwhile both show, one
+after the other. When the database can't answer, the last read holds and a player never read plays.
+
+A banned guest who clears their cookies gets a new guest cat: stopping that is out of scope.
 
 ## Layers (Clean Architecture)
 
@@ -199,10 +242,11 @@ enforces this.
 - **Domain** (`src/Pspsps.Domain`): the game's rules, no frameworks. Aggregates in the DDD sense: `Player` owns its
   logins, coins, fur and what it has from the shop. A private constructor for EF Core, named static factories
   (`CreateGuest`, `CreateWithLogin`), private setters, collections exposed read-only, and methods that refuse invalid
-  changes with a `DomainException`. `Friendship`, `Home`, `Mute` and `Report` are other aggregates (above). Also the
-  in-memory world and room rules (`WorldPopulation`, `RoomState`, `SessionLease`) and the world and room catalogues.
+  changes with a `DomainException`. `Friendship`, `Home`, `Mute`, `Report` and `PlayerModeration` are other aggregates
+  (above). Also the in-memory world and room rules (`WorldPopulation`, `RoomState`, `SessionLease`) and the world and
+  room catalogues.
 - **Application** (`src/Pspsps.Application`): use cases (`PlayerService`, `FriendService`, `ShopService`, `MuteService`,
-  `ReportService`, `HomeService`) and the ports they need (`IApplicationDbContext`).
+  `ReportService`, `HomeService`, `ModerationService`) and the ports they need (`IApplicationDbContext`, `IAdmins`).
 - **Infrastructure** (`src/Pspsps.Infrastructure`): EF Core on PostgreSQL (snake_case names), the migrations, and the
   Data Protection key ring in the database.
 - **Server** (`src/Pspsps.Server`): the host. Sign-in endpoints, the SignalR hub, and the Orleans grains. The hub and

@@ -8,6 +8,7 @@ using Pspsps.Server;
 using Pspsps.Server.Auth;
 using Pspsps.Server.Game;
 using Pspsps.Server.Hubs;
+using Pspsps.Server.Moderation;
 using Pspsps.Server.Telemetry;
 using Pspsps.Server.Telemetry.Browser;
 using Serilog;
@@ -41,7 +42,13 @@ try
 
     builder.Services.ConfigureHttpJsonOptions(options =>
         options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
-    var signalR = builder.Services.AddSignalR(options => options.AddFilter<HubCallMetricsFilter>())
+    // Admins (by player ID, from Moderation:AdminPlayerIds), and what keeps a banned player off the hub.
+    builder.Services.AddModeration(builder.Configuration);
+    var signalR = builder.Services.AddSignalR(options =>
+        {
+            options.AddFilter<HubCallMetricsFilter>();
+            options.AddFilter<ModerationHubFilter>();
+        })
         .AddJsonProtocol(options => options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
     if (!string.IsNullOrEmpty(redis))
     {
@@ -112,6 +119,7 @@ try
     app.UseRequestTelemetry();
     // Tells the page whether to send its telemetry (a Server-Timing mark), before the files are served.
     app.UseClientTelemetryMark();
+    app.UseAdminPageGuard();
     app.UseClientFiles();
     app.UseAuthentication();
     app.UseAuthorization();
@@ -124,7 +132,8 @@ try
     app.MapHealthChecks("/readyz", new() { Predicate = check => check.Tags.Contains(HealthCheckExtensions.ReadyTag) });
     app.MapAuthEndpoints(providers);
     app.MapClientTelemetry();
-    app.MapHub<GameHub>("/hubs/game");
+    app.MapAdminEndpoints();
+    app.MapHub<GameHub>("/hubs/game").RequireAuthorization(AdminEndpoints.NotBannedPolicy);
     app.MapFallbackToFile("index.html");
 
     await app.RunAsync();

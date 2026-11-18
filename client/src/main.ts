@@ -18,6 +18,7 @@ import {
 } from "./home";
 import type { FriendAction } from "./friends";
 import { describeCat, shopMessage, showsOutfit, type ShopAction } from "./shop";
+import { Notices, doneMessage, inForce, mutedToast, type ModerationRequest, type Sanction } from "./moderation";
 import { Mutes, muteMessage, reportRequest, reportSentMessage, type ReportDraft, type SafetyAction } from "./safety";
 import type {
   DoorView, HomeView, HomeVisitors, MutedView, OutfitView, Player, PlayerCard, PropView, RoomSnapshot, Shop,
@@ -211,6 +212,8 @@ const connection = new GameConnection({
   reconnected: () => {
     // Muted or unmuted elsewhere while the connection was down, maybe.
     void loadMutes();
+    // And by an admin: a mute or lift, or a warning, sent while the connection was down never came.
+    void refreshStanding();
     rejoin("reconnected");
   },
   // The room no longer has our cat; we are still in the world: go back to the room.
@@ -228,13 +231,118 @@ const connection = new GameConnection({
   homeChanged: (home) => onRoom((here) => applyHome(home, here)),
   // The home's owner stopped letting us in: back to Town Square, in the world we came from.
   sentOut: (ownerId, message) => {
+    // Banned: the server takes the cat out of its room too; nothing to walk back to.
+    if (isBanned) {
+      return;
+    }
     overlay.toast(message);
     // Gone after whatever is loading now (the home itself, just come into): the tap that loads it would drop this.
     sentOutOfHome = { ownerId, message };
     leaveHomeIfSentOut();
   },
   mutesChanged: (list) => applyMutes(list),
+  // An admin banned the player: this tab has stopped; it says why and until when, and nothing more.
+  banned: (ban) => {
+    isBanned = true;
+    loading.cancel();
+    room = undefined;
+    overlay.showBanned(ban);
+  },
+  muted: (mute) => {
+    setChatMute(mute);
+    if (mute) {
+      overlay.toast(mutedToast(mute));
+    }
+  },
+  warned: () => void showWarning(),
+  // The connection dropped, or couldn't come back: a ban (refused at the door) shows why; anything else, as before.
+  reconnecting: () => void showBanIfBanned(),
+  closed: () => void showBanIfBanned(),
 });
+
+// Set once the player is banned in this tab: it has stopped, and does nothing more.
+let isBanned = false;
+
+/** The player's mute and warnings as the server has them now (after a dropped connection, which missed any news). */
+async function refreshStanding(): Promise<void> {
+  try {
+    const player = await fetchMe();
+    if (player?.ban) {
+      await showBanIfBanned();
+      return;
+    }
+    setChatMute(player?.mute ?? null);
+  } catch {
+    // Not answered: what the page knew stays.
+  }
+  await showWarning();
+}
+
+/** Asks the server whether the player is banned (a dropped connection may be why), and if so stops and shows why. */
+async function showBanIfBanned(): Promise<void> {
+  try {
+    const player = await fetchMe();
+    if (player?.ban && !isBanned) {
+      isBanned = true;
+      loading.cancel();
+      room = undefined;
+      connection.stop();
+      overlay.showBanned(player.ban);
+    }
+  } catch {
+    // Not answered: the connection's own retries go on.
+  }
+}
+
+// The mute the player is under (why, until when), if any: the chat box is off until it ends, by itself or lifted.
+let chatMute: Sanction | null = null;
+let unmuteTimer: number | undefined;
+
+function setChatMute(mute: Sanction | null): void {
+  window.clearTimeout(unmuteTimer);
+  unmuteTimer = undefined;
+  chatMute = inForce(mute) ? mute : null;
+  // Kept on the player too: a world picked again (after worldLost) starts from it, not from the page load's.
+  if (me) {
+    me = { ...me, mute: chatMute };
+  }
+  overlay.setChatMute(chatMute);
+  if (chatMute?.until) {
+    // A timeout of more than about 24.8 days fires at once: a long mute is checked again in a day.
+    const left = Math.min(new Date(chatMute.until).getTime() - Date.now(), 24 * 60 * 60 * 1000);
+    unmuteTimer = window.setTimeout(() => setChatMute(chatMute), left);
+  }
+}
+
+// Warnings from the admins, each shown until the player closes it; only then is the server told it was seen.
+const notices = new Notices();
+
+/** The warnings admins left the player that they haven't seen, shown over whatever shows until closed. */
+async function showWarning(): Promise<void> {
+  try {
+    for (const warning of await connection.getWarnings()) {
+      notices.show(warning);
+    }
+    showNotice();
+  } catch {
+    // Not read: they are still there, for the next time.
+  }
+}
+
+/** Shows the warning waiting, unless it shows already: again after a change of view (a room loading) closed it. */
+function showNotice(): void {
+  const warning = notices.current;
+  if (warning !== undefined && overlay.openDialogFor?.kind !== "notice") {
+    overlay.showNotice("A word from the admins", warning.text, () => {
+      const seen = notices.closed();
+      if (seen) {
+        // Not told (the connection dropped): it shows again next time, which is better than never.
+        connection.sawWarning(seen.id).catch(() => {});
+      }
+      showNotice();
+    });
+  }
+}
 
 /** Applies a room event to the room showing, or holds it for the one loading. */
 function onRoom(apply: (room: Room) => void): void {
@@ -349,6 +457,8 @@ function show(snapshot: RoomSnapshot, view: RoomScene): Room {
       ? { decorate: () => void startDecorating(), visitors: home.visitors, letIn: (visitors) => void letIn(visitors) }
       : undefined,
   );
+  overlay.setChatMute(chatMute);
+  showNotice();
   fishing.drop();
   return shown;
 }
@@ -472,6 +582,7 @@ async function pickWorld(player: Player, providers?: string[], note?: Note): Pro
   me = player;
   lastShown = undefined;
   await connection.start();
+  setChatMute(player.mute ?? null);
   // A guest can save their cat with any provider the server offers.
   const [saveWith, worlds] = await Promise.all([
     providers ?? (player.isGuest ? fetchProviders() : []),
@@ -487,6 +598,9 @@ async function pickWorld(player: Player, providers?: string[], note?: Note): Pro
     { providers: saveWith, link: (provider) => postTo(linkUrl(provider)) },
     note,
   );
+  showNotice();
+  // A warning left while the player was away: shown once, now.
+  void showWarning();
 }
 
 async function start(): Promise<void> {
@@ -496,6 +610,12 @@ async function start(): Promise<void> {
   const note = addressNote(search, player !== null);
   if (note) {
     window.history.replaceState(null, "", window.location.pathname);
+  }
+
+  // A banned player is shown why and until when, not the game (the server would refuse it anyway).
+  if (player?.ban) {
+    overlay.showBanned(player.ban);
+    return;
   }
 
   if (player) {
@@ -534,7 +654,9 @@ function showCard(card: PlayerCard): void {
   const outfit: Outfit = { fur: card.furColor, hat: card.hat ?? null, collar: card.collar ?? null };
   overlay.showPlayerCard(card, pictureOf(card.displayName, outfit, card.hatName, card.collarName),
     (action) => void changeFriendship(action, card.playerId), visit, mutes.has(card.playerId),
-    (action) => safety(action, card));
+    (action) => safety(action, card),
+    // An admin moderates from the card (the server sends its standing only to admins).
+    card.moderation ? (request) => void moderate(card.playerId, card.displayName, request) : undefined);
 }
 
 /** Mute, Unmute or Report, from a cat's card. */
@@ -682,6 +804,20 @@ async function changeFriendship(action: FriendAction, playerId: string): Promise
   }
 }
 
+/** An admin's action on another cat, from its card: the card as it is after, and what was done; or why not. */
+async function moderate(playerId: string, name: string, request: ModerationRequest): Promise<void> {
+  try {
+    const card = await connection.moderate(playerId, request);
+    const open = overlay.openDialogFor;
+    if (open?.kind === "card" && open.playerId === playerId) {
+      showCard(card);
+    }
+    overlay.toast(doneMessage(request, name));
+  } catch (error) {
+    overlay.toast(messageOf(error));
+  }
+}
+
 /**
  * Another player changed their friendship with this one: the card or list showing it is brought up to date, and a new
  * request is said.
@@ -778,7 +914,7 @@ function showShopSheet(sheet: ShopSheet, shop: Shop): void {
   }
   const outfit: Outfit = { fur: shop.furColor, hat: shop.hat, collar: shop.collar };
   const nameOf = (id: string | null) => shop.items.find((item) => item.id === id)?.name;
-  overlay.showOwnCard(me?.displayName ?? "Your cat", shop, pictureOf(me?.displayName ?? "Your cat", outfit, nameOf(shop.hat), nameOf(shop.collar)), act);
+  overlay.showOwnCard(me?.displayName ?? "Your cat", shop, pictureOf(me?.displayName ?? "Your cat", outfit, nameOf(shop.hat), nameOf(shop.collar)), act, me?.id);
 }
 
 /** Buys, puts on or takes off an item, then shows the catalogue or card open as it is after, and says what happened. */

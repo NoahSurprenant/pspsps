@@ -7,12 +7,14 @@ using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using Pspsps.Application.Friends;
 using Pspsps.Application.Homes;
+using Pspsps.Application.Moderation;
 using Pspsps.Application.Players;
 using Pspsps.Application.Safety;
 using Pspsps.Application.Shop;
 using Pspsps.Domain;
 using Pspsps.Domain.Friends;
 using Pspsps.Domain.Homes;
+using Pspsps.Domain.Moderation;
 using Pspsps.Domain.Players;
 using Pspsps.Domain.Rooms;
 using Pspsps.Domain.Safety;
@@ -20,6 +22,7 @@ using Pspsps.Domain.Shop;
 using Pspsps.Server.Auth;
 using Pspsps.Server.Game;
 using Pspsps.Server.Hubs;
+using Pspsps.Server.Moderation;
 using Pspsps.Server.Telemetry;
 
 namespace Pspsps.Server.Test.Hubs;
@@ -41,6 +44,8 @@ public sealed class GameHubTests
     private IHomeService _homes = null!;
     private IMuteService _mutes = null!;
     private IReportService _reports = null!;
+    private IModerationService _moderation = null!;
+    private IModerationEffects _effects = null!;
     private IPlayerSessionGrain _session = null!;
     private IRoomGrain _cafe = null!;
     private IHubCallerClients<IGameClient> _clients = null!;
@@ -49,7 +54,7 @@ public sealed class GameHubTests
     [SetUp]
     public void Substitutes()
     {
-        _services = new ServiceCollection().AddMetrics().BuildServiceProvider();
+        _services = new ServiceCollection().AddMetrics().AddScoped(_ => _moderation).BuildServiceProvider();
         _grains = Substitute.For<IGrainFactory>();
         _world = Substitute.For<IWorldGrain>();
         _room = Substitute.For<IRoomGrain>();
@@ -68,6 +73,9 @@ public sealed class GameHubTests
         _homes = Substitute.For<IHomeService>();
         _mutes = Substitute.For<IMuteService>();
         _reports = Substitute.For<IReportService>();
+        _moderation = Substitute.For<IModerationService>();
+        _moderation.StandingAsync(default, default).ReturnsForAnyArgs(Standing.None);
+        _effects = Substitute.For<IModerationEffects>();
         _players.FindAsync(Tom.Id, Arg.Any<CancellationToken>()).Returns(Tom);
         _heartbeat = new SessionHeartbeat(
             _grains,
@@ -1362,6 +1370,132 @@ public sealed class GameHubTests
         Assert.That(refused!.Message, Is.EqualTo("You can't report yourself."));
     }
 
+    [Test]
+    public async Task Say_WhileMuted_IsRefusedWithWhyAndUntilWhen_AndTheRoomHearsNothing()
+    {
+        var mute = new Sanction("Rude in chat", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1), Felix);
+        _moderation.StandingAsync(Tom.Id, Arg.Any<CancellationToken>()).Returns(new Standing(null, mute));
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+
+        var refused = Assert.ThrowsAsync<HubException>(() => hub.Say("hello"));
+
+        Assert.That(refused!.Message, Is.EqualTo(mute.SaysMuted()));
+        await _room.DidNotReceiveWithAnyArgs().Say(default, default!);
+    }
+
+    [Test]
+    public async Task Say_WhenNotMuted_GoesToTheRoom()
+    {
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+
+        await hub.Say("hello");
+
+        await _room.Received(1).Say(Tom.Id, "hello");
+    }
+
+    [Test]
+    public void Moderate_ByANonAdmin_IsRefused_AndNobodyIsTold()
+    {
+        _moderation.ModerateAsync(Tom.Id, Felix, Arg.Any<ModerationRequest>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new DomainException(Moderator.OnlyAdmins));
+        var hub = Hub();
+
+        var refused = Assert.ThrowsAsync<HubException>(() => hub.Moderate(Felix, "ban", "Spam", "permanent"));
+
+        Assert.That(refused!.Message, Is.EqualTo(Moderator.OnlyAdmins));
+        _effects.DidNotReceiveWithAnyArgs().AppliedAsync(default, default, default!);
+    }
+
+    [Test]
+    public void Moderate_WithAnUnknownActionOrLength_IsRefused_BeforeAnythingIsSaved()
+    {
+        var hub = Hub();
+
+        Assert.ThrowsAsync<HubException>(() => hub.Moderate(Felix, "banish", "Spam", null));
+        Assert.ThrowsAsync<HubException>(() => hub.Moderate(Felix, "mute", "Spam", "permanent"));
+        Assert.ThrowsAsync<HubException>(() => hub.Moderate(Felix, "ban", "Spam", "1h"));
+
+        _moderation.DidNotReceiveWithAnyArgs().ModerateAsync(default, default, default!, default);
+    }
+
+    [Test]
+    public async Task Moderate_ByAnAdmin_SavesTellsThePlayer_AndReturnsTheCardWithItsStanding()
+    {
+        var ban = new Sanction("Spam", DateTimeOffset.UtcNow, null, Tom.Id);
+        var after = new Standing(ban, null);
+        _moderation.IsAdmin(Tom.Id).Returns(true);
+        _moderation.ModerateAsync(Tom.Id, Felix, Arg.Any<ModerationRequest>(), Arg.Any<CancellationToken>()).Returns(after);
+        _moderation.StandingAsync(Felix, Arg.Any<CancellationToken>()).Returns(after);
+        _friends.GetAsync(Tom.Id, Felix, Arg.Any<CancellationToken>())
+            .Returns(new PlayerRelation(Felix, "Felix", FurColor.Black, FriendState.None));
+        var hub = Hub();
+
+        var card = await hub.Moderate(Felix, "ban", "Spam", "permanent");
+
+        await _moderation.Received(1).ModerateAsync(
+            Tom.Id, Felix, new ModerationRequest(ModerationAction.Ban, "Spam", null), Arg.Any<CancellationToken>());
+        await _effects.Received(1).AppliedAsync(Felix, ModerationAction.Ban, after);
+        Assert.That(card.Moderation, Is.EqualTo(new CardModerationView(false, new SanctionView("Spam", null), null)));
+    }
+
+    [Test]
+    public async Task GetPlayerCard_ShowsTheCatsStanding_OnlyToAnAdmin()
+    {
+        _friends.GetAsync(Tom.Id, Felix, Arg.Any<CancellationToken>())
+            .Returns(new PlayerRelation(Felix, "Felix", FurColor.Black, FriendState.None));
+        var until = DateTimeOffset.UtcNow.AddHours(1);
+        _moderation.StandingAsync(Felix, Arg.Any<CancellationToken>())
+            .Returns(new Standing(null, new Sanction("Rude", DateTimeOffset.UtcNow, until, Guid.NewGuid())));
+        var hub = Hub();
+
+        Assert.That((await hub.GetPlayerCard(Felix)).Moderation, Is.Null, "not an admin");
+
+        _moderation.IsAdmin(Tom.Id).Returns(true);
+        Assert.That((await hub.GetPlayerCard(Felix)).Moderation,
+            Is.EqualTo(new CardModerationView(false, null, new SanctionView("Rude", until))));
+
+        _moderation.IsAdmin(Felix).Returns(true);
+        Assert.That((await hub.GetPlayerCard(Felix)).Moderation?.IsAdmin, Is.True, "another admin: not to be moderated");
+    }
+
+    [Test]
+    public async Task Say_ReadsTheMuteFromThePodsStanding_NotTheDatabaseEveryLine()
+    {
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+
+        await hub.Say("hello");
+        await hub.Say("again");
+
+        await _moderation.Received(1).StandingAsync(Tom.Id, Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public void SawWarning_ThatCantBeSaved_SaysWhy()
+    {
+        var id = Guid.NewGuid();
+        _moderation.SawWarningAsync(Tom.Id, id, Arg.Any<CancellationToken>())
+            .ThrowsAsync(new DomainException("That changed just now. Try again."));
+        var hub = Hub();
+
+        var refused = Assert.ThrowsAsync<HubException>(() => hub.SawWarning(id));
+
+        Assert.That(refused!.Message, Is.EqualTo("That changed just now. Try again."));
+    }
+
+    [Test]
+    public async Task GetWarnings_HandsOverTheWarningsNotSeenYet()
+    {
+        var id = Guid.NewGuid();
+        _moderation.WarningsAsync(Tom.Id, Arg.Any<CancellationToken>())
+            .Returns(new List<PendingWarning> { new(id, "Be nice.", DateTimeOffset.UtcNow) });
+        var hub = Hub();
+
+        Assert.That(await hub.GetWarnings(), Is.EqualTo(new[] { new WarningView(id, "Be nice.") }));
+    }
+
     private GameHub Hub()
     {
         var context = Substitute.For<HubCallerContext>();
@@ -1370,7 +1504,10 @@ public sealed class GameHubTests
         context.Items.Returns(new ConnectionItems());
         context.ConnectionAborted.Returns(CancellationToken.None);
         var metrics = new GameMetrics(_services.GetRequiredService<IMeterFactory>());
-        return new GameHub(_grains, _players, _friends, _shop, _homes, _mutes, _reports, _heartbeat, metrics, NullLogger<GameHub>.Instance)
+        return new GameHub(
+            _grains, _players, _friends, _shop, _homes, _moderation, _effects,
+            new StandingCache(_services.GetRequiredService<IServiceScopeFactory>(), TimeProvider.System), _mutes, _reports,
+            _heartbeat, metrics, NullLogger<GameHub>.Instance)
         {
             Context = context,
             Groups = Substitute.For<IGroupManager>(),

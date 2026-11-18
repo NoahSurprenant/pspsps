@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 using Orleans.Runtime;
+using Pspsps.Application.Moderation;
 using Pspsps.Application.Players;
 using Pspsps.Infrastructure.Persistence;
 using Pspsps.Server.Auth;
@@ -52,14 +53,28 @@ public sealed class GameFactory(string connectionString) : WebApplicationFactory
                     AuthSetup.ConfigureExternal(options);
                 });
         });
+        builder.ConfigureAppConfiguration(configuration => configuration.Add(Admins));
         builder.ConfigureServices(services =>
-            services.AddKeyedSingleton<TimeProvider>(TimeProviderNames.Grains, GrainClock));
+        {
+            services.AddKeyedSingleton<TimeProvider>(TimeProviderNames.Grains, GrainClock);
+            services.AddKeyedSingleton<TimeProvider>(ModerationClock.Key, ModerationTime);
+        });
     }
 
     public FakeTimeProvider GrainClock { get; } = new(DateTimeOffset.UtcNow);
 
     /// <summary>Where the browsers' telemetry goes.</summary>
     public FakeCollector Collector { get; } = new();
+
+    /// <summary>
+    /// The clock bans and mutes are timed by: it moves only when a test moves it. On a whole second, as the database keeps
+    /// times to the microsecond: a time read back equals the one decided.
+    /// </summary>
+    public FakeTimeProvider ModerationTime { get; } =
+        new(DateTimeOffset.FromUnixTimeSeconds(DateTimeOffset.UtcNow.ToUnixTimeSeconds()));
+
+    /// <summary>The server's admins, by player ID: none until a test adds one.</summary>
+    public TestAdmins Admins { get; } = new();
 
     /// <summary>Lets a test act in the server just before it saves a change to a player.</summary>
     public BeforeSaving BeforeSaving { get; } = new();

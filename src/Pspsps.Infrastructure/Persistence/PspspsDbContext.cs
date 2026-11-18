@@ -4,6 +4,7 @@ using Npgsql;
 using Pspsps.Application.Abstractions;
 using Pspsps.Domain.Friends;
 using Pspsps.Domain.Homes;
+using Pspsps.Domain.Moderation;
 using Pspsps.Domain.Players;
 using Pspsps.Domain.Safety;
 
@@ -17,6 +18,10 @@ public sealed class PspspsDbContext(DbContextOptions<PspspsDbContext> options)
     public DbSet<Friendship> Friendships => Set<Friendship>();
 
     public DbSet<Home> Homes => Set<Home>();
+
+    public DbSet<PlayerModeration> Moderation => Set<PlayerModeration>();
+
+    public DbSet<ModerationEntry> ModerationEntries => Set<ModerationEntry>();
 
     public DbSet<Mute> Mutes => Set<Mute>();
 
@@ -68,10 +73,33 @@ public sealed class PspspsDbContext(DbContextOptions<PspspsDbContext> options)
         Entry(home).State = EntityState.Detached;
     }
 
+    public void Forget(PlayerModeration moderation)
+    {
+        ArgumentNullException.ThrowIfNull(moderation);
+        // A copy: the lines it added are in its list, and nothing else of it is loaded.
+        foreach (var entry in moderation.Entries.ToList())
+        {
+            Entry(entry).State = EntityState.Detached;
+        }
+
+        Entry(moderation).State = EntityState.Detached;
+    }
+
     public void Forget(Mute mute)
     {
         ArgumentNullException.ThrowIfNull(mute);
         Entry(mute).State = EntityState.Detached;
+    }
+
+    public void Forget(Report report)
+    {
+        ArgumentNullException.ThrowIfNull(report);
+        foreach (var line in report.Context.ToList())
+        {
+            Entry(line).State = EntityState.Detached;
+        }
+
+        Entry(report).State = EntityState.Detached;
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>

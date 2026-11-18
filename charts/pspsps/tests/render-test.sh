@@ -174,6 +174,14 @@ if server --set telemetry.browser=true > /dev/null 2>&1; then fail "browser tele
 if server --set telemetry.browser=true --set telemetry.endpoint=http://otel-collector:5555 > /dev/null 2>&1; then
   fail "browser telemetry renders with a gRPC endpoint it can't find the HTTP port of"
 fi
+# Admins: none by default; each player ID in moderation.adminPlayerIds becomes Moderation__AdminPlayerIds__<n>.
+if grep -q "Moderation__AdminPlayerIds" <<< "$(server)"; then fail "admins render with moderation.adminPlayerIds empty"; fi
+admins=(--set "moderation.adminPlayerIds[0]=0196d5a8-6b1e-7c3a-9f00-1234567890ab"
+  --set "moderation.adminPlayerIds[1]=0196d5a8-6b1e-7c3a-9f00-0000000000cd")
+[[ "$(env_value "$(server "${admins[@]}")" Moderation__AdminPlayerIds__0)" == 0196d5a8-6b1e-7c3a-9f00-1234567890ab ]] \
+  || fail "Moderation__AdminPlayerIds__0 doesn't follow moderation.adminPlayerIds[0]"
+[[ "$(env_value "$(server "${admins[@]}")" Moderation__AdminPlayerIds__1)" == 0196d5a8-6b1e-7c3a-9f00-0000000000cd ]] \
+  || fail "Moderation__AdminPlayerIds__1 doesn't follow moderation.adminPlayerIds[1]"
 
 if (( failures > 0 )); then
   exit 1
