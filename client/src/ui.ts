@@ -894,7 +894,13 @@ function moderateSection(
   section.open = before?.open ?? false;
   section.append(...standingLines(moderation).map((line) => el("p", { text: line, className: "standing" })));
   if (moderation.isAdmin) {
+    // Not warned, muted or banned; but a ban or mute from before they were listed can still be lifted.
     section.append(el("p", { text: "This cat is an admin. Admins are changed in the server's settings, not here." }));
+    if (canLift(moderation)) {
+      const lift = button("Lift", () => moderate({ action: "lift", reason: "" }), "primary");
+      lift.setAttribute("aria-label", `Lift ${name}`);
+      section.append(el("div", { className: "moderate-row" }, lift));
+    }
     return section;
   }
 

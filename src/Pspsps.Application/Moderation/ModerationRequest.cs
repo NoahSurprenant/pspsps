@@ -1,4 +1,5 @@
 using Pspsps.Domain;
+using Pspsps.Domain.Moderation;
 
 namespace Pspsps.Application.Moderation;
 
@@ -18,20 +19,18 @@ public enum ModerationAction
 public sealed record ModerationRequest(ModerationAction Action, string? Reason, TimeSpan? Length)
 {
     /// <summary>How long a mute can be, by name.</summary>
-    public static readonly IReadOnlyDictionary<string, TimeSpan> MuteLengths = new Dictionary<string, TimeSpan>
-    {
-        ["1h"] = TimeSpan.FromHours(1),
-        ["24h"] = TimeSpan.FromHours(24),
-        ["7d"] = TimeSpan.FromDays(7),
-    };
+    public static readonly IReadOnlyDictionary<string, TimeSpan> MuteLengths =
+        Named(["1h", "24h", "7d"], PlayerModeration.MuteLengths);
 
     /// <summary>How long a ban can be, by name ("permanent": for good).</summary>
-    public static readonly IReadOnlyDictionary<string, TimeSpan?> BanLengths = new Dictionary<string, TimeSpan?>
-    {
-        ["24h"] = TimeSpan.FromHours(24),
-        ["7d"] = TimeSpan.FromDays(7),
-        ["permanent"] = null,
-    };
+    public static readonly IReadOnlyDictionary<string, TimeSpan?> BanLengths =
+        Named(["24h", "7d", "permanent"], PlayerModeration.BanLengths);
+
+    // The Domain's lengths (its rule), by the names the browser sends, in the same order: one list, never two to keep in step.
+    private static Dictionary<string, T> Named<T>(string[] names, IReadOnlyList<T> lengths) =>
+        names.Length == lengths.Count
+            ? names.Zip(lengths).ToDictionary(pair => pair.First, pair => pair.Second)
+            : throw new InvalidOperationException("Every length on offer needs a name.");
 
     /// <summary>
     /// A decision on a report, from what the admin page sends: "dismiss" (null), or "warn", "mute" or "ban" the reported

@@ -44,12 +44,13 @@ internal sealed class ModerationService(
             throw new DomainException(NoSuchCat);
         }
 
-        return await ChangeAsync(playerId, create: true, moderation =>
+        // Never null: made when there is none.
+        return (await ChangeAsync(playerId, create: true, moderation =>
         {
             var now = time.GetUtcNow();
             Apply(moderation, moderator, request, now);
             return Standing.Of(moderation, now);
-        }, cancellationToken) ?? Standing.None;
+        }, cancellationToken))!;
     }
 
     public async Task<IReadOnlyList<PendingWarning>> WarningsAsync(Guid playerId, CancellationToken cancellationToken)
@@ -90,8 +91,8 @@ internal sealed class ModerationService(
         var sanctioned = await db.Moderation.AsNoTracking()
             .Where(m => (m.BanReason != null && (m.BannedUntil == null || m.BannedUntil > now))
                 || (m.MuteReason != null && m.MutedUntil > now))
-            // The latest: bans for good pile up over the years.
-            .OrderByDescending(m => m.BannedAt ?? m.MutedAt)
+            // The latest, by the sanction in force (an ended ban's time stays on the row): bans for good pile up over the years.
+            .OrderByDescending(m => m.BanReason != null && (m.BannedUntil == null || m.BannedUntil > now) ? m.BannedAt : m.MutedAt)
             .Take(SanctionedShown)
             .ToListAsync(cancellationToken);
         var recent = await db.ModerationEntries.AsNoTracking()

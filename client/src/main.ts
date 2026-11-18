@@ -187,6 +187,8 @@ const connection = new GameConnection({
   reconnected: () => {
     // Muted or unmuted elsewhere while the connection was down, maybe.
     void loadMutes();
+    // And by an admin: a mute or lift, or a warning, sent while the connection was down never came.
+    void refreshStanding();
     rejoin("reconnected");
   },
   // The room no longer has our cat; we are still in the world: go back to the room.
@@ -235,6 +237,21 @@ const connection = new GameConnection({
 
 // Set once the player is banned in this tab: it has stopped, and does nothing more.
 let isBanned = false;
+
+/** The player's mute and warnings as the server has them now (after a dropped connection, which missed any news). */
+async function refreshStanding(): Promise<void> {
+  try {
+    const player = await fetchMe();
+    if (player?.ban) {
+      await showBanIfBanned();
+      return;
+    }
+    setChatMute(player?.mute ?? null);
+  } catch {
+    // Not answered: what the page knew stays.
+  }
+  await showWarning();
+}
 
 /** Asks the server whether the player is banned (a dropped connection may be why), and if so stops and shows why. */
 async function showBanIfBanned(): Promise<void> {
