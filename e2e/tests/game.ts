@@ -1,5 +1,5 @@
 import { HubConnectionBuilder, LogLevel, type HubConnection } from "@microsoft/signalr";
-import { expect, test as base, type Browser, type Locator, type Page } from "@playwright/test";
+import { expect, test as base, type Browser, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import { PNG } from "pngjs";
 
 /** A page that fails its test on any console error or uncaught exception (the "No camera defined" kind). */
@@ -308,4 +308,48 @@ export async function focusByTab(page: Page, target: Locator): Promise<void> {
   }
   await expect(target).toBeFocused();
   await expect(target).toBeVisible();
+}
+
+/**
+ * The game's admin in CI: a guest made before the server started for the tests, whose player ID is in the server's
+ * admin list (Moderation__AdminPlayerIds__0, as production lists its admins), and its cookie (E2E_ADMIN_COOKIE,
+ * "pspsps=..."). Without one (a local run against a server with no admins) the test is skipped; in CI it must be there.
+ */
+export function adminCookie(): { name: string; value: string } {
+  const cookie = process.env.E2E_ADMIN_COOKIE;
+  if (!cookie) {
+    if (process.env.CI) throw new Error("E2E_ADMIN_COOKIE isn't set: CI starts the server with an admin");
+    test.skip(true, "no admin: set E2E_ADMIN_COOKIE to an admin's game cookie");
+    throw new Error("skipped");
+  }
+  const at = cookie.indexOf("=");
+  return { name: cookie.slice(0, at), value: cookie.slice(at + 1) };
+}
+
+/** Signs <context>'s pages in as the game's admin (adminCookie). */
+export async function signInAsAdmin(context: BrowserContext, baseUrl: string): Promise<void> {
+  await context.addCookies([{ ...adminCookie(), url: baseUrl }]);
+}
+
+/** Enters <world> as the player <page> is signed in as already (no guest made): resolves once the room shows. */
+export async function enterWorldSignedIn(page: Page, world: string): Promise<string> {
+  await page.goto("/");
+  await page.getByRole("button", { name: new RegExp(`^${world} · `) }).click();
+  await expectRoom(page, "Town Square");
+  return page.evaluate(async () => ((await (await fetch("/api/me")).json()) as { id: string }).id);
+}
+
+/**
+ * An admin's action on a player, from a page of the game signed in as the admin (the admin page's own request, which
+ * the browser marks as from this site).
+ */
+export async function moderate(
+  page: Page, playerId: string, request: { action: string; reason?: string; length?: string },
+): Promise<void> {
+  const status = await page.evaluate(async ([id, body]) => (await fetch(`/api/admin/players/${id}/moderate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  })).status, [playerId, request] as const);
+  expect(status, `moderating ${playerId}`).toBe(200);
 }

@@ -47,6 +47,10 @@ const CHECKS: Record<Screen["name"], Checks> = {
   "own-card": { parts: [".sheet"] },
   friends: { parts: [".sheet"] },
   catalogue: { parts: [".sheet"] },
+  // An admin's view of another cat's card, Moderate open: still a sheet that fits (and scrolls).
+  "admin-card": { parts: [".sheet"] },
+  // The admin page: its own page, which scrolls inside its column.
+  "admin-page": { parts: [".admin"] },
   "town-square": {
     parts: [".room-bar", ".emote-bar", ".chat-bar", ".fishing"],
     // The pond and the doors' mats, drawn: from further off (a narrow screen backs the camera away) the floor's outline

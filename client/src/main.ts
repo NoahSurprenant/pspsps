@@ -16,6 +16,7 @@ import {
 } from "./home";
 import type { FriendAction } from "./friends";
 import { describeCat, shopMessage, showsOutfit, type ShopAction } from "./shop";
+import { doneMessage, inForce, mutedToast, type ModerationRequest, type Sanction } from "./moderation";
 import type { DoorView, HomeView, HomeVisitors, OutfitView, Player, PlayerCard, PropView, RoomSnapshot, Shop } from "./types";
 
 const overlay = new Overlay(required<HTMLElement>("#ui"));
@@ -193,7 +194,55 @@ const connection = new GameConnection({
     sentOutOfHome = { ownerId, message };
     leaveHomeIfSentOut();
   },
+  // An admin banned the player: this tab has stopped; it says why and until when, and nothing more.
+  banned: (ban) => {
+    loading.cancel();
+    room = undefined;
+    overlay.showBanned(ban);
+  },
+  muted: (mute) => {
+    setMuted(mute);
+    if (mute) {
+      overlay.toast(mutedToast(mute));
+    }
+  },
+  warned: () => void showWarning(),
+  // The connection couldn't come back: a ban (refused at the door) shows why; anything else, as before.
+  closed: () => void fetchMe().then((player) => {
+    if (player?.ban) {
+      room = undefined;
+      overlay.showBanned(player.ban);
+    }
+  }).catch(() => {}),
 });
+
+// The mute the player is under (why, until when), if any: the chat box is off until it ends, by itself or lifted.
+let muted: Sanction | null = null;
+let unmuteTimer: number | undefined;
+
+function setMuted(mute: Sanction | null): void {
+  window.clearTimeout(unmuteTimer);
+  unmuteTimer = undefined;
+  muted = inForce(mute) ? mute : null;
+  overlay.setMuted(muted);
+  if (muted?.until) {
+    // A timeout of more than about 24.8 days fires at once: a long mute is checked again in a day.
+    const left = Math.min(new Date(muted.until).getTime() - Date.now(), 24 * 60 * 60 * 1000);
+    unmuteTimer = window.setTimeout(() => setMuted(muted), left);
+  }
+}
+
+/** The warning an admin left the player, if any, shown once over whatever shows. */
+async function showWarning(): Promise<void> {
+  try {
+    const warning = await connection.takeWarning();
+    if (warning) {
+      overlay.showNotice("A word from the admins", warning);
+    }
+  } catch {
+    // Not taken: it is still there, for the next time.
+  }
+}
 
 /** Applies a room event to the room showing, or holds it for the one loading. */
 function onRoom(apply: (room: Room) => void): void {
@@ -308,6 +357,7 @@ function show(snapshot: RoomSnapshot, view: RoomScene): Room {
       ? { decorate: () => void startDecorating(), visitors: home.visitors, letIn: (visitors) => void letIn(visitors) }
       : undefined,
   );
+  overlay.setMuted(muted);
   fishing.drop();
   return shown;
 }
@@ -431,6 +481,7 @@ async function pickWorld(player: Player, providers?: string[], note?: Note): Pro
   me = player;
   lastShown = undefined;
   await connection.start();
+  setMuted(player.mute ?? null);
   // A guest can save their cat with any provider the server offers.
   const [saveWith, worlds] = await Promise.all([
     providers ?? (player.isGuest ? fetchProviders() : []),
@@ -444,6 +495,8 @@ async function pickWorld(player: Player, providers?: string[], note?: Note): Pro
     { providers: saveWith, link: (provider) => postTo(linkUrl(provider)) },
     note,
   );
+  // A warning left while the player was away: shown once, now.
+  void showWarning();
 }
 
 async function start(): Promise<void> {
@@ -453,6 +506,12 @@ async function start(): Promise<void> {
   const note = addressNote(search, player !== null);
   if (note) {
     window.history.replaceState(null, "", window.location.pathname);
+  }
+
+  // A banned player is shown why and until when, not the game (the server would refuse it anyway).
+  if (player?.ban) {
+    overlay.showBanned(player.ban);
+    return;
   }
 
   if (player) {
@@ -486,7 +545,9 @@ function showCard(card: PlayerCard): void {
   } : undefined;
   const outfit: Outfit = { fur: card.furColor, hat: card.hat ?? null, collar: card.collar ?? null };
   overlay.showPlayerCard(card, pictureOf(card.displayName, outfit, card.hatName, card.collarName),
-    (action) => void changeFriendship(action, card.playerId), visit);
+    (action) => void changeFriendship(action, card.playerId), visit,
+    // An admin moderates from the card (the server sends its standing only to admins).
+    card.moderation ? (request) => void moderate(card.playerId, card.displayName, request) : undefined);
 }
 
 /**
@@ -547,6 +608,20 @@ async function changeFriendship(action: FriendAction, playerId: string): Promise
     } else if (open?.kind === "friends") {
       await openFriends(true);
     }
+  } catch (error) {
+    overlay.toast(messageOf(error));
+  }
+}
+
+/** An admin's action on another cat, from its card: the card as it is after, and what was done; or why not. */
+async function moderate(playerId: string, name: string, request: ModerationRequest): Promise<void> {
+  try {
+    const card = await connection.moderate(playerId, request);
+    const open = overlay.openDialogFor;
+    if (open?.kind === "card" && open.playerId === playerId) {
+      showCard(card);
+    }
+    overlay.toast(doneMessage(request, name));
   } catch (error) {
     overlay.toast(messageOf(error));
   }
@@ -648,7 +723,7 @@ function showShopSheet(sheet: ShopSheet, shop: Shop): void {
   }
   const outfit: Outfit = { fur: shop.furColor, hat: shop.hat, collar: shop.collar };
   const nameOf = (id: string | null) => shop.items.find((item) => item.id === id)?.name;
-  overlay.showOwnCard(me?.displayName ?? "Your cat", shop, pictureOf(me?.displayName ?? "Your cat", outfit, nameOf(shop.hat), nameOf(shop.collar)), act);
+  overlay.showOwnCard(me?.displayName ?? "Your cat", shop, pictureOf(me?.displayName ?? "Your cat", outfit, nameOf(shop.hat), nameOf(shop.collar)), act, me?.id);
 }
 
 /** Buys, puts on or takes off an item, then shows the catalogue or card open as it is after, and says what happened. */

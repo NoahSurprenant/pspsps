@@ -4,6 +4,7 @@ using Npgsql;
 using Pspsps.Application.Abstractions;
 using Pspsps.Domain.Friends;
 using Pspsps.Domain.Homes;
+using Pspsps.Domain.Moderation;
 using Pspsps.Domain.Players;
 
 namespace Pspsps.Infrastructure.Persistence;
@@ -16,6 +17,10 @@ public sealed class PspspsDbContext(DbContextOptions<PspspsDbContext> options)
     public DbSet<Friendship> Friendships => Set<Friendship>();
 
     public DbSet<Home> Homes => Set<Home>();
+
+    public DbSet<PlayerModeration> Moderation => Set<PlayerModeration>();
+
+    public DbSet<ModerationEntry> ModerationEntries => Set<ModerationEntry>();
 
     /// <summary>The ASP.NET Core key ring, shared by every server pod so a sign-in cookie works on all of them.</summary>
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
@@ -61,6 +66,18 @@ public sealed class PspspsDbContext(DbContextOptions<PspspsDbContext> options)
         }
 
         Entry(home).State = EntityState.Detached;
+    }
+
+    public void Forget(PlayerModeration moderation)
+    {
+        ArgumentNullException.ThrowIfNull(moderation);
+        // A copy: the lines it added are in its list, and nothing else of it is loaded.
+        foreach (var entry in moderation.Entries.ToList())
+        {
+            Entry(entry).State = EntityState.Detached;
+        }
+
+        Entry(moderation).State = EntityState.Detached;
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>

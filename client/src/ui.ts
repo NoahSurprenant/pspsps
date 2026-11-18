@@ -4,6 +4,10 @@ import { canGoTo, friendButtons, friendStatus, sections, whereIs, type FriendAct
 import { coatOf } from "./fur";
 import { visitorChoices, type FurnitureLeft } from "./home";
 import {
+  banLengths, bannedLines, canLift, maxReasonLength, mutedNote, muteLengths, requestFor, standingLines,
+  type CardModeration, type LengthChoice, type ModerationAction, type ModerationRequest, type Sanction,
+} from "./moderation";
+import {
   catalogueSections, hasMoreToWear, wardrobeSections, wearingLine, type ShopAction, type ShopRow, type ShopSection,
 } from "./shop";
 import { pageTitle } from "./title";
@@ -101,6 +105,18 @@ export class Overlay {
     );
   }
 
+  /** An admin banned the player: why and until when, and nothing to press (they can't play until it ends). */
+  showBanned(ban: Sanction): void {
+    const [until, why] = bannedLines(ban);
+    this.replace(
+      panel(
+        el("h1", { text: "pspsps" }),
+        el("p", { text: until, className: "banned" }),
+        el("p", { text: why }),
+      ),
+    );
+  }
+
   /** This tab stopped: the player opened the game in another one. */
   showReplaced(playHere: () => void): void {
     this.replace(
@@ -155,7 +171,10 @@ export class Overlay {
     const input = el("input", { className: "chat" });
     input.maxLength = 120;
     input.placeholder = "Say something…";
-    const form = el("form", { className: "chat-bar" }, input, button("Send", () => {}, "primary"));
+    // A muted player sees why and until when in place of the chat box (setMuted).
+    const muted = el("p", { className: "muted-note", id: "muted-note" });
+    muted.hidden = true;
+    const form = el("form", { className: "chat-bar" }, muted, input, button("Send", () => {}, "primary"));
     form.addEventListener("submit", (event) => {
       event.preventDefault();
       const text = input.value.trim();
@@ -261,6 +280,20 @@ export class Overlay {
     const counter = this.root.querySelector<HTMLElement>("#coins");
     if (counter) {
       counter.textContent = coinText(coins);
+    }
+  }
+
+  /** Turns the chat box off while the player is muted, saying why and until when; on again with null. */
+  setMuted(mute: Sanction | null): void {
+    const form = this.root.querySelector<HTMLFormElement>(".chat-bar");
+    const note = form?.querySelector<HTMLElement>("#muted-note");
+    if (!form || !note) {
+      return;
+    }
+    note.textContent = mute ? mutedNote(mute) : "";
+    note.hidden = !mute;
+    for (const control of form.querySelectorAll<HTMLElement>("input, button")) {
+      control.hidden = !!mute;
     }
   }
 
@@ -396,11 +429,22 @@ export class Overlay {
    * two stand, with the buttons for that (add, cancel, accept or decline, remove), and "Visit home" when <visitHome> is
    * given (main.ts decides when). `act` runs a button's change.
    */
-  showPlayerCard(card: PlayerCard, picture: CatPicture, act: (action: FriendAction) => void, visitHome?: () => void): void {
+  showPlayerCard(
+    card: PlayerCard, picture: CatPicture, act: (action: FriendAction) => void, visitHome?: () => void,
+    moderate?: (request: ModerationRequest) => void,
+  ): void {
     const visit = visitHome ? [button("Visit home", visitHome)] : [];
     const swatch = swatchOf(card.furColor);
     const status = friendStatus(card.friendState);
     const wearing = wearingLine(card);
+    // An admin's Moderate section, kept open (and its reason kept) when the same card is brought up to date.
+    const open = this.openDialogFor;
+    const before = open?.kind === "card" && open.playerId === card.playerId
+      ? this.dialog?.element.querySelector<HTMLDetailsElement>("details.moderate")
+      : undefined;
+    const moderation = card.moderation && moderate
+      ? [moderateSection(card.displayName, card.moderation, moderate, (message) => this.say(message), before ?? undefined)]
+      : [];
     this.openDialog({ kind: "card", playerId: card.playerId }, "player-card",
       el("h2", { text: card.displayName, id: "dialog-title" }),
       portrait(picture),
@@ -410,7 +454,21 @@ export class Overlay {
       el("div", { className: "actions" },
         ...friendButtons(card.friendState).map((b) => button(b.label, () => act(b.action), b.primary ? "primary" : "")),
         ...visit),
+      ...moderation,
     );
+  }
+
+  /** A word from the admins, over whatever shows: the player reads it, then closes it. */
+  showNotice(title: string, text: string): void {
+    this.openDialog({ kind: "notice" }, "notice", openingHeading(title), el("p", { text, className: "notice-text" }));
+  }
+
+  // Says <message> in the open dialog (its message line), as the toast would behind it.
+  private say(message: string): void {
+    const line = this.dialog?.element.querySelector<HTMLElement>("#dialog-message");
+    if (line) {
+      line.textContent = message;
+    }
   }
 
   /**
@@ -501,7 +559,9 @@ export class Overlay {
    * what it wears, and everything they have to wear, with Wear or Take off (a fur is changed, not taken off). `act`
    * runs a button's change.
    */
-  showOwnCard(name: string, shop: Shop, picture: CatPicture, act: (action: ShopAction, itemId: string) => void): void {
+  showOwnCard(
+    name: string, shop: Shop, picture: CatPicture, act: (action: ShopAction, itemId: string) => void, playerId?: string,
+  ): void {
     const wearing = wearingLine({
       hatName: shop.items.find((item) => item.id === shop.hat)?.name,
       collarName: shop.items.find((item) => item.id === shop.collar)?.name,
@@ -515,6 +575,7 @@ export class Overlay {
         ? []
         : [el("p", { className: "wardrobe-hint", text: "Hats, collars and coats are sold from the catalogue in the Cat Shop, off Town Square." })]),
       ...sectionsOf(wardrobeSections(shop), act),
+      ...(playerId ? [details(playerId)] : []),
     );
   }
 
@@ -729,7 +790,88 @@ function noteParagraph(note: Note | undefined): HTMLElement[] {
 }
 
 /** What a dialog over the room shows: another player's card, the player's own, the friends list, or the catalogue. */
-export type OpenDialog = { kind: "card"; playerId: string } | { kind: "own-card" } | { kind: "friends" } | { kind: "catalogue" };
+export type OpenDialog =
+  | { kind: "card"; playerId: string } | { kind: "own-card" } | { kind: "friends" } | { kind: "catalogue" } | { kind: "notice" };
+
+/**
+ * The player's own details, folded away at the bottom of their card: their player ID, which is what makes a player an
+ * admin (the server's admin list).
+ */
+function details(playerId: string): HTMLElement {
+  const id = el("code", { text: playerId, id: "player-id" });
+  return el("details", { className: "details" },
+    el("summary", { text: "Details" }),
+    el("p", {}, el("span", { text: "Your player ID: " }), id),
+  );
+}
+
+/**
+ * An admin's controls on another cat's card, folded away under "Moderate": the cat's ban and mute now, why (which the
+ * player is shown), and Warn, Mute (for how long), Ban (for how long) and Lift. Another admin can't be moderated: it
+ * says so instead. <before> is the section this one replaces (the same card brought up to date): open stays open, and
+ * the reason typed stays.
+ */
+function moderateSection(
+  name: string, moderation: CardModeration, moderate: (request: ModerationRequest) => void, say: (message: string) => void,
+  before?: HTMLDetailsElement,
+): HTMLElement {
+  const section = el("details", { className: "moderate" }, el("summary", { text: "Moderate" }));
+  section.open = before?.open ?? false;
+  section.append(...standingLines(moderation).map((line) => el("p", { text: line, className: "standing" })));
+  if (moderation.isAdmin) {
+    section.append(el("p", { text: "This cat is an admin. Admins are changed in the server's settings, not here." }));
+    return section;
+  }
+
+  const reason = el("input", { id: "moderate-reason" });
+  reason.maxLength = maxReasonLength;
+  reason.autocomplete = "off";
+  reason.value = before?.querySelector<HTMLInputElement>("#moderate-reason")?.value ?? "";
+  const label = el("label", { text: "Why (they're shown this)" });
+  label.htmlFor = reason.id;
+
+  const act = (action: ModerationAction, length?: string) => {
+    const request = requestFor(action, reason.value, length);
+    if (typeof request === "string") {
+      say(request);
+      reason.focus();
+      return;
+    }
+    moderate(request);
+  };
+  const labelled = (text: string, onClick: () => void, className = "") => {
+    const pick = button(text, onClick, className);
+    pick.setAttribute("aria-label", `${text} ${name}`);
+    return pick;
+  };
+  const lengthRow = (action: "mute" | "ban", text: string, choices: readonly LengthChoice[]) => {
+    const choice = el("select", { id: `${action}-length` });
+    for (const { value, label: shown } of choices) {
+      const option = el("option", { text: shown });
+      option.value = value;
+      choice.append(option);
+    }
+    const previous = before?.querySelector<HTMLSelectElement>(`#${action}-length`)?.value;
+    if (previous) {
+      choice.value = previous;
+    }
+    // Named in full for a screen reader; "for" is what shows, between the button and the choice.
+    choice.setAttribute("aria-label", `${text} ${name} for`);
+    const forLabel = el("label", { text: "for" });
+    forLabel.htmlFor = choice.id;
+    return el("div", { className: "moderate-row" },
+      labelled(text, () => act(action, choice.value), action === "ban" ? "danger" : ""), forLabel, choice);
+  };
+
+  section.append(
+    el("div", { className: "moderate-reason" }, label, reason),
+    el("div", { className: "moderate-row" }, labelled("Warn", () => act("warn"))),
+    lengthRow("mute", "Mute", muteLengths),
+    lengthRow("ban", "Ban", banLengths),
+    ...(canLift(moderation) ? [el("div", { className: "moderate-row" }, labelled("Lift", () => act("lift"), "primary"))] : []),
+  );
+  return section;
+}
 
 function sameDialog(a: OpenDialog, b: OpenDialog): boolean {
   return a.kind === "card" ? b.kind === "card" && a.playerId === b.playerId : a.kind === b.kind;

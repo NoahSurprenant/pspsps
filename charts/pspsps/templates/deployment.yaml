@@ -120,6 +120,10 @@ spec:
             - name: ForwardedHeaders__KnownIPNetworks__{{ $i }}
               value: {{ $network | quote }}
             {{- end }}
+            {{- range $i, $id := .Values.moderation.adminPlayerIds }}
+            - name: Moderation__AdminPlayerIds__{{ $i }}
+              value: {{ $id | quote }}
+            {{- end }}
             {{- with .Values.forwardedHeaders.forwardedForHeaderName }}
             - name: ForwardedHeaders__ForwardedForHeaderName
               value: {{ . | quote }}

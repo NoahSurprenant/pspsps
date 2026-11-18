@@ -167,6 +167,38 @@ phone). In their own home, the owner has Decorate and who can visit in the dock;
 a piece to put out with a tap on the floor (or "Find a spot", for the keyboard), and selects a piece with a tap (or its
 button) to turn it or put it away.
 
+## Moderation
+
+Admins are listed by player ID in the server's settings (`Moderation:AdminPlayerIds`; the chart's
+`moderation.adminPlayerIds`), the only way to become one; a guest can be an admin. A player finds their own ID on their
+card (Details), and `/admin` shows it to anyone signed in who isn't an admin (403). The list is read again whenever the
+configuration changes.
+
+What an admin did to a player is a `PlayerModeration`, an aggregate of its own keyed by the player and made the first
+time an admin acts on them: a ban (until a time, or for good), a mute in every room (until a time), a warning not
+yet shown, and the audit trail (`ModerationEntry`: who, what, when, why, until when). Only an admin acts (a
+`Moderator` is made only from the admin list), never on themselves nor on another admin (the list changes admins), and
+always says why: the player is shown it. A ban or mute ends at its time by itself (`ModerationClock`, a `TimeProvider`
+tests move), or when an admin lifts it; a new one takes the place of the last. `Version` is a concurrency token, so two
+admins at once are decided one after the other.
+
+An admin moderates from another cat's card (Moderate, folded away: Warn, Mute for an hour, a day or a week, Ban for a
+day, a week or for good, Lift), which only admins are sent the cat's standing for, and from `/admin` (`admin.html`, a
+plain page of the client's with no 3D scene, served to admins only, reading `/api/admin/*`): who is banned or muted now,
+with Lift, and what admins did lately. The game's own bars get nothing new.
+
+The hub refuses a banned player: their connection at the door (the hub's `not-banned` policy, a 403), and every call on
+a connection already open (`ModerationHubFilter`), with why and until when. Whether a player is banned is read from the
+database at most once every 5 seconds per player on each pod (`StandingCache`; a change made on the pod is read at
+once), since every move is a call. A ban is put into effect at once (`ModerationEffects`): the player's tabs are told
+(`Banned`), show why and until when, and stop; this pod closes their connections two seconds later; their cat is taken
+out of its room, wherever it is; and `/api/me` tells a page that loads why it can't play. Chat is refused while muted
+(`GameHub.Say`, from the database), and the player's tabs are told at once (`Muted`), which turns their chat box into
+why and until when. A warning is kept until the player's tab takes it (`TakeWarning`: at once when told `Warned`, or on
+their next visit), so it shows once.
+
+A banned guest who clears their cookies gets a new guest cat: stopping that is out of scope.
+
 ## Layers (Clean Architecture)
 
 Dependencies point inwards only: **Domain ← Application ← Infrastructure ← Server**. `Pspsps.Architecture.Test`
@@ -175,10 +207,11 @@ enforces this.
 - **Domain** (`src/Pspsps.Domain`): the game's rules, no frameworks. Aggregates in the DDD sense: `Player` owns its
   logins, coins, fur and what it has from the shop. A private constructor for EF Core, named static factories
   (`CreateGuest`, `CreateWithLogin`), private setters, collections exposed read-only, and methods that refuse invalid
-  changes with a `DomainException`. `Friendship` and `Home` are other aggregates (Friends and Homes, above). Also the
-  in-memory world and room rules (`WorldPopulation`, `RoomState`, `SessionLease`) and the world and room catalogues.
+  changes with a `DomainException`. `Friendship`, `Home` and `PlayerModeration` are other aggregates (Friends, Homes and
+  Moderation, above). Also the in-memory world and room rules (`WorldPopulation`, `RoomState`, `SessionLease`) and the
+  world and room catalogues.
 - **Application** (`src/Pspsps.Application`): use cases (`PlayerService`, `FriendService`, `ShopService`,
-  `HomeService`) and the ports they need (`IApplicationDbContext`).
+  `HomeService`, `ModerationService`) and the ports they need (`IApplicationDbContext`, `IAdmins`).
 - **Infrastructure** (`src/Pspsps.Infrastructure`): EF Core on PostgreSQL (snake_case names), the migrations, and the
   Data Protection key ring in the database.
 - **Server** (`src/Pspsps.Server`): the host. Sign-in endpoints, the SignalR hub, and the Orleans grains. The hub and

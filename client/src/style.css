@@ -623,3 +623,101 @@ button:disabled {
 .catalogue .shop-item {
   background: #fffdf7;
 }
+
+/* A muted player's chat bar: why and until when, in place of the chat box. */
+.muted-note {
+  flex: 1;
+  margin: 0;
+  padding: 0.55rem 1rem;
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  border-radius: 1.4rem;
+  font-size: 0.95rem;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+/* A word from the admins: the text reads as a letter, left-aligned. */
+.notice .notice-text {
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+/* A part of a card folded away until opened: the player's own details, an admin's Moderate. */
+.sheet details {
+  border-top: 2px dashed rgb(42 34 48 / 0.3);
+  padding-top: 0.4rem;
+}
+
+.sheet summary {
+  display: flex;
+  align-items: center;
+  /* A tap target like the buttons. */
+  min-height: 2.75rem;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.sheet summary::before {
+  content: "▸";
+  margin-right: 0.4rem;
+}
+
+.sheet details[open] > summary::before {
+  content: "▾";
+}
+
+.sheet summary::-webkit-details-marker {
+  display: none;
+}
+
+.details code {
+  font-size: 0.95rem;
+  overflow-wrap: anywhere;
+}
+
+.moderate[open] > * + * {
+  margin-top: 0.5rem;
+}
+
+.moderate .standing {
+  font-style: italic;
+  overflow-wrap: anywhere;
+}
+
+.moderate-reason {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-weight: bold;
+}
+
+.moderate-reason input,
+.moderate select {
+  font: inherit;
+  /* Big enough to tap, and to keep iOS from zooming in when it's tapped. */
+  font-size: max(1rem, 16px);
+  min-height: 2.75rem;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 0.3rem 0.7rem;
+  border: 2px solid var(--ink);
+  border-radius: 0.9rem;
+  background: white;
+  color: var(--ink);
+}
+
+.moderate-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.moderate-row select {
+  flex: 1;
+}
+
+button.danger {
+  background: #f3b3ad;
+}

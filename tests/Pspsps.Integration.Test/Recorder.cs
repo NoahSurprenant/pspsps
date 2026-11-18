@@ -21,6 +21,9 @@ internal sealed class Recorder
         hub.On<CatchView>("CatFished", c => _events.Writer.TryWrite(("CatFished", c)));
         hub.On<OutfitView>("CatDressed", o => _events.Writer.TryWrite(("CatDressed", o)));
         hub.On<Guid>("FriendsChanged", id => _events.Writer.TryWrite(("FriendsChanged", id)));
+        hub.On<SanctionView>("Banned", ban => _events.Writer.TryWrite(("Banned", ban)));
+        hub.On<SanctionView?>("Muted", mute => _events.Writer.TryWrite(("Muted", new MutedSaid(mute))));
+        hub.On("Warned", () => _events.Writer.TryWrite(("Warned", true)));
     }
 
     /// <summary>Whether a matching event arrives within <paramref name="within"/>.</summary>
@@ -43,6 +46,9 @@ internal sealed class Recorder
             return false;
         }
     }
+
+    /// <summary>A Muted event: the mute, or null when it was lifted.</summary>
+    public sealed record MutedSaid(SanctionView? Mute);
 
     public async Task<T> Next<T>(string method, Func<T, bool> match)
     {

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Pspsps.Domain.Friends;
 using Pspsps.Domain.Homes;
+using Pspsps.Domain.Moderation;
 using Pspsps.Domain.Players;
 
 namespace Pspsps.Application.Abstractions;
@@ -13,6 +14,12 @@ public interface IApplicationDbContext
     DbSet<Friendship> Friendships { get; }
 
     DbSet<Home> Homes { get; }
+
+    /// <summary>Players' bans, mutes and warnings (one row per player an admin has acted on).</summary>
+    DbSet<PlayerModeration> Moderation { get; }
+
+    /// <summary>The audit trail of what admins did.</summary>
+    DbSet<ModerationEntry> ModerationEntries { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 
@@ -30,4 +37,7 @@ public interface IApplicationDbContext
 
     /// <summary>Stops tracking the home and its furniture, so its unsaved changes (refused by the database) aren't saved.</summary>
     void Forget(Home home);
+
+    /// <summary>Stops tracking the player's moderation and its new audit lines, so a refused change isn't saved.</summary>
+    void Forget(PlayerModeration moderation);
 }

@@ -8,6 +8,7 @@ using Pspsps.Server;
 using Pspsps.Server.Auth;
 using Pspsps.Server.Game;
 using Pspsps.Server.Hubs;
+using Pspsps.Server.Moderation;
 using Pspsps.Server.Telemetry;
 using Serilog;
 using StackExchange.Redis;
@@ -38,7 +39,13 @@ try
 
     builder.Services.ConfigureHttpJsonOptions(options =>
         options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
-    var signalR = builder.Services.AddSignalR(options => options.AddFilter<HubCallMetricsFilter>())
+    // Admins (by player ID, from Moderation:AdminPlayerIds), and what keeps a banned player off the hub.
+    builder.Services.AddModeration(builder.Configuration);
+    var signalR = builder.Services.AddSignalR(options =>
+        {
+            options.AddFilter<HubCallMetricsFilter>();
+            options.AddFilter<ModerationHubFilter>();
+        })
         .AddJsonProtocol(options => options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
     if (!string.IsNullOrEmpty(redis))
     {
@@ -107,6 +114,7 @@ try
     // Forwarded headers first: everything after sees the real client address and scheme.
     app.UseForwardedHeaders();
     app.UseRequestTelemetry();
+    app.UseAdminPageGuard();
     app.UseClientFiles();
     app.UseAuthentication();
     app.UseAuthorization();
@@ -116,7 +124,8 @@ try
     app.MapHealthChecks("/healthz", new() { Predicate = _ => false });
     app.MapHealthChecks("/readyz", new() { Predicate = check => check.Tags.Contains(HealthCheckExtensions.ReadyTag) });
     app.MapAuthEndpoints(providers);
-    app.MapHub<GameHub>("/hubs/game");
+    app.MapAdminEndpoints();
+    app.MapHub<GameHub>("/hubs/game").RequireAuthorization(AdminEndpoints.NotBannedPolicy);
     app.MapFallbackToFile("index.html");
 
     await app.RunAsync();

@@ -30,6 +30,12 @@ public static class AuthSetup
                     context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                     return Task.CompletedTask;
                 };
+                // And a refusal (a banned player's hub connection) gets a 403, not a redirect to an access-denied page.
+                options.Events.OnRedirectToAccessDenied = context =>
+                {
+                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    return Task.CompletedTask;
+                };
             })
             .AddCookie(ExternalScheme, options =>
             {

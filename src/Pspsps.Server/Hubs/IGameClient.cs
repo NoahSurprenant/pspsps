@@ -56,4 +56,16 @@ public interface IGameClient
     /// Square, unless the tab has gone elsewhere meanwhile. <paramref name="message"/> says why.
     /// </summary>
     Task SentOut(Guid ownerId, string message);
+
+    /// <summary>
+    /// An admin banned the player: <paramref name="ban"/> says why and until when. The tab shows it and stops; the server
+    /// closes the connection shortly after, and refuses every call and connection until the ban ends.
+    /// </summary>
+    Task Banned(SanctionView ban);
+
+    /// <summary>An admin muted the player (<paramref name="mute"/>: why, until when), or lifted it (null): chat is off until then.</summary>
+    Task Muted(SanctionView? mute);
+
+    /// <summary>An admin warned the player: the tab fetches the warning (TakeWarning), which shows it once.</summary>
+    Task Warned();
 }
