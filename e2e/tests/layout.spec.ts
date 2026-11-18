@@ -140,6 +140,7 @@ for (const screen of SCREENS) {
           ...await offScreenOrOverlapping(page, checks.parts),
           ...(size.phone ? await smallTapTargets(page) : []),
           ...(size.phone ? await smallInputs(page) : []),
+          ...await squashedPortraits(page),
         ];
         expect(problems, `${screen.name} at ${size.width}x${size.height}`).toEqual([]);
         expect(errors, "console errors and uncaught exceptions").toEqual([]);
@@ -196,6 +197,22 @@ async function offScreenOrOverlapping(page: Page, parts: string[]): Promise<stri
     }
   }
   return problems;
+}
+
+/** The smallest a card's picture of the cat may be drawn, in CSS px (it is min(8.5rem, 40vw): 112 px on a folded phone). */
+const MIN_PORTRAIT = 100;
+
+/**
+ * A card's picture of the cat keeps its size and shape on every screen: a card taller than the screen scrolls, it never
+ * squashes the picture (or flattens it to nothing).
+ */
+async function squashedPortraits(page: Page): Promise<string[]> {
+  const boxes = await page.evaluate(() => [...document.querySelectorAll<HTMLElement>("dialog .portrait")]
+    .map((portrait) => portrait.getBoundingClientRect())
+    .map((r) => ({ width: r.width, height: r.height })));
+  return boxes
+    .filter(({ width, height }) => width < MIN_PORTRAIT || height < MIN_PORTRAIT || height < width * 0.9)
+    .map(({ width, height }) => `the cat's picture is squashed to ${Math.round(width)}x${Math.round(height)}`);
 }
 
 /** Every visible button and text box must be at least MIN_TAP square. */
