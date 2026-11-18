@@ -82,9 +82,8 @@ public sealed class ModerationTests
         Assert.That(until, Is.EqualTo(Game.ModerationTime.GetUtcNow().AddHours(24)).Within(TimeSpan.FromSeconds(1)));
         Assert.That(await felixSees.Next<SanctionView>("Banned", any => true), Is.EqualTo(new SanctionView("Spamming the square", until)));
 
-        // Until the connection closes, every call is refused, with why.
-        var move = Assert.ThrowsAsync<HubException>(() => felixHub.InvokeAsync("Move", 1.0, 1.0));
-        Assert.That(move!.Message, Does.Contain("Your cat is banned until").And.Contain("Spamming the square"));
+        // (A call on it before it closes is refused with why: ModerationHubFilterTests. Over long polling, as here, it closes
+        // even sooner: each poll is a request the hub's not-banned policy refuses.)
         Assert.That(await Task.WhenAny(closed.Task, Task.Delay(Wait)), Is.SameAs(closed.Task), "the server closes the connection");
 
         // Coming back is refused at the door; the page is told why.

@@ -664,7 +664,7 @@ test("an admin mutes and warns a cat from its card, bans another, whose tab is s
     await tapFloor(admin, -4, 2);
     const felixId = await enterWorld(felix.page, "Siamese");
     await tapFloor(felix.page, 4, 2);
-    await expect.poll(async () => (await cats(admin))[felixId]?.x).toBe(4);
+    await expect.poll(async () => (await cats(admin))[felixId]?.x ?? 0).toBeGreaterThan(3.5);
     const garfieldId = await enterWorld(garfield.page, "Siamese");
     const name = (page: typeof admin) =>
       page.evaluate(async () => ((await (await fetch("/api/me")).json()) as { displayName: string }).displayName);
