@@ -81,7 +81,9 @@ public sealed class Report
     /// reporter's reports in the last <see cref="Window"/> (older ones are ignored): at most <see cref="MaxPerWindow"/>,
     /// and one still open about the same player. Not yourself, a reason from the list, and a note of at most
     /// <see cref="MaxNoteLength"/> characters (blank is none). Reports at the same moment can pass a limit by one, which
-    /// is harmless.
+    /// is harmless. The room's chat is kept only when it can be about the reported cat: it is in that room
+    /// (<paramref name="reportedIsHere"/>), or said one of its lines; a cat reported from elsewhere (its card opened from the
+    /// friends list) is reported with no lines, rather than with what strangers said.
     /// </summary>
     public static Report File(
         Guid reporterId,
@@ -92,6 +94,7 @@ public sealed class Report
         string worldId,
         string room,
         IEnumerable<ChatContextLine> chat,
+        bool reportedIsHere,
         IEnumerable<PastReport> past,
         DateTimeOffset now)
     {
@@ -136,6 +139,11 @@ public sealed class Report
 
         var report = new Report(reporterId, reportedId, reportedName, reason, trimmed, worldId, room, now);
         var lines = chat.ToList();
+        if (!reportedIsHere && !lines.Any(l => l.PlayerId == reportedId))
+        {
+            lines.Clear();
+        }
+
         var position = 0;
         foreach (var line in lines.Skip(Math.Max(0, lines.Count - MaxContextLines)))
         {

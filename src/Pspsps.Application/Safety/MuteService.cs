@@ -66,9 +66,9 @@ internal sealed class MuteService(IApplicationDbContext db, TimeProvider time) :
     internal static async Task<MutesSoFar> SoFarAsync(
         IApplicationDbContext db, Guid playerId, Guid otherId, CancellationToken cancellationToken)
     {
-        var mine = db.Mutes.Where(m => m.MuterId == playerId);
-        return new MutesSoFar(
-            await mine.CountAsync(cancellationToken),
-            await mine.AnyAsync(m => m.MutedId == otherId, cancellationToken));
+        // One query: a flag per mute (at most MaxMutes of them), whether it's of the other player.
+        var ofThem = await db.Mutes.Where(m => m.MuterId == playerId).Select(m => m.MutedId == otherId)
+            .ToListAsync(cancellationToken);
+        return new MutesSoFar(ofThem.Count, ofThem.Contains(true));
     }
 }

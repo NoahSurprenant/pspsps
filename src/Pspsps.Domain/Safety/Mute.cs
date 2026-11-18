@@ -51,13 +51,16 @@ public sealed class Mute
             throw new DomainException("You've muted that cat already.");
         }
 
-        if (soFar.Count >= MaxMutes)
+        if (!HasRoom(soFar))
         {
             throw new DomainException($"You can mute at most {MaxMutes} cats. Unmute some first.");
         }
 
         return new Mute(muterId, mutedId, now);
     }
+
+    /// <summary>Whether a player with these mutes may mute one more: fewer than <see cref="MaxMutes"/>.</summary>
+    public static bool HasRoom(MutesSoFar soFar) => soFar.Count < MaxMutes;
 
     /// <summary>Checks that <paramref name="playerId"/> may unmute: only the one who muted. The caller deletes it.</summary>
     public void Unmute(Guid playerId)

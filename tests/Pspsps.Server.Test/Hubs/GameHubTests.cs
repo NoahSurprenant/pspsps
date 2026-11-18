@@ -1225,9 +1225,10 @@ public sealed class GameHubTests
     {
         var said = new ChatView(Felix, "meanie", DateTimeOffset.UnixEpoch);
         _room.RecentChat().Returns([said]);
+        _room.CatsHere().Returns([Tom.Id, Felix]);
         _reports.FileAsync(
                 Tom.Id, Felix, ReportReason.MeanChat, "rude", "tabby", "tabby/town-square",
-                Arg.Any<IReadOnlyList<ChatLine>>(), false, Arg.Any<CancellationToken>())
+                Arg.Any<IReadOnlyList<ChatLine>>(), true, false, Arg.Any<CancellationToken>())
             .Returns(new ReportOutcome(false, []));
         var hub = Hub();
         await hub.EnterWorld("tabby");
@@ -1240,7 +1241,7 @@ public sealed class GameHubTests
         await _reports.Received(1).FileAsync(
             Tom.Id, Felix, ReportReason.MeanChat, "rude", "tabby", "tabby/town-square",
             Arg.Is<IReadOnlyList<ChatLine>>(chat => chat.SequenceEqual(new[] { new ChatLine(Felix, "meanie", DateTimeOffset.UnixEpoch) })),
-            false, Arg.Any<CancellationToken>());
+            true, false, Arg.Any<CancellationToken>());
         await tomsTabs.DidNotReceiveWithAnyArgs().MutesChanged(default!);
     }
 
@@ -1248,10 +1249,11 @@ public sealed class GameHubTests
     public async Task Report_AlsoMuting_TellsEveryTabOfThePlayer()
     {
         _room.RecentChat().Returns([]);
+        _room.CatsHere().Returns([Tom.Id]);
         MutedPlayer[] after = [new(Felix, "Felix", FurColor.Black)];
         _reports.FileAsync(
                 Tom.Id, Felix, ReportReason.Spam, null, "tabby", "tabby/town-square",
-                Arg.Any<IReadOnlyList<ChatLine>>(), true, Arg.Any<CancellationToken>())
+                Arg.Any<IReadOnlyList<ChatLine>>(), false, true, Arg.Any<CancellationToken>())
             .Returns(new ReportOutcome(true, after));
         var hub = Hub();
         await hub.EnterWorld("tabby");
@@ -1269,7 +1271,7 @@ public sealed class GameHubTests
     public async Task Report_WhenTheRoomsChatCantBeRead_IsFiledWithout()
     {
         _room.RecentChat().ThrowsAsync(new TimeoutException());
-        _reports.FileAsync(default, default, default, default, default!, default!, default!, default, default)
+        _reports.FileAsync(default, default, default, default, default!, default!, default!, default, default, default)
             .ReturnsForAnyArgs(new ReportOutcome(false, []));
         var hub = Hub();
         await hub.EnterWorld("tabby");
@@ -1278,7 +1280,7 @@ public sealed class GameHubTests
 
         await _reports.Received(1).FileAsync(
             Tom.Id, Felix, ReportReason.Spam, null, "tabby", "tabby/town-square",
-            Arg.Is<IReadOnlyList<ChatLine>>(chat => chat.Count == 0), false, Arg.Any<CancellationToken>());
+            Arg.Is<IReadOnlyList<ChatLine>>(chat => chat.Count == 0), false, false, Arg.Any<CancellationToken>());
     }
 
     [TestCase("Rude")]
@@ -1293,7 +1295,7 @@ public sealed class GameHubTests
         var refused = Assert.ThrowsAsync<HubException>(() => hub.Report(Felix, reason, null, alsoMute: false));
 
         Assert.That(refused!.Message, Is.EqualTo("Pick a reason."));
-        await _reports.DidNotReceiveWithAnyArgs().FileAsync(default, default, default, default, default!, default!, default!, default, default);
+        await _reports.DidNotReceiveWithAnyArgs().FileAsync(default, default, default, default, default!, default!, default!, default, default, default);
     }
 
     [Test]
@@ -1304,14 +1306,15 @@ public sealed class GameHubTests
         var refused = Assert.ThrowsAsync<HubException>(() => hub.Report(Felix, "Spam", null, alsoMute: false));
 
         Assert.That(refused!.Message, Is.EqualTo("You can only report a cat from a room."));
-        await _reports.DidNotReceiveWithAnyArgs().FileAsync(default, default, default, default, default!, default!, default!, default, default);
+        await _reports.DidNotReceiveWithAnyArgs().FileAsync(default, default, default, default, default!, default!, default!, default, default, default);
     }
 
     [Test]
     public void Report_ARuleBroken_IsThePlayersMessage()
     {
         _room.RecentChat().Returns([]);
-        _reports.FileAsync(default, default, default, default, default!, default!, default!, default, default)
+        _room.CatsHere().Returns([]);
+        _reports.FileAsync(default, default, default, default, default!, default!, default!, default, default, default)
             .ThrowsAsyncForAnyArgs(new DomainException("You can't report yourself."));
         var hub = Hub();
 

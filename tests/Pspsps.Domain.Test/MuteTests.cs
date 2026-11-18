@@ -59,4 +59,11 @@ public sealed class MuteTests
         var refused = Assert.Throws<DomainException>(() => mute.Unmute(Felix));
         Assert.That(refused!.Message, Is.EqualTo("That isn't your mute."));
     }
+
+    [Test]
+    public void HasRoom_UntilEveryMuteIsUsed()
+    {
+        Assert.That(Mute.HasRoom(new MutesSoFar(Mute.MaxMutes - 1, false)), Is.True);
+        Assert.That(Mute.HasRoom(new MutesSoFar(Mute.MaxMutes, false)), Is.False);
+    }
 }

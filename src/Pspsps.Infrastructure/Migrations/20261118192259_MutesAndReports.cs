@@ -56,18 +56,6 @@ namespace Pspsps.Infrastructure.Migrations
                 {
                     table.PrimaryKey("pk_reports", x => x.id);
                     table.CheckConstraint("ck_reports_not_self", "reporter_id <> reported_id");
-                    table.ForeignKey(
-                        name: "fk_reports_players_reported_id",
-                        column: x => x.reported_id,
-                        principalTable: "players",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "fk_reports_players_reporter_id",
-                        column: x => x.reporter_id,
-                        principalTable: "players",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(

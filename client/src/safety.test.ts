@@ -11,11 +11,11 @@ describe("Mutes", () => {
   it("knows whom the player muted, and says who is newly muted", () => {
     const mutes = new Mutes();
 
-    expect(mutes.set([felix])).toEqual(["felix"]);
+    expect(mutes.set([felix]).added).toEqual(["felix"]);
     expect(mutes.has("felix")).toBe(true);
     expect(mutes.has("garfield")).toBe(false);
 
-    expect(mutes.set([felix, garfield])).toEqual(["garfield"]);
+    expect(mutes.set([felix, garfield]).added).toEqual(["garfield"]);
     expect(mutes.list).toEqual([felix, garfield]);
   });
 
@@ -23,7 +23,7 @@ describe("Mutes", () => {
     const mutes = new Mutes();
     mutes.set([felix, garfield]);
 
-    expect(mutes.set([garfield])).toEqual([]);
+    expect(mutes.set([garfield])).toEqual({ added: [], changed: true });
 
     expect(mutes.has("felix")).toBe(false);
     expect(mutes.list).toEqual([garfield]);
@@ -67,6 +67,8 @@ describe("the report form", () => {
   it("says the report went, and whether the cat is muted now", () => {
     expect(reportSentMessage("Felix", true)).toBe("Thanks. Your report was sent, and Felix is muted.");
     expect(reportSentMessage("Felix", false)).toBe("Thanks. Your report was sent.");
+    expect(reportSentMessage("Felix", false, true)).toBe(
+      "Thanks. Your report was sent. You've muted as many cats as you can, so Felix isn't muted.");
     expect(muteMessage("Felix", true)).toContain("Felix is muted.");
     expect(muteMessage("Felix", false)).toBe("Felix isn't muted any more.");
   });

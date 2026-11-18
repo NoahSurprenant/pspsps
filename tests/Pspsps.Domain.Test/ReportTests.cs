@@ -17,8 +17,9 @@ public sealed class ReportTests
         IEnumerable<PastReport>? past = null,
         Guid? reporter = null,
         string worldId = "tabby",
-        string room = "tabby/town-square") =>
-        Report.File(reporter ?? Tom, reported, "Felix", reason, note, worldId, room, chat ?? [], past ?? [], Now);
+        string room = "tabby/town-square",
+        bool reportedIsHere = true) =>
+        Report.File(reporter ?? Tom, reported, "Felix", reason, note, worldId, room, chat ?? [], reportedIsHere, past ?? [], Now);
 
     [Test]
     public void File_KeepsWhoWhyWhereAndWhen_AndIsOpen()
@@ -128,5 +129,29 @@ public sealed class ReportTests
         // Reports older than the window don't count.
         var old = past.Select(r => r with { FiledAt = Now - Report.Window - TimeSpan.FromSeconds(1) });
         Assert.DoesNotThrow(() => File(Felix, past: old));
+    }
+
+    [Test]
+    public void File_ACatNotInTheRoom_WhoSaidNothingThere_IsReportedWithNoLines()
+    {
+        ChatContextLine[] strangers = [new(Garfield, "Garfield", "nice day", Now.AddSeconds(-5))];
+
+        var report = File(Felix, chat: strangers, reportedIsHere: false);
+
+        Assert.That(report.Context, Is.Empty, "not what strangers said, from a card opened elsewhere");
+    }
+
+    [Test]
+    public void File_ACatNotInTheRoomAnyMore_WhoSaidSomethingThere_IsReportedWithTheLines()
+    {
+        ChatContextLine[] chat =
+        [
+            new(Felix, "Felix", "go away", Now.AddSeconds(-10)),
+            new(Garfield, "Garfield", "that was mean", Now.AddSeconds(-5)),
+        ];
+
+        var report = File(Felix, chat: chat, reportedIsHere: false);
+
+        Assert.That(report.Context.Select(l => l.Text), Is.EqualTo(new[] { "go away", "that was mean" }));
     }
 }

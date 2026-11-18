@@ -458,7 +458,7 @@ export class Overlay {
       reasons,
       el("div", { className: "report-note" }, noteLabel, note),
       choice(mute, "Also mute them"),
-      el("div", { className: "actions" }, button("Send report", () => {}, "primary submit"), button("Back", back)),
+      el("div", { className: "actions" }, button("Send report", () => {}, "primary", "submit"), button("Back", back)),
     );
     form.addEventListener("submit", (event) => {
       event.preventDefault();
@@ -787,9 +787,12 @@ function panel(...children: Node[]): HTMLElement {
   return el("div", { className: "panel" }, ...children);
 }
 
-function button(text: string, onClick: () => void, className = ""): HTMLButtonElement {
+/** A button; a "submit" one sends its form (its `onClick` isn't used: the form's submit is). */
+function button(
+  text: string, onClick: () => void, className = "", type: "button" | "submit" = className === "primary" && text === "Send" ? "submit" : "button",
+): HTMLButtonElement {
   const element = el("button", { text, className });
-  element.type = (className === "primary" && text === "Send") || className.split(" ").includes("submit") ? "submit" : "button";
+  element.type = type;
   if (element.type === "button") {
     element.addEventListener("click", onClick);
   }

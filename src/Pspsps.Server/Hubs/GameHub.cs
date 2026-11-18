@@ -497,22 +497,27 @@ public sealed partial class GameHub(
             throw new HubException("You can only report a cat from a room.");
         }
 
+        // What was said in the room, and whether the reported cat is in it (if not, the lines are kept only if some are its).
         IReadOnlyList<ChatView> chat;
+        bool otherIsHere;
         try
         {
-            chat = await grains.GetGrain<IRoomGrain>(key).RecentChat();
+            var room = grains.GetGrain<IRoomGrain>(key);
+            chat = await room.RecentChat();
+            otherIsHere = (await room.CatsHere()).Contains(playerId);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
             // Filed without them rather than not at all: the reason and the note still say what happened.
             LogReportChatNotRead(logger, e, key);
             chat = [];
+            otherIsHere = false;
         }
 
         var why = Enum.Parse<ReportReason>(reason);
         var outcome = await PlayersRule(() => reports.FileAsync(
             PlayerId, playerId, why, note, place.WorldId, key, [.. chat.Select(l => new ChatLine(l.PlayerId, l.Text, l.At))],
-            alsoMute, Context.ConnectionAborted));
+            otherIsHere, alsoMute, Context.ConnectionAborted));
         var receipt = new ReportReceipt(outcome.Muted, Views(outcome.Mutes));
         if (alsoMute)
         {

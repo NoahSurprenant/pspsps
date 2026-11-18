@@ -63,6 +63,27 @@ public sealed class SafetyTests
     }
 
     [Test]
+    public async Task AReport_OfACatInAnotherRoom_WhoSaidNothingHere_KeepsNoLines()
+    {
+        var (tom, tomHub) = await Game.ConnectGuestAsync();
+        var (felix, felixHub) = await Game.ConnectGuestAsync();
+        await using var _ = tomHub;
+        await using var __ = felixHub;
+        var tomHears = new Recorder(tomHub);
+        await tomHub.InvokeAsync<RoomSnapshot>("EnterWorld", "siamese");
+        await felixHub.InvokeAsync<RoomSnapshot>("EnterWorld", "calico");
+        await tomHub.InvokeAsync("Say", "nice day");
+        await tomHears.Next<ChatView>("ChatSaid", line => line.PlayerId == tom.Id);
+
+        // Felix's card, opened from the friends list, say: nothing said in Tom's room is about him.
+        await tomHub.InvokeAsync<ReportReceipt>("Report", felix.Id, "InappropriateName", null, false);
+
+        var report = await Game.Get<PspspsDbContext>().Reports.AsNoTracking().SingleAsync(r => r.ReporterId == tom.Id);
+        Assert.That(report.Context, Is.Empty);
+        Assert.That(report.Room, Is.EqualTo("siamese/town-square"));
+    }
+
+    [Test]
     public async Task AReport_OfTheSameCatTwiceInAnHour_IsRefused_AndYourselfToo()
     {
         var (tom, tomHub) = await Game.ConnectGuestAsync();
@@ -103,7 +124,7 @@ public sealed class SafetyTests
         var felix = await NewPlayerAsync();
 
         var refused = Assert.ThrowsAsync<DomainException>(() => Game.Get<IReportService>().FileAsync(
-            tom, felix, ReportReason.Spam, new string('a', Report.MaxNoteLength + 1), "tabby", "tabby/town-square", [], true,
+            tom, felix, ReportReason.Spam, new string('a', Report.MaxNoteLength + 1), "tabby", "tabby/town-square", [], false, true,
             CancellationToken.None));
 
         Assert.That(refused!.Message, Does.Contain("A note is at most"));
@@ -119,7 +140,7 @@ public sealed class SafetyTests
 
         await Game.Get<IReportService>().FileAsync(
             tom, felix, ReportReason.SomethingElse, null, "tabby", "tabby/town-square",
-            [new ChatLine(felix, "hi", now.AddSeconds(-2)), new ChatLine(Guid.NewGuid(), "bye", now.AddSeconds(-1))], false,
+            [new ChatLine(felix, "hi", now.AddSeconds(-2)), new ChatLine(Guid.NewGuid(), "bye", now.AddSeconds(-1))], false, false,
             CancellationToken.None);
 
         var db = Game.Get<PspspsDbContext>();
@@ -148,7 +169,7 @@ public sealed class SafetyTests
         await db.SaveChangesAsync();
 
         var outcome = await Game.Get<IReportService>().FileAsync(
-            tom, felix, ReportReason.MeanChat, null, "tabby", "tabby/town-square", [], true, CancellationToken.None);
+            tom, felix, ReportReason.MeanChat, null, "tabby", "tabby/town-square", [], false, true, CancellationToken.None);
 
         Assert.That(outcome.Muted, Is.False, "the report matters more than the mute");
         Assert.That(await Game.Get<PspspsDbContext>().Reports.CountAsync(r => r.ReporterId == tom), Is.EqualTo(1));
@@ -160,7 +181,7 @@ public sealed class SafetyTests
         var tom = await NewPlayerAsync();
         var felix = await NewPlayerAsync();
         await Game.Get<IReportService>().FileAsync(
-            tom, felix, ReportReason.InappropriateName, null, "tabby", "tabby/town-square", [], false, CancellationToken.None);
+            tom, felix, ReportReason.InappropriateName, null, "tabby", "tabby/town-square", [], false, false, CancellationToken.None);
 
         var db = Game.Get<PspspsDbContext>();
         db.Players.Remove(await db.Players.SingleAsync(p => p.Id == felix));

@@ -18,9 +18,8 @@ internal sealed class ReportConfiguration : IEntityTypeConfiguration<Report>
         builder.Property(r => r.Room).HasMaxLength(128);
         builder.Property(r => r.Status).HasConversion<string>().HasMaxLength(16);
 
-        // A player's reports, and the reports of them, go with them.
-        builder.HasOne<Player>().WithMany().HasForeignKey(r => r.ReporterId).OnDelete(DeleteBehavior.Cascade);
-        builder.HasOne<Player>().WithMany().HasForeignKey(r => r.ReportedId).OnDelete(DeleteBehavior.Cascade);
+        // No foreign keys to the players: a report stays for review when either player is deleted (it keeps the reported
+        // cat's name, and its lines their speakers'), and deleting a player is never held up by reports.
 
         // A reporter's reports lately (the limits); reports of a player; and the open ones, oldest first, to review.
         builder.HasIndex(r => new { r.ReporterId, r.FiledAt });

@@ -12,7 +12,7 @@ using Pspsps.Infrastructure.Persistence;
 namespace Pspsps.Infrastructure.Migrations
 {
     [DbContext(typeof(PspspsDbContext))]
-    [Migration("20261118182250_MutesAndReports")]
+    [Migration("20261118192259_MutesAndReports")]
     partial class MutesAndReports
     {
         /// <inheritdoc />
@@ -425,20 +425,6 @@ namespace Pspsps.Infrastructure.Migrations
 
             modelBuilder.Entity("Pspsps.Domain.Safety.Report", b =>
                 {
-                    b.HasOne("Pspsps.Domain.Players.Player", null)
-                        .WithMany()
-                        .HasForeignKey("ReportedId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_reports_players_reported_id");
-
-                    b.HasOne("Pspsps.Domain.Players.Player", null)
-                        .WithMany()
-                        .HasForeignKey("ReporterId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_reports_players_reporter_id");
-
                     b.OwnsMany("Pspsps.Domain.Safety.ReportedLine", "Context", b1 =>
                         {
                             b1.Property<Guid>("ReportId")

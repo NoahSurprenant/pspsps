@@ -13,11 +13,17 @@ export class Mutes {
     return this.byId.has(playerId);
   }
 
-  /** Takes the server's list as it is now; returns the players muted that weren't before. */
-  set(list: readonly MutedView[]): string[] {
+  /**
+   * Takes the server's list as it is now: the players muted that weren't before, and whether anything changed (a tab's own
+   * change comes back to it from the server too, once as the answer and once as MutesChanged).
+   */
+  set(list: readonly MutedView[]): { added: string[]; changed: boolean } {
     const before = this.byId;
     this.byId = new Map(list.map((muted) => [muted.playerId, muted]));
-    return list.map((muted) => muted.playerId).filter((id) => !before.has(id));
+    const added = list.map((muted) => muted.playerId).filter((id) => !before.has(id));
+    const changed = added.length > 0 || before.size !== this.byId.size
+      || list.some((muted) => before.get(muted.playerId)?.displayName !== muted.displayName);
+    return { added, changed };
   }
 }
 
@@ -77,9 +83,17 @@ export function reportRequest(draft: ReportDraft): ReportRequest | { problem: st
   return { reason: draft.reason, note: note === "" ? null : note, alsoMute: draft.alsoMute };
 }
 
-/** What the player is told once a report is sent. */
-export function reportSentMessage(name: string, muted: boolean): string {
-  return muted ? `Thanks. Your report was sent, and ${name} is muted.` : "Thanks. Your report was sent.";
+/**
+ * What the player is told once a report is sent: whether the cat is muted now, and why not when they asked (every mute
+ * used: the report went anyway).
+ */
+export function reportSentMessage(name: string, muted: boolean, askedToMute = false): string {
+  if (muted) {
+    return `Thanks. Your report was sent, and ${name} is muted.`;
+  }
+  return askedToMute
+    ? `Thanks. Your report was sent. You've muted as many cats as you can, so ${name} isn't muted.`
+    : "Thanks. Your report was sent.";
 }
 
 /** What the player is told once they mute or unmute a cat. */

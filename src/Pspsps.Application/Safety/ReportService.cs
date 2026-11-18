@@ -19,6 +19,7 @@ internal sealed class ReportService(IApplicationDbContext db, IMuteService mutes
         string worldId,
         string room,
         IReadOnlyList<ChatLine> chat,
+        bool otherIsHere,
         bool alsoMute,
         CancellationToken cancellationToken)
     {
@@ -46,6 +47,7 @@ internal sealed class ReportService(IApplicationDbContext db, IMuteService mutes
             worldId,
             room,
             chat.Select(l => new ChatContextLine(l.PlayerId, names.GetValueOrDefault(l.PlayerId, UnknownSpeaker), l.Text, l.At)),
+            otherIsHere,
             past.Select(r => new PastReport(r.ReportedId, r.FiledAt, r.Status)),
             now);
         db.Reports.Add(report);
@@ -54,7 +56,8 @@ internal sealed class ReportService(IApplicationDbContext db, IMuteService mutes
         if (alsoMute)
         {
             var soFar = await MuteService.SoFarAsync(db, playerId, otherId, cancellationToken);
-            if (!soFar.IncludesThem)
+            // A player with every mute used still reports: the report matters more than the mute.
+            if (!soFar.IncludesThem && Mute.HasRoom(soFar))
             {
                 mute = Mute.Create(playerId, otherId, soFar, now);
                 db.Mutes.Add(mute);

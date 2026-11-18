@@ -9,9 +9,10 @@ public interface IReportService
     /// <summary>
     /// Files <paramref name="playerId"/>'s report of <paramref name="otherId"/> from the room <paramref name="room"/> of
     /// <paramref name="worldId"/>, with <paramref name="chat"/>: that room's recent chat as the server has it (never
-    /// what a browser sends), oldest first. With <paramref name="alsoMute"/>, the other player is muted in the same save
-    /// (if they aren't already). A rule broken (yourself, too many reports, a note too long) is a
-    /// <see cref="Domain.DomainException"/>, and nothing is saved.
+    /// what a browser sends), oldest first, kept only if they can be about the other player (<paramref name="otherIsHere"/>:
+    /// they're in that room, or one of the lines is theirs). With <paramref name="alsoMute"/>, the other player is muted in
+    /// the same save, unless they are already or the player has every mute used (the report is filed either way). A rule
+    /// broken (yourself, too many reports, a note too long) is a <see cref="Domain.DomainException"/>, and nothing is saved.
     /// </summary>
     Task<ReportOutcome> FileAsync(
         Guid playerId,
@@ -21,6 +22,7 @@ public interface IReportService
         string worldId,
         string room,
         IReadOnlyList<ChatLine> chat,
+        bool otherIsHere,
         bool alsoMute,
         CancellationToken cancellationToken);
 }

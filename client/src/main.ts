@@ -535,9 +535,13 @@ async function loadMutes(): Promise<void> {
  * from over them, and the card or friends list open shows it.
  */
 function applyMutes(list: MutedView[]): void {
-  for (const playerId of mutes.set(list)) {
+  const { added, changed } = mutes.set(list);
+  for (const playerId of added) {
     room?.hush(playerId);
     scene?.hush(playerId);
+  }
+  if (!changed) {
+    return;
   }
   const open = overlay.openDialogFor;
   if (open?.kind === "card" && cardShown?.playerId === open.playerId) {
@@ -578,7 +582,7 @@ async function sendReport(card: PlayerCard, draft: ReportDraft): Promise<void> {
     if (open?.kind === "report" && open.playerId === card.playerId) {
       showCard(card);
     }
-    overlay.toast(reportSentMessage(card.displayName, receipt.muted));
+    overlay.toast(reportSentMessage(card.displayName, receipt.muted, request.alsoMute));
   } catch (error) {
     overlay.toast(messageOf(error));
   } finally {
