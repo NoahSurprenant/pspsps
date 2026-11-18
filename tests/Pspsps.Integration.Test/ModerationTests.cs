@@ -216,6 +216,28 @@ public sealed class ModerationTests
     }
 
     [Test]
+    public async Task TheAdminPage_ListsTheLatestSanctionsFirst_ByTheOneInForce()
+    {
+        var (admin, adminHub) = await AdminAsync();
+        await using var _ = adminHub;
+        var felix = (await Game.SignInGuestAsync()).Player;
+        var tom = (await Game.SignInGuestAsync()).Player;
+        await adminHub.InvokeAsync<PlayerCardView>("Moderate", felix.Id, "ban", "Spam", "24h");
+        Game.ModerationTime.Advance(TimeSpan.FromHours(1));
+        await adminHub.InvokeAsync<PlayerCardView>("Moderate", tom.Id, "mute", "Rude", "7d");
+        // Felix's ban ends; a day later he is muted: his old ban is no longer what puts him on the list.
+        Game.ModerationTime.Advance(TimeSpan.FromHours(24));
+        await adminHub.InvokeAsync<PlayerCardView>("Moderate", felix.Id, "mute", "Rude too", "1h");
+        using var asAdmin = ClientFor(AdminCookies[admin.Id]);
+
+        var listed = (await asAdmin.GetFromJsonAsync<AdminOverviewView>(
+            new Uri("/api/admin/overview", UriKind.Relative), JsonOptions.Web))!.Sanctioned.Select(s => s.PlayerId).ToList();
+
+        Assert.That(listed.IndexOf(felix.Id), Is.LessThan(listed.IndexOf(tom.Id)), "muted last, listed first");
+        Assert.That(listed.IndexOf(tom.Id), Is.Not.EqualTo(-1));
+    }
+
+    [Test]
     public async Task TheAdminPage_Lifts_FromThisSiteOnly()
     {
         var (admin, adminHub) = await AdminAsync();
