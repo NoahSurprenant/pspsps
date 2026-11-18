@@ -49,6 +49,8 @@ public static partial class ClientAttributes
 {
     public const int MaxAttributes = 32;
     public const int MaxValueLength = 1000;
+    /// <summary>An error's stack, as long as the browser sends it (client/src/telemetry/errors.ts MAX_STACK).</summary>
+    public const int MaxStackLength = 4000;
 
     public static List<KeyValuePair<string, object>> Clean(IReadOnlyDictionary<string, JsonElement>? attributes)
     {

@@ -159,6 +159,38 @@ describe("BrowserTelemetry", () => {
     expect(host.sent[1]?.init.keepalive).toBe(false);
   });
 
+  it("sends everything queued when the page hides or goes, not just one batch", () => {
+    const { telemetry, host } = telemetryOn();
+    telemetry.start();
+    for (let i = 0; i < 250; i++) {
+      telemetry.log("info", `line ${i}`);
+    }
+
+    host.fire("pagehide");
+
+    expect(host.fetch).toHaveBeenCalledTimes(3);
+    expect(host.sent.flatMap(({ body }) => body.logs)).toHaveLength(250);
+  });
+
+  it("shares keepalive's 64 KiB among the posts still in flight", async () => {
+    const { telemetry, host } = telemetryOn();
+    const big = () => {
+      for (let i = 0; i < 10; i++) {
+        telemetry.log("error", `${Math.random()} ${"x".repeat(3_500)}`);
+      }
+    };
+
+    big();
+    telemetry.flush();
+    big();
+    telemetry.flush();
+    await settle();
+    big();
+    telemetry.flush();
+
+    expect(host.sent.map(({ init }) => init.keepalive)).toEqual([true, false, true]);
+  });
+
   it("turns off for the page once the server answers 404, and only then", async () => {
     const { telemetry, host } = telemetryOn();
     host.status = 429;

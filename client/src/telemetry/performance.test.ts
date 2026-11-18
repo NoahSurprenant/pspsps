@@ -121,6 +121,29 @@ describe("WebGL context", () => {
   });
 });
 
+describe("watching again (the scene loaded again after a failed try)", () => {
+  it("adds no second listener to the canvas, and keeps one cap on Babylon's lines", () => {
+    const { telemetry, host } = telemetryOn();
+    const output = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+    const log = new AppLog(telemetry, output);
+    const canvas = new EventTarget();
+    const logger = { OnNewCacheEntry: (entry: string) => void entry };
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      watchWebGlContext(canvas as unknown as HTMLCanvasElement, log);
+      watchBabylonLog(logger, log);
+    }
+    canvas.dispatchEvent(new Event("webglcontextlost"));
+    for (let i = 0; i < MAX_BABYLON_LINES * 2; i++) {
+      logger.OnNewCacheEntry(`<div style='color:red'>[12:01:02]: error ${i}</div><br>`);
+    }
+    telemetry.flush();
+
+    expect(output.warn).toHaveBeenCalledOnce();
+    expect(host.sent[0]?.body.logs.filter((line) => line.message === "Babylon: error")).toHaveLength(MAX_BABYLON_LINES);
+  });
+});
+
 describe("Babylon's log", () => {
   it("reads errors and warnings out of Babylon's entries, and leaves plain logs out", () => {
     expect(babylonLine("<div style='color:red'>[12:01:02]: Unable to compile effect</div><br>"))

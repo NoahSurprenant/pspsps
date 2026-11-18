@@ -61,6 +61,20 @@ public sealed class ClientTelemetryOtlpTests
         });
     }
 
+    [Test]
+    public void AStack_KeepsWhatTheBrowserSends()
+    {
+        var stack = new string('s', 4500);
+        var clean = ClientAttributes.Clean(Attributes($"""{"exception.stacktrace":"{{stack}}","page":"{{stack}}"}"""));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That((string)clean.Single(a => a.Key == "exception.stacktrace").Value, Has.Length.EqualTo(ClientAttributes.MaxStackLength));
+            Assert.That((string)clean.Single(a => a.Key == "page").Value, Has.Length.EqualTo(ClientAttributes.MaxValueLength));
+            Assert.That(ClientAttributes.MaxStackLength, Is.EqualTo(4000), "client/src/telemetry/errors.ts MAX_STACK");
+        });
+    }
+
     [TestCase("see /auth/callback?code=abc&page=2 then", "see /auth/callback?code=REDACTED&page=2 then")]
     [TestCase("wss://game.example/hubs/game?id=conn-token", "wss://game.example/hubs/game?id=REDACTED")]
     [TestCase("/x?width=3&userId=42&e%6Dail=a", "/x?width=3&userId=REDACTED&e%6Dail=REDACTED")]
@@ -212,6 +226,21 @@ public sealed class ClientTelemetryOtlpTests
         await outbox.ForwardQueuedAsync(Forwarder(collector, new ForwardFailures(TimeProvider.System)));
 
         Assert.That(collector.Posts.Select(p => p.Path), Is.EqualTo(new[] { "/v1/traces" }));
+    }
+
+    [Test]
+    public async Task Outbox_ForwardsWhatIsQueued_InOnePostASignal()
+    {
+        using var collector = new FakeCollector();
+        var outbox = new ClientTelemetryOutbox(NullLogger<ClientTelemetryOutbox>.Instance, new ForwardFailures(TimeProvider.System));
+        for (var i = 0; i < 3; i++)
+            outbox.Enqueue(ClientTelemetryValidationTests.Batch() with { Version = $"build{i}" }, "Mozilla/5.0");
+
+        await outbox.ForwardQueuedAsync(Forwarder(collector, new ForwardFailures(TimeProvider.System)));
+
+        Assert.That(collector.Posts.Select(p => p.Path), Is.EqualTo(new[] { "/v1/traces", "/v1/logs" }));
+        Assert.That(collector.Posts[0].Body["resourceSpans"]!.AsArray(), Has.Count.EqualTo(3), "a resource each: each says its build");
+        Assert.That(collector.Posts[1].Body["resourceLogs"]!.AsArray(), Has.Count.EqualTo(3));
     }
 
     [Test]

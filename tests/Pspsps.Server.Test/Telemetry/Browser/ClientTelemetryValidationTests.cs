@@ -114,3 +114,19 @@ public sealed class ClientTelemetryValidationTests
     public void NullLists_AreRefused() =>
         Assert.That(ClientTelemetryValidation.Problem(Batch() with { Spans = null! }), Is.Not.Null);
 }
+
+public sealed class ClientTelemetryTimeTests
+{
+    // Past about 9.2e12 ms (the year 2262) OTLP's nanoseconds don't fit a long: such times are no browser's clock.
+    [Test]
+    public void TimesPastTheLastOneOtlpCanHold_AreRefused()
+    {
+        var late = ClientTelemetryValidationTests.Span() with { Start = 9.5e12, End = 9.5e12 };
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(ClientTelemetryValidation.Problem(ClientTelemetryValidationTests.Batch() with { Spans = [late] }), Is.Not.Null);
+            Assert.That(OtlpJson.Nanos(ClientTelemetryLimits.MaxEpochMs), Is.EqualTo("9000000000000000000"));
+        });
+    }
+}

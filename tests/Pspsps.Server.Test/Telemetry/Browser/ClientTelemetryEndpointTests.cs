@@ -167,6 +167,58 @@ public sealed class ClientTelemetryEndpointTests
         Assert.That(second.StatusCode, Is.EqualTo(HttpStatusCode.TooManyRequests), "signed in isn't unlimited: anyone can make a guest");
     }
 
+    /// <summary>A request body that fails as it is read.</summary>
+    private sealed class FailingBody(Exception failure) : MemoryStream
+    {
+        public override int Read(byte[] buffer, int offset, int count) => throw failure;
+
+        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken) => throw failure;
+
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default) => throw failure;
+    }
+
+    private static async Task<IResult> ReportWithBody(Exception failure)
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Method = "POST";
+        context.Request.ContentType = "application/json";
+        context.Request.Headers["Sec-Fetch-Site"] = "same-origin";
+        context.Request.Body = new FailingBody(failure);
+        using var services = new ServiceCollection().AddMetrics().BuildServiceProvider();
+        var outbox = new ClientTelemetryOutbox(new RecordingLogger<ClientTelemetryOutbox>(), new ForwardFailures(TimeProvider.System));
+        return await ClientTelemetry.ReportAsync(context,
+            Microsoft.Extensions.Options.Options.Create(new ClientTelemetryOptions { Enabled = true, OtlpEndpoint = "http://collector.test:4318" }),
+            outbox, new BrowserMetrics(services.GetRequiredService<IMeterFactory>()), CancellationToken.None);
+    }
+
+    // A chunked body past the size limit, or one cut off as its tab closed: answered, not thrown (which the request log
+    // would write as an error).
+    [Test]
+    public async Task ABodyTooLargeOrCutOff_IsAnswered_NotAnError()
+    {
+        var tooLarge = await ReportWithBody(new BadHttpRequestException("Request body too large.", StatusCodes.Status413PayloadTooLarge));
+        var cutOff = await ReportWithBody(new BadHttpRequestException("Unexpected end of request content.", StatusCodes.Status400BadRequest));
+        var reset = await ReportWithBody(new IOException("The client reset the request stream."));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That((tooLarge as IStatusCodeHttpResult)?.StatusCode, Is.EqualTo(StatusCodes.Status413PayloadTooLarge));
+            Assert.That((cutOff as IStatusCodeHttpResult)?.StatusCode, Is.EqualTo(StatusCodes.Status400BadRequest));
+            Assert.That(reset, Is.Not.Null);
+        });
+    }
+
+    [Test]
+    public async Task TheBatches_AreLeftOutOfTheHttpMetrics()
+    {
+        await using var server = await StartAsync();
+
+        var endpoint = server.App.Services.GetRequiredService<Microsoft.AspNetCore.Routing.EndpointDataSource>().Endpoints
+            .Single(e => (e as Microsoft.AspNetCore.Routing.RouteEndpoint)?.RoutePattern.RawText == ClientTelemetry.Path);
+
+        Assert.That(endpoint.Metadata.GetMetadata<Microsoft.AspNetCore.Http.Metadata.IDisableHttpMetricsMetadata>(), Is.Not.Null);
+    }
+
     [Test]
     public void Partitions_ArePerPlayerOrPerAddress()
     {
