@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using Pspsps.Application.Moderation;
+using Pspsps.Domain;
 using Pspsps.Domain.Moderation;
 using Pspsps.Server.Moderation;
 
@@ -62,6 +63,36 @@ public sealed class StandingCacheTests
         _time.Advance(TimeSpan.FromSeconds(2));
 
         Assert.That(await _cache.BanOfAsync(Felix, default), Is.Null);
+        await _moderation.Received(1).StandingAsync(Felix, Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task AChangeToOnePlayer_DoesntThrowAwayAnotherPlayersRead()
+    {
+        var tom = Guid.NewGuid();
+        var slow = new TaskCompletionSource<Standing>();
+        _moderation.StandingAsync(tom, Arg.Any<CancellationToken>()).Returns(slow.Task);
+        var reading = _cache.BanOfAsync(tom, default);
+        _cache.Forget(Felix);
+        slow.SetResult(Standing.None);
+        await reading;
+
+        await _cache.BanOfAsync(tom, default);
+
+        await _moderation.Received(1).StandingAsync(tom, Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task AMuteRead_IsTheChatRule_UntilItsTime()
+    {
+        var mute = new Sanction("Rude", _time.GetUtcNow(), _time.GetUtcNow().AddMinutes(1), Guid.NewGuid());
+        _moderation.StandingAsync(Felix, Arg.Any<CancellationToken>()).Returns(new Standing(null, mute));
+
+        var refused = Assert.ThrowsAsync<DomainException>(() => _cache.EnsureMayChatAsync(Felix, default));
+        Assert.That(refused!.Message, Is.EqualTo(mute.SaysMuted()));
+
+        _time.Advance(TimeSpan.FromMinutes(1));
+        await _cache.EnsureMayChatAsync(Felix, default);
         await _moderation.Received(1).StandingAsync(Felix, Arg.Any<CancellationToken>());
     }
 

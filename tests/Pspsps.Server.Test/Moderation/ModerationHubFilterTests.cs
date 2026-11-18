@@ -52,10 +52,11 @@ public sealed class ModerationHubFilterTests
     [Test]
     public void ABannedPlayersCalls_AreRefused_WithWhyAndUntilWhen()
     {
+        var caller = Caller("felix-tab");
         Ban(until: new DateTimeOffset(2026, 11, 19, 12, 0, 0, TimeSpan.Zero));
         var called = false;
 
-        var refused = Assert.ThrowsAsync<HubException>(async () => await _filter.InvokeMethodAsync(Invocation(), _ =>
+        var refused = Assert.ThrowsAsync<HubException>(async () => await _filter.InvokeMethodAsync(Invocation(caller), _ =>
         {
             called = true;
             return ValueTask.FromResult<object?>(null);
@@ -63,6 +64,8 @@ public sealed class ModerationHubFilterTests
 
         Assert.That(refused!.Message, Is.EqualTo("Your cat is banned until 19 Nov 2026 12:00 UTC. Why: Spamming"));
         Assert.That(called, Is.False);
+        // And the connection is closed, on whichever pod it is: a tab that ignored the ban gets nothing more.
+        caller.Received(1).Abort();
     }
 
     [Test]
@@ -106,8 +109,8 @@ public sealed class ModerationHubFilterTests
         return context;
     }
 
-    private static HubInvocationContext Invocation() =>
-        new(Caller("felix-tab"), Substitute.For<IServiceProvider>(), Substitute.For<Hub>(),
+    private static HubInvocationContext Invocation(HubCallerContext? caller = null) =>
+        new(caller ?? Caller("felix-tab"), Substitute.For<IServiceProvider>(), Substitute.For<Hub>(),
             typeof(GameHub).GetMethod(nameof(GameHub.Say))!, ["hello"]);
 
     private static HubLifetimeContext Lifetime(HubCallerContext connection) =>

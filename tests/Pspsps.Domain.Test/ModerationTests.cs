@@ -186,6 +186,19 @@ public sealed class ModerationTests
     }
 
     [Test]
+    public void AMutedPlayer_MayNotChat_UntilTheMuteEnds()
+    {
+        var felix = PlayerModeration.For(Felix);
+        felix.EnsureMayChat(Now);
+        felix.MuteUntil(Moderator, "Rude in chat", Now.AddHours(1), Now);
+
+        var refused = Assert.Throws<DomainException>(() => felix.EnsureMayChat(Now.AddMinutes(59)));
+        Assert.That(refused!.Message, Is.EqualTo("You're muted until 18 Nov 2026 13:00 UTC. Why: Rude in chat"));
+        felix.EnsureMayChat(Now.AddHours(1));
+        PlayerModeration.EnsureMayChat(mute: null, Now);
+    }
+
+    [Test]
     public void Warn_IsShownOnce()
     {
         var felix = PlayerModeration.For(Felix);

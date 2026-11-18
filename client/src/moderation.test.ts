@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  bannedLines, canLift, doneMessage, inForce, mutedNote, mutedToast, requestFor, sayWhy, standingLines, untilText,
+  Notices, bannedLines, canLift, doneMessage, inForce, mutedNote, mutedToast, requestFor, sayWhy, standingLines, untilText,
 } from "./moderation";
 
 const utc = { locale: "en-GB", timeZone: "UTC" };
@@ -60,5 +60,29 @@ describe("an admin's view of a card", () => {
     expect(doneMessage({ action: "ban", reason: "Spam", length: "7d" }, "Felix")).toBe("Felix is banned for 7 days.");
     expect(doneMessage({ action: "warn", reason: "Be nice" }, "Felix")).toBe("Felix was warned.");
     expect(doneMessage({ action: "lift", reason: "" }, "Felix")).toBe("Felix can play and chat again.");
+  });
+});
+
+describe("a warning", () => {
+  it("stays to show again until the player closes it, through any change of view", () => {
+    const notices = new Notices();
+    expect(notices.current).toBeUndefined();
+
+    notices.show("Please keep it friendly.");
+    // A room loaded meanwhile closed the dialog: still to show.
+    expect(notices.current).toBe("Please keep it friendly.");
+
+    notices.closed();
+    expect(notices.current).toBeUndefined();
+  });
+
+  it("shows one at a time, in order", () => {
+    const notices = new Notices();
+    notices.show("First");
+    notices.show("Second");
+
+    expect(notices.current).toBe("First");
+    notices.closed();
+    expect(notices.current).toBe("Second");
   });
 });

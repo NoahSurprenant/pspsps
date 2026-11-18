@@ -1247,6 +1247,30 @@ public sealed class GameHubTests
     }
 
     [Test]
+    public async Task Say_ReadsTheMuteFromThePodsStanding_NotTheDatabaseEveryLine()
+    {
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+
+        await hub.Say("hello");
+        await hub.Say("again");
+
+        await _moderation.Received(1).StandingAsync(Tom.Id, Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public void TakeWarning_ThatCantBeSaved_SaysWhy()
+    {
+        _moderation.TakeWarningAsync(Tom.Id, Arg.Any<CancellationToken>())
+            .ThrowsAsync(new DomainException("That changed just now. Try again."));
+        var hub = Hub();
+
+        var refused = Assert.ThrowsAsync<HubException>(() => hub.TakeWarning());
+
+        Assert.That(refused!.Message, Is.EqualTo("That changed just now. Try again."));
+    }
+
+    [Test]
     public async Task TakeWarning_HandsOverTheWarning()
     {
         _moderation.TakeWarningAsync(Tom.Id, Arg.Any<CancellationToken>()).Returns("Be nice.");
