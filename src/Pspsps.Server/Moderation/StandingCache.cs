@@ -6,10 +6,11 @@ namespace Pspsps.Server.Moderation;
 
 /// <summary>
 /// A player's ban and mute, for the hub to refuse their every call and their chat: read from the database at most once
-/// every <see cref="KeepFor"/> per player on this pod (a move is a call), and again at once after a change made on this
-/// pod. A ban or mute decided on another pod is seen here within <see cref="KeepFor"/>; one read here ends at its time.
-/// When the database can't answer, the last read holds (a restart doesn't lift a ban), and a player never read plays: a
-/// short outage doesn't stop the whole game.
+/// every <see cref="KeepFor"/> per player on this pod (a move is a call); a change made on this pod is known at once
+/// (<see cref="Know"/>). A ban or mute decided on another pod is seen here within <see cref="KeepFor"/>; one read here
+/// ends at its time. When the database can't answer, what this pod last knew of a player holds; a player it knows nothing
+/// of (it just started) plays until the database is back: a short outage doesn't stop the whole game, at the cost of a
+/// banned player maybe getting in meanwhile.
 /// </summary>
 public sealed partial class StandingCache(
     IServiceScopeFactory scopes,
@@ -22,7 +23,7 @@ public sealed partial class StandingCache(
     // Past this many players kept, the stale ones are dropped at the next read.
     private const int PruneAbove = 1000;
 
-    // Each player's last read, or a mark that it changed (Forget), which no read that started before can replace.
+    // What this pod last knew of each player: read, or changed here (Know), which no read that started before can replace.
     private readonly ConcurrentDictionary<Guid, Read> _read = new();
 
     // When stale reads were last dropped: at most once every KeepFor, not on every miss.
@@ -42,14 +43,14 @@ public sealed partial class StandingCache(
         PlayerModeration.EnsureMayChat(standing.Mute, time.GetUtcNow());
     }
 
-    /// <summary>Forgets what was read of the player: their standing changed.</summary>
-    public void Forget(Guid playerId) => _read[playerId] = new Read(Standing.None, time.GetUtcNow(), changed: true);
+    /// <summary>The player's standing changed on this pod: it is <paramref name="standing"/> now.</summary>
+    public void Know(Guid playerId, Standing standing) => _read[playerId] = new Read(standing, time.GetUtcNow());
 
     private async Task<Standing> StandingOfAsync(Guid playerId, CancellationToken cancellationToken)
     {
         var now = time.GetUtcNow();
         _read.TryGetValue(playerId, out var seen);
-        if (seen is { Changed: false } && now - seen.At < KeepFor && now >= seen.At)
+        if (seen is not null && now - seen.At < KeepFor && now >= seen.At)
         {
             return seen.Standing;
         }
@@ -68,17 +69,17 @@ public sealed partial class StandingCache(
                 LogNotRead(logger, e, playerId);
             }
 
-            return seen is { Changed: false } ? seen.Standing : Standing.None;
+            return seen?.Standing ?? Standing.None;
         }
 
-        if (_read.Count > PruneAbove && now - _prunedAt >= KeepFor)
+        if (now - _prunedAt >= KeepFor && _read.Count > PruneAbove)
         {
             _prunedAt = now;
             Prune(now);
         }
 
-        // Kept only if nothing changed the player since this read began (atomically: a Forget in between wins).
-        var read = new Read(standing, now, changed: false);
+        // Kept only if nothing changed the player since this read began (atomically: a Know in between wins).
+        var read = new Read(standing, now);
         if (seen is null)
         {
             _read.TryAdd(playerId, read);
@@ -91,7 +92,7 @@ public sealed partial class StandingCache(
         return standing;
     }
 
-    // Drops reads (and change marks) older than KeepFor: a read begun before such a mark has long finished.
+    // Drops what is older than KeepFor: a read begun before a change kept then has long finished.
     private void Prune(DateTimeOffset now)
     {
         foreach (var (playerId, read) in _read)
@@ -107,12 +108,10 @@ public sealed partial class StandingCache(
     private static partial void LogNotRead(ILogger logger, Exception exception, Guid playerId);
 
     // A class, not a record: compared by reference, so a read replaces only the very entry it saw.
-    private sealed class Read(Standing standing, DateTimeOffset at, bool changed)
+    private sealed class Read(Standing standing, DateTimeOffset at)
     {
         public Standing Standing { get; } = standing;
 
         public DateTimeOffset At { get; } = at;
-
-        public bool Changed { get; } = changed;
     }
 }

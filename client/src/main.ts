@@ -228,17 +228,29 @@ const connection = new GameConnection({
     }
   },
   warned: () => void showWarning(),
-  // The connection couldn't come back: a ban (refused at the door) shows why; anything else, as before.
-  closed: () => void fetchMe().then((player) => {
-    if (player?.ban) {
-      room = undefined;
-      overlay.showBanned(player.ban);
-    }
-  }).catch(() => {}),
+  // The connection dropped, or couldn't come back: a ban (refused at the door) shows why; anything else, as before.
+  reconnecting: () => void showBanIfBanned(),
+  closed: () => void showBanIfBanned(),
 });
 
 // Set once the player is banned in this tab: it has stopped, and does nothing more.
 let isBanned = false;
+
+/** Asks the server whether the player is banned (a dropped connection may be why), and if so stops and shows why. */
+async function showBanIfBanned(): Promise<void> {
+  try {
+    const player = await fetchMe();
+    if (player?.ban && !isBanned) {
+      isBanned = true;
+      loading.cancel();
+      room = undefined;
+      connection.stop();
+      overlay.showBanned(player.ban);
+    }
+  } catch {
+    // Not answered: the connection's own retries go on.
+  }
+}
 
 // The mute the player is under (why, until when), if any: the chat box is off until it ends, by itself or lifted.
 let chatMute: Sanction | null = null;

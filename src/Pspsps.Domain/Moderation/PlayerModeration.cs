@@ -106,32 +106,45 @@ public sealed class PlayerModeration
         Version++;
     }
 
-    /// <summary>Mutes the player in every room until <paramref name="until"/>: they can't chat, and are told why.</summary>
-    public void MuteUntil(Moderator by, string reason, DateTimeOffset until, DateTimeOffset now)
+    /// <summary>How long a mute lasts: an hour, a day or a week.</summary>
+    public static IReadOnlyList<TimeSpan> MuteLengths { get; } = [TimeSpan.FromHours(1), TimeSpan.FromHours(24), TimeSpan.FromDays(7)];
+
+    /// <summary>How long a ban lasts: a day, a week, or for good (null).</summary>
+    public static IReadOnlyList<TimeSpan?> BanLengths { get; } = [TimeSpan.FromHours(24), TimeSpan.FromDays(7), null];
+
+    /// <summary>
+    /// Mutes the player in every room for <paramref name="length"/> (one of <see cref="MuteLengths"/>): they can't chat,
+    /// and are told why and until when.
+    /// </summary>
+    public void MuteFor(Moderator by, string reason, TimeSpan length, DateTimeOffset now)
     {
         EnsureMayModerate(by);
         var text = ReasonOf(reason);
-        if (until <= now)
+        if (!MuteLengths.Contains(length))
         {
-            throw new DomainException("A mute ends later than now.");
+            throw new DomainException("A mute lasts an hour, a day or a week.");
         }
+
+        var until = now + length;
 
         (MuteReason, MutedAt, MutedUntil, MutedBy) = (text, now, until, by.PlayerId);
         Record(ModerationKind.Muted, by, now, text, until);
     }
 
     /// <summary>
-    /// Bans the player until <paramref name="until"/>, or for good when it's null: they can't play, and are told why and
-    /// until when.
+    /// Bans the player for <paramref name="length"/> (one of <see cref="BanLengths"/>; null: for good): they can't play, and
+    /// are told why and until when.
     /// </summary>
-    public void BanUntil(Moderator by, string reason, DateTimeOffset? until, DateTimeOffset now)
+    public void BanFor(Moderator by, string reason, TimeSpan? length, DateTimeOffset now)
     {
         EnsureMayModerate(by);
         var text = ReasonOf(reason);
-        if (until <= now)
+        if (!BanLengths.Contains(length))
         {
-            throw new DomainException("A ban ends later than now.");
+            throw new DomainException("A ban lasts a day, a week or for good.");
         }
+
+        DateTimeOffset? until = length is { } span ? now + span : null;
 
         (BanReason, BannedAt, BannedUntil, BannedBy) = (text, now, until, by.PlayerId);
         Record(ModerationKind.Banned, by, now, text, until);

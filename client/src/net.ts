@@ -45,6 +45,8 @@ export interface GameEvents {
   warned(): void;
   /** The connection closed and couldn't come back (not this tab stopping it): the server may have refused it. */
   closed(): void;
+  /** The connection dropped, and the tab is trying to come back: a banned player is refused, and is told why. */
+  reconnecting(): void;
 }
 
 export async function fetchMe(): Promise<Player | null> {
@@ -124,9 +126,14 @@ export class GameConnection {
       void this.hub.stop().then(() => events.replaced());
     });
     this.hub.on("Banned", (ban: Sanction) => {
+      // Shown at once, before anything else the server sends as the connection stops (the cat sent out of its room).
       this.stopping = true;
-      void this.hub.stop().then(() => events.banned(ban));
+      events.banned(ban);
+      void this.hub.stop();
     });
+    // Dropped: a ban decided on another pod closes the connection, and every try to come back is refused (403). The page
+    // asks why at once, rather than after every retry.
+    this.hub.onreconnecting(() => events.reconnecting());
     this.hub.on("Muted", (mute: Sanction | null) => events.muted(mute));
     this.hub.on("Warned", () => events.warned());
     this.hub.onclose(() => {
@@ -134,6 +141,12 @@ export class GameConnection {
         events.closed();
       }
     });
+  }
+
+  /** Stops the connection for good (the player is banned): no retries. */
+  stop(): void {
+    this.stopping = true;
+    void this.hub.stop();
   }
 
   async start(): Promise<void> {

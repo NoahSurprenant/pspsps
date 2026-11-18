@@ -20,6 +20,9 @@ internal sealed class ModerationService(
     /// <summary>How many open reports the admin page shows at once (the oldest).</summary>
     internal const int OpenReports = 50;
 
+    /// <summary>How many banned or muted players the admin page shows (the latest).</summary>
+    internal const int SanctionedShown = 100;
+
     private const string NoSuchCat = "That cat doesn't exist.";
 
     public bool IsAdmin(Guid playerId) => admins.Current.Contains(playerId);
@@ -87,6 +90,9 @@ internal sealed class ModerationService(
         var sanctioned = await db.Moderation.AsNoTracking()
             .Where(m => (m.BanReason != null && (m.BannedUntil == null || m.BannedUntil > now))
                 || (m.MuteReason != null && m.MutedUntil > now))
+            // The latest: bans for good pile up over the years.
+            .OrderByDescending(m => m.BannedAt ?? m.MutedAt)
+            .Take(SanctionedShown)
             .ToListAsync(cancellationToken);
         var recent = await db.ModerationEntries.AsNoTracking()
             .OrderByDescending(e => e.At)
@@ -130,77 +136,36 @@ internal sealed class ModerationService(
             ]);
     }
 
-    public async Task<ReportDecided> DecideReportAsync(
+    public Task<ReportDecided> DecideReportAsync(
         Guid adminId, Guid reportId, ModerationRequest? request, CancellationToken cancellationToken)
     {
         var moderator = Moderator.Of(adminId, admins.Current);
-        if (request is { Action: ModerationAction.Lift })
-        {
-            throw new DomainException("A report is dismissed, or the cat warned, muted or banned.");
-        }
-
-        for (var attempt = 1; ; attempt++)
+        // Warned, muted or banned (a lift isn't a decision on a report), checked before anything is read.
+        var decision = request is null ? (ReportDecision?)null : DecisionOf(request.Action);
+        return SaveAsync(async attempt =>
         {
             var report = await db.Reports.FirstOrDefaultAsync(r => r.Id == reportId, cancellationToken)
                 ?? throw new DomainException("That report doesn't exist.");
-            PlayerModeration? moderation = null;
-            try
+            attempt.Forget.Add(() => db.Forget(report));
+            var now = time.GetUtcNow();
+            if (request is null || decision is not { } done)
             {
-                var now = time.GetUtcNow();
-                if (request is null)
-                {
-                    report.Dismiss(moderator, now);
-                }
-                else
-                {
-                    // Reports outlive the players in them: one about a cat that's gone can only be dismissed.
-                    if (!await db.Players.AnyAsync(p => p.Id == report.ReportedId, cancellationToken))
-                    {
-                        throw new DomainException("That cat doesn't exist any more: dismiss the report.");
-                    }
-
-                    moderation = await db.Moderation.FirstOrDefaultAsync(m => m.PlayerId == report.ReportedId, cancellationToken);
-                    if (moderation is null)
-                    {
-                        moderation = PlayerModeration.For(report.ReportedId);
-                        db.Moderation.Add(moderation);
-                    }
-
-                    var recorded = moderation.Entries.Count;
-                    Apply(moderation, moderator, request, now);
-                    report.CloseWith(moderator, DecisionOf(request.Action), now);
-                    db.ModerationEntries.AddRange(moderation.Entries.Skip(recorded));
-                }
-
-                // One save: the report closes with what was done, or neither happens.
-                await db.SaveChangesAsync(cancellationToken);
-                return new ReportDecided(report.ReportedId, request?.Action, Standing.Of(moderation, now));
+                report.Dismiss(moderator, now);
+                return new ReportDecided(report.ReportedId, null, Standing.None);
             }
-            catch (DomainException)
+
+            // Reports outlive the players in them: one about a cat that's gone can only be dismissed.
+            if (!await db.Players.AnyAsync(p => p.Id == report.ReportedId, cancellationToken))
             {
-                Forget(report, moderation);
-                throw;
+                throw new DomainException("That cat doesn't exist any more: dismiss the report.");
             }
-            catch (DbUpdateException saving) when (saving is DbUpdateConcurrencyException || db.IsUniqueViolation(saving))
-            {
-                // Decided again on the report and the player as they are now: a report another admin closed meanwhile is
-                // refused then.
-                Forget(report, moderation);
-                if (attempt == Attempts)
-                {
-                    throw new DomainException("That changed just now. Try again.");
-                }
-            }
-        }
-    }
 
-    private void Forget(Report report, PlayerModeration? moderation)
-    {
-        db.Forget(report);
-        if (moderation is not null)
-        {
-            db.Forget(moderation);
-        }
+            var moderation = await ReadAsync(report.ReportedId, create: true, attempt, cancellationToken);
+            Apply(moderation!, moderator, request, now);
+            report.CloseWith(moderator, done, now);
+            // One save: the report closes with what was done, or neither happens.
+            return new ReportDecided(report.ReportedId, request.Action, Standing.Of(moderation, now));
+        }, cancellationToken);
     }
 
     private static ReportDecision DecisionOf(ModerationAction action) => action switch
@@ -220,11 +185,11 @@ internal sealed class ModerationService(
                 moderation.Warn(moderator, request.Reason ?? "", now);
                 break;
             case ModerationAction.Mute:
-                moderation.MuteUntil(
-                    moderator, request.Reason ?? "", now + (request.Length ?? throw new DomainException("Say for how long.")), now);
+                moderation.MuteFor(
+                    moderator, request.Reason ?? "", request.Length ?? throw new DomainException("Say for how long."), now);
                 break;
             case ModerationAction.Ban:
-                moderation.BanUntil(moderator, request.Reason ?? "", request.Length is { } length ? now + length : null, now);
+                moderation.BanFor(moderator, request.Reason ?? "", request.Length, now);
                 break;
             case ModerationAction.Lift:
                 moderation.Lift(moderator, now);
@@ -234,45 +199,75 @@ internal sealed class ModerationService(
         }
     }
 
-    // Reads the player's moderation (made when <create> and there is none), applies the change, saves, with what it lines
-    // in the audit trail. Version is a concurrency token: when another change landed between the read and the save (two
-    // admins at once, a warning taken as another is given), the save is refused and the change decided again on the
-    // moderation as it is now. Two firsts at once collide on the key, and are decided again too. Null when there is
-    // none and <create> is false.
-    private async Task<T?> ChangeAsync<T>(
-        Guid playerId, bool create, Func<PlayerModeration, T> change, CancellationToken cancellationToken)
-    {
-        for (var attempt = 1; ; attempt++)
+    // Reads the player's moderation, applies the change, saves (SaveAsync). Null, and nothing saved, when there is none and
+    // <create> is false.
+    private Task<T?> ChangeAsync<T>(
+        Guid playerId, bool create, Func<PlayerModeration, T> change, CancellationToken cancellationToken) =>
+        SaveAsync<T?>(async attempt =>
         {
-            var moderation = await db.Moderation.FirstOrDefaultAsync(m => m.PlayerId == playerId, cancellationToken);
-            if (moderation is null)
-            {
-                if (!create)
-                {
-                    return default;
-                }
+            var moderation = await ReadAsync(playerId, create, attempt, cancellationToken);
+            return moderation is null ? default : change(moderation);
+        }, cancellationToken);
 
-                moderation = PlayerModeration.For(playerId);
-                db.Moderation.Add(moderation);
+    // The player's moderation, tracked (made when <create> and there is none), with the audit lines the change adds kept
+    // for the save; and how to forget it all if the save is refused.
+    private async Task<PlayerModeration?> ReadAsync(
+        Guid playerId, bool create, Attempt attempt, CancellationToken cancellationToken)
+    {
+        var moderation = await db.Moderation.FirstOrDefaultAsync(m => m.PlayerId == playerId, cancellationToken);
+        if (moderation is null)
+        {
+            if (!create)
+            {
+                return null;
             }
 
-            var recorded = moderation.Entries.Count;
+            moderation = PlayerModeration.For(playerId);
+            db.Moderation.Add(moderation);
+        }
+
+        var recorded = moderation.Entries.Count;
+        attempt.BeforeSave.Add(() => db.ModerationEntries.AddRange(moderation.Entries.Skip(recorded)));
+        attempt.Forget.Add(() => db.Forget(moderation));
+        return moderation;
+    }
+
+    // One try at a change: what to do just before its save (add the new audit lines), and how to forget what it read if the
+    // save is refused.
+    private sealed class Attempt
+    {
+        public List<Action> BeforeSave { get; } = [];
+
+        public List<Action> Forget { get; } = [];
+    }
+
+    // Decides a change (<decide>: reads what it needs, tracked, and changes it by the Domain's rules), then saves it all in
+    // one go. Version (a player's moderation) and Status (a report) are concurrency tokens: when another change landed
+    // between the read and the save (two admins at once, a warning seen as another is given, a report closed meanwhile),
+    // the save is refused and the change decided again on what is there now, which may refuse it. Two firsts at once
+    // collide on a key, and are decided again too. A rule broken (a DomainException) saves nothing.
+    private async Task<T> SaveAsync<T>(Func<Attempt, Task<T>> decide, CancellationToken cancellationToken)
+    {
+        for (var tries = 1; ; tries++)
+        {
+            var attempt = new Attempt();
             try
             {
-                var result = change(moderation);
-                db.ModerationEntries.AddRange(moderation.Entries.Skip(recorded));
+                var result = await decide(attempt);
+                attempt.BeforeSave.ForEach(step => step());
+
                 await db.SaveChangesAsync(cancellationToken);
                 return result;
             }
             catch (DomainException)
             {
-                db.Forget(moderation);
+                attempt.Forget.ForEach(step => step());
                 throw;
             }
             catch (DbUpdateException saving) when (saving is DbUpdateConcurrencyException || db.IsUniqueViolation(saving))
             {
-                db.Forget(moderation);
-                if (attempt == Attempts)
+                attempt.Forget.ForEach(step => step());
+                if (tries == Attempts)
                 {
                     throw new DomainException("That changed just now. Try again.");
                 }

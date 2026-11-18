@@ -1,3 +1,4 @@
+import { el } from "./dom";
 import { emoteBar, emoteForKey, isTyping } from "./emotes";
 import type { Fishing } from "./fishing";
 import { canGoTo, friendButtons, friendStatus, sections, whereIs, type FriendAction, type Here } from "./friends";
@@ -720,17 +721,6 @@ export class Overlay {
     toast.classList.add("visible");
     window.setTimeout(() => toast.classList.remove("visible"), 4000);
   }
-}
-
-function el<K extends keyof HTMLElementTagNameMap>(
-  tag: K, options: { text?: string; className?: string; id?: string } = {}, ...children: Node[]
-): HTMLElementTagNameMap[K] {
-  const element = document.createElement(tag);
-  if (options.text) element.textContent = options.text;
-  if (options.className) element.className = options.className;
-  if (options.id) element.id = options.id;
-  element.append(...children);
-  return element;
 }
 
 /** One item in the shop: a fur's colour, its name, its price or whether it's worn, and its button. */

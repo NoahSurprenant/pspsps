@@ -36,7 +36,7 @@ internal sealed partial class ModerationEffects(
     public async Task AppliedAsync(Guid playerId, ModerationAction action, Standing standing)
     {
         ArgumentNullException.ThrowIfNull(standing);
-        standings.Forget(playerId);
+        standings.Know(playerId, standing);
         var player = hub.Clients.User(PlayerUserIdProvider.For(playerId));
         try
         {

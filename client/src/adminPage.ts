@@ -1,3 +1,4 @@
+import { el } from "./dom";
 import {
   decidedMessage, decisionChoices, decisionRequest, liftLabel, logLine, reportFacts, reportHeading, sanctionLine, when,
   type AdminOverview, type OpenReport, type SanctionedPlayer,
@@ -193,13 +194,3 @@ function link(text: string, href: string): HTMLAnchorElement {
   return anchor;
 }
 
-function el<K extends keyof HTMLElementTagNameMap>(
-  tag: K, options: { text?: string; className?: string; id?: string } = {}, ...children: Node[]
-): HTMLElementTagNameMap[K] {
-  const element = document.createElement(tag);
-  if (options.text) element.textContent = options.text;
-  if (options.className) element.className = options.className;
-  if (options.id) element.id = options.id;
-  element.append(...children);
-  return element;
-}
