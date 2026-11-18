@@ -20,7 +20,8 @@ export default defineConfig({
     proxy: {
       "/auth": server,
       "/api": server,
-      "/admin": server,
+      // The page itself only (the server checks who asks); admin.html, in development, is Vite's.
+      "^/admin$": server,
       "/hubs": { target: server, ws: true },
     },
   },

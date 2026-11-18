@@ -130,3 +130,25 @@ export function doneMessage(request: ModerationRequest, name: string): string {
       return `${name} can play and chat again.`;
   }
 }
+
+/**
+ * Warnings to show, one at a time, until the player closes each: a dialog closed by a change of view (a room loading)
+ * isn't read, and the server has counted the warning as seen once it handed it over.
+ */
+export class Notices {
+  private readonly waiting: string[] = [];
+
+  /** The warning to show now, if any. */
+  get current(): string | undefined {
+    return this.waiting[0];
+  }
+
+  show(text: string): void {
+    this.waiting.push(text);
+  }
+
+  /** The player closed the one showing. */
+  closed(): void {
+    this.waiting.shift();
+  }
+}

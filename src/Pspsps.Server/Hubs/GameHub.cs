@@ -32,6 +32,7 @@ public sealed partial class GameHub(
     IHomeService homes,
     IModerationService moderation,
     IModerationEffects moderationEffects,
+    StandingCache standings,
     SessionHeartbeat heartbeat,
     GameMetrics metrics,
     ILogger<GameHub> logger)
@@ -399,11 +400,13 @@ public sealed partial class GameHub(
 
     public async Task Say(string text)
     {
-        // Muted everywhere: refused with why and until when (the browser has turned its chat off already).
-        if ((await moderation.StandingAsync(PlayerId, Context.ConnectionAborted)).Mute is { } mute)
+        // Muted everywhere: refused with why and until when (the browser has turned its chat off already). From this pod's
+        // read of the player's standing, as for the ban: chat doesn't read the database every line.
+        await PlayersRule(async () =>
         {
-            throw new HubException(mute.SaysMuted());
-        }
+            await standings.EnsureMayChatAsync(PlayerId, Context.ConnectionAborted);
+            return true;
+        });
 
         var place = await InRoom(room => room.Say(PlayerId, text));
         metrics.Said(place.WorldId);
@@ -489,7 +492,7 @@ public sealed partial class GameHub(
     }
 
     /// <summary>The warning an admin left this player, if any: shown once, so it counts as seen from now on.</summary>
-    public Task<string?> TakeWarning() => moderation.TakeWarningAsync(PlayerId, CancellationToken.None);
+    public Task<string?> TakeWarning() => PlayersRule(() => moderation.TakeWarningAsync(PlayerId, CancellationToken.None));
 
     /// <summary>The shop: everything in it, and the player's coins, things and what their cat wears.</summary>
     public async Task<ShopView> GetShop() =>

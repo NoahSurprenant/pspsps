@@ -16,7 +16,7 @@ import {
 } from "./home";
 import type { FriendAction } from "./friends";
 import { describeCat, shopMessage, showsOutfit, type ShopAction } from "./shop";
-import { doneMessage, inForce, mutedToast, type ModerationRequest, type Sanction } from "./moderation";
+import { Notices, doneMessage, inForce, mutedToast, type ModerationRequest, type Sanction } from "./moderation";
 import type { DoorView, HomeView, HomeVisitors, OutfitView, Player, PlayerCard, PropView, RoomSnapshot, Shop } from "./types";
 
 const overlay = new Overlay(required<HTMLElement>("#ui"));
@@ -224,6 +224,10 @@ function setMuted(mute: Sanction | null): void {
   window.clearTimeout(unmuteTimer);
   unmuteTimer = undefined;
   muted = inForce(mute) ? mute : null;
+  // Kept on the player too: a world picked again (after worldLost) starts from it, not from the page load's.
+  if (me) {
+    me = { ...me, mute: muted };
+  }
   overlay.setMuted(muted);
   if (muted?.until) {
     // A timeout of more than about 24.8 days fires at once: a long mute is checked again in a day.
@@ -232,15 +236,30 @@ function setMuted(mute: Sanction | null): void {
   }
 }
 
-/** The warning an admin left the player, if any, shown once over whatever shows. */
+// Warnings handed over by the server (which counts them as seen), each shown until the player closes it.
+const notices = new Notices();
+
+/** The warning an admin left the player, if any, shown over whatever shows until the player closes it. */
 async function showWarning(): Promise<void> {
   try {
     const warning = await connection.takeWarning();
     if (warning) {
-      overlay.showNotice("A word from the admins", warning);
+      notices.show(warning);
+      showNotice();
     }
   } catch {
     // Not taken: it is still there, for the next time.
+  }
+}
+
+/** Shows the warning waiting, unless it shows already: again after a change of view (a room loading) closed it. */
+function showNotice(): void {
+  const text = notices.current;
+  if (text !== undefined && overlay.openDialogFor?.kind !== "notice") {
+    overlay.showNotice("A word from the admins", text, () => {
+      notices.closed();
+      showNotice();
+    });
   }
 }
 
@@ -358,6 +377,7 @@ function show(snapshot: RoomSnapshot, view: RoomScene): Room {
       : undefined,
   );
   overlay.setMuted(muted);
+  showNotice();
   fishing.drop();
   return shown;
 }
@@ -495,6 +515,7 @@ async function pickWorld(player: Player, providers?: string[], note?: Note): Pro
     { providers: saveWith, link: (provider) => postTo(linkUrl(provider)) },
     note,
   );
+  showNotice();
   // A warning left while the player was away: shown once, now.
   void showWarning();
 }

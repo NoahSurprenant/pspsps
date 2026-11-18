@@ -15,7 +15,17 @@ public sealed class ModerationHubFilter(StandingCache standings, PlayerConnectio
     {
         ArgumentNullException.ThrowIfNull(invocationContext);
         ArgumentNullException.ThrowIfNull(next);
-        await RefuseIfBannedAsync(invocationContext.Context);
+        try
+        {
+            await RefuseIfBannedAsync(invocationContext.Context);
+        }
+        catch (HubException)
+        {
+            // Closed too, on whichever pod it is: a tab that ignored the ban (or was told on another pod) gets nothing more.
+            invocationContext.Context.Abort();
+            throw;
+        }
+
         return await next(invocationContext);
     }
 

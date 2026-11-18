@@ -49,7 +49,7 @@ public sealed class GameHubTests
     [SetUp]
     public void Substitutes()
     {
-        _services = new ServiceCollection().AddMetrics().BuildServiceProvider();
+        _services = new ServiceCollection().AddMetrics().AddScoped(_ => _moderation).BuildServiceProvider();
         _grains = Substitute.For<IGrainFactory>();
         _world = Substitute.For<IWorldGrain>();
         _room = Substitute.For<IRoomGrain>();
@@ -1159,14 +1159,14 @@ public sealed class GameHubTests
     [Test]
     public async Task Say_WhileMuted_IsRefusedWithWhyAndUntilWhen_AndTheRoomHearsNothing()
     {
-        var mute = new Sanction("Rude in chat", DateTimeOffset.UtcNow, new DateTimeOffset(2026, 11, 18, 13, 0, 0, TimeSpan.Zero), Felix);
+        var mute = new Sanction("Rude in chat", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1), Felix);
         _moderation.StandingAsync(Tom.Id, Arg.Any<CancellationToken>()).Returns(new Standing(null, mute));
         var hub = Hub();
         await hub.EnterWorld("tabby");
 
         var refused = Assert.ThrowsAsync<HubException>(() => hub.Say("hello"));
 
-        Assert.That(refused!.Message, Is.EqualTo("You're muted until 18 Nov 2026 13:00 UTC. Why: Rude in chat"));
+        Assert.That(refused!.Message, Is.EqualTo(mute.SaysMuted()));
         await _room.DidNotReceiveWithAnyArgs().Say(default, default!);
     }
 
@@ -1288,7 +1288,8 @@ public sealed class GameHubTests
         context.ConnectionAborted.Returns(CancellationToken.None);
         var metrics = new GameMetrics(_services.GetRequiredService<IMeterFactory>());
         return new GameHub(
-            _grains, _players, _friends, _shop, _homes, _moderation, _effects, _heartbeat, metrics, NullLogger<GameHub>.Instance)
+            _grains, _players, _friends, _shop, _homes, _moderation, _effects,
+            new StandingCache(_services.GetRequiredService<IServiceScopeFactory>(), TimeProvider.System), _heartbeat, metrics, NullLogger<GameHub>.Instance)
         {
             Context = context,
             Groups = Substitute.For<IGroupManager>(),

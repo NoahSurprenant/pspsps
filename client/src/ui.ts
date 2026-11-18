@@ -86,7 +86,7 @@ export class Overlay {
   private decorating: AbortController | undefined;
   private fishing: FishingControls | undefined;
   // The player card or friends list open over the room, if any.
-  private dialog: { element: HTMLDialogElement; open: OpenDialog } | undefined;
+  private dialog: { element: HTMLDialogElement; open: OpenDialog; closed?: () => void } | undefined;
 
   /** Opens the friends list: the room bar has a Friends button once this is set. */
   onFriends: (() => void) | undefined;
@@ -459,8 +459,11 @@ export class Overlay {
   }
 
   /** A word from the admins, over whatever shows: the player reads it, then closes it. */
-  showNotice(title: string, text: string): void {
+  showNotice(title: string, text: string, closed: () => void): void {
     this.openDialog({ kind: "notice" }, "notice", openingHeading(title), el("p", { text, className: "notice-text" }));
+    if (this.dialog) {
+      this.dialog.closed = closed;
+    }
   }
 
   // Says <message> in the open dialog (its message line), as the toast would behind it.
@@ -584,13 +587,17 @@ export class Overlay {
     return this.dialog?.element.open ? this.dialog.open : undefined;
   }
 
-  closeDialog(): void {
+  /** Closes the dialog open, if any; <byPlayer> when the player closed it (Close, Escape, a tap outside it). */
+  closeDialog(byPlayer = false): void {
     const dialog = this.dialog;
     this.dialog = undefined;
     if (dialog?.element.open) {
       dialog.element.close();
     }
     dialog?.element.remove();
+    if (byPlayer) {
+      dialog?.closed?.();
+    }
   }
 
   // A modal dialog over the room (the page behind it inert until it closes), replacing any open one. Escape or Close
@@ -605,12 +612,12 @@ export class Overlay {
     const dialog = el("dialog", { className: `sheet ${className}` },
       ...children,
       el("p", { className: "dialog-message", id: "dialog-message" }),
-      button("Close", () => this.closeDialog(), "quiet"),
+      button("Close", () => this.closeDialog(true), "quiet"),
     );
     dialog.setAttribute("aria-labelledby", "dialog-title");
     dialog.addEventListener("close", () => {
       if (this.dialog?.element === dialog) {
-        this.closeDialog();
+        this.closeDialog(true);
       }
     });
     // A tap on the backdrop (outside the sheet) closes it too.
@@ -618,7 +625,7 @@ export class Overlay {
       if (event.target === dialog) {
         const r = dialog.getBoundingClientRect();
         if (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) {
-          this.closeDialog();
+          this.closeDialog(true);
         }
       }
     });

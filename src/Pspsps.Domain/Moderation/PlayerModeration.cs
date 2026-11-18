@@ -137,6 +137,20 @@ public sealed class PlayerModeration
         }
     }
 
+    /// <summary>Refuses chat while the player is muted (at <paramref name="now"/>), saying why and until when.</summary>
+    public void EnsureMayChat(DateTimeOffset now) => EnsureMayChat(Mute, now);
+
+    /// <summary>
+    /// Refuses chat under <paramref name="mute"/> (a player's last mute, as read) while it holds at <paramref name="now"/>.
+    /// </summary>
+    public static void EnsureMayChat(Sanction? mute, DateTimeOffset now)
+    {
+        if (mute is not null && mute.InForceAt(now))
+        {
+            throw new DomainException(mute.SaysMuted());
+        }
+    }
+
     /// <summary>The warning not shown yet, if any, which counts as shown from now on.</summary>
     public string? TakeWarning()
     {
