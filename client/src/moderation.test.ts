@@ -68,9 +68,9 @@ describe("a warning", () => {
     const notices = new Notices();
     expect(notices.current).toBeUndefined();
 
-    notices.show("Please keep it friendly.");
+    notices.show({ id: "w1", text: "Please keep it friendly." });
     // A room loaded meanwhile closed the dialog: still to show.
-    expect(notices.current).toBe("Please keep it friendly.");
+    expect(notices.current?.text).toBe("Please keep it friendly.");
 
     notices.closed();
     expect(notices.current).toBeUndefined();
@@ -78,11 +78,18 @@ describe("a warning", () => {
 
   it("shows one at a time, in order", () => {
     const notices = new Notices();
-    notices.show("First");
-    notices.show("Second");
+    notices.show({ id: "w1", text: "First" });
+    notices.show({ id: "w2", text: "Second" });
+    // Fetched again (told again, another tab): not shown twice.
+    notices.show({ id: "w1", text: "First" });
 
-    expect(notices.current).toBe("First");
+    expect(notices.current?.text).toBe("First");
     notices.closed();
-    expect(notices.current).toBe("Second");
+    expect(notices.current?.text).toBe("Second");
+    notices.closed();
+    expect(notices.current).toBeUndefined();
+    // Closed, so seen: fetched again before the server has heard, it stays closed.
+    notices.show({ id: "w1", text: "First" });
+    expect(notices.current).toBeUndefined();
   });
 });

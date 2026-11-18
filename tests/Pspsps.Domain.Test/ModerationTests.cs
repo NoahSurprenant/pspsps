@@ -30,7 +30,7 @@ public sealed class ModerationTests
         {
             Assert.That(felix.BanAt(Now), Is.Null);
             Assert.That(felix.MuteAt(Now), Is.Null);
-            Assert.That(felix.Warning, Is.Null);
+            Assert.That(felix.WarningsSeenUntil, Is.Null);
             Assert.That(felix.Entries, Is.Empty);
         });
         Assert.Throws<DomainException>(() => PlayerModeration.For(Guid.Empty));
@@ -147,6 +147,19 @@ public sealed class ModerationTests
     }
 
     [Test]
+    public void ABanFromBeforeThePlayerWasListedAsAnAdmin_CanStillBeLifted()
+    {
+        var felix = PlayerModeration.For(Felix);
+        felix.BanUntil(Moderator, "Spam", null, Now);
+        var listedSince = Moderator.Of(Admin, new HashSet<Guid> { Admin, Felix });
+
+        felix.Lift(listedSince, Now.AddMinutes(1));
+
+        Assert.That(felix.BanAt(Now.AddMinutes(1)), Is.Null);
+        Assert.Throws<DomainException>(() => felix.BanUntil(listedSince, "Again", null, Now.AddMinutes(2)), "but not banned again");
+    }
+
+    [Test]
     public void Lift_EndsTheBanAndTheMute()
     {
         var felix = PlayerModeration.For(Felix);
@@ -189,23 +202,30 @@ public sealed class ModerationTests
     public void AMutedPlayer_MayNotChat_UntilTheMuteEnds()
     {
         var felix = PlayerModeration.For(Felix);
-        felix.EnsureMayChat(Now);
+        PlayerModeration.EnsureMayChat(felix.Mute, Now);
         felix.MuteUntil(Moderator, "Rude in chat", Now.AddHours(1), Now);
 
-        var refused = Assert.Throws<DomainException>(() => felix.EnsureMayChat(Now.AddMinutes(59)));
+        var refused = Assert.Throws<DomainException>(() => PlayerModeration.EnsureMayChat(felix.Mute, Now.AddMinutes(59)));
         Assert.That(refused!.Message, Is.EqualTo("You're muted until 18 Nov 2026 13:00 UTC. Why: Rude in chat"));
-        felix.EnsureMayChat(Now.AddHours(1));
+        PlayerModeration.EnsureMayChat(felix.Mute, Now.AddHours(1));
         PlayerModeration.EnsureMayChat(mute: null, Now);
     }
 
     [Test]
-    public void Warn_IsShownOnce()
+    public void Warnings_WaitUntilThePlayerHasSeenThem_EveryOne()
     {
         var felix = PlayerModeration.For(Felix);
         felix.Warn(Moderator, "Please keep it friendly.", Now);
+        felix.Warn(Moderator, "No spamming.", Now.AddMinutes(1));
+        string?[] Unseen() => [.. felix.Entries.Where(felix.IsUnseenWarning).Select(e => e.Reason)];
 
-        Assert.That(felix.TakeWarning(), Is.EqualTo("Please keep it friendly."));
-        Assert.That(felix.TakeWarning(), Is.Null);
+        Assert.That(Unseen(), Is.EqualTo(new[] { "Please keep it friendly.", "No spamming." }), "a second doesn't hide the first");
+        felix.SawWarningsUntil(Now);
+        Assert.That(Unseen(), Is.EqualTo(new[] { "No spamming." }));
+        felix.SawWarningsUntil(Now.AddMinutes(-5));
+        Assert.That(Unseen(), Is.EqualTo(new[] { "No spamming." }), "seen stays seen");
+        felix.SawWarningsUntil(Now.AddMinutes(1));
+        Assert.That(Unseen(), Is.Empty);
         Assert.That(felix.BanAt(Now), Is.Null, "a warning is only words");
         Assert.That(felix.MuteAt(Now), Is.Null);
     }
@@ -238,10 +258,10 @@ public sealed class ModerationTests
         var felix = PlayerModeration.For(Felix);
 
         felix.Warn(Moderator, "Be nice", Now);
-        felix.TakeWarning();
-        felix.TakeWarning();
+        felix.SawWarningsUntil(Now);
+        felix.SawWarningsUntil(Now);
 
-        Assert.That(felix.Version, Is.EqualTo(2), "a warning taken when there's none changes nothing");
+        Assert.That(felix.Version, Is.EqualTo(2), "seeing what was seen already changes nothing");
     }
 
     [Test]

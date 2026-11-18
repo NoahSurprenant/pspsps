@@ -1259,24 +1259,27 @@ public sealed class GameHubTests
     }
 
     [Test]
-    public void TakeWarning_ThatCantBeSaved_SaysWhy()
+    public void SawWarning_ThatCantBeSaved_SaysWhy()
     {
-        _moderation.TakeWarningAsync(Tom.Id, Arg.Any<CancellationToken>())
+        var id = Guid.NewGuid();
+        _moderation.SawWarningAsync(Tom.Id, id, Arg.Any<CancellationToken>())
             .ThrowsAsync(new DomainException("That changed just now. Try again."));
         var hub = Hub();
 
-        var refused = Assert.ThrowsAsync<HubException>(() => hub.TakeWarning());
+        var refused = Assert.ThrowsAsync<HubException>(() => hub.SawWarning(id));
 
         Assert.That(refused!.Message, Is.EqualTo("That changed just now. Try again."));
     }
 
     [Test]
-    public async Task TakeWarning_HandsOverTheWarning()
+    public async Task GetWarnings_HandsOverTheWarningsNotSeenYet()
     {
-        _moderation.TakeWarningAsync(Tom.Id, Arg.Any<CancellationToken>()).Returns("Be nice.");
+        var id = Guid.NewGuid();
+        _moderation.WarningsAsync(Tom.Id, Arg.Any<CancellationToken>())
+            .Returns([new PendingWarning(id, "Be nice.", DateTimeOffset.UtcNow)]);
         var hub = Hub();
 
-        Assert.That(await hub.TakeWarning(), Is.EqualTo("Be nice."));
+        Assert.That(await hub.GetWarnings(), Is.EqualTo(new[] { new WarningView(id, "Be nice.") }));
     }
 
     private GameHub Hub()

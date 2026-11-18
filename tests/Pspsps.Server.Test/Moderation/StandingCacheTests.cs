@@ -83,6 +83,19 @@ public sealed class StandingCacheTests
     }
 
     [Test]
+    public async Task WhenTheDatabaseCantAnswer_TheLastReadHolds_AndAPlayerNeverReadPlays()
+    {
+        var ban = new Sanction("Spam", _time.GetUtcNow(), null, Guid.NewGuid());
+        _moderation.StandingAsync(Felix, Arg.Any<CancellationToken>()).Returns(new Standing(ban, null));
+        await _cache.BanOfAsync(Felix, default);
+        _moderation.StandingAsync(default, default).ReturnsForAnyArgs(Task.FromException<Standing>(new TimeoutException()));
+        _time.Advance(StandingCache.KeepFor);
+
+        Assert.That(await _cache.BanOfAsync(Felix, default), Is.EqualTo(ban), "a database restart doesn't lift a ban");
+        Assert.That(await _cache.BanOfAsync(Guid.NewGuid(), default), Is.Null, "nor stop everyone else playing");
+    }
+
+    [Test]
     public async Task AMuteRead_IsTheChatRule_UntilItsTime()
     {
         var mute = new Sanction("Rude", _time.GetUtcNow(), _time.GetUtcNow().AddSeconds(2), Guid.NewGuid());

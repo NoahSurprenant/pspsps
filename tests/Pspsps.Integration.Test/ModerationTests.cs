@@ -142,7 +142,7 @@ public sealed class ModerationTests
     }
 
     [Test]
-    public async Task AWarning_IsShownOnce_AtOnceIfOnline_OrTheNextTime()
+    public async Task AWarning_IsShownUntilSeen_AtOnceIfOnline_OrTheNextTime()
     {
         var (_, adminHub) = await AdminAsync();
         var (felix, felixHub) = await Game.ConnectGuestAsync();
@@ -153,13 +153,19 @@ public sealed class ModerationTests
 
         await adminHub.InvokeAsync<PlayerCardView>("Moderate", felix.Id, "warn", "Please keep it friendly.", null);
         Assert.That(await felixSees.Next<bool>("Warned", any => true), Is.True);
-        Assert.That(await felixHub.InvokeAsync<string?>("TakeWarning"), Is.EqualTo("Please keep it friendly."));
-        Assert.That(await felixHub.InvokeAsync<string?>("TakeWarning"), Is.Null, "shown once");
+        var warnings = await felixHub.InvokeAsync<List<WarningView>>("GetWarnings");
+        Assert.That(warnings.Select(w => w.Text), Is.EqualTo(new[] { "Please keep it friendly." }));
+        Assert.That(await felixHub.InvokeAsync<List<WarningView>>("GetWarnings"), Has.Count.EqualTo(1), "until seen");
+        await felixHub.InvokeAsync("SawWarning", warnings[0].Id);
+        Assert.That(await felixHub.InvokeAsync<List<WarningView>>("GetWarnings"), Is.Empty, "shown until seen, then not again");
 
-        // Tom isn't playing: it waits for him.
+        // Tom isn't playing: both wait for him, the first not hidden by the second.
         await adminHub.InvokeAsync<PlayerCardView>("Moderate", tom.Id, "warn", "No spamming.", null);
+        Game.ModerationTime.Advance(TimeSpan.FromSeconds(1));
+        await adminHub.InvokeAsync<PlayerCardView>("Moderate", tom.Id, "warn", "Really, no spamming.", null);
         await using var tomHub = await Game.ConnectAsync(tomCookie);
-        Assert.That(await tomHub.InvokeAsync<string?>("TakeWarning"), Is.EqualTo("No spamming."));
+        Assert.That((await tomHub.InvokeAsync<List<WarningView>>("GetWarnings")).Select(w => w.Text),
+            Is.EqualTo(new[] { "No spamming.", "Really, no spamming." }));
     }
 
     [Test]
