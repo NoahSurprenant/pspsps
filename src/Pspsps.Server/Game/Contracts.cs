@@ -2,12 +2,14 @@ using System.Diagnostics.CodeAnalysis;
 using Pspsps.Application.Homes;
 using Pspsps.Application.Moderation;
 using Pspsps.Application.Players;
+using Pspsps.Application.Safety;
 using Pspsps.Application.Shop;
 using Pspsps.Domain.Fishing;
 using Pspsps.Domain.Homes;
 using Pspsps.Domain.Moderation;
 using Pspsps.Domain.Rooms;
 using Pspsps.Domain.Shop;
+using Pspsps.Domain.Worlds;
 
 namespace Pspsps.Server.Game;
 
@@ -363,13 +365,60 @@ public sealed record ModerationLogView(
     }
 }
 
-/// <summary>The admin page: who is banned or muted now, and what admins did lately (newest first).</summary>
-public sealed record AdminOverviewView(IReadOnlyList<SanctionedPlayerView> Sanctioned, IReadOnlyList<ModerationLogView> Recent)
+/// <summary>
+/// The admin page: the open reports (oldest first), who is banned or muted now, and what admins did lately (newest
+/// first).
+/// </summary>
+public sealed record AdminOverviewView(
+    IReadOnlyList<OpenReportView> Reports, IReadOnlyList<SanctionedPlayerView> Sanctioned, IReadOnlyList<ModerationLogView> Recent)
 {
     public static AdminOverviewView From(ModerationOverview overview)
     {
         ArgumentNullException.ThrowIfNull(overview);
-        return new([.. overview.Sanctioned.Select(SanctionedPlayerView.From)], [.. overview.Recent.Select(ModerationLogView.From)]);
+        return new(
+            [.. overview.Reports.Select(OpenReportView.From)],
+            [.. overview.Sanctioned.Select(SanctionedPlayerView.From)],
+            [.. overview.Recent.Select(ModerationLogView.From)]);
+    }
+}
+
+/// <summary>A line of a report's chat, as the room had it: who said it (their name then), what, and when.</summary>
+public sealed record ReportLineView(Guid PlayerId, string DisplayName, string Text, DateTimeOffset At);
+
+/// <summary>
+/// An open report on the admin page: who reported whom, why (Reason: a ReportReason's name) and the note, where (Place,
+/// to read: "Town Square, Tabby", or "A home"), when, and the room's last chat lines, oldest first.
+/// </summary>
+public sealed record OpenReportView(
+    Guid Id, Guid ReporterId, string ReporterName, Guid ReportedId, string ReportedName, string Reason, string? Note,
+    string Place, DateTimeOffset FiledAt, IReadOnlyList<ReportLineView> Context)
+{
+    public static OpenReportView From(OpenReport report)
+    {
+        ArgumentNullException.ThrowIfNull(report);
+        return new(
+            report.Id, report.ReporterId, report.ReporterName, report.ReportedId, report.ReportedName, report.Reason.ToString(),
+            report.Note, PlaceOf(report.WorldId, report.Room), report.FiledAt,
+            [.. report.Context.Select(line => new ReportLineView(line.PlayerId, line.DisplayName, line.Text, line.At))]);
+    }
+
+    /// <summary>Where a report was filed, to read: the room and the world, or a home (which is in no world).</summary>
+    public static string PlaceOf(string worldId, string room)
+    {
+        ArgumentNullException.ThrowIfNull(room);
+        var roomId = room;
+        if (room.Contains('/', StringComparison.Ordinal))
+        {
+            if (RoomKey.HomeOwner(room) is not null)
+            {
+                return "A home";
+            }
+
+            roomId = RoomKey.Parse(room).RoomId;
+        }
+
+        var roomName = RoomCatalog.Find(roomId)?.Name ?? roomId;
+        return WorldCatalog.Find(worldId) is { } world ? $"{roomName}, {world.Name}" : roomName;
     }
 }
 
@@ -378,3 +427,16 @@ public sealed record ModerateRequestView(string? Action, string? Reason, string?
 
 /// <summary>A warning from the admins the player hasn't seen yet: its ID (to say it was seen) and its words.</summary>
 public sealed record WarningView(Guid Id, string Text);
+
+/// <summary>A player this one has muted (their chat is hidden from this player's browser), for the list of mutes.</summary>
+public sealed record MutedView(Guid PlayerId, string DisplayName, string FurColor)
+{
+    public static MutedView From(MutedPlayer muted)
+    {
+        ArgumentNullException.ThrowIfNull(muted);
+        return new(muted.PlayerId, muted.DisplayName, muted.FurColor.ToString());
+    }
+}
+
+/// <summary>A report sent: whether the player has the cat they reported muted now, and their mutes after.</summary>
+public sealed record ReportReceipt(bool Muted, IReadOnlyList<MutedView> Mutes);

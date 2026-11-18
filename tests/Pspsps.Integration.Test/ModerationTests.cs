@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Client;
 using Pspsps.Application.Players;
 using Pspsps.Domain.Moderation;
+using Pspsps.Domain.Safety;
+using Pspsps.Infrastructure.Persistence;
 using Pspsps.Server.Game;
 
 namespace Pspsps.Integration.Test;
@@ -243,6 +245,93 @@ public sealed class ModerationTests
         Assert.That(lifted.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(await lifted.Content.ReadFromJsonAsync<CardModerationView>(JsonOptions.Web),
             Is.EqualTo(new CardModerationView(false, null, null)));
+    }
+
+    [Test]
+    public async Task TheAdminPage_ListsOpenReportsWithTheirChat_AndActingOnOneClosesItWithWhatWasDone()
+    {
+        var (admin, adminHub) = await AdminAsync();
+        var (tom, tomHub) = await Game.ConnectGuestAsync();
+        var (felix, felixHub) = await Game.ConnectGuestAsync();
+        await using var _ = adminHub;
+        await using var __ = tomHub;
+        await using var ___ = felixHub;
+        await tomHub.InvokeAsync<RoomSnapshot>("EnterWorld", "tabby");
+        await felixHub.InvokeAsync<RoomSnapshot>("EnterWorld", "tabby");
+        await felixHub.InvokeAsync("Say", "your hat is silly");
+        await tomHub.InvokeAsync<ReportReceipt>("Report", felix.Id, "MeanChat", "rude to me", false);
+        using var asAdmin = ClientFor(AdminCookies[admin.Id]);
+
+        var report = (await OverviewAsync(asAdmin)).Reports.Single(r => r.ReportedId == felix.Id);
+        Assert.Multiple(() =>
+        {
+            Assert.That((report.ReporterId, report.ReporterName), Is.EqualTo((tom.Id, tom.DisplayName)));
+            Assert.That((report.ReportedName, report.Reason, report.Note), Is.EqualTo((felix.DisplayName, "MeanChat", "rude to me")));
+            Assert.That(report.Place, Is.EqualTo("Town Square, Tabby"));
+            Assert.That(report.Context, Has.Some.Matches<ReportLineView>(line =>
+                line.PlayerId == felix.Id && line.DisplayName == felix.DisplayName && line.Text == "your hat is silly"));
+        });
+
+        using (var banned = await DecideAsync(asAdmin, report.Id, new { action = "ban", reason = "Mean in chat", length = "24h" }))
+        {
+            Assert.That(banned.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+        }
+
+        var after = await OverviewAsync(asAdmin);
+        Assert.That(after.Reports.Select(r => r.Id), Does.Not.Contain(report.Id), "closed, it leaves the queue");
+        Assert.That(after.Sanctioned.Single(s => s.PlayerId == felix.Id).Ban?.Reason, Is.EqualTo("Mean in chat"));
+        var closed = Game.Get<PspspsDbContext>().Reports.Single(r => r.Id == report.Id);
+        Assert.That((closed.Status, closed.Decision, closed.ClosedBy),
+            Is.EqualTo((ReportStatus.Closed, (ReportDecision?)ReportDecision.Banned, (Guid?)admin.Id)));
+
+        using var again = await DecideAsync(asAdmin, report.Id, new { action = "dismiss" });
+        Assert.That(again.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), "decided once");
+    }
+
+    [Test]
+    public async Task AReportDismissed_LeavesTheQueue_AndThePlayerAlone_AndOnlyAnAdminDecides()
+    {
+        var (admin, adminHub) = await AdminAsync();
+        var tomCookie = (await Game.SignInGuestAsync()).Cookie;
+        var tomHub = await Game.ConnectAsync(tomCookie);
+        var (felix, felixHub) = await Game.ConnectGuestAsync();
+        await using var _ = adminHub;
+        await using var __ = tomHub;
+        await using var ___ = felixHub;
+        await tomHub.InvokeAsync<RoomSnapshot>("EnterWorld", "calico");
+        await felixHub.InvokeAsync<RoomSnapshot>("EnterWorld", "calico");
+        await tomHub.InvokeAsync<ReportReceipt>("Report", felix.Id, "Spam", null, false);
+        using var asAdmin = ClientFor(AdminCookies[admin.Id]);
+        var report = (await OverviewAsync(asAdmin)).Reports.Single(r => r.ReportedId == felix.Id);
+
+        using var asTom = ClientFor(tomCookie);
+        using (var refused = await DecideAsync(asTom, report.Id, new { action = "dismiss" }))
+        {
+            Assert.That(refused.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+        }
+
+        using (var dismissed = await DecideAsync(asAdmin, report.Id, new { action = "dismiss" }))
+        {
+            Assert.That(dismissed.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+        }
+
+        var after = await OverviewAsync(asAdmin);
+        Assert.That(after.Reports.Select(r => r.Id), Does.Not.Contain(report.Id));
+        Assert.That(after.Sanctioned.Select(s => s.PlayerId), Does.Not.Contain(felix.Id));
+        Assert.That(Game.Get<PspspsDbContext>().Reports.Single(r => r.Id == report.Id).Decision, Is.EqualTo(ReportDecision.Dismissed));
+    }
+
+    private static async Task<AdminOverviewView> OverviewAsync(HttpClient client) =>
+        (await client.GetFromJsonAsync<AdminOverviewView>(new Uri("/api/admin/overview", UriKind.Relative), JsonOptions.Web))!;
+
+    private static async Task<HttpResponseMessage> DecideAsync(HttpClient client, Guid reportId, object body)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri($"/api/admin/reports/{reportId}/decide", UriKind.Relative))
+        {
+            Content = JsonContent.Create(body),
+        };
+        request.Headers.Add("Sec-Fetch-Site", "same-origin");
+        return await client.SendAsync(request);
     }
 
     // Each admin's cookie, by player ID, for the admin page.

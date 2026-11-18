@@ -11,6 +11,25 @@ namespace Pspsps.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.AddColumn<DateTimeOffset>(
+                name: "closed_at",
+                table: "reports",
+                type: "timestamp with time zone",
+                nullable: true);
+
+            migrationBuilder.AddColumn<Guid>(
+                name: "closed_by",
+                table: "reports",
+                type: "uuid",
+                nullable: true);
+
+            migrationBuilder.AddColumn<string>(
+                name: "decision",
+                table: "reports",
+                type: "character varying(16)",
+                maxLength: 16,
+                nullable: true);
+
             migrationBuilder.CreateTable(
                 name: "player_moderation",
                 columns: table => new
@@ -80,6 +99,18 @@ namespace Pspsps.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "player_moderation");
+
+            migrationBuilder.DropColumn(
+                name: "closed_at",
+                table: "reports");
+
+            migrationBuilder.DropColumn(
+                name: "closed_by",
+                table: "reports");
+
+            migrationBuilder.DropColumn(
+                name: "decision",
+                table: "reports");
         }
     }
 }

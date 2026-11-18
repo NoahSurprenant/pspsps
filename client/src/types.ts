@@ -231,3 +231,19 @@ export interface FriendPlace {
 export interface Friend extends PlayerCard {
   place: FriendPlace | null;
 }
+
+/** A player this one has muted (Contracts.cs, MutedView): their chat is hidden here. */
+export interface MutedView {
+  playerId: string;
+  displayName: string;
+  furColor: FurColor;
+}
+
+/** Why a player reports another (the Domain's ReportReason). */
+export type ReportReason = "MeanChat" | "InappropriateName" | "Spam" | "SomethingElse";
+
+/** A report sent (Contracts.cs, ReportReceipt): whether the cat reported is muted now, and the player's mutes after. */
+export interface ReportReceipt {
+  muted: boolean;
+  mutes: MutedView[];
+}

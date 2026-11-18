@@ -111,7 +111,39 @@ public static class AdminEndpoints
                 return Results.BadRequest(new { message = e.Message });
             }
         });
+
+        MapReportDecisions(admin);
     }
+
+    // The decisions on reports, from the admin page only (as above).
+    private static void MapReportDecisions(RouteGroupBuilder admin) =>
+        admin.MapPost("/reports/{reportId:guid}/decide", async (
+            Guid reportId, ModerateRequestView body, HttpRequest request, ClaimsPrincipal user, IModerationService moderation,
+            IModerationEffects effects) =>
+        {
+            if (!SameOriginRequest.IsFromThisSite(request) || user.GetPlayerId() is not { } adminId
+                || !moderation.IsAdmin(adminId))
+            {
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            try
+            {
+                // "dismiss", or "warn", "mute" or "ban" the reported player (which closes the report with it).
+                var asked = ModerationRequest.ForReport(body.Action, body.Reason, body.Length);
+                var decided = await moderation.DecideReportAsync(adminId, reportId, asked, CancellationToken.None);
+                if (decided.Action is { } action)
+                {
+                    await effects.AppliedAsync(decided.ReportedId, action, decided.Standing);
+                }
+
+                return Results.NoContent();
+            }
+            catch (DomainException e)
+            {
+                return Results.BadRequest(new { message = e.Message });
+            }
+        });
 
     // A small page of the server's own: the game's colours, readable on a phone.
     private static IResult Page(int status, string title, string body) => Results.Content(

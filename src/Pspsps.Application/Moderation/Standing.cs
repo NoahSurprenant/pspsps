@@ -1,4 +1,5 @@
 using Pspsps.Domain.Moderation;
+using Pspsps.Domain.Safety;
 
 namespace Pspsps.Application.Moderation;
 
@@ -20,8 +21,20 @@ public sealed record ModerationLogLine(
     Guid PlayerId, string PlayerName, ModerationKind Kind, Guid ByPlayerId, string ByName, DateTimeOffset At,
     string? Reason, DateTimeOffset? Until);
 
-/// <summary>What the admin page shows: who is banned or muted now, and what admins did lately.</summary>
-public sealed record ModerationOverview(IReadOnlyList<SanctionedPlayer> Sanctioned, IReadOnlyList<ModerationLogLine> Recent);
+/// <summary>What the admin page shows: the open reports (oldest first), who is banned or muted now, and what admins did lately.</summary>
+public sealed record ModerationOverview(
+    IReadOnlyList<OpenReport> Reports, IReadOnlyList<SanctionedPlayer> Sanctioned, IReadOnlyList<ModerationLogLine> Recent);
 
 /// <summary>A warning the player hasn't seen yet: its audit line's ID (to say it was seen), and its words.</summary>
 public sealed record PendingWarning(Guid Id, string Text, DateTimeOffset At);
+
+/// <summary>
+/// An open report, for the admins: who reported whom (their names: the reporter's now, the reported cat's then), why, where,
+/// when, and the room's last chat lines as the server had them, oldest first.
+/// </summary>
+public sealed record OpenReport(
+    Guid Id, Guid ReporterId, string ReporterName, Guid ReportedId, string ReportedName, ReportReason Reason, string? Note,
+    string WorldId, string Room, DateTimeOffset FiledAt, IReadOnlyList<ReportedLine> Context);
+
+/// <summary>A report decided: about whom, what was done to them (null: dismissed), and how they stand after.</summary>
+public sealed record ReportDecided(Guid ReportedId, ModerationAction? Action, Standing Standing);

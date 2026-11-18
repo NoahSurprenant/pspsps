@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Pspsps.Application.Abstractions;
 using Pspsps.Domain;
 using Pspsps.Domain.Moderation;
+using Pspsps.Domain.Safety;
 
 namespace Pspsps.Application.Moderation;
 
@@ -15,6 +16,9 @@ internal sealed class ModerationService(
 
     /// <summary>How many lines of the audit trail the admin page shows.</summary>
     internal const int RecentLines = 50;
+
+    /// <summary>How many open reports the admin page shows at once (the oldest).</summary>
+    internal const int OpenReports = 50;
 
     private const string NoSuchCat = "That cat doesn't exist.";
 
@@ -40,25 +44,7 @@ internal sealed class ModerationService(
         return await ChangeAsync(playerId, create: true, moderation =>
         {
             var now = time.GetUtcNow();
-            switch (request.Action)
-            {
-                case ModerationAction.Warn:
-                    moderation.Warn(moderator, request.Reason ?? "", now);
-                    break;
-                case ModerationAction.Mute:
-                    moderation.MuteUntil(
-                        moderator, request.Reason ?? "", now + (request.Length ?? throw new DomainException("Say for how long.")), now);
-                    break;
-                case ModerationAction.Ban:
-                    moderation.BanUntil(moderator, request.Reason ?? "", request.Length is { } length ? now + length : null, now);
-                    break;
-                case ModerationAction.Lift:
-                    moderation.Lift(moderator, now);
-                    break;
-                default:
-                    throw new DomainException("That isn't something an admin can do.");
-            }
-
+            Apply(moderation, moderator, request, now);
             return Standing.Of(moderation, now);
         }, cancellationToken) ?? Standing.None;
     }
@@ -106,8 +92,14 @@ internal sealed class ModerationService(
             .OrderByDescending(e => e.At)
             .Take(RecentLines)
             .ToListAsync(cancellationToken);
+        var reports = await db.Reports.AsNoTracking()
+            .Where(r => r.Status == ReportStatus.Open)
+            .OrderBy(r => r.FiledAt)
+            .Take(OpenReports)
+            .ToListAsync(cancellationToken);
 
-        var ids = sanctioned.Select(m => m.PlayerId)
+        var ids = reports.Select(r => r.ReporterId)
+            .Concat(sanctioned.Select(m => m.PlayerId))
             .Concat(sanctioned.SelectMany(m => new[] { m.BannedBy, m.MutedBy }).OfType<Guid>())
             .Concat(recent.SelectMany(e => new[] { e.PlayerId, e.ByPlayerId }))
             .Distinct()
@@ -118,6 +110,11 @@ internal sealed class ModerationService(
         string NameOf(Guid id) => names.TryGetValue(id, out var name) ? name : "A cat that's gone";
 
         return new ModerationOverview(
+            [
+                .. reports.Select(r => new OpenReport(
+                    r.Id, r.ReporterId, NameOf(r.ReporterId), r.ReportedId, r.ReportedName, r.Reason, r.Note, r.WorldId, r.Room,
+                    r.FiledAt, [.. r.Context.OrderBy(line => line.Position)])),
+            ],
             [
                 .. sanctioned
                     .Select(m => (Moderation: m, Ban: m.BanAt(now), Mute: m.MuteAt(now)))
@@ -131,6 +128,110 @@ internal sealed class ModerationService(
                 .. recent.Select(e => new ModerationLogLine(
                     e.PlayerId, NameOf(e.PlayerId), e.Kind, e.ByPlayerId, NameOf(e.ByPlayerId), e.At, e.Reason, e.Until)),
             ]);
+    }
+
+    public async Task<ReportDecided> DecideReportAsync(
+        Guid adminId, Guid reportId, ModerationRequest? request, CancellationToken cancellationToken)
+    {
+        var moderator = Moderator.Of(adminId, admins.Current);
+        if (request is { Action: ModerationAction.Lift })
+        {
+            throw new DomainException("A report is dismissed, or the cat warned, muted or banned.");
+        }
+
+        for (var attempt = 1; ; attempt++)
+        {
+            var report = await db.Reports.FirstOrDefaultAsync(r => r.Id == reportId, cancellationToken)
+                ?? throw new DomainException("That report doesn't exist.");
+            PlayerModeration? moderation = null;
+            try
+            {
+                var now = time.GetUtcNow();
+                if (request is null)
+                {
+                    report.Dismiss(moderator, now);
+                }
+                else
+                {
+                    // Reports outlive the players in them: one about a cat that's gone can only be dismissed.
+                    if (!await db.Players.AnyAsync(p => p.Id == report.ReportedId, cancellationToken))
+                    {
+                        throw new DomainException("That cat doesn't exist any more: dismiss the report.");
+                    }
+
+                    moderation = await db.Moderation.FirstOrDefaultAsync(m => m.PlayerId == report.ReportedId, cancellationToken);
+                    if (moderation is null)
+                    {
+                        moderation = PlayerModeration.For(report.ReportedId);
+                        db.Moderation.Add(moderation);
+                    }
+
+                    var recorded = moderation.Entries.Count;
+                    Apply(moderation, moderator, request, now);
+                    report.CloseWith(moderator, DecisionOf(request.Action), now);
+                    db.ModerationEntries.AddRange(moderation.Entries.Skip(recorded));
+                }
+
+                // One save: the report closes with what was done, or neither happens.
+                await db.SaveChangesAsync(cancellationToken);
+                return new ReportDecided(report.ReportedId, request?.Action, Standing.Of(moderation, now));
+            }
+            catch (DomainException)
+            {
+                Forget(report, moderation);
+                throw;
+            }
+            catch (DbUpdateException saving) when (saving is DbUpdateConcurrencyException || db.IsUniqueViolation(saving))
+            {
+                // Decided again on the report and the player as they are now: a report another admin closed meanwhile is
+                // refused then.
+                Forget(report, moderation);
+                if (attempt == Attempts)
+                {
+                    throw new DomainException("That changed just now. Try again.");
+                }
+            }
+        }
+    }
+
+    private void Forget(Report report, PlayerModeration? moderation)
+    {
+        db.Forget(report);
+        if (moderation is not null)
+        {
+            db.Forget(moderation);
+        }
+    }
+
+    private static ReportDecision DecisionOf(ModerationAction action) => action switch
+    {
+        ModerationAction.Warn => ReportDecision.Warned,
+        ModerationAction.Mute => ReportDecision.Muted,
+        ModerationAction.Ban => ReportDecision.Banned,
+        _ => throw new DomainException("A report is dismissed, or the cat warned, muted or banned."),
+    };
+
+    // The admin's action, by the aggregate's rules.
+    private static void Apply(PlayerModeration moderation, Moderator moderator, ModerationRequest request, DateTimeOffset now)
+    {
+        switch (request.Action)
+        {
+            case ModerationAction.Warn:
+                moderation.Warn(moderator, request.Reason ?? "", now);
+                break;
+            case ModerationAction.Mute:
+                moderation.MuteUntil(
+                    moderator, request.Reason ?? "", now + (request.Length ?? throw new DomainException("Say for how long.")), now);
+                break;
+            case ModerationAction.Ban:
+                moderation.BanUntil(moderator, request.Reason ?? "", request.Length is { } length ? now + length : null, now);
+                break;
+            case ModerationAction.Lift:
+                moderation.Lift(moderator, now);
+                break;
+            default:
+                throw new DomainException("That isn't something an admin can do.");
+        }
     }
 
     // Reads the player's moderation (made when <create> and there is none), applies the change, saves, with what it lines

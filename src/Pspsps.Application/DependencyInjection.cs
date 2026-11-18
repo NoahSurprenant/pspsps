@@ -3,6 +3,7 @@ using Pspsps.Application.Friends;
 using Pspsps.Application.Homes;
 using Pspsps.Application.Moderation;
 using Pspsps.Application.Players;
+using Pspsps.Application.Safety;
 using Pspsps.Application.Shop;
 
 namespace Pspsps.Application;
@@ -20,6 +21,8 @@ public static class DependencyInjection
         services.AddScoped<IShopService, ShopService>();
         services.AddScoped<IHomeService, HomeService>();
         services.AddScoped<IModerationService, ModerationService>();
+        services.AddScoped<IMuteService, MuteService>();
+        services.AddScoped<IReportService, ReportService>();
         return services;
     }
 }

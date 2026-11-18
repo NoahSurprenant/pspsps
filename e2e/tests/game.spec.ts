@@ -654,6 +654,112 @@ test("a cat visiting a friend's home goes back to Town Square when they stop bei
   }
 });
 
+test("a cat mutes another from its card and stops seeing its chat, while a third cat still sees it", async ({ page: tom, browser, baseURL }) => {
+  const garfield = await newPlayer(browser);
+  const felix = await hubGuest(baseURL!);
+  try {
+    await felix.hub.invoke("EnterWorld", "siamese");
+    // Off the spawn point, where Tom and Garfield arrive, so Tom can tap him.
+    await felix.hub.invoke("Move", 6, 1);
+    await enterWorld(tom, "Siamese");
+    await enterWorld(garfield.page, "Siamese");
+    const said = (page: typeof tom, id: string) => page.evaluate(
+      (playerId) => window.pspsps?.room()?.chat.filter((line) => line.playerId === playerId).map((line) => line.text) ?? [],
+      id,
+    );
+    const bubble = (page: typeof tom, id: string) => page.evaluate((playerId) => window.pspsps?.bubble(playerId), id);
+
+    // Before the mute, Tom sees what Felix says, over him and in the room.
+    await felix.hub.invoke("Say", "pspsps");
+    await expect.poll(() => said(tom, felix.id)).toEqual(["pspsps"]);
+    await expect.poll(() => bubble(tom, felix.id)).toBe("pspsps");
+
+    // Tom mutes Felix from his card: the line goes, and the card says so.
+    await clickCat(tom, felix.id);
+    const card = tom.getByRole("dialog", { name: felix.name });
+    await card.getByRole("button", { name: `Mute ${felix.name}` }).click();
+    await expect(card.getByText("Muted: you don't see what they say.")).toBeVisible();
+    await expect(card.getByRole("button", { name: `Unmute ${felix.name}` })).toBeVisible();
+    await card.getByRole("button", { name: "Close" }).click();
+    expect(await said(tom, felix.id)).toEqual([]);
+    expect(await bubble(tom, felix.id)).toBeUndefined();
+
+    // Felix speaks again: Garfield sees it, Tom doesn't (and Tom does see Garfield, who spoke after Felix).
+    await felix.hub.invoke("Say", "can you hear me");
+    await expect.poll(() => said(garfield.page, felix.id)).toContain("can you hear me");
+    await garfield.page.getByPlaceholder("Say something…").fill("I can");
+    await garfield.page.getByPlaceholder("Say something…").press("Enter");
+    const garfieldId = await garfield.page.evaluate(async () => ((await (await fetch("/api/me")).json()) as { id: string }).id);
+    await expect.poll(() => said(tom, garfieldId)).toEqual(["I can"]);
+    expect(await said(tom, felix.id)).toEqual([]);
+    expect(await bubble(tom, felix.id)).toBeUndefined();
+    // Felix's cat still shows: it's a game room.
+    expect(Object.keys(await cats(tom))).toContain(felix.id);
+
+    // A reload keeps the mute: the room's history comes back without Felix's lines.
+    await tom.reload();
+    await tom.getByRole("button", { name: /^Siamese · / }).click();
+    await expectRoom(tom, "Town Square");
+    await expect.poll(() => said(tom, garfieldId)).toEqual(["I can"]);
+    expect(await tom.evaluate(() => window.pspsps?.mutes())).toEqual([felix.id]);
+    expect(await said(tom, felix.id)).toEqual([]);
+
+    // Unmuted from the friends list's Muted section, Felix is heard again.
+    await tom.getByRole("button", { name: "Friends", exact: true }).click();
+    const list = tom.getByRole("dialog", { name: "Friends" });
+    await expect(list.getByRole("heading", { name: "Muted" })).toBeVisible();
+    await list.getByRole("button", { name: `Unmute ${felix.name}` }).click();
+    await expect(list.getByRole("heading", { name: "Muted" })).toBeHidden();
+    await list.getByRole("button", { name: "Close" }).click();
+    await felix.hub.invoke("Say", "hello again");
+    await expect.poll(() => said(tom, felix.id)).toEqual(["hello again"]);
+
+    expect(garfield.errors, "Garfield's console errors and uncaught exceptions").toEqual([]);
+  } finally {
+    await felix.hub.stop();
+    await garfield.close();
+  }
+});
+
+test("a cat reports another from its card, muting it too, and can't report it twice", async ({ page: tom, baseURL }) => {
+  const felix = await hubGuest(baseURL!);
+  try {
+    await felix.hub.invoke("EnterWorld", "siamese");
+    await felix.hub.invoke("Move", -6, 1);
+    await enterWorld(tom, "Siamese");
+    await felix.hub.invoke("Say", "your hat is silly");
+
+    await clickCat(tom, felix.id);
+    await tom.getByRole("button", { name: `Report ${felix.name}` }).click();
+    const form = tom.getByRole("dialog", { name: `Report ${felix.name}` });
+    await expect(form.getByRole("heading", { name: `Report ${felix.name}` })).toBeFocused();
+
+    // A reason is needed.
+    await form.getByRole("button", { name: "Send report" }).click();
+    await expect(form.getByText("Pick a reason.")).toBeVisible();
+
+    await form.getByRole("radio", { name: "Mean or hurtful chat" }).check();
+    await form.getByLabel("Anything to add? (optional)").fill("About my hat.");
+    await expect(form.getByRole("checkbox", { name: "Also mute them" })).toBeChecked();
+    await form.getByRole("button", { name: "Send report" }).click();
+
+    // Back on the card: sent, and Felix is muted.
+    const card = tom.getByRole("dialog", { name: felix.name });
+    await expect(card.getByText(`Thanks. Your report was sent, and ${felix.name} is muted.`)).toBeVisible();
+    await expect(card.getByRole("button", { name: `Unmute ${felix.name}` })).toBeVisible();
+    expect(await tom.evaluate(() => window.pspsps?.mutes())).toEqual([felix.id]);
+
+    // The server kept it: a second report of Felix within the hour is refused.
+    await card.getByRole("button", { name: `Report ${felix.name}` }).click();
+    await form.getByRole("radio", { name: "Spam" }).check();
+    await form.getByRole("checkbox", { name: "Also mute them" }).uncheck();
+    await form.getByRole("button", { name: "Send report" }).click();
+    await expect(form.getByText("You've reported that cat already.", { exact: false })).toBeVisible();
+  } finally {
+    await felix.hub.stop();
+  }
+});
+
 test("an admin mutes and warns a cat from its card, bans another, whose tab is shown why and can't come back, then lifts it", async ({ page: admin, context, browser, baseURL }) => {
   await signInAsAdmin(context, baseURL!);
   const felix = await newPlayer(browser);
@@ -677,10 +783,10 @@ test("an admin mutes and warns a cat from its card, bans another, whose tab is s
     await expect(card.getByText("Not banned or muted.")).toBeVisible();
 
     // Muting needs a reason, which Felix is shown.
-    await card.getByRole("button", { name: `Mute ${felixName}` }).click();
+    await card.getByRole("button", { name: `Mute ${felixName} in every room`, exact: true }).click();
     await expect(card.getByText("Say why first")).toBeVisible();
     await card.getByLabel("Why (they're shown this)").fill("Rude in chat");
-    await card.getByRole("button", { name: `Mute ${felixName}` }).click();
+    await card.getByRole("button", { name: `Mute ${felixName} in every room`, exact: true }).click();
     await expect(card.getByText(/^Muted until .*: Rude in chat$/)).toBeVisible();
 
     // Felix can't chat, and sees why and until when.
@@ -689,7 +795,7 @@ test("an admin mutes and warns a cat from its card, bans another, whose tab is s
 
     // A warning: Felix is shown it once, at once.
     await card.getByLabel("Why (they're shown this)").fill("Please keep it friendly.");
-    await card.getByRole("button", { name: `Warn ${felixName}` }).click();
+    await card.getByRole("button", { name: `Warn ${felixName}`, exact: true }).click();
     const notice = felix.page.getByRole("dialog", { name: "A word from the admins" });
     await expect(notice).toContainText("Please keep it friendly.");
     await notice.getByRole("button", { name: "Close" }).click();
@@ -701,7 +807,7 @@ test("an admin mutes and warns a cat from its card, bans another, whose tab is s
     await garfieldCard.getByText("Moderate", { exact: true }).click();
     await garfieldCard.getByLabel("Why (they're shown this)").fill("Spamming the square");
     await garfieldCard.getByLabel(`Ban ${garfieldName} for`).selectOption("24h");
-    await garfieldCard.getByRole("button", { name: `Ban ${garfieldName}` }).click();
+    await garfieldCard.getByRole("button", { name: `Ban ${garfieldName}`, exact: true }).click();
     await expect(garfield.page.getByText(/^Your cat is banned until /)).toBeVisible();
     await expect(garfield.page.getByText("Why: Spamming the square")).toBeVisible();
     // His cat is gone from the room.
@@ -746,4 +852,40 @@ test("a player finds their own player ID on their card, and /admin tells someone
   expect(response.status()).toBe(403);
   expect(await response.text()).toContain("Not an admin");
   expect(await response.text()).toContain(`<code id="player-id">${me}</code>`);
+});
+
+test("an admin decides a report on /admin from its chat: the reported cat is muted, and the report closes", async ({ page: admin, context, baseURL }) => {
+  await signInAsAdmin(context, baseURL!);
+  const tom = await hubGuest(baseURL!);
+  const felix = await hubGuest(baseURL!);
+  try {
+    await felix.hub.invoke("EnterWorld", "tabby");
+    await tom.hub.invoke("EnterWorld", "tabby");
+    await felix.hub.invoke("Say", "nobody likes you");
+    // A note no other report in the run has: this report, among the others on the page.
+    const note = `said it to me ${Date.now()}`;
+    await tom.hub.invoke("Report", felix.id, "MeanChat", note, false);
+
+    await admin.goto("/admin");
+    const report = admin.locator("li.report", { hasText: note });
+    await expect(report.getByRole("heading", { name: `${tom.name} reported ${felix.name}` })).toBeVisible();
+    await expect(report).toContainText("Mean or hurtful chat · Town Square, Tabby");
+    // The room's chat as the server had it, the reported cat's lines marked.
+    await expect(report.locator(".chat li", { hasText: "nobody likes you" }).locator("strong")).toHaveText(`${felix.name}: `);
+
+    // A reason first: the player is shown it.
+    await report.getByLabel(`What to do about ${felix.name}`).selectOption("mute:1h");
+    await report.getByRole("button", { name: `Act on ${tom.name} reported ${felix.name}` }).click();
+    await expect(admin.getByRole("status")).toHaveText("Say why first: the player is shown it.");
+    await report.getByLabel("Why (the player is shown this)").fill("Mean in chat");
+    await report.getByRole("button", { name: `Act on ${tom.name} reported ${felix.name}` }).click();
+
+    await expect(admin.getByRole("status")).toHaveText(`${felix.name} is muted for 1 hour; the report is closed.`);
+    await expect(report).toBeHidden();
+    await expect(admin.locator("li.player", { hasText: felix.id })).toContainText(/Muted until .*: Mean in chat/);
+    await expect(felix.hub.invoke("Say", "still here")).rejects.toThrow(/You're muted until .*Mean in chat/);
+  } finally {
+    await tom.hub.stop();
+    await felix.hub.stop();
+  }
 });

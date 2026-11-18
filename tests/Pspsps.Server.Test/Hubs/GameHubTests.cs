@@ -9,12 +9,15 @@ using Pspsps.Application.Friends;
 using Pspsps.Application.Homes;
 using Pspsps.Application.Moderation;
 using Pspsps.Application.Players;
+using Pspsps.Application.Safety;
 using Pspsps.Application.Shop;
 using Pspsps.Domain;
 using Pspsps.Domain.Friends;
 using Pspsps.Domain.Homes;
 using Pspsps.Domain.Moderation;
 using Pspsps.Domain.Players;
+using Pspsps.Domain.Rooms;
+using Pspsps.Domain.Safety;
 using Pspsps.Domain.Shop;
 using Pspsps.Server.Auth;
 using Pspsps.Server.Game;
@@ -39,6 +42,8 @@ public sealed class GameHubTests
     private IFriendService _friends = null!;
     private IShopService _shop = null!;
     private IHomeService _homes = null!;
+    private IMuteService _mutes = null!;
+    private IReportService _reports = null!;
     private IModerationService _moderation = null!;
     private IModerationEffects _effects = null!;
     private IPlayerSessionGrain _session = null!;
@@ -66,6 +71,8 @@ public sealed class GameHubTests
         _friends = Substitute.For<IFriendService>();
         _shop = Substitute.For<IShopService>();
         _homes = Substitute.For<IHomeService>();
+        _mutes = Substitute.For<IMuteService>();
+        _reports = Substitute.For<IReportService>();
         _moderation = Substitute.For<IModerationService>();
         _moderation.StandingAsync(default, default).ReturnsForAnyArgs(Standing.None);
         _effects = Substitute.For<IModerationEffects>();
@@ -1157,6 +1164,213 @@ public sealed class GameHubTests
         new(Tom.Id, 15, new Dictionary<string, int> { ["fur-grey"] = 1, ["bow"] = 1 }, FurColor.Grey, hat, collar);
 
     [Test]
+    public async Task GetMutes_ListsWhomThePlayerMuted()
+    {
+        _mutes.ListAsync(Tom.Id, Arg.Any<CancellationToken>()).Returns([new MutedPlayer(Felix, "Felix", FurColor.Black)]);
+        var hub = Hub();
+
+        var mutes = await hub.GetMutes();
+
+        Assert.That(mutes, Is.EqualTo(new[] { new MutedView(Felix, "Felix", "Black") }));
+    }
+
+    [Test]
+    public async Task Mute_TellsEveryTabOfThePlayer_AndReturnsTheList()
+    {
+        _mutes.MuteAsync(Tom.Id, Felix, Arg.Any<CancellationToken>()).Returns([new MutedPlayer(Felix, "Felix", FurColor.Black)]);
+        var hub = Hub();
+        var tomsTabs = Substitute.For<IGameClient>();
+        _clients.User(Tom.Id.ToString()).Returns(tomsTabs);
+
+        var mutes = await hub.Mute(Felix);
+
+        Assert.That(mutes, Is.EqualTo(new[] { new MutedView(Felix, "Felix", "Black") }));
+        await tomsTabs.Received(1).MutesChanged(Arg.Is<IReadOnlyList<MutedView>>(list => list.SequenceEqual(mutes)));
+    }
+
+    [Test]
+    public async Task Unmute_TellsEveryTabOfThePlayer()
+    {
+        _mutes.UnmuteAsync(Tom.Id, Felix, Arg.Any<CancellationToken>()).Returns([]);
+        var hub = Hub();
+        var tomsTabs = Substitute.For<IGameClient>();
+        _clients.User(Tom.Id.ToString()).Returns(tomsTabs);
+
+        var mutes = await hub.Unmute(Felix);
+
+        Assert.That(mutes, Is.Empty);
+        await tomsTabs.Received(1).MutesChanged(Arg.Is<IReadOnlyList<MutedView>>(list => list.Count == 0));
+    }
+
+    [Test]
+    public async Task Mute_ARuleBroken_IsThePlayersMessage_AndNoTabIsTold()
+    {
+        _mutes.MuteAsync(Tom.Id, Tom.Id, Arg.Any<CancellationToken>()).ThrowsAsync(new DomainException("You can't mute yourself."));
+        var hub = Hub();
+        var tomsTabs = Substitute.For<IGameClient>();
+        _clients.User(Tom.Id.ToString()).Returns(tomsTabs);
+
+        var refused = Assert.ThrowsAsync<HubException>(() => hub.Mute(Tom.Id));
+
+        Assert.That(refused!.Message, Is.EqualTo("You can't mute yourself."));
+        await tomsTabs.DidNotReceiveWithAnyArgs().MutesChanged(default!);
+    }
+
+    [Test]
+    public async Task Mute_WhenTellingTheTabsFails_StillSucceeds()
+    {
+        _mutes.MuteAsync(Tom.Id, Felix, Arg.Any<CancellationToken>()).Returns([new MutedPlayer(Felix, "Felix", FurColor.Black)]);
+        var hub = Hub();
+        var tomsTabs = Substitute.For<IGameClient>();
+        tomsTabs.MutesChanged(Arg.Any<IReadOnlyList<MutedView>>()).ThrowsAsync(new TimeoutException());
+        _clients.User(Tom.Id.ToString()).Returns(tomsTabs);
+
+        Assert.That(await hub.Mute(Felix), Has.Count.EqualTo(1));
+    }
+
+    [Test]
+    public async Task Report_FilesTheRoomsOwnChat_FromWhereTheTabIs()
+    {
+        var said = new ChatView(Felix, "meanie", DateTimeOffset.UnixEpoch);
+        _room.RecentChat().Returns([said]);
+        _room.CatsHere().Returns([Tom.Id, Felix]);
+        _reports.FileAsync(
+                Tom.Id, Felix, ReportReason.MeanChat, "rude", "tabby", "tabby/town-square",
+                Arg.Any<IReadOnlyList<ChatLine>>(), true, false, Arg.Any<CancellationToken>())
+            .Returns(new ReportOutcome(false, false, []));
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+        var tomsTabs = Substitute.For<IGameClient>();
+        _clients.User(Tom.Id.ToString()).Returns(tomsTabs);
+
+        var receipt = await hub.Report(Felix, "MeanChat", "rude", alsoMute: false);
+
+        Assert.That(receipt.Muted, Is.False);
+        await _reports.Received(1).FileAsync(
+            Tom.Id, Felix, ReportReason.MeanChat, "rude", "tabby", "tabby/town-square",
+            Arg.Is<IReadOnlyList<ChatLine>>(chat => chat.SequenceEqual(new[] { new ChatLine(Felix, "meanie", DateTimeOffset.UnixEpoch) })),
+            true, false, Arg.Any<CancellationToken>());
+        await tomsTabs.DidNotReceiveWithAnyArgs().MutesChanged(default!);
+    }
+
+    [Test]
+    public async Task Report_AlsoMuting_TellsEveryTabOfThePlayer()
+    {
+        _room.RecentChat().Returns([]);
+        _room.CatsHere().Returns([Tom.Id]);
+        MutedPlayer[] after = [new(Felix, "Felix", FurColor.Black)];
+        _reports.FileAsync(
+                Tom.Id, Felix, ReportReason.Spam, null, "tabby", "tabby/town-square",
+                Arg.Any<IReadOnlyList<ChatLine>>(), false, true, Arg.Any<CancellationToken>())
+            .Returns(new ReportOutcome(true, true, after));
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+        var tomsTabs = Substitute.For<IGameClient>();
+        _clients.User(Tom.Id.ToString()).Returns(tomsTabs);
+
+        var receipt = await hub.Report(Felix, "Spam", null, alsoMute: true);
+
+        Assert.That(receipt.Muted, Is.True);
+        Assert.That(receipt.Mutes, Is.EqualTo(new[] { new MutedView(Felix, "Felix", "Black") }));
+        await tomsTabs.Received(1).MutesChanged(Arg.Is<IReadOnlyList<MutedView>>(list => list.Count == 1));
+    }
+
+    [Test]
+    public async Task Report_WhenTheRoomsChatCantBeRead_IsFiledWithout()
+    {
+        _room.RecentChat().ThrowsAsync(new TimeoutException());
+        _reports.FileAsync(default, default, default, default, default!, default!, default!, default, default, default)
+            .ReturnsForAnyArgs(new ReportOutcome(false, false, []));
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+
+        await hub.Report(Felix, "Spam", null, alsoMute: false);
+
+        await _reports.Received(1).FileAsync(
+            Tom.Id, Felix, ReportReason.Spam, null, "tabby", "tabby/town-square",
+            Arg.Is<IReadOnlyList<ChatLine>>(chat => chat.Count == 0), false, false, Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task Report_WhenWhoIsInTheRoomCantBeRead_StillFilesTheRoomsChat()
+    {
+        _room.RecentChat().Returns([new ChatView(Felix, "meanie", DateTimeOffset.UnixEpoch)]);
+        _room.CatsHere().ThrowsAsync(new TimeoutException());
+        _reports.FileAsync(default, default, default, default, default!, default!, default!, default, default, default)
+            .ReturnsForAnyArgs(new ReportOutcome(false, false, []));
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+
+        await hub.Report(Felix, "MeanChat", null, alsoMute: false);
+
+        await _reports.Received(1).FileAsync(
+            Tom.Id, Felix, ReportReason.MeanChat, null, "tabby", "tabby/town-square",
+            Arg.Is<IReadOnlyList<ChatLine>>(chat => chat.Count == 1), false, false, Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task Report_AlsoMutingACatMutedAlready_TellsNoTab()
+    {
+        _room.RecentChat().Returns([]);
+        _room.CatsHere().Returns([]);
+        _reports.FileAsync(default, default, default, default, default!, default!, default!, default, default, default)
+            .ReturnsForAnyArgs(new ReportOutcome(true, false, [new MutedPlayer(Felix, "Felix", FurColor.Black)]));
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+        var tomsTabs = Substitute.For<IGameClient>();
+        _clients.User(Tom.Id.ToString()).Returns(tomsTabs);
+
+        var receipt = await hub.Report(Felix, "Spam", null, alsoMute: true);
+
+        Assert.That(receipt.Muted, Is.True);
+        await tomsTabs.DidNotReceiveWithAnyArgs().MutesChanged(default!);
+    }
+
+    [TestCase("Rude")]
+    [TestCase("1")]
+    [TestCase("MeanChat, Spam")]
+    [TestCase("meanchat")]
+    public async Task Report_AReasonNotOnTheList_IsRefused(string reason)
+    {
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+
+        var refused = Assert.ThrowsAsync<HubException>(() => hub.Report(Felix, reason, null, alsoMute: false));
+
+        Assert.That(refused!.Message, Is.EqualTo("Pick a reason."));
+        await _reports.DidNotReceiveWithAnyArgs().FileAsync(default, default, default, default, default!, default!, default!, default, default, default);
+    }
+
+    [Test]
+    public async Task Report_FromNoRoom_IsRefused()
+    {
+        var hub = Hub();
+
+        var refused = Assert.ThrowsAsync<HubException>(() => hub.Report(Felix, "Spam", null, alsoMute: false));
+
+        Assert.That(refused!.Message, Is.EqualTo("You can only report a cat from a room."));
+        await _reports.DidNotReceiveWithAnyArgs().FileAsync(default, default, default, default, default!, default!, default!, default, default, default);
+    }
+
+    [Test]
+    public void Report_ARuleBroken_IsThePlayersMessage()
+    {
+        _room.RecentChat().Returns([]);
+        _room.CatsHere().Returns([]);
+        _reports.FileAsync(default, default, default, default, default!, default!, default!, default, default, default)
+            .ThrowsAsyncForAnyArgs(new DomainException("You can't report yourself."));
+        var hub = Hub();
+
+        var refused = Assert.ThrowsAsync<HubException>(async () =>
+        {
+            await hub.EnterWorld("tabby");
+            await hub.Report(Tom.Id, "Spam", null, alsoMute: false);
+        });
+
+        Assert.That(refused!.Message, Is.EqualTo("You can't report yourself."));
+    }
+
+    [Test]
     public async Task Say_WhileMuted_IsRefusedWithWhyAndUntilWhen_AndTheRoomHearsNothing()
     {
         var mute = new Sanction("Rude in chat", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1), Felix);
@@ -1292,7 +1506,8 @@ public sealed class GameHubTests
         var metrics = new GameMetrics(_services.GetRequiredService<IMeterFactory>());
         return new GameHub(
             _grains, _players, _friends, _shop, _homes, _moderation, _effects,
-            new StandingCache(_services.GetRequiredService<IServiceScopeFactory>(), TimeProvider.System), _heartbeat, metrics, NullLogger<GameHub>.Instance)
+            new StandingCache(_services.GetRequiredService<IServiceScopeFactory>(), TimeProvider.System), _mutes, _reports,
+            _heartbeat, metrics, NullLogger<GameHub>.Instance)
         {
             Context = context,
             Groups = Substitute.For<IGroupManager>(),

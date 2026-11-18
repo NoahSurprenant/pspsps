@@ -3,6 +3,7 @@ using Pspsps.Domain.Friends;
 using Pspsps.Domain.Homes;
 using Pspsps.Domain.Moderation;
 using Pspsps.Domain.Players;
+using Pspsps.Domain.Safety;
 
 namespace Pspsps.Application.Abstractions;
 
@@ -20,6 +21,10 @@ public interface IApplicationDbContext
 
     /// <summary>The audit trail of what admins did.</summary>
     DbSet<ModerationEntry> ModerationEntries { get; }
+
+    DbSet<Mute> Mutes { get; }
+
+    DbSet<Report> Reports { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 
@@ -40,4 +45,10 @@ public interface IApplicationDbContext
 
     /// <summary>Stops tracking the player's moderation and its new audit lines, so a refused change isn't saved.</summary>
     void Forget(PlayerModeration moderation);
+
+    /// <summary>Stops tracking the mute, so its unsaved change (refused by the database) isn't saved by the next save.</summary>
+    void Forget(Mute mute);
+
+    /// <summary>Stops tracking the report and its lines, so its unsaved decision (refused by the database) isn't saved.</summary>
+    void Forget(Report report);
 }

@@ -68,4 +68,10 @@ public interface IGameClient
 
     /// <summary>An admin warned the player: the tab fetches its warnings (GetWarnings) and shows each until it's closed.</summary>
     Task Warned();
+
+    /// <summary>
+    /// The player muted or unmuted someone (from any of their tabs): <paramref name="mutes"/> is everyone they have muted
+    /// now, whose chat the tab hides. Sent to every tab of the player.
+    /// </summary>
+    Task MutesChanged(IReadOnlyList<MutedView> mutes);
 }

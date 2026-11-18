@@ -24,6 +24,7 @@ internal sealed class Recorder
         hub.On<SanctionView>("Banned", ban => _events.Writer.TryWrite(("Banned", ban)));
         hub.On<SanctionView?>("Muted", mute => _events.Writer.TryWrite(("Muted", new MutedSaid(mute))));
         hub.On("Warned", () => _events.Writer.TryWrite(("Warned", true)));
+        hub.On<List<MutedView>>("MutesChanged", m => _events.Writer.TryWrite(("MutesChanged", m)));
     }
 
     /// <summary>Whether a matching event arrives within <paramref name="within"/>.</summary>

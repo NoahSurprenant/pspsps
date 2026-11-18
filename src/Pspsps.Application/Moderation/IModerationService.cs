@@ -22,6 +22,14 @@ public interface IModerationService
     /// <summary>The player has seen the warning <paramref name="warningId"/> (and those before it).</summary>
     Task SawWarningAsync(Guid playerId, Guid warningId, CancellationToken cancellationToken);
 
-    /// <summary>For an admin: who is banned or muted now, and the latest lines of the audit trail.</summary>
+    /// <summary>
+    /// <paramref name="adminId"/> decides the open report <paramref name="reportId"/>: dismissed (<paramref name="request"/>
+    /// null), or the reported player warned, muted or banned as asked, which closes the report with that decision and
+    /// who took it, in one save.
+    /// </summary>
+    Task<ReportDecided> DecideReportAsync(
+        Guid adminId, Guid reportId, ModerationRequest? request, CancellationToken cancellationToken);
+
+    /// <summary>For an admin: the open reports, who is banned or muted now, and the latest lines of the audit trail.</summary>
     Task<ModerationOverview> OverviewAsync(Guid adminId, CancellationToken cancellationToken);
 }

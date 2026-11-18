@@ -58,6 +58,12 @@ public interface IRoomGrain : IGrainWithStringKey
     Task<IReadOnlyList<Guid>> CatsHere();
 
     /// <summary>
+    /// The room's recent chat, oldest first (<see cref="Pspsps.Domain.Rooms.RoomState.ChatHistory"/> lines at most), as the room has
+    /// it: what a report keeps of what was said.
+    /// </summary>
+    Task<IReadOnlyList<ChatView>> RecentChat();
+
+    /// <summary>
     /// Takes these players' cats out of the room (a home they may no longer stay in), whichever tab plays them; each
     /// tab is told <paramref name="message"/> (SentOut), and the rest of the room sees them go.
     /// </summary>

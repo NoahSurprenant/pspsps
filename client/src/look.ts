@@ -42,6 +42,11 @@ export class CatLook {
     this.said = { text, until: now + CatLook.bubbleMilliseconds };
   }
 
+  /** The player muted this cat: the line over it goes at once. */
+  hush(): void {
+    this.said = undefined;
+  }
+
   /**
    * The bubble at <now>: the latest chat line while it lasts, with "meow!" under it for a moment after a meow; without
    * either, "z z z" while asleep.

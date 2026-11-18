@@ -1,7 +1,8 @@
 // The admin page's contents (/admin, admin.html): who is banned or muted now, and what admins did lately
 // (src/Pspsps.Server/Moderation/AdminEndpoints.cs, /api/admin/overview).
 
-import { untilText, type TimeFormat } from "./moderation";
+import { banLengths, doneMessage, muteLengths, requestFor, untilText, type TimeFormat } from "./moderation";
+import { reportReasons } from "./safety";
 
 /** A ban or mute in force, on the admin page (Contracts.cs, AdminSanctionView). */
 export interface AdminSanction {
@@ -34,8 +35,34 @@ export interface ModerationLogLine {
   until: string | null;
 }
 
+/** A line of a report's chat (Contracts.cs, ReportLineView): who said it (their name then), what, when. */
+export interface ReportLine {
+  playerId: string;
+  displayName: string;
+  text: string;
+  at: string;
+}
+
+/** An open report (Contracts.cs, OpenReportView). */
+export interface OpenReport {
+  id: string;
+  reporterId: string;
+  reporterName: string;
+  reportedId: string;
+  reportedName: string;
+  /** A ReportReason's name ("MeanChat"...). */
+  reason: string;
+  note: string | null;
+  /** Where, to read: "Town Square, Tabby", or "A home". */
+  place: string;
+  filedAt: string;
+  context: ReportLine[];
+}
+
 /** The admin page (Contracts.cs, AdminOverviewView). */
 export interface AdminOverview {
+  /** The open reports, oldest first. */
+  reports: OpenReport[];
   sanctioned: SanctionedPlayer[];
   recent: ModerationLogLine[];
 }
@@ -67,4 +94,45 @@ export function logLine(line: ModerationLogLine, format: TimeFormat = {}): strin
     BanLifted: `${line.byName} lifted ${line.playerName}'s ban`,
   };
   return `${when(line.at, format)} · ${done[line.kind]}${line.reason ? `: ${line.reason}` : ""}`;
+}
+
+/** "Tom reported Felix". */
+export function reportHeading(report: OpenReport): string {
+  return `${report.reporterName} reported ${report.reportedName}`;
+}
+
+/** Why, where and when: "Mean or hurtful chat · Town Square, Tabby · 18 Nov 2026, 14:00". */
+export function reportFacts(report: OpenReport, format: TimeFormat = {}): string {
+  const reason = reportReasons.find((r) => r.reason === report.reason)?.label ?? report.reason;
+  return `${reason} · ${report.place} · ${when(report.filedAt, format)}`;
+}
+
+/** What an admin can do with a report besides Dismiss: warn, mute or ban the reported cat, for so long. */
+export const decisionChoices: readonly { value: string; label: string }[] = [
+  { value: "warn", label: "Warn" },
+  ...muteLengths.map((length) => ({ value: `mute:${length.value}`, label: `Mute for ${length.label.toLowerCase()}` })),
+  ...banLengths.map((length) => ({
+    value: `ban:${length.value}`,
+    label: length.value === "permanent" ? "Ban for good" : `Ban for ${length.label.toLowerCase()}`,
+  })),
+];
+
+/** What the server's decide takes, for a choice ("dismiss", or one of decisionChoices); or why not (no reason). */
+export function decisionRequest(
+  choice: string, reason: string,
+): { action: string; reason?: string; length?: string } | string {
+  if (choice === "dismiss") {
+    return { action: "dismiss" };
+  }
+  const [action, length] = choice.split(":") as ["warn" | "mute" | "ban", string | undefined];
+  return requestFor(action, reason, length);
+}
+
+/** What the admin is told once a report is decided. */
+export function decidedMessage(choice: string, report: OpenReport): string {
+  if (choice === "dismiss") {
+    return `${report.reporterName}'s report of ${report.reportedName} is dismissed.`;
+  }
+  const [action, length] = choice.split(":") as ["warn" | "mute" | "ban", string | undefined];
+  return `${doneMessage({ action, reason: "", length }, report.reportedName).replace(/\.$/, "")}; the report is closed.`;
 }

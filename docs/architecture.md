@@ -167,6 +167,31 @@ phone). In their own home, the owner has Decorate and who can visit in the dock;
 a piece to put out with a tap on the floor (or "Find a spot", for the keyboard), and selects a piece with a tap (or its
 button) to turn it or put it away.
 
+## Mutes and reports
+
+A player protects themself from another from that cat's card (a tap on it): **Mute** and **Report**, under the friend
+buttons. Nothing more on screen: the room bar and the dock stay as they are.
+
+A **mute** (`Mute`, an aggregate of its own, keyed by the pair: muter, muted) is the player's own choice, with no
+review: their browser stops showing the muted player's chat lines and bubbles (the room's history included, when they
+come into a room), while the muted cat itself still shows, and nobody else is affected. Not yourself, not twice, and at
+most 500 (`Mute.MaxMutes`). Mutes are saved, so they last across reloads, tabs and devices: the browser asks for them
+(`GetMutes`) when it connects, before any room, and every change is sent to all the player's tabs (`MutesChanged`).
+A muted cat's card says so and has Unmute; the friends list has a Muted section, to see and undo them all.
+
+A **report** (`Report`, an aggregate of its own) gives a reason from a short list (`ReportReason`: mean or hurtful chat,
+an inappropriate name, spam, something else) and an optional note (at most 300 characters), and by default mutes the
+cat too ("Also mute them", in the same save). The server keeps who reported whom (and the reported cat's name then),
+the world and room the reporter was in, when, and the room's last chat lines (`ReportedLine`, at most 20, each with its
+speaker's ID and name and when it was said), read from the room's grain (`IRoomGrain.RecentChat`): never what the
+browser says was said. The lines are kept only when the reported cat is in that room or said one of them: a cat
+reported from a card opened elsewhere (the friends list) is reported without strangers' chat. The Domain refuses reporting
+yourself, more than 10 reports in an hour, and a second open report of the same cat within the hour; a player with every
+mute used still reports, unmuted. Every report starts `Open`, for the admins to decide on `/admin` (Moderation, below);
+nothing in the game shows reports. Reports have no foreign keys to the players, so deleting either player leaves the
+report for review.
+Guests mute and report like everyone.
+
 ## Moderation
 
 Admins are listed by player ID in the server's settings (`Moderation:AdminPlayerIds`; the chart's
@@ -185,8 +210,15 @@ admins at once are decided one after the other.
 
 An admin moderates from another cat's card (Moderate, folded away: Warn, Mute for an hour, a day or a week, Ban for a
 day, a week or for good, Lift), which only admins are sent the cat's standing for, and from `/admin` (`admin.html`, a
-plain page of the client's with no 3D scene, served to admins only, reading `/api/admin/*`): who is banned or muted now,
-with Lift, and what admins did lately. The game's own bars get nothing new.
+plain page of the client's with no 3D scene, served to admins only, reading `/api/admin/*`): the open reports, oldest
+first, each with its chat; who is banned or muted now, with Lift; and what admins did lately. The game's own bars get
+nothing new.
+
+A report is decided on `/admin`: dismissed, or the reported player warned, muted or banned (with a reason, which they
+are shown), which closes the report with that decision, who took it and when (`Report.Dismiss`, `Report.CloseWith`), in
+the same save as the player's moderation (`ModerationService.DecideReportAsync`). A report is decided once (its
+`Status` is a concurrency token, so two admins at once can't both close it), and never by the admin it is about. A
+report about a cat that no longer exists can only be dismissed.
 
 The hub refuses a banned player: their connection at the door (the hub's `not-banned` policy, a 403), and every call on
 a connection already open (`ModerationHubFilter`), with why and until when. Whether a player is banned is read from the
@@ -210,11 +242,11 @@ enforces this.
 - **Domain** (`src/Pspsps.Domain`): the game's rules, no frameworks. Aggregates in the DDD sense: `Player` owns its
   logins, coins, fur and what it has from the shop. A private constructor for EF Core, named static factories
   (`CreateGuest`, `CreateWithLogin`), private setters, collections exposed read-only, and methods that refuse invalid
-  changes with a `DomainException`. `Friendship`, `Home` and `PlayerModeration` are other aggregates (Friends, Homes and
-  Moderation, above). Also the in-memory world and room rules (`WorldPopulation`, `RoomState`, `SessionLease`) and the
-  world and room catalogues.
-- **Application** (`src/Pspsps.Application`): use cases (`PlayerService`, `FriendService`, `ShopService`,
-  `HomeService`, `ModerationService`) and the ports they need (`IApplicationDbContext`, `IAdmins`).
+  changes with a `DomainException`. `Friendship`, `Home`, `Mute`, `Report` and `PlayerModeration` are other aggregates
+  (above). Also the in-memory world and room rules (`WorldPopulation`, `RoomState`, `SessionLease`) and the world and
+  room catalogues.
+- **Application** (`src/Pspsps.Application`): use cases (`PlayerService`, `FriendService`, `ShopService`, `MuteService`,
+  `ReportService`, `HomeService`, `ModerationService`) and the ports they need (`IApplicationDbContext`, `IAdmins`).
 - **Infrastructure** (`src/Pspsps.Infrastructure`): EF Core on PostgreSQL (snake_case names), the migrations, and the
   Data Protection key ring in the database.
 - **Server** (`src/Pspsps.Server`): the host. Sign-in endpoints, the SignalR hub, and the Orleans grains. The hub and

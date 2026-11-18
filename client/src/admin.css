@@ -126,3 +126,70 @@ button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.report {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.report p {
+  margin: 0;
+}
+
+.report .note {
+  font-style: italic;
+}
+
+.quiet {
+  opacity: 0.8;
+}
+
+/* The room's chat when the report was filed: the reported cat's lines in bold. */
+.chat {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  list-style: none;
+  background: white;
+  border: 2px dashed rgb(42 34 48 / 0.3);
+  border-radius: 0.75rem;
+  font-size: 0.95rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-weight: bold;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: bold;
+}
+
+.field input,
+.row select {
+  font: inherit;
+  /* Big enough to tap, and to keep iOS from zooming in when it's tapped. */
+  font-size: max(1rem, 16px);
+  min-height: 2.75rem;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 0.3rem 0.7rem;
+  border: 2px solid var(--ink);
+  border-radius: 0.9rem;
+  background: white;
+  color: var(--ink);
+}
+
+.row select {
+  flex: 1 1 10rem;
+}
+
+button.quiet {
+  background: white;
+}

@@ -44,6 +44,7 @@ const CHECKS: Record<Screen["name"], Checks> = {
   worlds: { parts: [".panel"] },
   // A sheet over the room: the room's parts are behind it (inert), so only the sheet itself must fit.
   "player-card": { parts: [".sheet"] },
+  report: { parts: [".sheet"] },
   "own-card": { parts: [".sheet"] },
   friends: { parts: [".sheet"] },
   catalogue: { parts: [".sheet"] },

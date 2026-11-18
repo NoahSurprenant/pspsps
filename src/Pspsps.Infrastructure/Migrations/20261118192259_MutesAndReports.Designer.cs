@@ -12,8 +12,8 @@ using Pspsps.Infrastructure.Persistence;
 namespace Pspsps.Infrastructure.Migrations
 {
     [DbContext(typeof(PspspsDbContext))]
-    [Migration("20261118202139_Moderation")]
-    partial class Moderation
+    [Migration("20261118192259_MutesAndReports")]
+    partial class MutesAndReports
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -112,106 +112,6 @@ namespace Pspsps.Infrastructure.Migrations
                     b.ToTable("homes", (string)null);
                 });
 
-            modelBuilder.Entity("Pspsps.Domain.Moderation.ModerationEntry", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<DateTimeOffset>("At")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("at");
-
-                    b.Property<Guid>("ByPlayerId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("by_player_id");
-
-                    b.Property<string>("Kind")
-                        .IsRequired()
-                        .HasMaxLength(16)
-                        .HasColumnType("character varying(16)")
-                        .HasColumnName("kind");
-
-                    b.Property<Guid>("PlayerId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("player_id");
-
-                    b.Property<string>("Reason")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("reason");
-
-                    b.Property<DateTimeOffset?>("Until")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("until");
-
-                    b.HasKey("Id")
-                        .HasName("pk_moderation_entries");
-
-                    b.HasIndex("At")
-                        .HasDatabaseName("ix_moderation_entries_at");
-
-                    b.HasIndex("PlayerId", "At")
-                        .HasDatabaseName("ix_moderation_entries_player_id_at");
-
-                    b.ToTable("moderation_entries", (string)null);
-                });
-
-            modelBuilder.Entity("Pspsps.Domain.Moderation.PlayerModeration", b =>
-                {
-                    b.Property<Guid>("PlayerId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("player_id");
-
-                    b.Property<string>("BanReason")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("ban_reason");
-
-                    b.Property<DateTimeOffset?>("BannedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("banned_at");
-
-                    b.Property<Guid?>("BannedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("banned_by");
-
-                    b.Property<DateTimeOffset?>("BannedUntil")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("banned_until");
-
-                    b.Property<string>("MuteReason")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("mute_reason");
-
-                    b.Property<DateTimeOffset?>("MutedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("muted_at");
-
-                    b.Property<Guid?>("MutedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("muted_by");
-
-                    b.Property<DateTimeOffset?>("MutedUntil")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("muted_until");
-
-                    b.Property<int>("Version")
-                        .IsConcurrencyToken()
-                        .HasColumnType("integer")
-                        .HasColumnName("version");
-
-                    b.Property<DateTimeOffset?>("WarningsSeenUntil")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("warnings_seen_until");
-
-                    b.HasKey("PlayerId")
-                        .HasName("pk_player_moderation");
-
-                    b.ToTable("player_moderation", (string)null);
-                });
-
             modelBuilder.Entity("Pspsps.Domain.Players.Player", b =>
                 {
                     b.Property<Guid>("Id")
@@ -264,6 +164,103 @@ namespace Pspsps.Infrastructure.Migrations
                     b.ToTable("players", null, t =>
                         {
                             t.HasCheckConstraint("ck_players_coins_not_negative", "coins >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("Pspsps.Domain.Safety.Mute", b =>
+                {
+                    b.Property<Guid>("MuterId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("muter_id");
+
+                    b.Property<Guid>("MutedId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("muted_id");
+
+                    b.Property<DateTimeOffset>("MutedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("muted_at");
+
+                    b.HasKey("MuterId", "MutedId")
+                        .HasName("pk_mutes");
+
+                    b.HasIndex("MutedId")
+                        .HasDatabaseName("ix_mutes_muted_id");
+
+                    b.ToTable("mutes", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_mutes_not_self", "muter_id <> muted_id");
+                        });
+                });
+
+            modelBuilder.Entity("Pspsps.Domain.Safety.Report", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("FiledAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("filed_at");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("note");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("reason");
+
+                    b.Property<Guid>("ReportedId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reported_id");
+
+                    b.Property<string>("ReportedName")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("reported_name");
+
+                    b.Property<Guid>("ReporterId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reporter_id");
+
+                    b.Property<string>("Room")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("room");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("WorldId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("world_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_reports");
+
+                    b.HasIndex("ReportedId")
+                        .HasDatabaseName("ix_reports_reported_id");
+
+                    b.HasIndex("ReporterId", "FiledAt")
+                        .HasDatabaseName("ix_reports_reporter_id_filed_at");
+
+                    b.HasIndex("Status", "FiledAt")
+                        .HasDatabaseName("ix_reports_status_filed_at");
+
+                    b.ToTable("reports", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_reports_not_self", "reporter_id <> reported_id");
                         });
                 });
 
@@ -340,26 +337,6 @@ namespace Pspsps.Infrastructure.Migrations
                     b.Navigation("Furniture");
                 });
 
-            modelBuilder.Entity("Pspsps.Domain.Moderation.ModerationEntry", b =>
-                {
-                    b.HasOne("Pspsps.Domain.Moderation.PlayerModeration", null)
-                        .WithMany("Entries")
-                        .HasForeignKey("PlayerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_moderation_entries_player_moderation_player_id");
-                });
-
-            modelBuilder.Entity("Pspsps.Domain.Moderation.PlayerModeration", b =>
-                {
-                    b.HasOne("Pspsps.Domain.Players.Player", null)
-                        .WithOne()
-                        .HasForeignKey("Pspsps.Domain.Moderation.PlayerModeration", "PlayerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_player_moderation_players_player_id");
-                });
-
             modelBuilder.Entity("Pspsps.Domain.Players.Player", b =>
                 {
                     b.OwnsMany("Pspsps.Domain.Players.OwnedItem", "Items", b1 =>
@@ -429,9 +406,65 @@ namespace Pspsps.Infrastructure.Migrations
                     b.Navigation("Logins");
                 });
 
-            modelBuilder.Entity("Pspsps.Domain.Moderation.PlayerModeration", b =>
+            modelBuilder.Entity("Pspsps.Domain.Safety.Mute", b =>
                 {
-                    b.Navigation("Entries");
+                    b.HasOne("Pspsps.Domain.Players.Player", null)
+                        .WithMany()
+                        .HasForeignKey("MutedId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_mutes_players_muted_id");
+
+                    b.HasOne("Pspsps.Domain.Players.Player", null)
+                        .WithMany()
+                        .HasForeignKey("MuterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_mutes_players_muter_id");
+                });
+
+            modelBuilder.Entity("Pspsps.Domain.Safety.Report", b =>
+                {
+                    b.OwnsMany("Pspsps.Domain.Safety.ReportedLine", "Context", b1 =>
+                        {
+                            b1.Property<Guid>("ReportId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("report_id");
+
+                            b1.Property<int>("Position")
+                                .HasColumnType("integer")
+                                .HasColumnName("position");
+
+                            b1.Property<DateTimeOffset>("At")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("at");
+
+                            b1.Property<string>("DisplayName")
+                                .IsRequired()
+                                .HasMaxLength(20)
+                                .HasColumnType("character varying(20)")
+                                .HasColumnName("display_name");
+
+                            b1.Property<Guid>("PlayerId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("player_id");
+
+                            b1.Property<string>("Text")
+                                .IsRequired()
+                                .HasColumnType("text")
+                                .HasColumnName("text");
+
+                            b1.HasKey("ReportId", "Position")
+                                .HasName("pk_report_lines");
+
+                            b1.ToTable("report_lines", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("ReportId")
+                                .HasConstraintName("fk_report_lines_reports_report_id");
+                        });
+
+                    b.Navigation("Context");
                 });
 #pragma warning restore 612, 618
         }

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { liftLabel, logLine, sanctionLine, type SanctionedPlayer } from "./admin";
+import {
+  decidedMessage, decisionChoices, decisionRequest, liftLabel, logLine, reportFacts, reportHeading, sanctionLine,
+  type OpenReport, type SanctionedPlayer,
+} from "./admin";
+import { sayWhy } from "./moderation";
 
 const utc = { locale: "en-GB", timeZone: "UTC" };
 
@@ -28,5 +32,41 @@ describe("the admin page", () => {
       .toBe("18 Nov 2026, 14:00 · Ann muted Felix until 18 Nov 2026, 15:00: Rude");
     expect(logLine({ ...line, kind: "Warned", reason: "Be nice" }, utc)).toBe("18 Nov 2026, 14:00 · Ann warned Felix: Be nice");
     expect(logLine({ ...line, kind: "BanLifted", reason: null }, utc)).toBe("18 Nov 2026, 14:00 · Ann lifted Felix's ban");
+  });
+});
+
+describe("a report on the admin page", () => {
+  const report: OpenReport = {
+    id: "r1",
+    reporterId: "t",
+    reporterName: "Tom",
+    reportedId: "f",
+    reportedName: "Felix",
+    reason: "MeanChat",
+    note: null,
+    place: "Town Square, Tabby",
+    filedAt: "2026-11-18T14:00:00Z",
+    context: [],
+  };
+
+  it("says who reported whom, why, where and when", () => {
+    expect(reportHeading(report)).toBe("Tom reported Felix");
+    expect(reportFacts(report, utc)).toBe("Mean or hurtful chat · Town Square, Tabby · 18 Nov 2026, 14:00");
+  });
+
+  it("offers each decision, a reason needed for all but Dismiss", () => {
+    expect(decisionChoices.map((choice) => choice.label)).toEqual([
+      "Warn", "Mute for 1 hour", "Mute for 24 hours", "Mute for 7 days", "Ban for 24 hours", "Ban for 7 days", "Ban for good",
+    ]);
+    expect(decisionRequest("mute:24h", " Rude ")).toEqual({ action: "mute", reason: "Rude", length: "24h" });
+    expect(decisionRequest("ban:permanent", "Threats")).toEqual({ action: "ban", reason: "Threats", length: "permanent" });
+    expect(decisionRequest("warn", "Be nice")).toEqual({ action: "warn", reason: "Be nice" });
+    expect(decisionRequest("warn", "  ")).toBe(sayWhy);
+    expect(decisionRequest("dismiss", "")).toEqual({ action: "dismiss" });
+  });
+
+  it("says what was decided", () => {
+    expect(decidedMessage("dismiss", report)).toBe("Tom's report of Felix is dismissed.");
+    expect(decidedMessage("ban:7d", report)).toBe("Felix is banned for 7 days; the report is closed.");
   });
 });

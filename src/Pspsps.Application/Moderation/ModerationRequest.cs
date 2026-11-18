@@ -34,6 +34,13 @@ public sealed record ModerationRequest(ModerationAction Action, string? Reason, 
     };
 
     /// <summary>
+    /// A decision on a report, from what the admin page sends: "dismiss" (null), or "warn", "mute" or "ban" the reported
+    /// player (as <see cref="Parse"/>).
+    /// </summary>
+    public static ModerationRequest? ForReport(string? action, string? reason, string? length) =>
+        string.Equals(action, "dismiss", StringComparison.OrdinalIgnoreCase) ? null : Parse(action, reason, length);
+
+    /// <summary>
     /// The request from what the browser sends: <paramref name="action"/> ("warn", "mute", "ban" or "lift"), the reason,
     /// and for a mute or a ban its length (one of <see cref="MuteLengths"/> or <see cref="BanLengths"/>).
     /// </summary>

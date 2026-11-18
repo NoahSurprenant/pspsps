@@ -77,6 +77,17 @@ describe("CatLook", () => {
     expect(look.bubbleAt(t0 + CatLook.bubbleMilliseconds + 1)).toBeUndefined();
   });
 
+  it("drops the chat line at once when the cat is muted, keeping a meow and a snore", () => {
+    const look = new CatLook("sleep");
+    look.say("go away", t0);
+    look.emote("meow", t0);
+
+    look.hush();
+
+    expect(look.bubbleAt(t0 + 1)).toBe("meow!");
+    expect(look.bubbleAt(t0 + CatLook.meowMilliseconds + 1)).toBe("z z z");
+  });
+
   it("raises a paw for a moment, in any pose", () => {
     const look = new CatLook("sleep");
     expect(look.wavingAt(t0)).toBe(false);
