@@ -97,7 +97,7 @@ attributes of at most 1000 characters each, named like OpenTelemetry's, and none
 
 The endpoint is anonymous but takes batches from the game's own pages only (`Sec-Fetch-Site`, else `Origin`), at most
 256 KiB, and refuses (400) anything the browser couldn't have sent: more than 100 spans, 100 logs or 20 numbers,
-malformed IDs, times outside 2001-2255. Batches are queued (at most 1000) for a background forwarder, which posts up to
+malformed IDs, times outside 2001-2255; the browser keeps its batches under 200 KB. Batches are queued (at most 1000) for a background forwarder, which posts up to
 20 at a time (each under its own resource) in one request a signal, with a 5 s timeout, and warns of failures at most
 once a minute; the endpoint is left out of the server's traces, request log and HTTP metrics.
 
@@ -113,7 +113,7 @@ no header and is traced as before.
 
 The browser samples hub calls itself, at the share in the page's mark (the server's `OTEL_TRACES_SAMPLER_ARG`): a call it
 keeps says `01`, one it doesn't `00`, and the server's parent-based sampler follows that, so a hub call is traced whole
-(browser and server) or not at all, as often as before. HTTP calls (a few a page) are always kept. Like any
+(browser and server) or not at all, as often as before. The browser's HTTP calls to the server are sampled the same way. Like any
 `traceparent` a client sends, a browser can ask for its calls to be traced; the rate limit and sampling at the share keep
 that to what an ordinary tab does.
 

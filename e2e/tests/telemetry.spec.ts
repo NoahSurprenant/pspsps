@@ -27,6 +27,12 @@ test("a page sends its errors, a failed load and its hub calls' traces to the se
       });
     }
   });
+  const meTraceparents: (string | undefined)[] = [];
+  page.on("request", (request: Request) => {
+    if (new URL(request.url()).pathname === "/api/me") {
+      meTraceparents.push(request.headers()["traceparent"]);
+    }
+  });
   const framesSent: string[] = [];
   page.on("websocket", (socket) => socket.on("framesent", (frame) => framesSent.push(String(frame.payload))));
 
@@ -54,8 +60,8 @@ test("a page sends its errors, a failed load and its hub calls' traces to the se
   for (const invocation of invocations) {
     expect(invocation).toMatch(/"headers":\{"traceparent":"00-[0-9a-f]{32}-[0-9a-f]{16}-0[01]"\}/);
   }
-  // The HTTP calls are traced as spans of their own.
-  expect(all.flatMap((batch) => batch.spans).map((span) => span.name)).toEqual(expect.arrayContaining(["GET /api/me"]));
+  // The game's own HTTP calls carry a traceparent too (the first /api/me is the game's; the helper's own fetch isn't).
+  expect(meTraceparents[0]).toMatch(/^00-[0-9a-f]{32}-[0-9a-f]{16}-0[01]$/);
   // Nothing that names the player.
   expect(JSON.stringify(all)).not.toContain(playerId);
   // And the server took every batch.

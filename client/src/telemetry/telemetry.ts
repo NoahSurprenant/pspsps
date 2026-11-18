@@ -16,6 +16,8 @@ export const MAX_BATCH = { spans: 100, logs: 100, vitals: 20 } as const;
 export const MAX_QUEUE = 500;
 /** fetch's keepalive (which outlives the page) takes at most 64 KiB in flight, all its posts together, in bytes. */
 export const MAX_KEEPALIVE_BYTES = 60_000;
+/** The most a batch's body takes, in bytes: under the server's 256 KiB (ClientTelemetryLimits.BodyBytes), which refuses more whole. */
+export const MAX_BATCH_BYTES = 200_000;
 /** The server's limits on text and numbers: a batch past them is refused whole. */
 export const MAX_SPAN_NAME = 200;
 export const MAX_LOG_MESSAGE = 4_000;
@@ -309,13 +311,30 @@ export class BrowserTelemetry {
       if (!batch.spans.length && !batch.logs.length && !batch.vitals.length) {
         return;
       }
-      this.send(batch);
+      this.send(this.fitted(batch));
     } while (all);
   }
 
-  private send(batch: TelemetryBatch): void {
-    const body = JSON.stringify(batch);
-    const bytes = new TextEncoder().encode(body).length;
+  /**
+   * The batch as JSON, within MAX_BATCH_BYTES: past it (long stacks), the later half of its longest list goes back to the
+   * front of the queue, for the next batch, until it fits.
+   */
+  private fitted(batch: TelemetryBatch): { body: string; bytes: number } {
+    for (;;) {
+      const body = JSON.stringify(batch);
+      const bytes = new TextEncoder().encode(body).length;
+      const longest = (["spans", "logs", "vitals"] as const)
+        .reduce((most, kind) => (batch[kind].length > batch[most].length ? kind : most));
+      if (bytes <= MAX_BATCH_BYTES || batch[longest].length < 2) {
+        return { body, bytes };
+      }
+      const list: unknown[] = batch[longest];
+      const queue: unknown[] = this.queue[longest];
+      queue.unshift(...list.splice(Math.ceil(list.length / 2)));
+    }
+  }
+
+  private send({ body, bytes }: { body: string; bytes: number }): void {
     // Keepalive while the posts in flight leave room: past it the browser refuses the post outright, where without
     // keepalive it at least goes while the page lives.
     const keepalive = this.keepaliveInFlight + bytes <= MAX_KEEPALIVE_BYTES;

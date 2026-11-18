@@ -1,5 +1,5 @@
 using System.Globalization;
-using System.Text;
+using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
@@ -69,7 +69,8 @@ public static partial class ClientAttributes
                 JsonValueKind.String => QueryRedaction.RedactIn(
                     Bounded(value.GetString() ?? "", key == StackAttribute ? MaxStackLength : MaxValueLength)),
                 JsonValueKind.Number when value.TryGetInt64(out var whole) => whole,
-                JsonValueKind.Number => value.GetDouble(),
+                // Valid JSON, but past double's range (1e400): dropped, as the post it would break carries other batches.
+                JsonValueKind.Number when value.TryGetDouble(out var real) && double.IsFinite(real) => real,
                 JsonValueKind.True => true,
                 JsonValueKind.False => false,
                 _ => null,
@@ -160,9 +161,6 @@ public static class OtlpJson
         ["error"] = (17, "ERROR"),
     };
 
-    public static JsonObject Traces(IReadOnlyDictionary<string, string> resource, IEnumerable<ClientSpan> spans) =>
-        Traces([new ResourceGroup<ClientSpan>(resource, spans)]);
-
     /// <summary>Several browsers' spans in one request, each under its own resource (its build, its user agent).</summary>
     public static JsonObject Traces(IEnumerable<ResourceGroup<ClientSpan>> groups) => new()
     {
@@ -176,9 +174,6 @@ public static class OtlpJson
             }),
         }).ToArray()),
     };
-
-    public static JsonObject Logs(IReadOnlyDictionary<string, string> resource, IEnumerable<ClientLog> logs) =>
-        Logs([new ResourceGroup<ClientLog>(resource, logs)]);
 
     /// <summary>Several browsers' log lines in one request, each under its own resource.</summary>
     public static JsonObject Logs(IEnumerable<ResourceGroup<ClientLog>> groups) => new()
@@ -274,9 +269,6 @@ public sealed partial class ClientTelemetryForwarder(
     /// <summary>How long one post to the collector may take.</summary>
     public static readonly TimeSpan Timeout = TimeSpan.FromSeconds(5);
 
-    public Task ForwardAsync(ClientTelemetryBatch batch, string userAgent, CancellationToken ct) =>
-        ForwardAsync([new QueuedBatch(batch, userAgent)], ct);
-
     /// <summary>
     /// Several browsers' batches in one post a signal (each under its own resource): a post per batch would hold the
     /// outbox to a batch per round trip to the collector.
@@ -293,20 +285,24 @@ public sealed partial class ClientTelemetryForwarder(
             .Select(r => new ResourceGroup<ClientSpan>(r.Resource, r.Batch.Spans)).ToList();
         var logs = resources.Where(r => r.Batch.Logs.Count > 0)
             .Select(r => new ResourceGroup<ClientLog>(r.Resource, r.Batch.Logs)).ToList();
-        // Not this post's own HttpClient span and log: every batch would make one.
+        // Not these posts' own HttpClient spans and logs: every batch would make one. The two signals go at once: one after
+        // the other, a slow collector would hold the outbox twice as long.
         using var suppressed = SuppressInstrumentationScope.Begin();
+        var posts = new List<Task>(2);
         if (spans.Count > 0)
-            await PostAsync(endpoint, "traces", OtlpJson.Traces(spans), ct);
+            posts.Add(PostAsync(endpoint, "traces", OtlpJson.Traces(spans), ct));
         if (logs.Count > 0)
-            await PostAsync(endpoint, "logs", OtlpJson.Logs(logs), ct);
+            posts.Add(PostAsync(endpoint, "logs", OtlpJson.Logs(logs), ct));
+        await Task.WhenAll(posts);
     }
 
     private async Task PostAsync(Uri endpoint, string signal, JsonObject body, CancellationToken ct)
     {
-        var target = new Uri(endpoint.AbsoluteUri.TrimEnd('/') + "/v1/" + signal);
+        var target = TelemetryOptions.HttpSignalEndpoint(endpoint, signal);
         try
         {
-            using var content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json");
+            // Written straight into the request, not first into a string: a post can be a few MB.
+            using var content = JsonContent.Create(body);
             using var response = await http.PostAsync(target, content, ct);
             if (!response.IsSuccessStatusCode && failures.ShouldLog(out var suppressed))
                 LogRefused(logger, signal, (int)response.StatusCode, suppressed);
@@ -337,6 +333,9 @@ public sealed class ForwardFailures(TimeProvider time)
     private readonly Lock _lock = new();
     private DateTimeOffset? _lastWarned;
     private int _suppressed;
+
+    /// <summary>A throttle of its own, on the same clock, for another kind of failure.</summary>
+    public ForwardFailures Separate() => new(time);
 
     /// <summary>Whether this failure is warned of; <paramref name="suppressed"/>: how many weren't since the last.</summary>
     public bool ShouldLog(out int suppressed)

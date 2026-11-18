@@ -17,6 +17,14 @@ public sealed partial class ClientTelemetryOutbox(ILogger<ClientTelemetryOutbox>
     /// <summary>The most batches one post carries: about 2000 spans and 2000 lines at the most, a few MB.</summary>
     public const int MaxBatchesPerPost = 20;
 
+    private readonly ForwardFailures _forwardFailures = failures;
+
+    // Its own once-a-minute warning: in a collector outage the forward failures take theirs, and a full outbox must
+    // still be told.
+    private readonly ForwardFailures _full = failures.Separate();
+
+    private readonly ILogger<ClientTelemetryOutbox> _logger = logger;
+
     private readonly Channel<QueuedBatch> _channel =
         // Wait, not a Drop mode: those report every write as done, so a full outbox couldn't be told (and warned of).
         Channel.CreateBounded<QueuedBatch>(new BoundedChannelOptions(Capacity)
@@ -33,8 +41,8 @@ public sealed partial class ClientTelemetryOutbox(ILogger<ClientTelemetryOutbox>
             return false;
         if (_channel.Writer.TryWrite(new QueuedBatch(batch, userAgent)))
             return true;
-        if (failures.ShouldLog(out var suppressed))
-            LogFull(logger, Capacity, suppressed);
+        if (_full.ShouldLog(out var suppressed))
+            LogFull(_logger, Capacity, suppressed);
         return false;
     }
 
@@ -47,7 +55,7 @@ public sealed partial class ClientTelemetryOutbox(ILogger<ClientTelemetryOutbox>
     }
 
     /// <summary>Forwards what is queued now, the same way, and returns: for tests.</summary>
-    public async Task ForwardQueuedAsync(ClientTelemetryForwarder forwarder, CancellationToken ct = default)
+    internal async Task ForwardQueuedAsync(ClientTelemetryForwarder forwarder, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(forwarder);
         while (_channel.Reader.TryPeek(out _))
@@ -69,8 +77,8 @@ public sealed partial class ClientTelemetryOutbox(ILogger<ClientTelemetryOutbox>
         catch (Exception e) when (e is not OperationCanceledException)
         {
             // Those batches couldn't be sent (or built): the rest still go.
-            if (failures.ShouldLog(out var suppressed))
-                LogForwardFailed(logger, e, suppressed);
+            if (_forwardFailures.ShouldLog(out var suppressed))
+                LogForwardFailed(_logger, e, suppressed);
         }
     }
 

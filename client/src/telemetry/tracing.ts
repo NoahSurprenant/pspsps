@@ -17,14 +17,16 @@ export function isOwnCall(url: string, base: string): boolean {
 
 /**
  * fetch, with a client span for each call to the game's server and its traceparent sent along, so the server's spans
- * join the trace; a call with no answer (not the browser's doing) or a 5xx is reported as an error, in that trace. With
- * telemetry off, plain fetch.
+ * join the trace; a call with no answer (not the browser's doing) or a 5xx is reported as an error, in that trace. Sampled
+ * at the server's share of root spans, as hub calls are: a call the browser doesn't keep says 00, and the server drops
+ * its spans too, so the server traces these requests as often as it did before. With telemetry off, plain fetch.
  */
 export function tracedFetch(
   telemetry: BrowserTelemetry,
   reporter: ErrorReporter,
   base: () => string = () => location.href,
   send: typeof fetch = (input, init) => globalThis.fetch(input, init),
+  random: () => number = Math.random,
 ): (url: string, init?: RequestInit) => Promise<Response> {
   return async (url, init = {}) => {
     if (!telemetry.enabled || !isOwnCall(url, base())) {
@@ -34,6 +36,7 @@ export function tracedFetch(
     const path = redactUrl(url, base());
     const span = telemetry.startSpan(`${method} ${path.split("?")[0]}`, {
       kind: "client",
+      sampled: random() < telemetry.sampleRatio,
       attributes: { "http.request.method": method, "url.path": path },
     });
     const headers = new Headers(init.headers);

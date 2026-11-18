@@ -96,7 +96,14 @@ public sealed class TelemetryOptions
             return null;
         if (Protocol == OtlpWireProtocol.Grpc)
             return OtlpEndpoint;
-        return new Uri(OtlpEndpoint.AbsoluteUri.TrimEnd('/') + "/v1/" + signal);
+        return HttpSignalEndpoint(OtlpEndpoint, signal);
+    }
+
+    /// <summary>An OTLP/HTTP base's path for one signal: <c>{base}/v1/{signal}</c>.</summary>
+    public static Uri HttpSignalEndpoint(Uri endpoint, string signal)
+    {
+        ArgumentNullException.ThrowIfNull(endpoint);
+        return new Uri(endpoint.AbsoluteUri.TrimEnd('/') + "/v1/" + signal);
     }
 
     /// <summary>

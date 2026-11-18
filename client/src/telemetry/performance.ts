@@ -137,7 +137,10 @@ export function watchBabylonLog(logger: { OnNewCacheEntry: (entry: string) => vo
   }
   watched.add(logger);
   let sent = 0;
+  // Babylon has one handler: whatever had it (the inspector, say) still gets every entry.
+  const before = logger.OnNewCacheEntry as ((entry: string) => void) | undefined;
   logger.OnNewCacheEntry = (entry) => {
+    before?.(entry);
     const line = babylonLine(entry);
     if (!line || sent >= MAX_BABYLON_LINES) {
       return;

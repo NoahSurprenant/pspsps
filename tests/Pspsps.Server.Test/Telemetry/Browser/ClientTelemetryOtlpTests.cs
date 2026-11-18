@@ -103,7 +103,7 @@ public sealed class ClientTelemetryOtlpTests
             Attributes = Attributes("""{"rpc.method":"Move"}"""),
         };
 
-        var json = OtlpJson.Traces(new Dictionary<string, string> { ["service.name"] = "pspsps" }, [span]);
+        var json = OtlpJson.Traces([new ResourceGroup<ClientSpan>(new Dictionary<string, string> { ["service.name"] = "pspsps" }, [span])]);
 
         var otlp = json["resourceSpans"]![0]!;
         var sent = otlp["scopeSpans"]![0]!["spans"]![0]!;
@@ -123,8 +123,8 @@ public sealed class ClientTelemetryOtlpTests
     [Test]
     public void Logs_AreOtlpJson_InTheirTrace_Redacted()
     {
-        var json = OtlpJson.Logs(new Dictionary<string, string>(),
-            [ClientTelemetryValidationTests.Log("GET /auth/callback?code=abc answered 503") with { Level = "error" }]);
+        var json = OtlpJson.Logs([new ResourceGroup<ClientLog>(new Dictionary<string, string>(),
+            [ClientTelemetryValidationTests.Log("GET /auth/callback?code=abc answered 503") with { Level = "error" }])]);
 
         var record = json["resourceLogs"]![0]!["scopeLogs"]![0]!["logRecords"]![0]!;
         Assert.Multiple(() =>
@@ -164,7 +164,7 @@ public sealed class ClientTelemetryOtlpTests
         using var collector = new FakeCollector();
 
         await Forwarder(collector, new ForwardFailures(TimeProvider.System))
-            .ForwardAsync(ClientTelemetryValidationTests.Batch(), "Mozilla/5.0", CancellationToken.None);
+            .ForwardAsync([new QueuedBatch(ClientTelemetryValidationTests.Batch(), "Mozilla/5.0")], CancellationToken.None);
 
         Assert.That(collector.Posts.Select(p => p.Path), Is.EqualTo(new[] { "/v1/traces", "/v1/logs" }));
         var resource = collector.Posts[0].Body["resourceSpans"]![0]!["resource"]!["attributes"]!.AsArray()
@@ -179,7 +179,7 @@ public sealed class ClientTelemetryOtlpTests
         using var collector = new FakeCollector { Gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously) };
 
         var forward = Forwarder(collector, new ForwardFailures(TimeProvider.System))
-            .ForwardAsync(ClientTelemetryValidationTests.Batch(), "", CancellationToken.None);
+            .ForwardAsync([new QueuedBatch(ClientTelemetryValidationTests.Batch(), "")], CancellationToken.None);
         var first = await collector.NextAsync();
         var second = await collector.NextAsync();
         collector.Gate!.SetResult();
@@ -194,7 +194,7 @@ public sealed class ClientTelemetryOtlpTests
         using var collector = new FakeCollector();
         var batch = ClientTelemetryValidationTests.Batch() with { Spans = [], Logs = [] };
 
-        await Forwarder(collector, new ForwardFailures(TimeProvider.System)).ForwardAsync(batch, "", CancellationToken.None);
+        await Forwarder(collector, new ForwardFailures(TimeProvider.System)).ForwardAsync([new QueuedBatch(batch, "")], CancellationToken.None);
 
         Assert.That(collector.Posts, Is.Empty);
     }
@@ -209,15 +209,15 @@ public sealed class ClientTelemetryOtlpTests
         var forwarder = Forwarder(collector, failures, logger);
         var batch = ClientTelemetryValidationTests.Batch() with { Logs = [] };
 
-        await forwarder.ForwardAsync(batch, "", CancellationToken.None);
-        await forwarder.ForwardAsync(batch, "", CancellationToken.None);
-        await forwarder.ForwardAsync(batch, "", CancellationToken.None);
+        await forwarder.ForwardAsync([new QueuedBatch(batch, "")], CancellationToken.None);
+        await forwarder.ForwardAsync([new QueuedBatch(batch, "")], CancellationToken.None);
+        await forwarder.ForwardAsync([new QueuedBatch(batch, "")], CancellationToken.None);
         Assert.That(logger.Lines, Has.Count.EqualTo(1));
 
         clock.Advance(ForwardFailures.Interval);
         collector.Failure = null;
         collector.Status = System.Net.HttpStatusCode.BadRequest;
-        await forwarder.ForwardAsync(batch, "", CancellationToken.None);
+        await forwarder.ForwardAsync([new QueuedBatch(batch, "")], CancellationToken.None);
 
         Assert.That(logger.Lines, Has.Count.EqualTo(2));
         Assert.That(logger.Lines[1].Message, Does.Contain("refused the browser's traces (400); 2 more failures"));
