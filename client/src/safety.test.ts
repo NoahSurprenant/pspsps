@@ -71,3 +71,14 @@ describe("the report form", () => {
     expect(muteMessage("Felix", false)).toBe("Felix isn't muted any more.");
   });
 });
+
+describe("Mutes, told the same list again", () => {
+  it("says nothing changed, so the open card or list isn't drawn twice", () => {
+    const mutes = new Mutes();
+    expect(mutes.set([felix]).changed).toBe(true);
+
+    // This tab's own change comes back as MutesChanged too.
+    expect(mutes.set([felix]).changed).toBe(false);
+    expect(mutes.set([]).changed).toBe(true);
+  });
+});

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.EntityFrameworkCore;
 using Pspsps.Application.Safety;
 using Pspsps.Domain;
+using Pspsps.Domain.Players;
 using Pspsps.Domain.Rooms;
 using Pspsps.Domain.Safety;
 using Pspsps.Infrastructure.Persistence;
@@ -128,6 +129,45 @@ public sealed class SafetyTests
             ("hi", (await db.Players.SingleAsync(p => p.Id == felix)).DisplayName),
             ("bye", "A cat"),
         }));
+    }
+
+    [Test]
+    public async Task AReport_AlsoMuting_WithEveryMuteUsed_IsStillFiled_WithoutTheMute()
+    {
+        var tom = await NewPlayerAsync();
+        var felix = await NewPlayerAsync();
+        var db = Game.Get<PspspsDbContext>();
+        var now = DateTimeOffset.UtcNow;
+        for (var i = 0; i < Mute.MaxMutes; i++)
+        {
+            var other = Player.CreateGuest($"Muted {i}", FurColor.Grey, now);
+            db.Players.Add(other);
+            db.Mutes.Add(Mute.Create(tom, other.Id, new MutesSoFar(i, false), now));
+        }
+
+        await db.SaveChangesAsync();
+
+        var outcome = await Game.Get<IReportService>().FileAsync(
+            tom, felix, ReportReason.MeanChat, null, "tabby", "tabby/town-square", [], true, CancellationToken.None);
+
+        Assert.That(outcome.Muted, Is.False, "the report matters more than the mute");
+        Assert.That(await Game.Get<PspspsDbContext>().Reports.CountAsync(r => r.ReporterId == tom), Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task AReport_OutlastsTheReportedPlayer()
+    {
+        var tom = await NewPlayerAsync();
+        var felix = await NewPlayerAsync();
+        await Game.Get<IReportService>().FileAsync(
+            tom, felix, ReportReason.InappropriateName, null, "tabby", "tabby/town-square", [], false, CancellationToken.None);
+
+        var db = Game.Get<PspspsDbContext>();
+        db.Players.Remove(await db.Players.SingleAsync(p => p.Id == felix));
+        await db.SaveChangesAsync();
+
+        var report = await Game.Get<PspspsDbContext>().Reports.AsNoTracking().SingleAsync(r => r.ReporterId == tom);
+        Assert.That(report.ReportedId, Is.EqualTo(felix), "the report stays for review, with the name the cat had");
     }
 
     [Test]
