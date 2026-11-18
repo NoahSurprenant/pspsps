@@ -78,7 +78,7 @@ internal sealed partial class ModerationEffects(
         }
 
         ITimer? timer = null;
-        timer = time.CreateTimer(_ =>
+        timer = time.CreateTimer(state =>
         {
             foreach (var connection in open)
             {
