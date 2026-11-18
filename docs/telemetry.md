@@ -84,6 +84,9 @@ endpoint answers 404.
   (seconds) and `.cls` (web-vitals, loaded only when on); `pspsps.browser.fps`, the median frame rate over ten seconds
   while a room shows; `pspsps.browser.long_task.duration`, long tasks where the browser reports them (at most 30 a page).
 
+The admin page (`/admin`) sends only its uncaught errors: not its calls (their paths carry player and report IDs) nor
+its Web Vitals (a few admins' page loads would mix with the players').
+
 Spans and logs go under the game's resource (its `service.name` and environment) with `service.component=browser`, the
 browser's own build as `service.version` (the commit the client was built from, `SOURCE_REVISION`), and
 `user_agent.original`; never the pod's `service.instance.id`. Every span and line has `session.id`, a random ID for the
