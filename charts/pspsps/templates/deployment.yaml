@@ -115,6 +115,15 @@ spec:
             - name: OTEL_TRACES_SAMPLER_ARG
               value: {{ .sampleRatio | quote }}
             {{- end }}
+            {{- if .browser }}
+            {{- if not .endpoint }}
+            {{- fail "telemetry.browser needs telemetry.endpoint" }}
+            {{- end }}
+            - name: ClientTelemetry__Enabled
+              value: "true"
+            - name: ClientTelemetry__OtlpEndpoint
+              value: {{ include "pspsps.browserOtlpEndpoint" $ | quote }}
+            {{- end }}
             {{- end }}
             {{- range $i, $network := .Values.forwardedHeaders.knownIPNetworks }}
             - name: ForwardedHeaders__KnownIPNetworks__{{ $i }}

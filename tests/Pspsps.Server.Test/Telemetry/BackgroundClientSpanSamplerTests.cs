@@ -20,6 +20,23 @@ public class BackgroundClientSpanSamplerTests
     }
 
     /// <summary>
+    /// A hub call from a browser with telemetry on carries the browser's decision (its traceparent's flags,
+    /// client/src/telemetry/tracing.ts): kept when the browser kept its span, dropped when not, whatever the root share,
+    /// so a hub call is traced whole or not at all, and as often as before (the browser samples at the same share).
+    /// </summary>
+    [TestCase(ActivityTraceFlags.Recorded, 0.0, SamplingDecision.RecordAndSample)]
+    [TestCase(ActivityTraceFlags.None, 1.0, SamplingDecision.Drop)]
+    public void ParentBased_FollowsTheBrowsersDecisionForAHubCall(ActivityTraceFlags flags, double rootRatio, SamplingDecision expected)
+    {
+        var browser = new ActivityContext(ActivityTraceId.CreateRandom(), ActivitySpanId.CreateRandom(), flags, isRemote: true);
+        var parameters = new SamplingParameters(browser, browser.TraceId, "Pspsps.Server.Hubs.GameHub/Move", ActivityKind.Server);
+
+        var decision = new ParentBasedSampler(new BackgroundClientSpanSampler(rootRatio)).ShouldSample(parameters).Decision;
+
+        Assert.That(decision, Is.EqualTo(expected));
+    }
+
+    /// <summary>
     /// As the app wires it: a database call with no parent (the key ring refresh) is dropped, the
     /// same call inside a hub call or request is kept, and so is the hub call itself.
     /// </summary>

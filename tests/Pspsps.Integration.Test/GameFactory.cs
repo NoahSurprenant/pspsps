@@ -11,6 +11,7 @@ using Orleans.Runtime;
 using Pspsps.Application.Players;
 using Pspsps.Infrastructure.Persistence;
 using Pspsps.Server.Auth;
+using Pspsps.Server.Telemetry.Browser;
 
 namespace Pspsps.Integration.Test;
 
@@ -34,9 +35,13 @@ public sealed class GameFactory(string connectionString) : WebApplicationFactory
         builder.UseSetting("ChatFilter:Lists:0:Words:1", "heck");
         builder.UseSetting("ChatFilter:Lists:1:Action", "Refuse");
         builder.UseSetting("ChatFilter:Lists:1:Words:0", "woof");
+        // The browsers' telemetry on, forwarded to Collector.
+        builder.UseSetting("ClientTelemetry:Enabled", "true");
+        builder.UseSetting("ClientTelemetry:OtlpEndpoint", "http://collector.test:4318");
         builder.ConfigureTestServices(services =>
         {
             services.AddSingleton<IStartupFilter, FakeExternalSignIn>();
+            services.AddHttpClient<ClientTelemetryForwarder>().ConfigurePrimaryHttpMessageHandler(() => Collector);
             services.ConfigureDbContext<PspspsDbContext>(options =>
                 options.AddInterceptors(BeforeSaving, BeforeSaving.Statements));
             services.AddAuthentication().AddRemoteScheme<RemoteAuthenticationOptions, FakeProviderHandler>(
@@ -52,6 +57,9 @@ public sealed class GameFactory(string connectionString) : WebApplicationFactory
     }
 
     public FakeTimeProvider GrainClock { get; } = new(DateTimeOffset.UtcNow);
+
+    /// <summary>Where the browsers' telemetry goes.</summary>
+    public FakeCollector Collector { get; } = new();
 
     /// <summary>Lets a test act in the server just before it saves a change to a player.</summary>
     public BeforeSaving BeforeSaving { get; } = new();

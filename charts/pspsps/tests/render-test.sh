@@ -155,6 +155,26 @@ for case in "pspsps-chat-filter:${lists[*]}" "my-words:--set chatFilter.existing
   if [[ "$name" == my-words && "$configmaps" -ne 0 ]]; then fail "existingConfigMap still renders a ConfigMap"; fi
 done
 
+# Browser telemetry: off by default; on, it goes to the same collector's OTLP/HTTP port (or the address given), and it
+# can't be on without the server's own telemetry.
+deployment=$(server --set telemetry.endpoint=http://otel-collector:4317)
+if grep -q "ClientTelemetry__" <<< "$deployment"; then fail "browser telemetry is on by default"; fi
+for case in \
+  "http://otel-collector:4318|--set telemetry.endpoint=http://otel-collector:4317" \
+  "http://otel-collector:4318|--set telemetry.endpoint=http://otel-collector:4318 --set telemetry.protocol=http/protobuf" \
+  "http://browser-collector:4318|--set telemetry.endpoint=http://otel-collector:4317 --set telemetry.browserOtlpEndpoint=http://browser-collector:4318"; do
+  expected=${case%%|*}
+  read -ra flags <<< "${case#*|}"
+  deployment=$(server --set telemetry.browser=true "${flags[@]}")
+  [[ "$(env_value "$deployment" ClientTelemetry__Enabled)" == "true" ]] || fail "${flags[*]}: browser telemetry isn't on"
+  [[ "$(env_value "$deployment" ClientTelemetry__OtlpEndpoint)" == "$expected" ]] \
+    || fail "${flags[*]}: the browsers' collector isn't $expected"
+done
+if server --set telemetry.browser=true > /dev/null 2>&1; then fail "browser telemetry renders without telemetry.endpoint"; fi
+if server --set telemetry.browser=true --set telemetry.endpoint=http://otel-collector:5555 > /dev/null 2>&1; then
+  fail "browser telemetry renders with a gRPC endpoint it can't find the HTTP port of"
+fi
+
 if (( failures > 0 )); then
   exit 1
 fi

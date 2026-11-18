@@ -9,6 +9,7 @@ using Pspsps.Server.Auth;
 using Pspsps.Server.Game;
 using Pspsps.Server.Hubs;
 using Pspsps.Server.Telemetry;
+using Pspsps.Server.Telemetry.Browser;
 using Serilog;
 using StackExchange.Redis;
 
@@ -24,6 +25,8 @@ try
     builder.AddSerilogLogging(telemetry);
     builder.Services.AddMetricsAndTracing(telemetry, builder.Configuration);
     builder.Services.AddSingleton<GameMetrics>();
+    // The browsers' telemetry, passed on to the collector when ClientTelemetry:Enabled (docs/telemetry.md).
+    builder.Services.AddClientTelemetry(builder.Configuration, telemetry);
 
     var database = builder.Configuration.GetConnectionString("Pspsps")
         ?? throw new InvalidOperationException("Set ConnectionStrings:Pspsps to the PostgreSQL database.");
@@ -107,15 +110,20 @@ try
     // Forwarded headers first: everything after sees the real client address and scheme.
     app.UseForwardedHeaders();
     app.UseRequestTelemetry();
+    // Tells the page whether to send its telemetry (a Server-Timing mark), before the files are served.
+    app.UseClientTelemetryMark();
     app.UseClientFiles();
     app.UseAuthentication();
     app.UseAuthorization();
+    // After authentication: the browsers' telemetry is limited per player.
+    app.UseRateLimiter();
 
     app.MapAppHealthChecks();
     // The old probe paths, for a chart from before /health/live and /health/ready.
     app.MapHealthChecks("/healthz", new() { Predicate = _ => false });
     app.MapHealthChecks("/readyz", new() { Predicate = check => check.Tags.Contains(HealthCheckExtensions.ReadyTag) });
     app.MapAuthEndpoints(providers);
+    app.MapClientTelemetry();
     app.MapHub<GameHub>("/hubs/game");
     app.MapFallbackToFile("index.html");
 
