@@ -92,7 +92,9 @@ public static class ClientTelemetry
         endpoints.MapPost(Path, ReportAsync)
             .AllowAnonymous()
             .RequireRateLimiting(RateLimitPolicy)
-            .WithMetadata(new RequestSizeLimitAttribute(ClientTelemetryLimits.BodyBytes));
+            .WithMetadata(new RequestSizeLimitAttribute(ClientTelemetryLimits.BodyBytes))
+            // Every few seconds a tab: left out of the request rates and durations, as of the traces and request log.
+            .DisableHttpMetrics();
 
     /// <summary>
     /// Takes a batch of a browser's telemetry: its numbers become the game's metrics, its spans and log lines are queued
@@ -124,6 +126,17 @@ public static class ClientTelemetry
         catch (JsonException)
         {
             return Results.BadRequest();
+        }
+        catch (BadHttpRequestException e)
+        {
+            // Past the size limit with no length said up front (413), or cut off (400): answered, not thrown, which the
+            // request log would write as an error.
+            return Results.StatusCode(e.StatusCode);
+        }
+        catch (Exception e) when (e is IOException or OperationCanceledException)
+        {
+            // The tab went (closed as it sent its last batch): nobody reads the answer.
+            return Results.Empty;
         }
 
         if (batch is null || ClientTelemetryValidation.Problem(batch) is not null)

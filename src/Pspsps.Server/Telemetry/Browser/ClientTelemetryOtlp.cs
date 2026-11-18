@@ -42,7 +42,8 @@ public sealed class ClientTelemetryResource(TelemetryOptions telemetry)
 
 /// <summary>
 /// The browser's attributes as they may be recorded: at most <see cref="MaxAttributes"/>, named like OpenTelemetry's
-/// (lower case, dots), strings bounded and their URLs' sensitive query values redacted, numbers and booleans as they are.
+/// (lower case, dots), strings bounded (a stack to <see cref="MaxStackLength"/>, the rest to <see cref="MaxValueLength"/>)
+/// and their URLs' sensitive query values redacted, numbers and booleans as they are.
 /// Nothing may claim a resource's name (service.*).
 /// </summary>
 public static partial class ClientAttributes
@@ -65,7 +66,8 @@ public static partial class ClientAttributes
                 continue;
             object? kept = value.ValueKind switch
             {
-                JsonValueKind.String => QueryRedaction.RedactIn(Bounded(value.GetString() ?? "")),
+                JsonValueKind.String => QueryRedaction.RedactIn(
+                    Bounded(value.GetString() ?? "", key == StackAttribute ? MaxStackLength : MaxValueLength)),
                 JsonValueKind.Number when value.TryGetInt64(out var whole) => whole,
                 JsonValueKind.Number => value.GetDouble(),
                 JsonValueKind.True => true,
@@ -79,8 +81,10 @@ public static partial class ClientAttributes
         return clean;
     }
 
-    /// <summary>At most <see cref="MaxValueLength"/> characters.</summary>
-    public static string Bounded(string value) => value.Length > MaxValueLength ? value[..MaxValueLength] : value;
+    public const string StackAttribute = "exception.stacktrace";
+
+    /// <summary>At most <paramref name="length"/> characters.</summary>
+    public static string Bounded(string value, int length = MaxValueLength) => value.Length > length ? value[..length] : value;
 
     [GeneratedRegex("^[a-z][a-z0-9_.]{0,63}$")]
     private static partial Regex Key();
@@ -140,7 +144,10 @@ public static partial class QueryRedaction
     private static partial Regex QueryInText();
 }
 
-/// <summary>OTLP/JSON (what a collector's /v1/traces and /v1/logs take) for a browser's batch.</summary>
+/// <summary>What one resource (a browser's batch) has of a signal.</summary>
+public sealed record ResourceGroup<T>(IReadOnlyDictionary<string, string> Resource, IEnumerable<T> Items);
+
+/// <summary>OTLP/JSON (what a collector's /v1/traces and /v1/logs take) for browsers' batches.</summary>
 public static class OtlpJson
 {
     public const string Scope = "pspsps.browser";
@@ -153,30 +160,38 @@ public static class OtlpJson
         ["error"] = (17, "ERROR"),
     };
 
-    public static JsonObject Traces(IReadOnlyDictionary<string, string> resource, IEnumerable<ClientSpan> spans) => new()
+    public static JsonObject Traces(IReadOnlyDictionary<string, string> resource, IEnumerable<ClientSpan> spans) =>
+        Traces([new ResourceGroup<ClientSpan>(resource, spans)]);
+
+    /// <summary>Several browsers' spans in one request, each under its own resource (its build, its user agent).</summary>
+    public static JsonObject Traces(IEnumerable<ResourceGroup<ClientSpan>> groups) => new()
     {
-        ["resourceSpans"] = new JsonArray(new JsonObject
+        ["resourceSpans"] = new JsonArray(groups.Select(group => (JsonNode?)new JsonObject
         {
-            ["resource"] = Resource(resource),
+            ["resource"] = Resource(group.Resource),
             ["scopeSpans"] = new JsonArray(new JsonObject
             {
                 ["scope"] = new JsonObject { ["name"] = Scope },
-                ["spans"] = new JsonArray(spans.Select(Span).ToArray<JsonNode?>()),
+                ["spans"] = new JsonArray(group.Items.Select(Span).ToArray<JsonNode?>()),
             }),
-        }),
+        }).ToArray()),
     };
 
-    public static JsonObject Logs(IReadOnlyDictionary<string, string> resource, IEnumerable<ClientLog> logs) => new()
+    public static JsonObject Logs(IReadOnlyDictionary<string, string> resource, IEnumerable<ClientLog> logs) =>
+        Logs([new ResourceGroup<ClientLog>(resource, logs)]);
+
+    /// <summary>Several browsers' log lines in one request, each under its own resource.</summary>
+    public static JsonObject Logs(IEnumerable<ResourceGroup<ClientLog>> groups) => new()
     {
-        ["resourceLogs"] = new JsonArray(new JsonObject
+        ["resourceLogs"] = new JsonArray(groups.Select(group => (JsonNode?)new JsonObject
         {
-            ["resource"] = Resource(resource),
+            ["resource"] = Resource(group.Resource),
             ["scopeLogs"] = new JsonArray(new JsonObject
             {
                 ["scope"] = new JsonObject { ["name"] = Scope },
-                ["logRecords"] = new JsonArray(logs.Select(Log).ToArray<JsonNode?>()),
+                ["logRecords"] = new JsonArray(group.Items.Select(Log).ToArray<JsonNode?>()),
             }),
-        }),
+        }).ToArray()),
     };
 
     private static JsonObject Span(ClientSpan span)
@@ -259,20 +274,31 @@ public sealed partial class ClientTelemetryForwarder(
     /// <summary>How long one post to the collector may take.</summary>
     public static readonly TimeSpan Timeout = TimeSpan.FromSeconds(5);
 
-    public async Task ForwardAsync(ClientTelemetryBatch batch, string userAgent, CancellationToken ct)
+    public Task ForwardAsync(ClientTelemetryBatch batch, string userAgent, CancellationToken ct) =>
+        ForwardAsync([new QueuedBatch(batch, userAgent)], ct);
+
+    /// <summary>
+    /// Several browsers' batches in one post a signal (each under its own resource): a post per batch would hold the
+    /// outbox to a batch per round trip to the collector.
+    /// </summary>
+    public async Task ForwardAsync(IReadOnlyList<QueuedBatch> batches, CancellationToken ct)
     {
-        ArgumentNullException.ThrowIfNull(batch);
+        ArgumentNullException.ThrowIfNull(batches);
         var endpoint = options.Value.OtlpUri;
-        if (endpoint is null || (batch.Spans.Count == 0 && batch.Logs.Count == 0))
+        if (endpoint is null)
             return;
 
-        var attributes = resource.For(batch.Version, userAgent);
+        var resources = batches.Select(queued => (queued.Batch, Resource: resource.For(queued.Batch.Version, queued.UserAgent))).ToList();
+        var spans = resources.Where(r => r.Batch.Spans.Count > 0)
+            .Select(r => new ResourceGroup<ClientSpan>(r.Resource, r.Batch.Spans)).ToList();
+        var logs = resources.Where(r => r.Batch.Logs.Count > 0)
+            .Select(r => new ResourceGroup<ClientLog>(r.Resource, r.Batch.Logs)).ToList();
         // Not this post's own HttpClient span and log: every batch would make one.
         using var suppressed = SuppressInstrumentationScope.Begin();
-        if (batch.Spans.Count > 0)
-            await PostAsync(endpoint, "traces", OtlpJson.Traces(attributes, batch.Spans), ct);
-        if (batch.Logs.Count > 0)
-            await PostAsync(endpoint, "logs", OtlpJson.Logs(attributes, batch.Logs), ct);
+        if (spans.Count > 0)
+            await PostAsync(endpoint, "traces", OtlpJson.Traces(spans), ct);
+        if (logs.Count > 0)
+            await PostAsync(endpoint, "logs", OtlpJson.Logs(logs), ct);
     }
 
     private async Task PostAsync(Uri endpoint, string signal, JsonObject body, CancellationToken ct)

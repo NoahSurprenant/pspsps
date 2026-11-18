@@ -77,9 +77,12 @@ public static class ClientTelemetryLimits
     public const int SpanName = 200;
     public const int LogMessage = 4000;
     public const double MaxVital = 600_000;
-    /// <summary>2001 and 2286 in epoch milliseconds: anything else is no browser's clock.</summary>
+    /// <summary>
+    /// 2001 and 2255 in epoch milliseconds: anything else is no browser's clock. Below the last time OTLP's nanoseconds
+    /// (a long) can hold, in 2262.
+    /// </summary>
     public const double MinEpochMs = 1e12;
-    public const double MaxEpochMs = 1e13;
+    public const double MaxEpochMs = 9e12;
 }
 
 /// <summary>Whether a browser's batch is one the browser could have sent: anything else is refused whole (a 400).</summary>

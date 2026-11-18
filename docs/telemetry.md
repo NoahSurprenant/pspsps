@@ -59,7 +59,7 @@ to the collector as OTLP/JSON over HTTP (`ClientTelemetry:OtlpEndpoint`, the col
 | --- | --- |
 | `ClientTelemetry:Enabled` | On. Off (the default): the endpoint answers 404, which turns the browser's telemetry off for the page |
 | `ClientTelemetry:OtlpEndpoint` | The collector's OTLP/HTTP base; required when on (checked at startup) |
-| `ClientTelemetry:PermitsPerMinute` | Batches a minute per player (or per client address, signed out), per pod; default 60. A tab sends one every 5 s at most |
+| `ClientTelemetry:PermitsPerMinute` | Batches a minute per player (or per client address, signed out), per pod; default 60. A tab sends one every 5 s at most. The client address is the proxy's unless `ForwardedHeaders` is set (Behind a proxy, below): then every signed-out visitor shares one window |
 
 ### On or off, without a request
 
@@ -97,8 +97,9 @@ attributes of at most 1000 characters each, named like OpenTelemetry's, and none
 
 The endpoint is anonymous but takes batches from the game's own pages only (`Sec-Fetch-Site`, else `Origin`), at most
 256 KiB, and refuses (400) anything the browser couldn't have sent: more than 100 spans, 100 logs or 20 numbers,
-malformed IDs, times outside 2001-2286. Batches are queued (at most 1000) for a background forwarder, which posts with a
-5 s timeout and warns of failures at most once a minute; the endpoint is left out of the server's traces and request log.
+malformed IDs, times outside 2001-2255. Batches are queued (at most 1000) for a background forwarder, which posts up to
+20 at a time (each under its own resource) in one request a signal, with a 5 s timeout, and warns of failures at most
+once a minute; the endpoint is left out of the server's traces, request log and HTTP metrics.
 
 ### Hub calls, traced from the browser
 

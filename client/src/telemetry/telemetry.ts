@@ -14,7 +14,7 @@ export const FLUSH_INTERVAL_MS = 5_000;
 export const MAX_BATCH = { spans: 100, logs: 100, vitals: 20 } as const;
 /** What waits to be sent, at most, of each: the oldest go first. */
 export const MAX_QUEUE = 500;
-/** fetch's keepalive (which outlives the page) takes at most 64 KiB in flight, in bytes. */
+/** fetch's keepalive (which outlives the page) takes at most 64 KiB in flight, all its posts together, in bytes. */
 export const MAX_KEEPALIVE_BYTES = 60_000;
 /** The server's limits on text and numbers: a batch past them is refused whole. */
 export const MAX_SPAN_NAME = 200;
@@ -224,6 +224,8 @@ export class BrowserTelemetry {
   private readonly queue = { spans: [] as SpanData[], logs: [] as LogData[], vitals: [] as VitalData[] };
   private off = false;
   private started = false;
+  /** The bytes of keepalive posts not yet answered: their 64 KiB is shared. */
+  private keepaliveInFlight = 0;
   /** A random ID for this page load, on every span and line, to read one page's together. No player is in it. */
   readonly sessionId = randomId(16);
 
@@ -244,7 +246,7 @@ export class BrowserTelemetry {
     return this.settings?.sampleRatio ?? 0;
   }
 
-  /** Sends what is queued every few seconds, and as the page hides or goes (fetch's keepalive outlives it). Once. */
+  /** Sends what is queued every few seconds, and all of it as the page hides or goes (keepalive outlives it). Once. */
   start(): void {
     if (!this.enabled || this.started) {
       return;
@@ -253,10 +255,10 @@ export class BrowserTelemetry {
     this.host.setInterval(() => this.flush(), FLUSH_INTERVAL_MS);
     this.host.addEventListener("visibilitychange", () => {
       if (this.host.visibilityState() === "hidden") {
-        this.flush();
+        this.flush(true);
       }
     });
-    this.host.addEventListener("pagehide", () => this.flush());
+    this.host.addEventListener("pagehide", () => this.flush(true));
   }
 
   startSpan(name: string, options: SpanOptions = {}): BrowserSpan {
@@ -291,27 +293,40 @@ export class BrowserTelemetry {
     }
   }
 
-  /** Sends what is queued, up to MAX_BATCH of each. */
-  flush(): void {
+  /** Sends what is queued: one batch (up to MAX_BATCH of each), or with `all` (the page going) every batch it takes. */
+  flush(all = false): void {
     if (!this.enabled) {
       this.queue.spans.length = this.queue.logs.length = this.queue.vitals.length = 0;
       return;
     }
-    const batch: TelemetryBatch = {
-      version: this.version,
-      spans: this.queue.spans.splice(0, MAX_BATCH.spans),
-      logs: this.queue.logs.splice(0, MAX_BATCH.logs),
-      vitals: this.queue.vitals.splice(0, MAX_BATCH.vitals),
-    };
-    if (!batch.spans.length && !batch.logs.length && !batch.vitals.length) {
-      return;
-    }
+    do {
+      const batch: TelemetryBatch = {
+        version: this.version,
+        spans: this.queue.spans.splice(0, MAX_BATCH.spans),
+        logs: this.queue.logs.splice(0, MAX_BATCH.logs),
+        vitals: this.queue.vitals.splice(0, MAX_BATCH.vitals),
+      };
+      if (!batch.spans.length && !batch.logs.length && !batch.vitals.length) {
+        return;
+      }
+      this.send(batch);
+    } while (all);
+  }
+
+  private send(batch: TelemetryBatch): void {
     const body = JSON.stringify(batch);
+    const bytes = new TextEncoder().encode(body).length;
+    // Keepalive while the posts in flight leave room: past it the browser refuses the post outright, where without
+    // keepalive it at least goes while the page lives.
+    const keepalive = this.keepaliveInFlight + bytes <= MAX_KEEPALIVE_BYTES;
+    if (keepalive) {
+      this.keepaliveInFlight += bytes;
+    }
     this.host.fetch(TELEMETRY_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body,
-      keepalive: new TextEncoder().encode(body).length <= MAX_KEEPALIVE_BYTES,
+      keepalive,
       credentials: "same-origin",
     }).then((response) => {
       // 404: telemetry is off here. Any other refusal (a 400 or 413 for one batch, a 429) drops that batch only.
@@ -320,6 +335,10 @@ export class BrowserTelemetry {
       }
     }).catch(() => {
       // Telemetry is best effort: a batch that doesn't go is dropped.
+    }).finally(() => {
+      if (keepalive) {
+        this.keepaliveInFlight -= bytes;
+      }
     });
   }
 

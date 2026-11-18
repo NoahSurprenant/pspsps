@@ -101,8 +101,15 @@ export function reportLongTasks(
   observer.observe({ type: "longtask", buffered: true });
 }
 
-/** WebGL losing its context (the GPU reset, too many tabs drawing) and getting it back, on the game's canvas. */
+// What is watched already: the scene is made again after a failed load (lazy.ts), on the same canvas and logger.
+const watched = new WeakSet<object>();
+
+/** WebGL losing its context (the GPU reset, too many tabs drawing) and getting it back, on the game's canvas. Once a canvas. */
 export function watchWebGlContext(canvas: Pick<HTMLCanvasElement, "addEventListener">, log: AppLog): void {
+  if (watched.has(canvas)) {
+    return;
+  }
+  watched.add(canvas);
   canvas.addEventListener("webglcontextlost", () => log.warn("The WebGL context was lost"));
   canvas.addEventListener("webglcontextrestored", () => log.info("The WebGL context was restored"));
 }
@@ -123,8 +130,12 @@ export function babylonLine(entry: string): { level: "error" | "warn"; message: 
   return { level, message: redactUrlsIn(text) };
 }
 
-/** Babylon's own errors and warnings (a shader that didn't compile, a texture that didn't load), as the game's log lines. */
+/** Babylon's own errors and warnings (a shader that didn't compile, a texture that didn't load), as the game's log lines. Once. */
 export function watchBabylonLog(logger: { OnNewCacheEntry: (entry: string) => void }, log: AppLog): void {
+  if (watched.has(logger)) {
+    return;
+  }
+  watched.add(logger);
   let sent = 0;
   logger.OnNewCacheEntry = (entry) => {
     const line = babylonLine(entry);

@@ -3,7 +3,7 @@
  * who a request is for. Matched anywhere in the name, in any case, so "access_token", "code" and "userId" all count. A
  * few harmless names match too ("countryCode"); a redacted value costs nothing. A parameter named just "id" counts too:
  * SignalR's connection token goes there (/hubs/game?id=...), in its errors' URLs. The server redacts again
- * (src/Pspsps.Server/Telemetry/Browser/QueryRedaction.cs).
+ * (QueryRedaction, in src/Pspsps.Server/Telemetry/Browser/ClientTelemetryOtlp.cs).
  */
 const SENSITIVE = /token|code|secret|passw|pwd|key|auth|session|sig|credential|cookie|email|user|state|nonce|otp|ticket|hash|jwt|^id$/i;
 
