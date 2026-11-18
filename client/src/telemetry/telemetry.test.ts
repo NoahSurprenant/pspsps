@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildVersion } from "./buildVersion";
 import {
-  FLUSH_INTERVAL_MS, MAX_BATCH, MAX_KEEPALIVE_BYTES, MAX_QUEUE, TELEMETRY_MARK, TELEMETRY_URL, formatTraceparent,
+  FLUSH_INTERVAL_MS, MAX_BATCH, MAX_BATCH_BYTES, MAX_KEEPALIVE_BYTES, MAX_QUEUE, TELEMETRY_MARK, TELEMETRY_URL, formatTraceparent,
   parseTraceparent, randomId, telemetrySettings,
 } from "./telemetry";
 import { settle, telemetryOn } from "./testing";
@@ -189,6 +189,21 @@ describe("BrowserTelemetry", () => {
     telemetry.flush();
 
     expect(host.sent.map(({ init }) => init.keepalive)).toEqual([true, false, true]);
+  });
+
+  it("keeps every batch under the server's size limit, sending the rest after", () => {
+    const { telemetry, host } = telemetryOn();
+    for (let i = 0; i < MAX_BATCH.logs; i++) {
+      telemetry.log("error", `${i} ${"x".repeat(3_900)}`, { "exception.stacktrace": "s".repeat(3_900) });
+    }
+
+    telemetry.flush(true);
+
+    const sizes = host.fetch.mock.calls.map(([, init]) => new TextEncoder().encode(String(init?.body)).length);
+    expect(sizes.length).toBeGreaterThan(1);
+    expect(Math.max(...sizes)).toBeLessThanOrEqual(MAX_BATCH_BYTES);
+    expect(host.sent.flatMap(({ body }) => body.logs.map((line) => line.message.split(" ")[0]))).toEqual(
+      Array.from({ length: MAX_BATCH.logs }, (_, i) => String(i)));
   });
 
   it("turns off for the page once the server answers 404, and only then", async () => {

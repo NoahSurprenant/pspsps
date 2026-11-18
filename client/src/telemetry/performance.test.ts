@@ -145,6 +145,17 @@ describe("watching again (the scene loaded again after a failed try)", () => {
 });
 
 describe("Babylon's log", () => {
+  it("passes each entry on to a handler set before, rather than replace it", () => {
+    const { telemetry } = telemetryOn();
+    const before = vi.fn();
+    const logger = { OnNewCacheEntry: before as (entry: string) => void };
+    watchBabylonLog(logger, new AppLog(telemetry, { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }));
+
+    logger.OnNewCacheEntry("<div style='color:red'>[12:01:02]: boom</div><br>");
+
+    expect(before).toHaveBeenCalledWith("<div style='color:red'>[12:01:02]: boom</div><br>");
+  });
+
   it("reads errors and warnings out of Babylon's entries, and leaves plain logs out", () => {
     expect(babylonLine("<div style='color:red'>[12:01:02]: Unable to compile effect</div><br>"))
       .toEqual({ level: "error", message: "Unable to compile effect" });

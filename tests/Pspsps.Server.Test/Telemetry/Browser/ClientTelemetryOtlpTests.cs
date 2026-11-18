@@ -61,6 +61,13 @@ public sealed class ClientTelemetryOtlpTests
         });
     }
 
+    // A number past double's range is valid JSON: dropped here, not thrown while the forwarder builds a post that
+    // carries other browsers' batches too.
+    [Test]
+    public void ANumberNoDoubleHolds_IsDropped() =>
+        Assert.That(ClientAttributes.Clean(Attributes("""{"big":1e400,"small":-1e400,"ok":1.5}""")),
+            Is.EqualTo(new KeyValuePair<string, object>[] { new("ok", 1.5) }));
+
     [Test]
     public void AStack_KeepsWhatTheBrowserSends()
     {
@@ -167,6 +174,21 @@ public sealed class ClientTelemetryOtlpTests
     }
 
     [Test]
+    public async Task Forwarder_PostsTracesAndLogsAtOnce_NotOneAfterTheOther()
+    {
+        using var collector = new FakeCollector { Gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously) };
+
+        var forward = Forwarder(collector, new ForwardFailures(TimeProvider.System))
+            .ForwardAsync(ClientTelemetryValidationTests.Batch(), "", CancellationToken.None);
+        var first = await collector.NextAsync();
+        var second = await collector.NextAsync();
+        collector.Gate!.SetResult();
+        await forward;
+
+        Assert.That(new[] { first.Path, second.Path }, Is.EquivalentTo(new[] { "/v1/traces", "/v1/logs" }));
+    }
+
+    [Test]
     public async Task Forwarder_SendsNothingForABatchOfOnlyNumbers()
     {
         using var collector = new FakeCollector();
@@ -213,6 +235,21 @@ public sealed class ClientTelemetryOtlpTests
         Assert.That(queued, Is.EqualTo(ClientTelemetryOutbox.Capacity));
         Assert.That(logger.Lines, Has.Count.EqualTo(1));
         Assert.That(logger.Lines[0].Message, Does.Contain("full"));
+    }
+
+    // In a collector outage the forwarder's failures are warned of once a minute: the outbox filling up is told apart.
+    [Test]
+    public void Outbox_SaysItIsFull_EvenWhileForwardFailuresAreBeingWarnedOf()
+    {
+        var logger = new RecordingLogger<ClientTelemetryOutbox>();
+        var failures = new ForwardFailures(new FakeTimeProvider());
+        var outbox = new ClientTelemetryOutbox(logger, failures);
+        Assert.That(failures.ShouldLog(out _), Is.True, "a forward failure, warned of");
+
+        for (var i = 0; i <= ClientTelemetryOutbox.Capacity; i++)
+            outbox.Enqueue(ClientTelemetryValidationTests.Batch(), "");
+
+        Assert.That(logger.Lines.Select(l => l.Message), Has.Some.Contains("full"));
     }
 
     [Test]

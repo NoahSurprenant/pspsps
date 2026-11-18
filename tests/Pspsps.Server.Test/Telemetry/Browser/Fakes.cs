@@ -17,6 +17,9 @@ public sealed class FakeCollector : HttpMessageHandler
 
     public List<(string Path, JsonNode Body)> Posts { get; } = [];
 
+    /// <summary>When set, every post is recorded and then held until it completes.</summary>
+    public TaskCompletionSource? Gate { get; set; }
+
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         if (Failure is not null)
@@ -26,6 +29,8 @@ public sealed class FakeCollector : HttpMessageHandler
         lock (Posts)
             Posts.Add(post);
         await _posts.Writer.WriteAsync(post, cancellationToken);
+        if (Gate is { } gate)
+            await gate.Task.WaitAsync(cancellationToken);
         return new HttpResponseMessage(Status);
     }
 

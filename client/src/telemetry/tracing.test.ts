@@ -192,8 +192,8 @@ describe("hubOutcome", () => {
 describe("tracedFetch", () => {
   const base = () => "https://game.example/";
 
-  function fetching(status: number | Error, on = true) {
-    const { telemetry, host } = telemetryOn(on ? 0 : "off");
+  function fetching(status: number | Error, on = true, sampleRatio = 1, random = () => 0.5) {
+    const { telemetry, host } = telemetryOn(on ? sampleRatio : "off");
     const reporter = new ErrorReporter(telemetry, { href: base, cancelledByBrowser: () => false });
     const send = vi.fn<typeof fetch>(async () => {
       if (status instanceof Error) {
@@ -205,10 +205,17 @@ describe("tracedFetch", () => {
       telemetry.flush();
       return { spans: host.sent.flatMap((b) => b.body.spans), logs: host.sent.flatMap((b) => b.body.logs) };
     };
-    return { fetch: tracedFetch(telemetry, reporter, base, send), send, sent };
+    return { fetch: tracedFetch(telemetry, reporter, base, send, random), send, sent };
   }
 
-  it("sends a traceparent and keeps a client span for each call to the server, sampled whatever the hub share", async () => {
+  it("samples calls to the server at the server's share, as it would its own roots", async () => {
+    const { fetch, send, sent } = fetching(200, true, 0.1, () => 0.5);
+    await fetch("/api/me");
+    expect(new Headers(send.mock.calls[0]?.[1]?.headers).get("traceparent")).toMatch(/-00$/);
+    expect(sent().spans).toEqual([]);
+  });
+
+  it("sends a traceparent and keeps a client span for each call to the server it samples", async () => {
     const { fetch, send, sent } = fetching(200);
     await fetch("/api/me?token=abc");
     const header = new Headers(send.mock.calls[0]?.[1]?.headers).get("traceparent");
