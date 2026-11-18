@@ -682,9 +682,12 @@ button:disabled {
 
 .choice input {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  /* Over the row's border too: the whole row, at least 44 px tall, takes the tap. */
+  inset: -2px;
+  width: calc(100% + 4px);
+  height: calc(100% + 4px);
+  /* Unseen, but iOS still zooms into a small one when it's tapped. */
+  font-size: 16px;
   margin: 0;
   opacity: 0;
   cursor: pointer;

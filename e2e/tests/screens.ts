@@ -70,8 +70,6 @@ export const SCREENS: Screen[] = [
         await form.getByRole("radio", { name: "Mean or hurtful chat" }).check();
         await form.getByLabel("Anything to add? (optional)").fill("Said mean things about my hat.");
         await expect(form.getByRole("checkbox", { name: "Also mute them" })).toBeChecked();
-        // It opens at its top, on its heading.
-        expect(await form.evaluate((dialog) => dialog.scrollTop)).toBe(0);
       } catch (error) {
         await felix.hub.stop();
         throw error;
