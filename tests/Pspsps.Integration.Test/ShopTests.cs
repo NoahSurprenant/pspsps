@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Pspsps.Application.Abstractions;
 using Pspsps.Application.Friends;
+using Pspsps.Application.Moderation;
 using Pspsps.Application.Players;
 using Pspsps.Application.Shop;
 using Pspsps.Domain;
@@ -188,7 +189,7 @@ public sealed class ShopTests
             .UseSnakeCaseNamingConvention()
             .AddInterceptors(new Statements(statements))
             .Options);
-        var players = new PlayerService(db, TimeProvider.System, Random.Shared);
+        var players = new PlayerService(db, TimeProvider.System, Random.Shared, Game.Get<IAdmins>(), Game.Get<IChatFilterProvider>());
         var friends = new FriendService(db, TimeProvider.System);
 
         await players.FindAsync(tom.Id, CancellationToken.None);
