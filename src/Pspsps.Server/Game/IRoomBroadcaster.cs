@@ -15,6 +15,11 @@ public interface IRoomBroadcaster
 
     Task CatDressed(string roomKey, OutfitView outfit);
 
+    Task CatRenamed(string roomKey, RenameView rename);
+
+    /// <summary>The room is a home, and its owner (not necessarily in it) was renamed: shown as "<c>OwnerName</c>'s home".</summary>
+    Task HomeRenamed(string roomKey, string ownerName);
+
     /// <summary>Tells one tab (its connection) that its line has a bite: reel now.</summary>
     Task FishBit(string session);
 

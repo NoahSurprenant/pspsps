@@ -7,7 +7,7 @@ namespace Pspsps.Server.Game;
 /// Versioned: a change to it is add-only and bumps the version (docs/architecture.md, "Changing what pods say to each
 /// other"), which Pspsps.Server.Test's WireContractTests check against wire-contracts.txt.
 /// </remarks>
-[Version(1)]
+[Version(2)]
 public interface IRoomGrain : IGrainWithStringKey
 {
     /// <summary>
@@ -75,4 +75,11 @@ public interface IRoomGrain : IGrainWithStringKey
     /// tab is told <paramref name="message"/> (SentOut), and the rest of the room sees them go.
     /// </summary>
     Task SendOut(IReadOnlyList<Guid> playerIds, string message);
+
+    /// <summary>
+    /// The player renamed their cat (their own card, or an admin fixing a rude name from theirs): if it's here, it's
+    /// shown it from now on (CatRenamed). When this room is the player's own home, its name (shown to whoever visits)
+    /// changes too (HomeRenamed), whether or not their cat is in it right now.
+    /// </summary>
+    Task Rename(Guid playerId, string displayName);
 }

@@ -1,6 +1,6 @@
 import { isPose } from "./emotes";
 import { newer, propsOf } from "./home";
-import type { CatView, ChatView, EmoteView, HomeView, OutfitView, RoomSnapshot } from "./types";
+import type { CatView, ChatView, EmoteView, HomeView, OutfitView, RenameView, RoomSnapshot } from "./types";
 
 /**
  * The room as this browser knows it. Every change is idempotent: the server may send a join for a cat already in the
@@ -90,6 +90,16 @@ export class Room {
     return true;
   }
 
+  /** The cat was renamed; false for a cat that isn't here. */
+  rename(rename: RenameView): boolean {
+    const cat = this.cats.get(rename.playerId);
+    if (!cat) {
+      return false;
+    }
+    this.cats.set(rename.playerId, { ...cat, displayName: rename.displayName });
+    return true;
+  }
+
   /**
    * The home's owner changed it: its furniture (the room's props) and who may visit are as <home> has them from now on.
    * False when this room isn't that home, or already has a newer change.
@@ -100,6 +110,20 @@ export class Room {
       return false;
     }
     this.snapshot = { ...this.snapshot, home, props: propsOf(home) };
+    return true;
+  }
+
+  /**
+   * This room is a home whose owner (not necessarily this room's cat) was renamed: its name is shown after their new
+   * one from now on. False when this room isn't a home, or isn't that owner's.
+   */
+  renameHome(ownerName: string): boolean {
+    const home = this.snapshot.home;
+    if (!home) {
+      return false;
+    }
+
+    this.snapshot = { ...this.snapshot, roomName: `${ownerName}'s home`, home: { ...home, ownerName } };
     return true;
   }
 

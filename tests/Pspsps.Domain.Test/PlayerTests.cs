@@ -1,4 +1,5 @@
 using Pspsps.Domain.Players;
+using Pspsps.Domain.Rooms;
 
 namespace Pspsps.Domain.Test;
 
@@ -149,8 +150,8 @@ public sealed class PlayerTests
     {
         var player = Player.CreateGuest("Whiskers", FurColor.Grey, Now);
 
-        player.Rename("  Sir   Fluff ");
+        player.Rename("  Sir   Fluff ", ChatFilter.None, Now);
         Assert.That(player.DisplayName, Is.EqualTo("Sir Fluff"));
-        Assert.Throws<DomainException>(() => player.Rename("<script>"));
+        Assert.Throws<DomainException>(() => player.Rename("<script>", ChatFilter.None, Now));
     }
 }

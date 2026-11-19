@@ -59,6 +59,28 @@ public sealed class FriendsTests
     }
 
     [Test]
+    public async Task Rename_PersistsAndShowsToAFriendAtOnce()
+    {
+        var (tom, tomHub) = await Game.ConnectGuestAsync();
+        var (felix, felixHub) = await Game.ConnectGuestAsync();
+        await using var _ = tomHub;
+        await using var __ = felixHub;
+        await BefriendAsync(tom.Id, felix.Id);
+        var felixSees = new Recorder(felixHub);
+
+        var newName = await tomHub.InvokeAsync<string>("Rename", "Sir Fluff");
+
+        Assert.That(newName, Is.EqualTo("Sir Fluff"));
+        Assert.That(await felixSees.Next<Guid>("FriendsChanged", id => id == tom.Id), Is.EqualTo(tom.Id));
+        var friend = (await felixHub.InvokeAsync<List<FriendView>>("GetFriends")).Single();
+        Assert.That(friend.DisplayName, Is.EqualTo("Sir Fluff"));
+
+        // Persisted: read fresh from the database, not only kept in the hub's reply.
+        var found = await Game.Get<IPlayerService>().FindAsync(tom.Id, CancellationToken.None);
+        Assert.That(found?.DisplayName, Is.EqualTo("Sir Fluff"));
+    }
+
+    [Test]
     public async Task AFriendWhoseRoomLostTheirCat_ShowsOffline()
     {
         var (tom, tomHub) = await Game.ConnectGuestAsync();

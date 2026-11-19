@@ -611,7 +611,13 @@ public sealed partial class GameHub(
         // Not the connection's token: a change saved must be told, even if the admin's tab closes meanwhile.
         var standing = await PlayersRule(() => moderation.ModerateAsync(PlayerId, playerId, request, CancellationToken.None));
         await moderationEffects.AppliedAsync(playerId, request.Action, standing);
-        return await GetPlayerCard(playerId);
+        var card = await GetPlayerCard(playerId);
+        if (request.Action == ModerationAction.Rename)
+        {
+            await NotifyRenamedAsync(playerId, card.DisplayName);
+        }
+
+        return card;
     }
 
     /// <summary>
@@ -772,6 +778,20 @@ public sealed partial class GameHub(
     /// <summary>Takes off the hat or collar the cat wears: the room the cat is in sees it at once.</summary>
     public Task<ShopView> TakeOff(string itemId) =>
         Dress(() => shop.TakeOffAsync(PlayerId, itemId, Context.ConnectionAborted));
+
+    /// <summary>
+    /// Renames this player's own cat, from their own card: the rules (length, the chat filter's lists, no staff
+    /// impersonation, at most once a day unless the player is an admin) are <see cref="Domain.Players.Player.Rename"/>'s.
+    /// Shown at once: the cat's label wherever its room is, this player's other tabs, their friends' lists, and their
+    /// home's name. Returns the new name, as the server has it.
+    /// </summary>
+    public async Task<string> Rename(string displayName)
+    {
+        // Not the connection's token: a change saved must be shown, even if this tab's connection closes meanwhile.
+        var profile = await PlayersRule(() => players.RenameAsync(PlayerId, displayName, CancellationToken.None));
+        await NotifyRenamedAsync(PlayerId, profile.DisplayName);
+        return profile.DisplayName;
+    }
 
     /// <summary>
     /// The player's friends and requests, each friend with where they are now: their session says which room, and that
@@ -1058,6 +1078,66 @@ public sealed partial class GameHub(
         }
     }
 
+    // Shows a rename everywhere at once: the cat's label in whatever room it's in now (and its home's name, told
+    // separately even when the player isn't in it: a friend visiting sees it too), this player's other tabs, and their
+    // friends' lists (the existing FriendsChanged path). Already saved by now: each notification here is best-effort,
+    // and a tab that misses one shows the new name anyway at its next read (a room joined, a card opened, a list opened).
+    private async Task NotifyRenamedAsync(Guid playerId, string displayName)
+    {
+        // Renaming yourself: as Dress does, fall back to this tab's own tracked place when the session's pointer to it
+        // hasn't caught up yet. An admin renaming another cat has no "this tab" of theirs to fall back to.
+        var current = await LocateAsync(playerId);
+        var currentKey = current is { } place
+            ? RoomKey.For(place.WorldId, place.RoomId)
+            : playerId == PlayerId ? Here?.RoomKey : null;
+        var keys = new HashSet<string>(StringComparer.Ordinal) { RoomKey.ForHome(playerId) };
+        if (currentKey is not null)
+        {
+            keys.Add(currentKey);
+        }
+
+        foreach (var key in keys)
+        {
+            try
+            {
+                await grains.GetGrain<IRoomGrain>(key).Rename(playerId, displayName);
+            }
+            catch (Exception e)
+            {
+                LogRenameNotShown(logger, e, playerId, key);
+            }
+        }
+
+        try
+        {
+            await Clients.User(PlayerUserIdProvider.For(playerId)).Renamed(displayName);
+        }
+        catch (Exception e)
+        {
+            LogRenamedNotSent(logger, e, playerId);
+        }
+
+        try
+        {
+            var list = await friends.ListAsync(playerId, CancellationToken.None);
+            foreach (var friend in list.Where(f => f.State == FriendState.Friends))
+            {
+                try
+                {
+                    await Clients.User(PlayerUserIdProvider.For(friend.PlayerId)).FriendsChanged(playerId);
+                }
+                catch (Exception e)
+                {
+                    LogFriendsChangedNotSent(logger, e, friend.PlayerId);
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            LogFriendsListNotRead(logger, e, playerId);
+        }
+    }
+
     // Where a friend is, with the names to show: a home by its owner's name (from <names>, the friends list and the names
     // read so far). One at a time: a name not in it is read from the database, and kept in it.
     private async Task<FriendPlaceView?> PlaceViewAsync(PlayerPlace? place, Dictionary<Guid, string?> names)
@@ -1169,6 +1249,15 @@ public sealed partial class GameHub(
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't tell player {PlayerId} their friendships changed")]
     private static partial void LogFriendsChangedNotSent(ILogger logger, Exception exception, Guid playerId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't show the room {RoomKey} that player {PlayerId} was renamed; it shows on the next arrival")]
+    private static partial void LogRenameNotShown(ILogger logger, Exception exception, Guid playerId, string roomKey);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't tell player {PlayerId}'s other tabs they were renamed")]
+    private static partial void LogRenamedNotSent(ILogger logger, Exception exception, Guid playerId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't read player {PlayerId}'s friends to tell them of a rename")]
+    private static partial void LogFriendsListNotRead(ILogger logger, Exception exception, Guid playerId);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't tell player {PlayerId}'s tabs their mutes changed")]
     private static partial void LogMutesChangedNotSent(ILogger logger, Exception exception, Guid playerId);

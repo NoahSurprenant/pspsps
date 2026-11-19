@@ -2,14 +2,17 @@ using System.Globalization;
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using Pspsps.Application.Abstractions;
+using Pspsps.Application.Moderation;
 using Pspsps.Domain;
 using Pspsps.Domain.Players;
 
 namespace Pspsps.Application.Players;
 
-internal sealed class PlayerService(IApplicationDbContext db, TimeProvider time, Random random) : IPlayerService
+internal sealed class PlayerService(
+    IApplicationDbContext db, TimeProvider time, Random random, IAdmins admins, IChatFilterProvider chatFilters)
+    : IPlayerService
 {
-    /// <summary>How many times a link is done again when the player's coins changed as it was saved.</summary>
+    /// <summary>How many times a link, or a rename, is done again when the player's coins changed as it was saved.</summary>
     private const int LinkAttempts = 5;
 
     public async Task<PlayerProfile> SignInWithLoginAsync(
@@ -152,6 +155,39 @@ internal sealed class PlayerService(IApplicationDbContext db, TimeProvider time,
         // The total as saved now: with any other earning that landed meanwhile.
         return await FindAsync(playerId, cancellationToken)
             ?? throw new DomainException("Your cat wasn't found. Sign in again.");
+    }
+
+    // Two changes at once (another tab's catch or purchase changing Coins or OutfitVersion, both concurrency tokens) are
+    // decided one after the other, each read and checked against the rules again, not simply retried blind.
+    public async Task<PlayerProfile> RenameAsync(Guid playerId, string displayName, CancellationToken cancellationToken)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            var player = await db.Players.FirstOrDefaultAsync(p => p.Id == playerId, cancellationToken)
+                ?? throw new DomainException("Your cat wasn't found. Sign in again.");
+            if (admins.Current.Contains(playerId))
+            {
+                player.RenameByAdmin(displayName, chatFilters.Current);
+            }
+            else
+            {
+                player.Rename(displayName, chatFilters.Current, time.GetUtcNow());
+            }
+
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+                return PlayerProfile.From(player);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                db.Forget(player);
+                if (attempt == LinkAttempts)
+                {
+                    throw new DomainException("That changed just now. Try again.");
+                }
+            }
+        }
     }
 
     /// <summary>The player (at most one) who signs in with this login.</summary>

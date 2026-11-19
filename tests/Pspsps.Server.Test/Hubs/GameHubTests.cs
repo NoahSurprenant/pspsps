@@ -683,6 +683,62 @@ public sealed class GameHubTests
     }
 
     [Test]
+    public async Task Rename_ShowsItAtOnce_TheRoomTheHomeAndTheOtherTabsAndFriends()
+    {
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+        var home = HomeOf(Tom.Id);
+        _players.RenameAsync(Tom.Id, "  Sir   Fluff  ", Arg.Any<CancellationToken>()).Returns(Tom with { DisplayName = "Sir Fluff" });
+        _friends.ListAsync(Tom.Id, Arg.Any<CancellationToken>()).Returns(
+            [new PlayerRelation(Felix, "Felix", FurColor.Black, FriendState.Friends)]);
+        var tomsTabs = Substitute.For<IGameClient>();
+        _clients.User(Tom.Id.ToString()).Returns(tomsTabs);
+        var felixTabs = Substitute.For<IGameClient>();
+        _clients.User(Felix.ToString()).Returns(felixTabs);
+
+        var name = await hub.Rename("  Sir   Fluff  ");
+
+        Assert.That(name, Is.EqualTo("Sir Fluff"));
+        // The current room (town-square: the cat's label) and the player's own home (a friend visiting it would see the
+        // new name too), whether or not the cat is in either.
+        await _room.Received(1).Rename(Tom.Id, "Sir Fluff");
+        await home.Received(1).Rename(Tom.Id, "Sir Fluff");
+        await tomsTabs.Received(1).Renamed("Sir Fluff");
+        await felixTabs.Received(1).FriendsChanged(Tom.Id);
+    }
+
+    [Test]
+    public async Task Rename_ARuleBroken_IsThePlayersMessage_AndNobodyIsTold()
+    {
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+        _players.RenameAsync(Tom.Id, "Admin Tom", Arg.Any<CancellationToken>())
+            .ThrowsAsync(new DomainException("Pick another name: that one sounds like an admin or moderator."));
+        var tomsTabs = Substitute.For<IGameClient>();
+        _clients.User(Tom.Id.ToString()).Returns(tomsTabs);
+
+        var refused = Assert.ThrowsAsync<HubException>(() => hub.Rename("Admin Tom"));
+
+        Assert.That(refused!.Message, Is.EqualTo("Pick another name: that one sounds like an admin or moderator."));
+        await _room.DidNotReceiveWithAnyArgs().Rename(default, default!);
+        await tomsTabs.DidNotReceiveWithAnyArgs().Renamed(default!);
+    }
+
+    [Test]
+    public async Task Rename_WhenTellingTheRoomFails_StillSucceeds()
+    {
+        // Saved by then: the room shows it to whoever arrives next, and the player's next arrival.
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+        _players.RenameAsync(Tom.Id, "Sir Fluff", Arg.Any<CancellationToken>()).Returns(Tom with { DisplayName = "Sir Fluff" });
+        _room.Rename(Arg.Any<Guid>(), Arg.Any<string>()).ThrowsAsync(new TimeoutException());
+
+        var name = await hub.Rename("Sir Fluff");
+
+        Assert.That(name, Is.EqualTo("Sir Fluff"));
+    }
+
+    [Test]
     public async Task Buy_PutsNothingOn_SoTheRoomIsntTold()
     {
         var hub = Hub();
@@ -1703,6 +1759,27 @@ public sealed class GameHubTests
             Tom.Id, Felix, new ModerationRequest(ModerationAction.Ban, "Spam", null), Arg.Any<CancellationToken>());
         await _effects.Received(1).AppliedAsync(Felix, ModerationAction.Ban, after);
         Assert.That(card.Moderation, Is.EqualTo(new CardModerationView(false, new SanctionView("Spam", null), null)));
+    }
+
+    [Test]
+    public async Task Moderate_Rename_ShowsItAtOnceLikeThePlayersOwn()
+    {
+        _moderation.IsAdmin(Tom.Id).Returns(true);
+        _moderation.ModerateAsync(Tom.Id, Felix, Arg.Any<ModerationRequest>(), Arg.Any<CancellationToken>())
+            .Returns(Standing.None);
+        var home = HomeOf(Felix);
+        _friends.GetAsync(Tom.Id, Felix, Arg.Any<CancellationToken>())
+            .Returns(new PlayerRelation(Felix, "Nicer Name", FurColor.Black, FriendState.None));
+        _friends.ListAsync(Felix, Arg.Any<CancellationToken>()).Returns([]);
+        var hub = Hub();
+
+        var card = await hub.Moderate(Felix, "rename", "Nicer Name", null);
+
+        await _moderation.Received(1).ModerateAsync(
+            Tom.Id, Felix, new ModerationRequest(ModerationAction.Rename, "Nicer Name", null), Arg.Any<CancellationToken>());
+        Assert.That(card.DisplayName, Is.EqualTo("Nicer Name"));
+        // Felix's own room (none here) and home are told, even though Felix, not Tom, was renamed.
+        await home.Received(1).Rename(Felix, "Nicer Name");
     }
 
     [Test]

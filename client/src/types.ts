@@ -42,6 +42,12 @@ export interface OutfitView {
   collar: string | null;
 }
 
+/** A cat's new name, sent when it's renamed (Contracts.cs, RenameView). */
+export interface RenameView {
+  playerId: string;
+  displayName: string;
+}
+
 /** Where a shop item goes: on the head, round the neck, or the coat itself. */
 export type ItemKind = "Hat" | "Collar" | "Fur" | "Furniture";
 

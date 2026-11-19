@@ -372,6 +372,58 @@ test("two cats befriend each other from their cards, and one goes to the other",
   }
 });
 
+test("a cat renames itself from its own card, and another cat sees the new label", async ({ page: tom, browser }) => {
+  const felix = await newPlayer(browser);
+  try {
+    const tomId = await enterWorld(tom, "Siamese");
+    // Off the spawn point first (as the three-cats moderation test does), so tapping Tom's own cat can't land on
+    // another cat still there instead (another cat's tap takes priority on the same spot).
+    await tapFloor(tom, -4, 2);
+    await expect.poll(async () => (await cats(tom))[tomId]?.x ?? 0).toBeLessThan(-3.5);
+
+    await enterWorld(felix.page, "Siamese");
+    await expect.poll(async () => Object.keys(await cats(felix.page))).toContain(tomId);
+
+    await clickCat(tom, tomId);
+    const card = tom.getByRole("dialog");
+    await expect(card.getByRole("button", { name: "Rename your cat" })).toBeVisible();
+    await card.getByRole("button", { name: "Rename your cat" }).click();
+    const input = card.getByRole("textbox", { name: "New name" });
+    await input.fill("Sir Fluff");
+    await card.getByRole("button", { name: "Save" }).click();
+    await expect(card.getByRole("heading", { name: "Sir Fluff" })).toBeVisible();
+    await card.getByRole("button", { name: "Close" }).click();
+
+    // Felix's screen has the new name on Tom's cat.
+    await expect.poll(async () => (await cats(felix.page))[tomId]?.displayName).toBe("Sir Fluff");
+    expect(felix.errors, "Felix's console errors and uncaught exceptions").toEqual([]);
+  } finally {
+    await felix.close();
+  }
+});
+
+test("renaming is refused a name that's too short, and Cancel discards what was typed", async ({ page }) => {
+  const tomId = await enterWorld(page, "Tabby");
+  await clickCat(page, tomId);
+  const card = page.getByRole("dialog");
+  const title = card.locator("#dialog-title");
+  const originalName = (await title.textContent()) ?? "";
+
+  await card.getByRole("button", { name: "Rename your cat" }).click();
+  const input = card.getByRole("textbox", { name: "New name" });
+  await input.fill("ab");
+  await card.getByRole("button", { name: "Save" }).click();
+  await expect(card.getByText(/characters long/)).toBeVisible();
+  // Still in the box, to fix and try again.
+  await expect(input).toBeVisible();
+
+  await input.fill("Whatever");
+  await card.getByRole("button", { name: "Cancel" }).click();
+
+  await expect(card.getByRole("button", { name: "Rename your cat" })).toBeVisible();
+  await expect(title).toHaveText(originalName);
+});
+
 test("a Go to that fails leaves the cat playing in its room", async ({ page: tom }) => {
   const tomId = await enterWorld(tom, "Tabby");
   const felix = await hubGuest(new URL(tom.url()).origin);

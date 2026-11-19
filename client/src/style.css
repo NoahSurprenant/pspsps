@@ -589,6 +589,29 @@ button:disabled {
   font-style: italic;
 }
 
+/* The inline box that replaces the own card's Rename button, with Save and Cancel. */
+.rename-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.rename-form input {
+  font: inherit;
+  /* Big enough to tap, and to keep iOS from zooming in when it's tapped. */
+  font-size: max(1rem, 16px);
+  min-height: 2.75rem;
+  flex: 1;
+  min-width: 8rem;
+  box-sizing: border-box;
+  padding: 0.3rem 0.7rem;
+  border: 2px solid var(--ink);
+  border-radius: 0.9rem;
+  background: white;
+  color: var(--ink);
+}
+
 /* The catalogue: a printed booklet, in place of a plain sheet. Cream pages with a ruled edge, its title in a serif, and
    its items in a grid of two when there is room. */
 .catalogue {
@@ -816,6 +839,7 @@ button:disabled {
 }
 
 .moderate-reason input,
+.moderate-rename input,
 .moderate select {
   font: inherit;
   /* Big enough to tap, and to keep iOS from zooming in when it's tapped. */
@@ -837,7 +861,8 @@ button:disabled {
   gap: 0.4rem;
 }
 
-.moderate-row select {
+.moderate-row select,
+.moderate-rename input {
   flex: 1;
 }
 

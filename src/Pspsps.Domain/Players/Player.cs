@@ -42,6 +42,10 @@ public sealed class Player
 
     public IReadOnlyCollection<PlayerLogin> Logins => _logins.AsReadOnly();
 
+    /// <summary>When the player last renamed themself (<see cref="Rename"/>); null before their first. Not set by
+    /// <see cref="RenameByAdmin"/>: an admin fixing a rude name doesn't start or reset the player's own cooldown.</summary>
+    public DateTimeOffset? RenamedAt { get; private set; }
+
     /// <summary>The hat the cat wears (a <see cref="ShopCatalog"/> item ID), if any.</summary>
     public string? Hat { get; private set; }
 
@@ -91,7 +95,40 @@ public sealed class Player
     /// <summary>Whether the cat already signs in with an account from <paramref name="provider"/> (one per provider).</summary>
     public bool HasLoginFrom(LoginProvider provider) => _logins.Any(l => l.Provider == provider);
 
-    public void Rename(string displayName) => DisplayName = DisplayNameRules.Normalize(displayName);
+    /// <summary>How often a player may rename themself (<see cref="Rename"/>); admins are exempt (<see cref="RenameByAdmin"/>
+    /// skips it entirely, for themself or another cat).</summary>
+    public static TimeSpan RenameCooldown { get; } = TimeSpan.FromHours(24);
+
+    /// <summary>
+    /// Renames the cat: the rules (<see cref="DisplayNameRules.Normalize"/>, <see cref="DisplayNameRules.EnsureAllowed"/>),
+    /// and at most once every <see cref="RenameCooldown"/> (from the player's own card). Checks <paramref name="chatFilter"/>
+    /// the room's chat does, so a name gets the same lists and look-alike handling as a chat line would.
+    /// </summary>
+    public void Rename(string displayName, ChatFilter chatFilter, DateTimeOffset now)
+    {
+        if (RenamedAt is { } last && now - last < RenameCooldown)
+        {
+            throw new DomainException(
+                $"You can rename your cat once every {RenameCooldown.TotalHours:0} hours. Try again later.");
+        }
+
+        DisplayName = Renamed(displayName, chatFilter);
+        RenamedAt = now;
+    }
+
+    /// <summary>
+    /// An admin renames the cat, from its card's Moderate section (to fix a rude name): the same rules as <see cref="Rename"/>
+    /// except the cooldown, which doesn't apply. Doesn't touch <see cref="RenamedAt"/>: the player's own cooldown is
+    /// neither started nor reset by it.
+    /// </summary>
+    public void RenameByAdmin(string displayName, ChatFilter chatFilter) => DisplayName = Renamed(displayName, chatFilter);
+
+    private static string Renamed(string displayName, ChatFilter chatFilter)
+    {
+        var normalized = DisplayNameRules.Normalize(displayName);
+        DisplayNameRules.EnsureAllowed(normalized, chatFilter);
+        return normalized;
+    }
 
     /// <summary>Whether the player has the shop item <paramref name="itemId"/>.</summary>
     public bool Owns(string itemId) => _items.Any(i => i.ItemId == itemId);

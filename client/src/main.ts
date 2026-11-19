@@ -19,9 +19,11 @@ import {
   canVisitFromCard, decoratingHint, furnitureLeft, isOwnHome, pieceAt, propOf, propsOf, visitorsMessage, type Decorating,
 } from "./home";
 import type { FriendAction } from "./friends";
+import type { OwnCardRename } from "./rename";
 import { describeCat, shopMessage, showsOutfit, type ShopAction } from "./shop";
 import { Notices, doneMessage, inForce, mutedToast, type ModerationRequest, type Sanction } from "./moderation";
 import { Mutes, muteMessage, reportRequest, reportSentMessage, type ReportDraft, type SafetyAction } from "./safety";
+import { pageTitle } from "./title";
 import type {
   DoorView, HomeView, HomeVisitors, MutedView, OutfitView, Player, PlayerCard, PropView, RoomSnapshot, Shop,
 } from "./types";
@@ -115,6 +117,8 @@ let decoratingShop: Shop | undefined;
 // Who is playing, once known: the world picker needs it again when a world is lost. Their coins (me.coins) are the
 // ones shown in the room bar, kept up to date by every catch.
 let me: Player | undefined;
+// Whether the own card's inline Rename box is open now, in place of the small Rename button.
+let renamingOwnCard = false;
 // Where the player's fishing line is.
 const fishing = new FishingState((state) => overlay.setFishing(state));
 // The walk to a door (which goes through it once the cat gets there) or to the catalogue stand (which opens it).
@@ -208,6 +212,32 @@ const connection = new GameConnection({
       }
     });
     void dressed(outfit);
+  },
+  catRenamed: (rename) => {
+    onRoom((here) => {
+      if (here.rename(rename)) {
+        scene?.rename(rename.playerId, rename.displayName);
+      }
+    });
+    void refreshCard(rename.playerId);
+  },
+  // This room is a home whose owner (not necessarily our cat) was renamed: shown as their new name's home.
+  homeRenamed: (ownerName) => onRoom((here) => {
+    if (here.renameHome(ownerName) && here === room) {
+      document.title = pageTitle(here.snapshot.roomName);
+    }
+  }),
+  // We renamed our own cat, from this tab or another: the own card and catalogue, if open, show it; CatRenamed (above)
+  // brings the room's label (and any open card of ours) up to date on its own.
+  renamed: (displayName) => {
+    if (me) {
+      me = { ...me, displayName };
+    }
+    renamingOwnCard = false;
+    const open = overlay.openDialogFor;
+    if (open?.kind === "own-card" || open?.kind === "catalogue") {
+      void openShopSheet(open.kind, true);
+    }
   },
   fishBit: () => fishing.bite(),
   fishGotAway: () => {
@@ -970,7 +1000,15 @@ function showShopSheet(sheet: ShopSheet, shop: Shop): void {
   }
   const outfit: Outfit = { fur: shop.furColor, hat: shop.hat, collar: shop.collar };
   const nameOf = (id: string | null) => shop.items.find((item) => item.id === id)?.name;
-  overlay.showOwnCard(me?.displayName ?? "Your cat", shop, pictureOf(me?.displayName ?? "Your cat", outfit, nameOf(shop.hat), nameOf(shop.collar)), act, me?.id);
+  const rename: OwnCardRename = {
+    editing: renamingOwnCard,
+    start: startRename,
+    cancel: cancelRename,
+    save: (name) => void saveRename(name),
+  };
+  overlay.showOwnCard(
+    me?.displayName ?? "Your cat", shop, pictureOf(me?.displayName ?? "Your cat", outfit, nameOf(shop.hat), nameOf(shop.collar)),
+    act, rename, me?.id);
 }
 
 /** Buys, puts on or takes off an item, then shows the catalogue or card open as it is after, and says what happened. */
@@ -1004,16 +1042,58 @@ async function dressed(outfit: OutfitView): Promise<void> {
       return;
     }
     await openShopSheet(open.kind, true);
-  } else if (open?.kind === "card" && open.playerId === outfit.playerId) {
-    try {
-      const card = await connection.getPlayerCard(outfit.playerId);
-      const now = overlay.openDialogFor;
-      if (now?.kind === "card" && now.playerId === outfit.playerId) {
-        showCard(card);
-      }
-    } catch {
-      // Only a refresh: the card shows it when opened again.
+  } else {
+    await refreshCard(outfit.playerId);
+  }
+}
+
+/** The player card over the room, if it's open and showing <playerId>, brought up to date (a name, an outfit). */
+async function refreshCard(playerId: string): Promise<void> {
+  const open = overlay.openDialogFor;
+  if (open?.kind !== "card" || open.playerId !== playerId) {
+    return;
+  }
+
+  try {
+    const card = await connection.getPlayerCard(playerId);
+    const now = overlay.openDialogFor;
+    if (now?.kind === "card" && now.playerId === playerId) {
+      showCard(card);
     }
+  } catch {
+    // Only a refresh: the card shows it when opened again.
+  }
+}
+
+/** Opens the inline Rename box on the player's own card. */
+function startRename(): void {
+  renamingOwnCard = true;
+  if (shopShown) {
+    showShopSheet("own-card", shopShown);
+  }
+}
+
+/** Closes the own card's inline Rename box without saving. */
+function cancelRename(): void {
+  renamingOwnCard = false;
+  if (shopShown) {
+    showShopSheet("own-card", shopShown);
+  }
+}
+
+/** Saves the name typed into the own card's Rename box; stays open, with what was typed, if the server refuses it. */
+async function saveRename(name: string): Promise<void> {
+  try {
+    const displayName = await connection.rename(name);
+    if (me) {
+      me = { ...me, displayName };
+    }
+    renamingOwnCard = false;
+    if (shopShown) {
+      showShopSheet("own-card", shopShown);
+    }
+  } catch (error) {
+    overlay.toast(messageOf(error));
   }
 }
 

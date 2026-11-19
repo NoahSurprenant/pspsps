@@ -94,7 +94,7 @@ jobs:
     timeout-minutes: 35
     outputs:
       # Empty unless all the contact sheets were uploaded, so a run without them leaves the PR's last links alone.
-      screenshots: ${{ steps.sheet_sign_in.outputs.artifact-url && steps.sheet_worlds.outputs.artifact-url && steps.sheet_town_square.outputs.artifact-url && steps.sheet_cafe.outputs.artifact-url && steps.sheet_shop_room.outputs.artifact-url && steps.sheet_player_card.outputs.artifact-url && steps.sheet_own_card.outputs.artifact-url && steps.sheet_friends.outputs.artifact-url && steps.sheet_catalogue.outputs.artifact-url && steps.sheet_home.outputs.artifact-url && steps.sheet_decorating.outputs.artifact-url && steps.sheet_report.outputs.artifact-url && steps.sheet_admin_card.outputs.artifact-url && steps.sheet_admin_page.outputs.artifact-url && steps.sheet_wardrobe.outputs.artifact-url && format('- [Sign-in]({0})\n- [World list]({1})\n- [Town Square]({2})\n- [Cat Café]({3})\n- [Cat Shop]({4})\n- [Player card]({5})\n- [Own card]({6})\n- [Friends]({7})\n- [Catalogue]({8})\n- [Home]({9})\n- [Decorating]({10})\n- [Report]({11})\n- [Admin card]({12})\n- [Admin page]({13})\n- [Wardrobe]({14})', steps.sheet_sign_in.outputs.artifact-url, steps.sheet_worlds.outputs.artifact-url, steps.sheet_town_square.outputs.artifact-url, steps.sheet_cafe.outputs.artifact-url, steps.sheet_shop_room.outputs.artifact-url, steps.sheet_player_card.outputs.artifact-url, steps.sheet_own_card.outputs.artifact-url, steps.sheet_friends.outputs.artifact-url, steps.sheet_catalogue.outputs.artifact-url, steps.sheet_home.outputs.artifact-url, steps.sheet_decorating.outputs.artifact-url, steps.sheet_report.outputs.artifact-url, steps.sheet_admin_card.outputs.artifact-url, steps.sheet_admin_page.outputs.artifact-url, steps.sheet_wardrobe.outputs.artifact-url) || '' }}
+      screenshots: ${{ steps.sheet_sign_in.outputs.artifact-url && steps.sheet_worlds.outputs.artifact-url && steps.sheet_town_square.outputs.artifact-url && steps.sheet_cafe.outputs.artifact-url && steps.sheet_shop_room.outputs.artifact-url && steps.sheet_player_card.outputs.artifact-url && steps.sheet_own_card.outputs.artifact-url && steps.sheet_own_card_rename.outputs.artifact-url && steps.sheet_friends.outputs.artifact-url && steps.sheet_catalogue.outputs.artifact-url && steps.sheet_home.outputs.artifact-url && steps.sheet_decorating.outputs.artifact-url && steps.sheet_report.outputs.artifact-url && steps.sheet_admin_card.outputs.artifact-url && steps.sheet_admin_page.outputs.artifact-url && steps.sheet_wardrobe.outputs.artifact-url && format('- [Sign-in]({0})\n- [World list]({1})\n- [Town Square]({2})\n- [Cat Café]({3})\n- [Cat Shop]({4})\n- [Player card]({5})\n- [Own card]({6})\n- [Own card, renaming]({7})\n- [Friends]({8})\n- [Catalogue]({9})\n- [Home]({10})\n- [Decorating]({11})\n- [Report]({12})\n- [Admin card]({13})\n- [Admin page]({14})\n- [Wardrobe]({15})', steps.sheet_sign_in.outputs.artifact-url, steps.sheet_worlds.outputs.artifact-url, steps.sheet_town_square.outputs.artifact-url, steps.sheet_cafe.outputs.artifact-url, steps.sheet_shop_room.outputs.artifact-url, steps.sheet_player_card.outputs.artifact-url, steps.sheet_own_card.outputs.artifact-url, steps.sheet_own_card_rename.outputs.artifact-url, steps.sheet_friends.outputs.artifact-url, steps.sheet_catalogue.outputs.artifact-url, steps.sheet_home.outputs.artifact-url, steps.sheet_decorating.outputs.artifact-url, steps.sheet_report.outputs.artifact-url, steps.sheet_admin_card.outputs.artifact-url, steps.sheet_admin_page.outputs.artifact-url, steps.sheet_wardrobe.outputs.artifact-url) || '' }}
     # The shipped image, run against PostgreSQL, driven by Chromium (software WebGL).
     services:
       postgres:
@@ -237,6 +237,14 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           path: e2e/screenshots/own-card.png
+          archive: false
+          retention-days: 30
+      - name: Upload the own card renaming screenshots
+        id: sheet_own_card_rename
+        if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+        uses: actions/upload-artifact@v7
+        with:
+          path: e2e/screenshots/own-card-rename.png
           archive: false
           retention-days: 30
       - name: Upload the friends list screenshots

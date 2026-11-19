@@ -61,6 +61,33 @@ public sealed class ModerationTests
     }
 
     [Test]
+    public async Task AnAdmin_RenamesACat_ToFixARudeName_ShownAtOnce_AndRecordedInTheAuditTrail()
+    {
+        var (admin, adminHub) = await AdminAsync();
+        var (felix, felixHub) = await Game.ConnectGuestAsync();
+        await using var _ = adminHub;
+        await using var __ = felixHub;
+        var felixSees = new Recorder(felixHub);
+
+        var card = await adminHub.InvokeAsync<PlayerCardView>("Moderate", felix.Id, "rename", "Nicer Name", null);
+
+        Assert.That(card.DisplayName, Is.EqualTo("Nicer Name"));
+        Assert.That(await felixSees.Next<string>("Renamed", name => name == "Nicer Name"), Is.EqualTo("Nicer Name"));
+
+        using var asAdmin = ClientFor(AdminCookies[admin.Id]);
+        var view = await asAdmin.GetFromJsonAsync<AdminOverviewView>(new Uri("/api/admin/overview", UriKind.Relative), JsonOptions.Web);
+        Assert.That(view!.Recent, Has.Some.Matches<ModerationLogView>(line =>
+            line.PlayerId == felix.Id && line.Kind == "Renamed" && line.ById == admin.Id
+            && line.Reason == $"{felix.DisplayName} → Nicer Name"));
+
+        // Not the 24-hour cooldown a player's own rename has, not on yourself.
+        await adminHub.InvokeAsync<PlayerCardView>("Moderate", felix.Id, "rename", "Nicer Still", null);
+        var self = Assert.ThrowsAsync<HubException>(() =>
+            adminHub.InvokeAsync<PlayerCardView>("Moderate", admin.Id, "rename", "Whatever", null));
+        Assert.That(self!.Message, Does.Contain("yourself"));
+    }
+
+    [Test]
     public async Task ABannedPlayer_IsToldWhy_DroppedAtOnce_AndTheirConnectionRefused_UntilItsLifted()
     {
         var (_, adminHub) = await AdminAsync();

@@ -20,6 +20,9 @@ internal sealed class Recorder
         hub.On<EmoteView>("CatEmoted", e => _events.Writer.TryWrite(("CatEmoted", e)));
         hub.On<CatchView>("CatFished", c => _events.Writer.TryWrite(("CatFished", c)));
         hub.On<OutfitView>("CatDressed", o => _events.Writer.TryWrite(("CatDressed", o)));
+        hub.On<RenameView>("CatRenamed", r => _events.Writer.TryWrite(("CatRenamed", r)));
+        hub.On<string>("HomeRenamed", n => _events.Writer.TryWrite(("HomeRenamed", n)));
+        hub.On<string>("Renamed", n => _events.Writer.TryWrite(("Renamed", n)));
         hub.On<Guid>("FriendsChanged", id => _events.Writer.TryWrite(("FriendsChanged", id)));
         hub.On<SanctionView>("Banned", ban => _events.Writer.TryWrite(("Banned", ban)));
         hub.On<SanctionView?>("Muted", mute => _events.Writer.TryWrite(("Muted", new MutedSaid(mute))));

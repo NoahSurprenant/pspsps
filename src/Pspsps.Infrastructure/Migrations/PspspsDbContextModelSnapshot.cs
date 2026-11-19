@@ -343,6 +343,10 @@ namespace Pspsps.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("outfit_version");
 
+                    b.Property<DateTimeOffset?>("RenamedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("renamed_at");
+
                     b.HasKey("Id")
                         .HasName("pk_players");
 

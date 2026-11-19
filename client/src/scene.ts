@@ -401,6 +401,14 @@ export class RoomScene {
     }
   }
 
+  /** The cat's name above it changed. */
+  rename(playerId: string, displayName: string): void {
+    const label = this.gui?.getControlByName(`name-${playerId}`);
+    if (label instanceof TextBlock) {
+      label.text = displayName;
+    }
+  }
+
   /** A home's furniture changed: the room's props are drawn again as <props>, with the back wall (one mesh). */
   furnish(props: PropView[]): void {
     if (!this.wall) {

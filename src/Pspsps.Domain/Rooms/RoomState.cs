@@ -213,6 +213,22 @@ public sealed class RoomState(RoomDefinition room, Guid? owner = null)
         return dressed;
     }
 
+    /// <summary>
+    /// The player renamed their cat (from their own card, or an admin from theirs): the cat here, if it is here, is shown
+    /// it from now on (CatRenamed). Null when the cat isn't in this room.
+    /// </summary>
+    public CatInRoom? Rename(Guid playerId, string displayName)
+    {
+        if (!_cats.TryGetValue(playerId, out var cat))
+        {
+            return null;
+        }
+
+        var renamed = cat with { DisplayName = displayName };
+        _cats[playerId] = renamed;
+        return renamed;
+    }
+
     /// <summary>The cat's line in the water, if any: a bite applies only to the line it was cast for.</summary>
     public FishingLine? LineOf(Guid playerId) => _lines.GetValueOrDefault(playerId);
 

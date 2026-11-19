@@ -20,7 +20,8 @@ public sealed class ModerationRequestTests
 
     [TestCase("warn", ModerationAction.Warn)]
     [TestCase("lift", ModerationAction.Lift)]
-    public void Parse_AWarningOrALift_HasNoLength(string action, ModerationAction expected) =>
+    [TestCase("rename", ModerationAction.Rename)]
+    public void Parse_AWarningALiftOrARename_HasNoLength(string action, ModerationAction expected) =>
         Assert.That(ModerationRequest.Parse(action, "Be nice", "7d"), Is.EqualTo(new ModerationRequest(expected, "Be nice", null)));
 
     [TestCase("mute", "permanent")]

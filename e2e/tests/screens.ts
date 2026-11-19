@@ -15,7 +15,7 @@ export interface Size {
 
 export interface Screen {
   name:
-    | "sign-in" | "worlds" | "town-square" | "cafe" | "shop-room" | "player-card" | "own-card" | "friends" | "catalogue"
+    | "sign-in" | "worlds" | "town-square" | "cafe" | "shop-room" | "player-card" | "own-card" | "own-card-rename" | "friends" | "catalogue"
     | "home" | "decorating" | "report" | "admin-card" | "admin-page";
   /** Opens the screen in a fresh page; returns once it is ready, with what to close after (other players), if any. */
   open(page: Page): Promise<(() => Promise<void>) | void>;
@@ -150,6 +150,20 @@ export const SCREENS: Screen[] = [
       await expect(card).toBeVisible();
       await expect(card.getByText("Your fur now")).toBeVisible();
       await portraitShown(page);
+    },
+  },
+  {
+    // The own card's Rename box, open: the small button tapped, the inline text box showing the name now, with Save
+    // and Cancel.
+    name: "own-card-rename",
+    open: async (page) => {
+      const me = await enterWorld(page, "Calico");
+      await clickCat(page, me);
+      const card = page.getByRole("dialog");
+      await card.getByRole("button", { name: "Rename your cat" }).click();
+      await expect(card.getByRole("textbox", { name: "New name" })).toBeVisible();
+      await expect(card.getByRole("button", { name: "Save" })).toBeVisible();
+      await expect(card.getByRole("button", { name: "Cancel" })).toBeVisible();
     },
   },
   {
