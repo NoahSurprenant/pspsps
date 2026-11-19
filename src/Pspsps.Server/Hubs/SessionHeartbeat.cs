@@ -146,7 +146,7 @@ public sealed partial class SessionHeartbeat(
         metrics.LeftWorld(place.WorldId);
         if (place.RoomKey is { } roomKey)
         {
-            await hub.Groups.RemoveFromGroupAsync(connectionId, roomKey);
+            await HubGroups.RemoveAsync(hub, connectionId, roomKey, time);
             await grains.GetGrain<IRoomGrain>(roomKey).Leave(place.PlayerId, connectionId);
         }
 
@@ -159,7 +159,7 @@ public sealed partial class SessionHeartbeat(
         await Task.WhenAll(lost.Where(connectionId => LeaveLostRoom(connectionId, roomKey)).Select(async connectionId =>
         {
             // Out of the room's group too, so the tab hears nothing more from a room it isn't in.
-            await hub.Groups.RemoveFromGroupAsync(connectionId, roomKey);
+            await HubGroups.RemoveAsync(hub, connectionId, roomKey, time);
             await hub.Clients.Client(connectionId).RoomLost();
         }));
     }

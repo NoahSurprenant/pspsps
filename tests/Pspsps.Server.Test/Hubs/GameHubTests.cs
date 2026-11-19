@@ -754,6 +754,27 @@ public sealed class GameHubTests
     }
 
     [Test]
+    public async Task VisitHome_AfterTheHomeToldThisTabRoomLostItself_WalksBackIn_InsteadOfRefusingHomeAlready()
+    {
+        // The home's grain deactivating with cats still in it tells each tab RoomLost itself (RoomGrain.TellLost),
+        // which doesn't go through SessionHeartbeat.LeaveLostRoom: the hub's place for this tab still names that same,
+        // now-lost home. The client answers RoomLost by calling VisitHome again, which used to be refused as "You're
+        // home already" since place.RoomKey already equalled the home's key.
+        var felixHome = HomeOf(Felix);
+        _homes.VisitAsync(Tom.Id, Felix, Arg.Any<CancellationToken>()).Returns("Felix");
+        felixHome.Join(default!, default!, default).ReturnsForAnyArgs(HomeSnapshot(Felix));
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+        await hub.VisitHome(Felix);
+
+        var there = await hub.VisitHome(Felix);
+
+        Assert.That(there.WorldId, Is.EqualTo("tabby"));
+        await felixHome.DidNotReceive().Leave(Tom.Id, Connection);
+        await felixHome.Received(2).Join(Arg.Is<PlayerCard>(c => c.PlayerId == Tom.Id), Connection, null);
+    }
+
+    [Test]
     public async Task VisitHome_ThatTheHomeRefuses_LeavesTheCatWhereItIs()
     {
         var felixHome = HomeOf(Felix);
@@ -1077,6 +1098,54 @@ public sealed class GameHubTests
         await _heartbeat.RenewAsync();
         await tomsHome.ReceivedWithAnyArgs(1).Renew(default!);
         await felixHome.DidNotReceiveWithAnyArgs().Renew(default!);
+    }
+
+    [Test]
+    public async Task GoToRoom_BackIntoTheSameRoomAfterItToldThisTabRoomLostItself_SkipsLeavingTheFreshActivation()
+    {
+        // The room's self-told RoomLost (RoomGrain.TellLost, on deactivation with cats still in it) doesn't go through
+        // SessionHeartbeat.LeaveLostRoom, so the hub's place for this tab can still name that same, now-lost room. The
+        // client answers by going back into it: Leave must not be called on the fresh, empty activation that woke to
+        // answer it (its GoIfEmpty would deactivate it right back, only to be woken again by the Join that follows).
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+        await hub.GoToRoom("cafe");
+
+        await hub.GoToRoom("cafe");
+
+        await _cafe.DidNotReceive().Leave(Tom.Id, Connection);
+        await _cafe.ReceivedWithAnyArgs(2).Join(default!, default!, default);
+        await hub.Say("back");
+        await _cafe.Received(1).Say(Tom.Id, "back");
+    }
+
+    [Test]
+    public async Task GoToRoom_WhenTheOldRoomCantAnswerLeaving_StillGoesIntoTheNewRoom()
+    {
+        // Leaving town-square for the café: town-square's pod is going (TimeoutException, or SiloUnavailableException
+        // in the two-pod run). That must not stop the move into the café; the lease back at town-square runs out by
+        // itself.
+        _room.Leave(Tom.Id, Connection).ThrowsAsync(new TimeoutException("the room's pod is gone"));
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+
+        await hub.GoToRoom("cafe");
+
+        await _cafe.Received(1).Join(Arg.Is<PlayerCard>(c => c.PlayerId == Tom.Id), Connection, null);
+    }
+
+    [Test]
+    public async Task GoToRoom_WhenTheOldRoomFailsForSomeOtherReason_StopsTheMove()
+    {
+        // Not a room that can't answer: a real failure in a live room's Leave (a bug, say) must stop the move, not be
+        // swallowed into a ghost cat left in a room nobody told it to leave.
+        _room.Leave(Tom.Id, Connection).ThrowsAsync(new InvalidOperationException("broken"));
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+
+        Assert.ThrowsAsync<InvalidOperationException>(() => hub.GoToRoom("cafe"));
+
+        await _cafe.DidNotReceiveWithAnyArgs().Join(default!, default!, default);
     }
 
     [Test]

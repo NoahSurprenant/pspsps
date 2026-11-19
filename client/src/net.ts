@@ -1,4 +1,6 @@
-import { HubConnectionBuilder, HubConnectionState, LogLevel, type HubConnection } from "@microsoft/signalr";
+import {
+  HttpTransportType, HubConnectionBuilder, HubConnectionState, LogLevel, type HubConnection, type IHttpConnectionOptions,
+} from "@microsoft/signalr";
 import type { FriendAction } from "./friends";
 import { appLog, hubTracer, serverFetch } from "./telemetry";
 import type { ModerationRequest, Sanction, Warning } from "./moderation";
@@ -95,67 +97,99 @@ export const shopMethods: Record<ShopAction, string> = {
 };
 
 /**
+ * How the hub connects, in order. First a WebSocket straight away, with no negotiate request: everything the connection
+ * sends goes over that one socket, so it stays on the pod it opened on, and several pods behind one Service need no
+ * sticky sessions (ASP.NET Core's "SignalR hosting and scaling": sticky sessions aren't required when clients use
+ * WebSockets only and skip negotiation). Then, where a WebSocket can't open (a proxy without them), SignalR's
+ * negotiation with every transport, which needs sticky sessions at the proxy once there are several pods.
+ */
+export const hubTransports: readonly IHttpConnectionOptions[] = [
+  { transport: HttpTransportType.WebSockets, skipNegotiation: true },
+  {},
+];
+
+/** Makes the hub connection for one of hubTransports. */
+export type HubFactory = (options: IHttpConnectionOptions) => HubConnection;
+
+const buildHub: HubFactory = (options) => new HubConnectionBuilder()
+  .withUrl("/hubs/game", options)
+  .withHubProtocol(hubTracer.protocol)
+  .withAutomaticReconnect()
+  .configureLogging(LogLevel.Warning)
+  .build();
+
+/**
  * The one realtime connection (src/Pspsps.Server/Hubs/GameHub.cs). With telemetry on, each call is traced (its trace
  * context in the call's headers, which the server's hub span continues), and the connection's life is logged: up,
  * dropped and reconnecting, back, closed, and taken over by another tab.
  */
 export class GameConnection {
-  private readonly hub: HubConnection;
+  private hub: HubConnection;
+  // Which of hubTransports the hub uses: the next is tried once if this one can't connect.
+  private transport = 0;
   // Set once this tab stops the connection itself (replaced, banned): its close is no surprise.
   private stopping = false;
 
-  constructor(events: GameEvents) {
-    this.hub = new HubConnectionBuilder()
-      .withUrl("/hubs/game")
-      .withHubProtocol(hubTracer.protocol)
-      .withAutomaticReconnect()
-      .configureLogging(LogLevel.Warning)
-      .build();
-    this.hub.onreconnecting((error) => appLog.warn("The hub connection dropped; reconnecting", error));
+  constructor(private readonly events: GameEvents, private readonly build: HubFactory = buildHub) {
+    this.hub = this.connect(this.transport);
+  }
+
+  /** The hub connection for hubTransports[transport], with the game's handlers on it. */
+  private connect(transport: number): HubConnection {
+    const events = this.events;
+    const hub = this.build(hubTransports[transport] ?? {});
+    // Only the connection in use speaks for the tab: one that couldn't connect is dropped.
+    const current = () => hub === this.hub;
+    hub.onreconnecting((error) => appLog.warn("The hub connection dropped; reconnecting", error));
     // Closed for good: stop() (a tab taken over), or a drop the reconnects couldn't get past.
-    this.hub.onclose((error) => error === undefined
+    hub.onclose((error) => error === undefined
       ? appLog.info("The hub connection closed")
       : appLog.warn("The hub connection closed", error));
-    this.hub.on("CatJoined", (cat: CatView) => events.catJoined(cat));
-    this.hub.on("CatLeft", (playerId: string) => events.catLeft(playerId));
-    this.hub.on("CatMoved", (playerId: string, x: number, z: number) => events.catMoved(playerId, x, z));
-    this.hub.on("ChatSaid", (line: ChatView) => events.chatSaid(line));
-    this.hub.on("CatEmoted", (emote: EmoteView) => events.catEmoted(emote));
-    this.hub.on("CatDressed", (outfit: OutfitView) => events.catDressed(outfit));
-    this.hub.on("FishBit", () => events.fishBit());
-    this.hub.on("FishGotAway", () => events.fishGotAway());
-    this.hub.on("CatFished", (caught: CatchView) => events.catFished(caught));
-    this.hub.onreconnected(() => {
+    hub.on("CatJoined", (cat: CatView) => events.catJoined(cat));
+    hub.on("CatLeft", (playerId: string) => events.catLeft(playerId));
+    hub.on("CatMoved", (playerId: string, x: number, z: number) => events.catMoved(playerId, x, z));
+    hub.on("ChatSaid", (line: ChatView) => events.chatSaid(line));
+    hub.on("CatEmoted", (emote: EmoteView) => events.catEmoted(emote));
+    hub.on("CatDressed", (outfit: OutfitView) => events.catDressed(outfit));
+    hub.on("FishBit", () => events.fishBit());
+    hub.on("FishGotAway", () => events.fishGotAway());
+    hub.on("CatFished", (caught: CatchView) => events.catFished(caught));
+    hub.onreconnected(() => {
       appLog.info("The hub connection is back");
       events.reconnected();
     });
-    this.hub.on("RoomLost", () => events.roomLost());
-    this.hub.on("WorldLost", (message: string) => events.worldLost(message));
-    this.hub.on("FriendsChanged", (playerId: string) => events.friendsChanged(playerId));
-    this.hub.on("HomeChanged", (home: HomeView) => events.homeChanged(home));
-    this.hub.on("SentOut", (ownerId: string, message: string) => events.sentOut(ownerId, message));
-    this.hub.on("MutesChanged", (mutes: MutedView[]) => events.mutesChanged(mutes));
-    this.hub.on("SessionReplaced", () => {
+    hub.on("RoomLost", () => events.roomLost());
+    hub.on("WorldLost", (message: string) => events.worldLost(message));
+    hub.on("FriendsChanged", (playerId: string) => events.friendsChanged(playerId));
+    hub.on("HomeChanged", (home: HomeView) => events.homeChanged(home));
+    hub.on("SentOut", (ownerId: string, message: string) => events.sentOut(ownerId, message));
+    hub.on("MutesChanged", (mutes: MutedView[]) => events.mutesChanged(mutes));
+    hub.on("SessionReplaced", () => {
       appLog.info("Joined from another tab: this one stopped");
       this.stopping = true;
-      void this.hub.stop().then(() => events.replaced());
+      void hub.stop().then(() => events.replaced());
     });
-    this.hub.on("Banned", (ban: Sanction) => {
+    hub.on("Banned", (ban: Sanction) => {
       // Shown at once, before anything else the server sends as the connection stops (the cat sent out of its room).
       this.stopping = true;
       events.banned(ban);
-      void this.hub.stop();
+      void hub.stop();
     });
     // Dropped: a ban decided on another pod closes the connection, and every try to come back is refused (403). The page
     // asks why at once, rather than after every retry.
-    this.hub.onreconnecting(() => events.reconnecting());
-    this.hub.on("Muted", (mute: Sanction | null) => events.muted(mute));
-    this.hub.on("Warned", () => events.warned());
-    this.hub.onclose(() => {
-      if (!this.stopping) {
+    hub.onreconnecting(() => {
+      if (current()) {
+        events.reconnecting();
+      }
+    });
+    hub.on("Muted", (mute: Sanction | null) => events.muted(mute));
+    hub.on("Warned", () => events.warned());
+    hub.onclose(() => {
+      if (current() && !this.stopping) {
         events.closed();
       }
     });
+    return hub;
   }
 
   /** Stops the connection for good (the player is banned): no retries. */
@@ -165,15 +199,37 @@ export class GameConnection {
   }
 
   async start(): Promise<void> {
-    if (this.hub.state === HubConnectionState.Disconnected) {
-      try {
-        await this.hub.start();
-      } catch (error) {
+    if (this.hub.state !== HubConnectionState.Disconnected) {
+      return;
+    }
+
+    // Each start tries the WebSocket first: a failure that made the last one negotiate (a pod restarting, a dropped
+    // network) needn't have been the WebSocket's fault, and negotiation needs sticky sessions with several pods.
+    if (this.transport !== 0) {
+      this.transport = 0;
+      this.hub = this.connect(this.transport);
+    }
+
+    try {
+      await this.hub.start();
+    } catch (error) {
+      if (this.stopping || this.transport + 1 >= hubTransports.length) {
         appLog.error("The hub connection failed", error);
         throw error;
       }
-      appLog.info("The hub connection is up");
+
+      // No WebSocket (a proxy without them, say): SignalR's negotiation, which picks a transport that works.
+      appLog.warn("The hub's WebSocket didn't open; negotiating a transport", error);
+      this.transport += 1;
+      this.hub = this.connect(this.transport);
+      try {
+        await this.hub.start();
+      } catch (fallbackError) {
+        appLog.error("The hub connection failed", fallbackError);
+        throw fallbackError;
+      }
     }
+    appLog.info("The hub connection is up");
   }
 
   /** Calls a hub method, traced when telemetry is on. */

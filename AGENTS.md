@@ -16,3 +16,10 @@ Rules:
 - Every change comes with tests.
 - Entity Framework Core for all database access. A model change needs a new migration; never edit one on master.
 - Keep this repository free of anything about where it is deployed (hosts, addresses, private repositories).
+- Several pods run at once, old and new code side by side during an update (docs/cluster.md). Grain interfaces and
+  `[GenerateSerializer]` types change only by adding: a new method raises the interface's `[Version]`, an old one stays
+  (`[Obsolete]`) for a release, an `[Id]` is never reused, and a new member's default means "not sent". Record the
+  change in `tests/Pspsps.Server.Test/Game/wire-contracts.txt` (docs/architecture.md, "Changing what pods say to each
+  other").
+- Nothing that must hold across pods lives in one pod's memory: grains, the database, or a message every pod gets
+  (SignalR users and groups, the Redis signal).

@@ -1,6 +1,7 @@
 using System.Diagnostics.Metrics;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.DependencyInjection;
+using Orleans.Core.Internal;
 using Pspsps.Domain;
 using Pspsps.Server.Game;
 using Pspsps.Server.Hubs;
@@ -73,6 +74,26 @@ public sealed class SessionLeaseTests
         // What the browser does then: back into the world, then the room it was in.
         await felixHub.InvokeAsync<RoomSnapshot>("EnterWorld", WorldId);
         var room = await felixHub.InvokeAsync<RoomSnapshot>("GoToRoom", "cafe");
+        Assert.That(room.Cats.Select(c => c.PlayerId), Does.Contain(felix.Id));
+    }
+
+    [Test]
+    public async Task ARoomThatGoesAway_WithCatsInIt_TellsTheirTabsAtOnce_NotAtTheirNextRenewal()
+    {
+        // A room can go with cats in it: its pod stopping (a rolling update), or Orleans replacing an activation an
+        // upgraded pod's call can't use. Its tabs walk back in at once.
+        var (felix, felixHub) = await Game.ConnectGuestAsync();
+        await using var _ = felixHub;
+        var lost = new TaskCompletionSource();
+        felixHub.On("RoomLost", () => lost.TrySetResult());
+        await felixHub.InvokeAsync<RoomSnapshot>("EnterWorld", "tabby");
+        await felixHub.InvokeAsync<RoomSnapshot>("GoToRoom", "shop");
+
+        var grains = Game.Services.GetRequiredService<IGrainFactory>();
+        await grains.GetGrain<IRoomGrain>(RoomKey.For("tabby", "shop")).Cast<IGrainManagementExtension>().DeactivateOnIdle();
+
+        await lost.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        var room = await felixHub.InvokeAsync<RoomSnapshot>("GoToRoom", "shop");
         Assert.That(room.Cats.Select(c => c.PlayerId), Does.Contain(felix.Id));
     }
 

@@ -3,8 +3,11 @@ using Pspsps.Server.Game;
 
 namespace Pspsps.Server.Hubs;
 
-/// <summary>Room broadcasts through SignalR groups; the Redis backplane carries them to the other pods.</summary>
-internal sealed class HubRoomBroadcaster(IHubContext<GameHub, IGameClient> hub) : IRoomBroadcaster
+/// <summary>
+/// Room broadcasts through SignalR groups, and messages to one tab through its connection; the Redis backplane carries
+/// them to the pod holding each connection.
+/// </summary>
+internal sealed class HubRoomBroadcaster(IHubContext<GameHub, IGameClient> hub, TimeProvider time) : IRoomBroadcaster
 {
     public Task CatJoined(string roomKey, CatView cat) => hub.Clients.Group(roomKey).CatJoined(cat);
 
@@ -23,11 +26,15 @@ internal sealed class HubRoomBroadcaster(IHubContext<GameHub, IGameClient> hub) 
 
     public Task FishGotAway(string session) => hub.Clients.Client(session).FishGotAway();
 
+    public Task RoomLost(string session) => hub.Clients.Client(session).RoomLost();
+
     public Task HomeChanged(string roomKey, HomeView home) => hub.Clients.Group(roomKey).HomeChanged(home);
 
     public async Task SentOut(string roomKey, string session, string message)
     {
-        await hub.Groups.RemoveFromGroupAsync(session, roomKey);
+        // Called by the room's grain, on any pod: bounded, so a connection that closed (or whose pod died) doesn't hold up
+        // the room for the backplane's 30 seconds.
+        await HubGroups.RemoveAsync(hub, session, roomKey, time);
         // Which home: a tab that has gone into another meanwhile stays there.
         await hub.Clients.Client(session).SentOut(RoomKey.HomeOwner(roomKey) ?? Guid.Empty, message);
     }
