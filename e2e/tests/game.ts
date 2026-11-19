@@ -127,6 +127,7 @@ declare global {
       decorating(): { picked?: string; selected?: string } | undefined;
       mutes(): string[];
       bubble(playerId: string): string | undefined;
+      portrait(outfit: { fur: string; hat: string | null; collar: string | null }): Promise<string> | undefined;
     };
   }
 }

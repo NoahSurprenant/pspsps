@@ -147,6 +147,8 @@ declare global {
       mutes(): string[];
       /** What the bubble over a cat in the room says now, if anything. */
       bubble(playerId: string): string | undefined;
+      /** A picture of a cat dressed in <outfit>, as the player cards show it, once a room has loaded the model. */
+      portrait(outfit: Outfit): Promise<string> | undefined;
     };
   }
 }
@@ -163,6 +165,7 @@ window.pspsps = {
   decorating: () => decorating,
   mutes: () => mutes.list.map((muted) => muted.playerId),
   bubble: (playerId) => scene?.bubbleOf(playerId),
+  portrait: (outfit) => scene?.portraits.picture(outfit),
 };
 
 const connection = new GameConnection({

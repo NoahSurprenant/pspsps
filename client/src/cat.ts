@@ -136,8 +136,9 @@ export interface Outfit {
  * A modelled cat (a cube cat) in flat, unlit colours with dark outlines, for the hand-drawn look, that walks, idles,
  * sits, sleeps, waves and meows.
  *
- * Attachment points, for what a cat wears: `anchors.headTop` sits on top of the head between the ears (hats), and
- * `anchors.neck` on the front of the chest just under the mouth, at collar height (collars). Both hang off the model's
+ * Attachment points, for what a cat wears: `anchors.headTop` sits on the flat top of the head (at its middle, a little
+ * forward: just behind the ears, which stand up from its front corners) for hats, and `anchors.neck` on the front of
+ * the chest just under the mouth, where the body is upright, at collar height (collars). Both hang off the model's
  * body, so whatever is parented to them follows the animations (it leans back when the cat sits, lies down when it
  * sleeps), and both face the way the cat faces: +y up, +z forward, in the model's units (before the cat's scale).
  * Parent a hat with `hat.parent = cat.anchors.headTop`, modelled with its brim at y = 0; a collar to `neck`, with its
@@ -200,8 +201,8 @@ export class Cat {
     });
 
     this.anchors = {
-      headTop: anchor(scene, `${name}-head-top`, body, 0, 1.13, 0.1),
-      neck: anchor(scene, `${name}-neck`, body, 0, 0.3, 0.63),
+      headTop: anchor(scene, `${name}-head-top`, body, 0, 1.25, 0.1),
+      neck: anchor(scene, `${name}-neck`, body, 0, 0.365, 0.63),
     };
 
     this.groups = new Map(made.animationGroups.flatMap((group) => {
