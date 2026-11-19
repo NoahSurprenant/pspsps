@@ -39,8 +39,11 @@ public sealed class GameFactory(string connectionString) : WebApplicationFactory
         // The browsers' telemetry on, forwarded to Collector.
         builder.UseSetting("ClientTelemetry:Enabled", "true");
         builder.UseSetting("ClientTelemetry:OtlpEndpoint", "http://collector.test:4318");
+        // Network bans on: the key the server hashes addresses with. Requests have an address only with TestPeer's header.
+        builder.UseSetting("Moderation:AddressKey", AddressKey);
         builder.ConfigureTestServices(services =>
         {
+            services.AddSingleton<IStartupFilter, TestPeer>();
             services.AddSingleton<IStartupFilter, FakeExternalSignIn>();
             services.AddHttpClient<ClientTelemetryForwarder>().ConfigurePrimaryHttpMessageHandler(() => Collector);
             services.ConfigureDbContext<PspspsDbContext>(options =>
@@ -60,6 +63,9 @@ public sealed class GameFactory(string connectionString) : WebApplicationFactory
             services.AddKeyedSingleton<TimeProvider>(ModerationClock.Key, ModerationTime);
         });
     }
+
+    /// <summary>The server's secret for network hashes.</summary>
+    public const string AddressKey = "integration-test-key-0123456789abcdef";
 
     public FakeTimeProvider GrainClock { get; } = new(DateTimeOffset.UtcNow);
 
@@ -83,16 +89,21 @@ public sealed class GameFactory(string connectionString) : WebApplicationFactory
         where T : notnull => Services.CreateScope().ServiceProvider.GetRequiredService<T>();
 
     /// <summary>Signs in a new guest and opens their hub connection (long polling through the test server).</summary>
-    public async Task<(PlayerProfile Player, HubConnection Hub)> ConnectGuestAsync()
+    public async Task<(PlayerProfile Player, HubConnection Hub)> ConnectGuestAsync(string? from = null)
     {
-        var (player, cookie) = await SignInGuestAsync();
-        return (player, await ConnectAsync(cookie));
+        var (player, cookie) = await SignInGuestAsync(from);
+        return (player, await ConnectAsync(cookie, from));
     }
 
-    /// <summary>Signs in a new guest; returns them and their cookie.</summary>
-    public async Task<(PlayerProfile Player, string Cookie)> SignInGuestAsync()
+    /// <summary>Signs in a new guest (from the address <paramref name="from"/>, if any); returns them and their cookie.</summary>
+    public async Task<(PlayerProfile Player, string Cookie)> SignInGuestAsync(string? from = null)
     {
         using var client = CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = false });
+        if (from is not null)
+        {
+            client.DefaultRequestHeaders.Add(TestPeer.Header, from);
+        }
+
         using var response = await client.PostAsync(new Uri("/auth/guest", UriKind.Relative), null);
         response.EnsureSuccessStatusCode();
         var cookie = response.Headers.GetValues("Set-Cookie").Single(c => c.StartsWith("pspsps=", StringComparison.Ordinal));
@@ -100,8 +111,11 @@ public sealed class GameFactory(string connectionString) : WebApplicationFactory
         return (player, cookie.Split(';')[0]);
     }
 
-    /// <summary>Opens a hub connection with <paramref name="cookie"/>: another tab of the same player, say.</summary>
-    public async Task<HubConnection> ConnectAsync(string cookie)
+    /// <summary>
+    /// Opens a hub connection with <paramref name="cookie"/> (from the address <paramref name="from"/>, if any): another
+    /// tab of the same player, say.
+    /// </summary>
+    public async Task<HubConnection> ConnectAsync(string cookie, string? from = null)
     {
         var hub = new HubConnectionBuilder()
             .WithUrl(new Uri(Server.BaseAddress, "/hubs/game"), options =>
@@ -109,6 +123,10 @@ public sealed class GameFactory(string connectionString) : WebApplicationFactory
                 options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling;
                 options.HttpMessageHandlerFactory = _ => Server.CreateHandler();
                 options.Headers["Cookie"] = cookie;
+                if (from is not null)
+                {
+                    options.Headers[TestPeer.Header] = from;
+                }
             })
             .AddJsonProtocol(options => options.PayloadSerializerOptions = JsonOptions.Web)
             .Build();

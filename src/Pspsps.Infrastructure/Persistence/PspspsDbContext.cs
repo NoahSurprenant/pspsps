@@ -23,6 +23,10 @@ public sealed class PspspsDbContext(DbContextOptions<PspspsDbContext> options)
 
     public DbSet<ModerationEntry> ModerationEntries => Set<ModerationEntry>();
 
+    public DbSet<PlayerAddress> PlayerAddresses => Set<PlayerAddress>();
+
+    public DbSet<AddressBan> AddressBans => Set<AddressBan>();
+
     public DbSet<Mute> Mutes => Set<Mute>();
 
     public DbSet<Report> Reports => Set<Report>();
@@ -83,6 +87,24 @@ public sealed class PspspsDbContext(DbContextOptions<PspspsDbContext> options)
         }
 
         Entry(moderation).State = EntityState.Detached;
+    }
+
+    public void Forget(AddressBan ban)
+    {
+        ArgumentNullException.ThrowIfNull(ban);
+        // Its new audit lines are tracked apart (added to ModerationEntries), not through it.
+        foreach (var entry in ban.Entries)
+        {
+            Entry(entry).State = EntityState.Detached;
+        }
+
+        Entry(ban).State = EntityState.Detached;
+    }
+
+    public void Forget(PlayerAddress address)
+    {
+        ArgumentNullException.ThrowIfNull(address);
+        Entry(address).State = EntityState.Detached;
     }
 
     public void Forget(Mute mute)

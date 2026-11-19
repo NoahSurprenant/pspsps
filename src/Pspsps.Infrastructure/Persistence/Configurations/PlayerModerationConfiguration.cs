@@ -38,6 +38,8 @@ internal sealed class ModerationEntryConfiguration : IEntityTypeConfiguration<Mo
         builder.Property(e => e.Id).ValueGeneratedNever();
         builder.Property(e => e.Kind).HasConversion<string>().HasMaxLength(16);
         builder.Property(e => e.Reason).HasMaxLength(PlayerModeration.MaxReasonLength);
+        // A network's label (the first 8 hex digits of its keyed hash), never an address.
+        builder.Property(e => e.Address).HasMaxLength(AddressHashes.LabelLength);
         // The admin page reads the latest lines.
         builder.HasIndex(e => e.At);
         builder.HasIndex(e => new { e.PlayerId, e.At });

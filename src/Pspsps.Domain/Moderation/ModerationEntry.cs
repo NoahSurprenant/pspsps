@@ -2,7 +2,7 @@ namespace Pspsps.Domain.Moderation;
 
 /// <summary>
 /// One line of a player's audit trail: who (<see cref="ByPlayerId"/>) did what (<see cref="Kind"/>) to them, when, why,
-/// and until when. Made only by <see cref="PlayerModeration"/>, never changed.
+/// and until when. Made only by <see cref="PlayerModeration"/> and <see cref="AddressBan"/>, never changed.
 /// </summary>
 public sealed class ModerationEntry
 {
@@ -11,7 +11,8 @@ public sealed class ModerationEntry
     }
 
     internal ModerationEntry(
-        Guid playerId, ModerationKind kind, Guid byPlayerId, DateTimeOffset at, string? reason, DateTimeOffset? until)
+        Guid playerId, ModerationKind kind, Guid byPlayerId, DateTimeOffset at, string? reason, DateTimeOffset? until,
+        string? address = null)
     {
         Id = Guid.CreateVersion7(at);
         PlayerId = playerId;
@@ -20,6 +21,7 @@ public sealed class ModerationEntry
         At = at;
         Reason = reason;
         Until = until;
+        Address = address;
     }
 
     public Guid Id { get; private set; }
@@ -39,4 +41,10 @@ public sealed class ModerationEntry
 
     /// <summary>When a mute or ban ends; null for good, and for the rest.</summary>
     public DateTimeOffset? Until { get; private set; }
+
+    /// <summary>
+    /// For a network's ban or its lift: the network's label (<see cref="AddressHashes.Label"/>, the first 8 hex digits of
+    /// its keyed hash), never the address. Null for the rest.
+    /// </summary>
+    public string? Address { get; private set; }
 }

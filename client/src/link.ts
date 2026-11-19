@@ -25,6 +25,10 @@ export function addressNote(search: string, signedIn: boolean): Note | undefined
   if (query.get("signin") === "failed") {
     return { text: "Signing in didn't work. Try again.", error: true };
   }
+  // Refused because the network was banned (the page shows why, while it is): over by now.
+  if (query.get("signin") === "banned") {
+    return { text: "Signing in was refused from this network for a while. Try again.", error: true };
+  }
 
   switch (query.get("link")) {
     case "linked":

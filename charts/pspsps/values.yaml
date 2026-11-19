@@ -27,6 +27,9 @@ image:
 #   POSTGRES_PASSWORD   the database password (letters and digits: it goes into a connection string)
 #   Authentication__Discord__ClientId, Authentication__Discord__ClientSecret     (optional)
 #   Authentication__Google__ClientId, Authentication__Google__ClientSecret       (optional)
+#   Moderation__AddressKey   (optional) the secret network bans hash addresses with (HMAC-SHA256), at least 32
+#                            random characters: with it, admins can ban a banned player's networks too
+#                            (moderation.addressBans). Keep it the same across restarts: a new key forgets every network.
 # With postgres.enabled false, ConnectionStrings__Pspsps instead of POSTGRES_PASSWORD.
 existingSecret: pspsps
 
@@ -82,6 +85,15 @@ chatFilter:
 moderation:
   adminPlayerIds: []
   #  - 0196d5a8-6b1e-7c3a-9f00-1234567890ab
+  # Network bans: an admin banning a player can ban the networks it played from in the last 7 days too, for a day or a
+  # week, so a banned guest can't come back as a new cat from there. The server keeps only keyed hashes of networks
+  # (an IPv6 address by its /64), for 7 days (docs/privacy.md). Needs Moderation__AddressKey in existingSecret, and
+  # forwardedHeaders.knownIPNetworks set to the proxy in front: without it every player looks like the proxy, whose
+  # private address is never kept, so no network can be banned (the server warns as it starts).
+  addressBans:
+    # "": on exactly when the Secret has the key. true: the server refuses to start without the key. false: off (what
+    # was kept is forgotten within the hour).
+    enabled: ""
 
 extraEnv: []
 

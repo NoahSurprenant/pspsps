@@ -38,6 +38,13 @@ describe("addressNote", () => {
     }
   });
 
+  it("says a sign-in refused for a banned network was, once its ban is over (while it holds, the page shows the ban)", () => {
+    expect(addressNote("?signin=banned", false)).toEqual({
+      text: "Signing in was refused from this network for a while. Try again.",
+      error: true,
+    });
+  });
+
   it("says nothing otherwise", () => {
     expect(addressNote("", true)).toBeUndefined();
     expect(addressNote("?link=something-else", true)).toBeUndefined();

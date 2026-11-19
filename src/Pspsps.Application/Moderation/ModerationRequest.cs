@@ -26,6 +26,16 @@ public sealed record ModerationRequest(ModerationAction Action, string? Reason, 
     public static readonly IReadOnlyDictionary<string, TimeSpan?> BanLengths =
         Named(["24h", "7d", "permanent"], PlayerModeration.BanLengths);
 
+    /// <summary>How long a network's ban can be, by name: never for good.</summary>
+    public static readonly IReadOnlyDictionary<string, TimeSpan> NetworkLengths =
+        Named(["24h", "7d"], AddressBan.Lengths);
+
+    /// <summary>A network's ban's length from its name (one of <see cref="NetworkLengths"/>).</summary>
+    public static TimeSpan NetworkLength(string? length) =>
+        NetworkLengths.TryGetValue(length ?? "", out var span)
+            ? span
+            : throw new DomainException("A network's ban lasts a day or a week.");
+
     // The Domain's lengths (its rule), by the names the browser sends, in the same order: one list, never two to keep in step.
     private static Dictionary<string, T> Named<T>(string[] names, IReadOnlyList<T> lengths) =>
         names.Length == lengths.Count

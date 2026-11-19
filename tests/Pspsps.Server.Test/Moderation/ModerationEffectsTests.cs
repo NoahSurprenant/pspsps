@@ -19,6 +19,7 @@ public sealed class ModerationEffectsTests
     private IGrainFactory _grains = null!;
     private IPlayerSessionGrain _session = null!;
     private PlayerConnections _connections = null!;
+    private AddressBanCache _networks = null!;
     private ServiceProvider _services = null!;
     private ModerationEffects _effects = null!;
 
@@ -36,8 +37,9 @@ public sealed class ModerationEffectsTests
         moderation.StandingAsync(default, default).ReturnsForAnyArgs(Standing.None);
         _services = new ServiceCollection().AddScoped(_ => moderation).BuildServiceProvider();
         var standings = new StandingCache(_services.GetRequiredService<IServiceScopeFactory>(), _time);
-        var signal = new LocalModerationSignal(new ModerationOnThisPod(_connections, standings, _time));
-        _effects = new ModerationEffects(hub, signal, standings, _grains, NullLogger<ModerationEffects>.Instance);
+        _networks = new AddressBanCache(_services.GetRequiredService<IServiceScopeFactory>(), _time);
+        var signal = new LocalModerationSignal(new ModerationOnThisPod(_connections, standings, _networks, _time));
+        _effects = new ModerationEffects(hub, signal, _connections, standings, _grains, NullLogger<ModerationEffects>.Instance);
     }
 
     [TearDown]
@@ -107,7 +109,7 @@ public sealed class ModerationEffectsTests
         var hub = Substitute.For<IHubContext<GameHub, IGameClient>>();
         hub.Clients.User(Felix.ToString()).Returns(_felix);
         var standings = new StandingCache(_services.GetRequiredService<IServiceScopeFactory>(), _time);
-        var effects = new ModerationEffects(hub, signal, standings, _grains, NullLogger<ModerationEffects>.Instance);
+        var effects = new ModerationEffects(hub, signal, _connections, standings, _grains, NullLogger<ModerationEffects>.Instance);
         var now = _time.GetUtcNow();
 
         await effects.AppliedAsync(Felix, ModerationAction.Mute, new Standing(null, new Sanction("Rude", now, now.AddHours(1), Guid.NewGuid())));
