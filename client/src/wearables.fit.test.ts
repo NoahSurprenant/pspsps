@@ -4,7 +4,7 @@ import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import { Scene } from "@babylonjs/core/scene";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { Cat, loadCatModel } from "./cat";
+import { Cat, loadCatModel, outlineWidth as outline } from "./cat";
 import catGlb from "./models/cat.glb?inline";
 import { collarIds, hatIds } from "./wearables";
 
@@ -15,9 +15,6 @@ function modelBytes(): Uint8Array {
   return Uint8Array.from(atob(catGlb.slice(catGlb.indexOf(",") + 1)), (c) => c.charCodeAt(0));
 }
 
-// The outline drawn round the coat and what the cat wears, in the model's units (cat.ts): a gap narrower than this
-// shows the coat's outline through the collar.
-const outline = 0.025 / 0.75;
 
 describe("what a cat wears, on the model", () => {
   let engine: NullEngine;

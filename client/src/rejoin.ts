@@ -53,3 +53,12 @@ export function landingNotice(shown: Pick<RoomSnapshot, "notice">): string | und
 export function saysSentOutAgain(shown: Pick<RoomSnapshot, "home" | "notice"> | undefined): boolean {
   return shown !== undefined && !shown.home && !shown.notice;
 }
+
+/**
+ * What the page goes on showing when walking back into a room (<reason>) is refused: after a reconnect, the room entering
+ * the world landed in (<showing>), which the server keeps the cat in; after a lost room, none, as the server has the
+ * cat in no room.
+ */
+export function stayAfterRefusal<R>(reason: "roomLost" | "reconnected", showing: R | undefined): R | undefined {
+  return reason === "reconnected" ? showing : undefined;
+}

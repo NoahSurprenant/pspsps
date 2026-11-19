@@ -809,7 +809,7 @@ public sealed class GameHubTests
         await home.Received(1).Furnish(Arg.Is<HomeView>(h => h.OwnerId == Tom.Id && h.Visitors == "Friends"));
         await home.Received(1).SendOut(
             Arg.Is<IReadOnlyList<Guid>>(ids => ids.SequenceEqual(new[] { Felix })),
-            "Tom changed who can visit their home, so you went back to Town Square.");
+            "Tom changed who can visit their home, so you had to leave.");
     }
 
     [Test]
@@ -1121,6 +1121,21 @@ public sealed class GameHubTests
         await tomsHome.ReceivedWithAnyArgs(1).Join(default!, default!, default);
         await _heartbeat.RenewAsync();
         await felixHome.ReceivedWithAnyArgs(1).Renew(default!);
+    }
+
+    [Test]
+    public async Task EnterWorld_WhenTownSquareCannotAnswer_LandsInTheCafe_OutOfTownSquaresGroup()
+    {
+        // Its group joined before the join that failed: left again, or the tab would hear Town Square from the café.
+        _room.Join(default!, default!, default).ThrowsAsyncForAnyArgs(new TimeoutException());
+        var hub = Hub();
+
+        var landed = await hub.EnterWorld("tabby");
+
+        Assert.That(landed.RoomId, Is.EqualTo("cafe"));
+        Assert.That(landed.Notice, Is.EqualTo("That room couldn't be opened just now. You went to Cat Café instead."));
+        await hub.Groups.Received(1).RemoveFromGroupAsync(Connection, "tabby/town-square");
+        await hub.Groups.DidNotReceive().RemoveFromGroupAsync(Connection, "tabby/cafe");
     }
 
     [Test]

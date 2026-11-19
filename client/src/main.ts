@@ -5,7 +5,7 @@ import { addressNote, linkUrl, loginUrl } from "./link";
 import { GameConnection, fetchMe, fetchProviders, messageOf, playAsGuest, signOut } from "./net";
 import { lazily } from "./lazy";
 import { loadRoom, PendingEvents } from "./pending";
-import { comeBack, landingNotice, saysSentOutAgain } from "./rejoin";
+import { comeBack, landingNotice, saysSentOutAgain, stayAfterRefusal } from "./rejoin";
 import { catchBubble, FishingState, gotAwayMessage, paid, pondEdge, reelMessage, type Fishing } from "./fishing";
 import { Room } from "./room";
 import type { CatAnimation } from "./cat";
@@ -521,7 +521,7 @@ function rejoin(reason: "roomLost" | "reconnected"): void {
         return room?.snapshot.roomId;
       },
       // Back into the home the cat was in, if it still lets the cat in; Town Square if not.
-      current.home ? () => backInto(current.home?.ownerId ?? "") : goTo,
+      current.home ? () => backInto(current.home?.ownerId ?? "") : (roomId) => goTo(roomId, stayAfterRefusal(reason, room)),
     );
   }
 }
@@ -548,11 +548,10 @@ async function enter(worldId: string): Promise<void> {
 }
 
 /**
- * Goes to a room of the world. Refused, the server keeps the cat in the room it was in (the one showing: after walking
- * back into a world, the room it landed in), or lands it in the next place on its way out, which shows instead.
+ * Goes to a room of the world; refused (the server lands the cat in the next place on its way out, which shows instead,
+ * unless nothing answered), the page shows <stay>, where the server still has the cat, or no room.
  */
-async function goTo(roomId: string): Promise<void> {
-  const stay = room;
+async function goTo(roomId: string, stay?: Room): Promise<void> {
   await load(() => connection.goToRoom(roomId), stay);
 }
 

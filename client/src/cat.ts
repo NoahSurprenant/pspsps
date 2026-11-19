@@ -123,7 +123,7 @@ export async function loadCatModel(scene: Scene, bytes: Uint8Array): Promise<Ass
 // The model is about 1.25 m wide; cats are a little smaller.
 const modelScale = 0.75;
 // The dark outline round the coat and what the cat wears, in the model's units.
-const outlineWidth = 0.025 / modelScale;
+export const outlineWidth = 0.025 / modelScale;
 
 /** What a cat wears: its fur, and the hat and collar it has on (the shop's item IDs), if any. */
 export interface Outfit {

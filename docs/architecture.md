@@ -157,7 +157,7 @@ The owner chooses who may come in (`HomeVisitors`): their friends (every home st
 always may (`Home.MayVisit`). Visiting checks it (`HomeService.VisitAsync`), and "Go to" a friend who is in a home visits
 that home on the same terms. When the owner makes it stricter, the hub asks the home who is in it, the home's rule says
 who may no longer stay (`HomeService.MustLeaveAsync`), and the room sends them out (`IRoomGrain.SendOut`): each tab
-is told (`SentOut`) and goes back to Town Square in its own world. Ending a friendship asks both homes the same way.
+is told (`SentOut`) and goes to Town Square in its own world (or on along its way out, below). Ending a friendship asks both homes the same way.
 
 A cat is never left in no room. When the room it was going to doesn't take it (full, a home closed to it, or a room
 that couldn't be opened), the Domain's way out (`WayOut`) says where it goes instead, in order: back into the room it

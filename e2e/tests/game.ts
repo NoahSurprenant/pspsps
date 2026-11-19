@@ -371,3 +371,29 @@ export async function moderate(
   })).status, [playerId, request] as const);
   expect(status, `moderating ${playerId}`).toBe(200);
 }
+
+/** What window.pspsps.portrait pictures: a cat in a fur, with a hat and a collar (or none). */
+export interface Outfit {
+  fur: string;
+  hat: string | null;
+  collar: string | null;
+}
+
+/** A picture of a cat dressed in <outfit>, as the player cards picture it, as a PNG. */
+export async function pictureOf(page: Page, outfit: Outfit): Promise<Buffer> {
+  const url = await page.evaluate((o) => window.pspsps?.portrait(o), outfit) ?? "";
+  expect(url, `a picture of ${JSON.stringify(outfit)}`).toMatch(/^data:image\/png;base64,/);
+  return Buffer.from(url.slice(url.indexOf(",") + 1), "base64");
+}
+
+/** How many of a PNG's pixels differ from another's of the same size: what a hat or a collar adds to a picture. */
+export function differing(a: Buffer, b: Buffer): number {
+  const [one, two] = [PNG.sync.read(a), PNG.sync.read(b)];
+  let count = 0;
+  for (let i = 0; i < one.data.length; i += 4) {
+    const d = Math.abs(one.data[i]! - two.data[i]!) + Math.abs(one.data[i + 1]! - two.data[i + 1]!)
+      + Math.abs(one.data[i + 2]! - two.data[i + 2]!) + Math.abs(one.data[i + 3]! - two.data[i + 3]!);
+    if (d > 40) count++;
+  }
+  return count;
+}

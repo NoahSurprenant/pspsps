@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
-import { PNG } from "pngjs";
 import {
-  catEyes, clickCat, doorMatRed, enterWorld, expect, goHome, goThroughDoor, pixelsNear, pondBlue, portrait, test,
+  catEyes, clickCat, differing, doorMatRed, enterWorld, expect, goHome, goThroughDoor, pictureOf, pixelsNear, pondBlue, portrait,
+  test,
 } from "./game";
 
 // The game on a device with WebGL1 only (older phones and tablets): the browser has no WebGL2, so Babylon falls back to
@@ -30,24 +30,6 @@ async function expectDrawn(page: Page, things: [string, [number, number, number]
   } finally {
     await page.locator("#ui").evaluate((ui) => (ui.style.visibility = ""));
   }
-}
-
-/** How many of a picture's pixels differ from another's. */
-function differing(a: Buffer, b: Buffer): number {
-  const [one, two] = [PNG.sync.read(a), PNG.sync.read(b)];
-  let count = 0;
-  for (let i = 0; i < one.data.length; i += 4) {
-    const d = Math.abs(one.data[i]! - two.data[i]!) + Math.abs(one.data[i + 1]! - two.data[i + 1]!)
-      + Math.abs(one.data[i + 2]! - two.data[i + 2]!) + Math.abs(one.data[i + 3]! - two.data[i + 3]!);
-    if (d > 40) count++;
-  }
-  return count;
-}
-
-async function pictureOf(page: Page, outfit: { fur: string; hat: string | null; collar: string | null }): Promise<Buffer> {
-  const url = await page.evaluate((o) => window.pspsps?.portrait(o), outfit);
-  expect(url).toMatch(/^data:image\/png;base64,/);
-  return Buffer.from((url ?? "").slice((url ?? "").indexOf(",") + 1), "base64");
 }
 
 test("every room, the cats, what they wear and the card's picture draw with WebGL1 only", async ({ page }) => {

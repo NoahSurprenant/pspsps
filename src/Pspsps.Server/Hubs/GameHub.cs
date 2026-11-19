@@ -275,7 +275,7 @@ public sealed partial class GameHub(
         var home = await Furnish(() => homes.LetInAsync(PlayerId, choice, Context.ConnectionAborted));
         // Saved by now: a send-out that fails leaves its cats until they leave, and the owner keeps their setting.
         await SendOutWhoMayNotStay(
-            PlayerId, null, () => Task.FromResult($"{home.OwnerName} changed who can visit their home, so you went back to Town Square."));
+            PlayerId, null, () => Task.FromResult($"{home.OwnerName} changed who can visit their home, so you had to leave."));
 
         return home;
     }
@@ -329,7 +329,7 @@ public sealed partial class GameHub(
             }
 
             await SendOutWhoMayNotStay(owner, [visitor], async () =>
-                $"You and {await ownerName() ?? "that cat"} aren't friends any more, so you went back to Town Square.");
+                $"You and {await ownerName() ?? "that cat"} aren't friends any more, so you had to leave their home.");
         }
     }
 
@@ -833,6 +833,12 @@ public sealed partial class GameHub(
         {
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, key);
             throw new HubException(e.Message);
+        }
+        catch
+        {
+            // Couldn't answer: out of its group too, or the tab would hear that room wherever the cat goes next.
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, key);
+            throw;
         }
 
         if (!MoveTo(new ConnectionPlace(PlayerId, worldId, key)))
