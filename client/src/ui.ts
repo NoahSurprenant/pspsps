@@ -15,7 +15,7 @@ import {
 import {
   catalogueSections, hasMoreToWear, wardrobeSections, wearingLine, type ShopAction, type ShopRow, type ShopSection,
 } from "./shop";
-import { maxDisplayNameLength, minDisplayNameLength, type OwnCardRename } from "./rename";
+import { maxDisplayNameLength, type OwnCardRename } from "./rename";
 import { pageTitle } from "./title";
 import type {
   DoorView, Emote, FurColor, Friend, FurnitureView, HomeVisitors, MutedView, Player, PlayerCard, RoomSnapshot, Shop,
@@ -895,7 +895,8 @@ function renameForm(name: string, rename: OwnCardRename): HTMLElement {
   const input = el("input", { id: "rename-input" });
   input.type = "text";
   input.value = name;
-  input.minLength = minDisplayNameLength;
+  // Not minLength: the browser's own validation would block the submit event (and show its own message) before the
+  // form's listener ever runs. The server decides for real; a name too short comes back as a toast, same as any refusal.
   input.maxLength = maxDisplayNameLength;
   input.autocomplete = "off";
   input.setAttribute("aria-label", "New name");
@@ -1010,7 +1011,6 @@ function moderateSection(
 
   const renameTo = el("input", { id: "moderate-rename" });
   renameTo.maxLength = maxDisplayNameLength;
-  renameTo.minLength = minDisplayNameLength;
   renameTo.autocomplete = "off";
   renameTo.value = before?.querySelector<HTMLInputElement>("#moderate-rename")?.value ?? "";
   renameTo.setAttribute("aria-label", `${name}'s new name`);

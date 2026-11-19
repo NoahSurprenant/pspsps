@@ -376,8 +376,15 @@ test("a cat renames itself from its own card, and another cat sees the new label
   const felix = await newPlayer(browser);
   try {
     const tomId = await enterWorld(tom, "Siamese");
-    await enterWorld(felix.page, "Siamese");
+    const felixId = await enterWorld(felix.page, "Siamese");
     await expect.poll(async () => Object.keys(await cats(felix.page))).toContain(tomId);
+
+    // Both cats start on the same spot: Felix walks off, so Tom taps his own cat, not Felix's (another cat's takes a
+    // tap's ray first, on the same spot).
+    const canvas = await felix.page.locator("#game").boundingBox();
+    if (!canvas) throw new Error("no canvas");
+    await felix.page.mouse.click(canvas.x + canvas.width / 2, canvas.y + canvas.height / 2);
+    await expect.poll(async () => (await cats(tom))[felixId]?.z).toBeLessThan(3);
 
     await clickCat(tom, tomId);
     const card = tom.getByRole("dialog");
