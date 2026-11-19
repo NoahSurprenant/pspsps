@@ -29,7 +29,7 @@ public sealed class ClientAddressesTests
             Assert.That(Hash("192.0.2.1"), Is.EqualTo(hash), "stable");
             Assert.That(Hash("192.0.2.2"), Is.Not.EqualTo(hash), "the whole address: a neighbour is another network");
             Assert.That(hash, Is.EqualTo(Convert.ToHexStringLower(
-                HMACSHA256.HashData(Encoding.UTF8.GetBytes(Key), [192, 0, 2, 1]))), "HMAC-SHA256 of the address's bytes");
+                HMACSHA256.HashData(Encoding.UTF8.GetBytes(Key), new byte[] { 192, 0, 2, 1 }))), "HMAC-SHA256 of the address's bytes");
             Assert.That(Hash("::ffff:192.0.2.1"), Is.EqualTo(hash), "written as IPv6, the same address");
         });
     }

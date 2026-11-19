@@ -186,11 +186,18 @@ public sealed class NetworkBanTests
 
         var db = Game.Get<PspspsDbContext>();
         var rows = new List<string>();
-        foreach (var table in new[] { "player_addresses", "address_bans", "moderation_entries", "player_moderation", "players" })
+        // Every row of the tables network bans touch, whole, as text.
+        FormattableString[] tables =
+        [
+            $"SELECT t::text AS \"Value\" FROM player_addresses AS t",
+            $"SELECT t::text AS \"Value\" FROM address_bans AS t",
+            $"SELECT t::text AS \"Value\" FROM moderation_entries AS t",
+            $"SELECT t::text AS \"Value\" FROM player_moderation AS t",
+            $"SELECT t::text AS \"Value\" FROM players AS t",
+        ];
+        foreach (var table in tables)
         {
-            rows.AddRange(await db.Database
-                .SqlQueryRaw<string>("SELECT t::text AS \"Value\" FROM " + table + " AS t")
-                .ToListAsync());
+            rows.AddRange(await db.Database.SqlQuery<string>(table).ToListAsync());
         }
 
         var bytes = Convert.ToHexStringLower(IPAddress.Parse(Address).GetAddressBytes());
