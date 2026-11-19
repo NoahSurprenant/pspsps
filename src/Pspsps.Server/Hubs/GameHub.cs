@@ -248,7 +248,16 @@ public sealed partial class GameHub(
 
         if (place.RoomKey is { } was)
         {
-            await LeaveRoom(was);
+            try
+            {
+                await LeaveRoom(was);
+            }
+            catch (Exception e) when (e is not OperationCanceledException && e is not HubException)
+            {
+                // The room can't answer (its pod is stopping: the tab was told the room is lost, and is walking back in).
+                // The tab is out of its group already, and nothing renews its lease there any more: it runs out.
+                LogLeaveRoomFailed(logger, e, PlayerId, was);
+            }
         }
 
         try
@@ -974,6 +983,9 @@ public sealed partial class GameHub(
             throw new HubException(e.Message);
         }
     }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Player {PlayerId} couldn't leave {RoomKey} on the way to another room; the lease there runs out instead")]
+    private static partial void LogLeaveRoomFailed(ILogger logger, Exception exception, Guid playerId, string roomKey);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't record that player {PlayerId} is in {RoomKey}; friends won't find them there")]
     private static partial void LogArrivalNotRecorded(ILogger logger, Exception exception, Guid playerId, string roomKey);

@@ -1033,6 +1033,23 @@ public sealed class GameHubTests
     }
 
     [Test]
+    public async Task GoToRoom_WhenTheRoomItLeavesCantAnswer_StillGoesIn()
+    {
+        // A room whose pod is stopping told its tab it is lost; the tab walks back in while the old activation's pod is
+        // going (SiloUnavailableException in the two-pod run). Its lease there runs out by itself.
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+        await hub.GoToRoom("cafe");
+        _cafe.Leave(default, default!).ThrowsAsyncForAnyArgs(new TimeoutException("the room's pod is gone"));
+
+        await hub.GoToRoom("cafe");
+
+        await _cafe.ReceivedWithAnyArgs(2).Join(default!, default!, default);
+        await hub.Say("back");
+        await _cafe.Received(1).Say(Tom.Id, "back");
+    }
+
+    [Test]
     public async Task GoToRoom_FullWhenTheRoomLeftCantAnswerEither_LeavesTheRenewalToWalkTheTabBackIn()
     {
         var hub = Hub();
