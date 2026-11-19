@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  decidedMessage, decisionChoices, decisionRequest, liftLabel, logLine, networkBanLine, reportFacts, reportHeading,
+  decidedMessage, decisionChoices, decisionRequest, liftLabel, logLine, networkBanLine, networkLiftText, reportFacts,
+  reportHeading,
   sanctionLine, type OpenReport, type SanctionedPlayer,
 } from "./admin";
 import { sayWhy } from "./moderation";
@@ -17,8 +18,15 @@ describe("the admin page", () => {
       .toBe("Muted until 18 Nov 2026, 15:00 by Ann on 18 Nov 2026, 14:00: Rude");
   });
 
+  it("offers to lift the networks banned with a cat, with it", () => {
+    const felix: SanctionedPlayer = { playerId: "f", displayName: "Felix", ban: null, mute: null, networkBans: 0 };
+    expect(networkLiftText(felix)).toBeUndefined();
+    expect(networkLiftText({ ...felix, networkBans: 1 })).toBe("Also lift the ban on Felix's network");
+    expect(networkLiftText({ ...felix, networkBans: 2 })).toBe("Also lift the bans on Felix's 2 networks");
+  });
+
   it("names what Lift lifts", () => {
-    const felix: SanctionedPlayer = { playerId: "f", displayName: "Felix", ban: null, mute: null };
+    const felix: SanctionedPlayer = { playerId: "f", displayName: "Felix", ban: null, mute: null, networkBans: 0 };
     const ban = { ...ann, reason: "Spam", until: null };
     expect(liftLabel({ ...felix, ban })).toBe("Lift Felix's ban");
     expect(liftLabel({ ...felix, mute: ban })).toBe("Lift Felix's mute");

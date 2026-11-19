@@ -153,6 +153,53 @@ public sealed class AddressBanTests
     }
 
     [Test]
+    public void TheNetworksPicked_AreOneToTwentyKeyedHashes_EachOnce()
+    {
+        var other = new string('b', AddressHashes.Length);
+
+        Assert.That(AddressBan.Picked([Network, other, Network]), Is.EqualTo(new[] { Network, other }));
+        var none = Assert.Throws<DomainException>(() => AddressBan.Picked([]));
+        Assert.That(none!.Message, Is.EqualTo("Pick a network to ban."));
+        var many = Enumerable.Range(0, AddressBan.MaxAtOnce + 1).Select(i => i.ToString("x64")).ToList();
+        Assert.Throws<DomainException>(() => AddressBan.Picked(many));
+        Assert.That(AddressBan.Picked(many.Take(AddressBan.MaxAtOnce)), Has.Count.EqualTo(AddressBan.MaxAtOnce));
+        Assert.Throws<DomainException>(() => AddressBan.Picked(["192.0.2.1"]));
+    }
+
+    [Test]
+    public void ANetworksBan_FollowsItsCatsBan_WhenTheCatIsBannedAgainForLess()
+    {
+        var ban = AddressBan.For(Network);
+        ban.BanWith(Moderator, SeenOn(Felix), Banned(Felix), TimeSpan.FromDays(7), Now);
+        var felix = Banned(Felix);
+        var later = Now.AddHours(1);
+        felix.BanFor(Moderator, "Second thoughts", TimeSpan.FromHours(24), later);
+
+        ban.FollowCat(Moderator, felix, later);
+
+        Assert.That(ban.BanAt(later)?.Until, Is.EqualTo(later.AddHours(24)), "never past the cat's ban");
+        Assert.That(ban.Entries.Last().Kind, Is.EqualTo(ModerationKind.AddressBanned), "in the audit trail");
+        Assert.That(ban.Entries.Last().Until, Is.EqualTo(later.AddHours(24)));
+
+        var count = ban.Entries.Count;
+        felix.BanFor(Moderator, "Longer after all", length: null, later);
+        ban.FollowCat(Moderator, felix, later);
+        Assert.That(ban.BanAt(later)?.Until, Is.EqualTo(later.AddHours(24)), "a longer ban doesn't lengthen it");
+        Assert.That(ban.Entries, Has.Count.EqualTo(count), "nothing changed: nothing recorded");
+    }
+
+    [Test]
+    public void ANetworksBan_IsWithTheCatItWasBannedWith_Only()
+    {
+        var ban = AddressBan.For(Network);
+        ban.BanWith(Moderator, SeenOn(Felix), Banned(Felix), TimeSpan.FromDays(7), Now);
+
+        Assert.That(ban.IsBannedWith(Felix, Now), Is.True);
+        Assert.That(ban.IsBannedWith(Guid.NewGuid(), Now), Is.False, "another cat on the network");
+        Assert.That(ban.IsBannedWith(Felix, Now.AddDays(7)), Is.False, "over");
+    }
+
+    [Test]
     public void APlayersNetwork_IsRemembered7DaysAfterItWasLastSeen_AndSavedAtMostHourly()
     {
         var seen = PlayerAddress.Seen(Felix, Network, Now);

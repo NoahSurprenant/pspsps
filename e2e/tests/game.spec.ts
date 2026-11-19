@@ -862,8 +862,12 @@ test("an admin bans a cat with its network from its card: a new guest there is s
     await card.getByLabel(`Ban ${felix.name} for`).selectOption("24h");
     await card.getByRole("button", { name: `Ban ${felix.name}`, exact: true }).click();
     await expect(admin.locator("#toast")).toHaveText(`${felix.name} is banned for 24 hours, and their network for 7 days.`);
-    // Never past Felix's own ban: a day, not a week.
-    await expect(card.getByText(/^Network [0-9a-f]{8} · 1 cat this week · banned until /)).toBeVisible();
+    // Never past Felix's own ban: a day, not a week; the network's end is his.
+    const standing = await card.getByText(/^Banned until .*: Came back to spam$/).textContent();
+    const catsEnd = standing?.replace(/^Banned (until .*): Came back to spam$/, "$1") ?? "";
+    expect(catsEnd).toMatch(/^until /);
+    const escaped = catsEnd.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    await expect(card.getByText(new RegExp(`^Network [0-9a-f]{8} · 1 cat this week · banned ${escaped}$`))).toBeVisible();
 
     // Someone new on that network gets no cat: shown why and until when, as a banned cat is.
     await newcomer.page.goto("/");

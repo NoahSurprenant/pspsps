@@ -76,7 +76,7 @@ public sealed class NetworkGuardTests
     private IServiceScopeFactory Scopes => _services.GetRequiredService<IServiceScopeFactory>();
 
     private AddressGuard Guard(ClientAddresses addresses) => new(
-        addresses, new AddressBanCache(Scopes, _time), _admins, Scopes, NullLogger<AddressGuard>.Instance);
+        addresses, new AddressBanCache(Scopes, _time), _admins, Scopes, _time, NullLogger<AddressGuard>.Instance);
 
     private static DefaultHttpContext From(string address, Guid? playerId = null)
     {
@@ -198,7 +198,7 @@ public sealed class NetworkGuardTests
     [Test]
     public async Task NetworksNotSeenFor7Days_AreForgottenEveryHour()
     {
-        var pruning = new AddressPruning(Scopes, _time, NullLogger<AddressPruning>.Instance);
+        var pruning = new AddressPruning(Scopes, Addresses, _time, NullLogger<AddressPruning>.Instance);
         using var stop = new CancellationTokenSource();
 
         await pruning.StartAsync(stop.Token);
@@ -206,6 +206,32 @@ public sealed class NetworkGuardTests
         _time.Advance(AddressPruning.Every);
         await Eventually(() => _networks.ReceivedCalls().Count(c => c.GetMethodInfo().Name == nameof(IAddressBanService.PruneAsync)) == 2);
         await pruning.StopAsync(CancellationToken.None);
+        await _networks.Received(2).PruneAsync(forgetAll: false, Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task WithNetworkBansOff_PruningForgetsEveryNetworkAndBan()
+    {
+        var pruning = new AddressPruning(Scopes, ClientAddresses.Off, _time, NullLogger<AddressPruning>.Instance);
+
+        await pruning.PruneAsync(CancellationToken.None);
+
+        await _networks.Received(1).PruneAsync(forgetAll: true, Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task ANetworkSeenWithinTheHour_IsntSavedAgain()
+    {
+        var filter = new ModerationHubFilter(new StandingCache(Scopes, _time), new PlayerConnections(), _guard);
+
+        await filter.OnConnectedAsync(Lifetime(Caller(Felix, Elsewhere)), _ => Task.CompletedTask);
+        _time.Advance(TimeSpan.FromMinutes(59));
+        await filter.OnConnectedAsync(Lifetime(Caller(Felix, Elsewhere)), _ => Task.CompletedTask);
+        await _networks.Received(1).SeenAsync(Felix.Id, Hash(Elsewhere), Arg.Any<CancellationToken>());
+
+        _time.Advance(TimeSpan.FromMinutes(1));
+        await filter.OnConnectedAsync(Lifetime(Caller(Felix, Elsewhere)), _ => Task.CompletedTask);
+        await _networks.Received(2).SeenAsync(Felix.Id, Hash(Elsewhere), Arg.Any<CancellationToken>());
     }
 
     [Test]
@@ -239,6 +265,32 @@ public sealed class NetworkGuardTests
     }
 
     [Test]
+    public async Task AnAdminsSignIn_DoesntKeepTheirNetwork()
+    {
+        var key = "login-" + Guid.NewGuid();
+        _players.FindByLoginAsync(LoginProvider.Discord, key, Arg.Any<CancellationToken>()).Returns(Owner.Id);
+        _players.SignInWithLoginAsync(LoginProvider.Discord, key, Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns(Owner);
+        await using var app = await StartAsync();
+
+        Assert.That(await SignInAsync(app, key, Elsewhere), Is.EqualTo(AuthRedirects.Home));
+
+        await _networks.DidNotReceiveWithAnyArgs().SeenAsync(default, default!, default);
+    }
+
+    [Test]
+    public async Task WithNetworkBansOff_ASignInLooksNothingUp()
+    {
+        var key = "login-" + Guid.NewGuid();
+        _players.SignInWithLoginAsync(LoginProvider.Discord, key, Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns(Felix);
+        await using var app = await StartAsync(Guard(ClientAddresses.Off));
+
+        Assert.That(await SignInAsync(app, key, Banned), Is.EqualTo(AuthRedirects.Home));
+
+        await _players.DidNotReceiveWithAnyArgs().FindByLoginAsync(default, default!, default);
+        await _networks.DidNotReceiveWithAnyArgs().BanOfAsync(default!, default);
+    }
+
+    [Test]
     public async Task Me_OnABannedNetwork_SaysBanned_ButNotToAnAdmin()
     {
         await using var app = await StartAsync();
@@ -261,7 +313,7 @@ public sealed class NetworkGuardTests
     // The sign-in endpoints as Program.cs maps them, on a test server, with the use cases faked. A request's player is
     // the test's header (as the game's cookie would make it); a provider's return signs the external cookie in, as
     // Discord's handler would.
-    private async Task<WebApplication> StartAsync()
+    private async Task<WebApplication> StartAsync(AddressGuard? guard = null)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
@@ -269,7 +321,7 @@ public sealed class NetworkGuardTests
         builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
         builder.Services.AddSingleton(_players);
         builder.Services.AddSingleton(_moderation);
-        builder.Services.AddSingleton(_guard);
+        builder.Services.AddSingleton(guard ?? _guard);
         var app = builder.Build();
         app.Use(async (http, next) =>
         {

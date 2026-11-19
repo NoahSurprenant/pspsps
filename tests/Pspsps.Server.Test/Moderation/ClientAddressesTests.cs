@@ -79,6 +79,52 @@ public sealed class ClientAddressesTests
         Assert.Throws<InvalidOperationException>(() => From(Key, "yes"));
     }
 
+    // Loopback, private, link-local, unique-local and shared (carrier) addresses: the server's own side of a proxy or a
+    // local network, never a player's network on the internet. Behind a proxy whose forwarded header isn't trusted,
+    // every player would look like one of these: banning it would lock everyone out.
+    [TestCase("127.0.0.1")]
+    [TestCase("::1")]
+    [TestCase("10.0.0.1")]
+    [TestCase("172.16.0.1")]
+    [TestCase("172.31.255.254")]
+    [TestCase("192.168.0.1")]
+    [TestCase("169.254.0.1")]
+    [TestCase("100.64.0.1")]
+    [TestCase("fe80::1")]
+    [TestCase("fd00::1")]
+    [TestCase("::ffff:192.168.0.1")]
+    public void AnAddressThatIsntOnTheInternet_IsNeverAPlayersNetwork(string address)
+    {
+        var http = new DefaultHttpContext();
+        http.Connection.RemoteIpAddress = IPAddress.Parse(address);
+
+        Assert.That(Addresses.HashOf(http), Is.Null);
+    }
+
+    [TestCase("192.0.2.1")]
+    [TestCase("172.32.0.1")]
+    [TestCase("2001:db8::1")]
+    public void AnAddressOnTheInternet_IsAPlayersNetwork(string address)
+    {
+        var http = new DefaultHttpContext();
+        http.Connection.RemoteIpAddress = IPAddress.Parse(address);
+
+        Assert.That(Addresses.HashOf(http), Is.EqualTo(Hash(address)));
+    }
+
+    [Test]
+    public void NetworkBansOn_WithNoTrustedProxy_AreWarnedOfAtStartup()
+    {
+        static string? Warning(Dictionary<string, string?> settings) =>
+            ClientAddresses.StartupWarning(new ConfigurationBuilder().AddInMemoryCollection(settings).Build());
+
+        var on = new Dictionary<string, string?> { [ClientAddresses.KeyName] = Key };
+        Assert.That(Warning(on), Does.Contain("ForwardedHeaders"));
+        Assert.That(Warning(new(on) { ["ForwardedHeaders:KnownIPNetworks:0"] = "192.0.2.0/24" }), Is.Null);
+        Assert.That(Warning(new(on) { ["ForwardedHeaders:KnownProxies:0"] = "192.0.2.10" }), Is.Null);
+        Assert.That(Warning(new()), Is.Null, "off: nothing to warn of");
+    }
+
     [Test]
     public void WithNetworkBansOff_NothingIsHashed()
     {

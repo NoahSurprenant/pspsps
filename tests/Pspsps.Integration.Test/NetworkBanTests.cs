@@ -223,13 +223,13 @@ public sealed class NetworkBanTests
         var networks = Game.Get<IAddressBanService>();
 
         Game.ModerationTime.Advance(TimeSpan.FromDays(7) - TimeSpan.FromSeconds(1));
-        await networks.PruneAsync(CancellationToken.None);
+        await networks.PruneAsync(forgetAll: false, CancellationToken.None);
         var db = Game.Get<PspspsDbContext>();
         Assert.That(db.PlayerAddresses.Count(a => a.PlayerId == felix.Id), Is.EqualTo(1), "kept for 7 days");
         Assert.That(db.AddressBans.Count(b => b.PlayerId == felix.Id), Is.Zero, "the day's ban is over: forgotten");
 
         Game.ModerationTime.Advance(TimeSpan.FromSeconds(1));
-        await networks.PruneAsync(CancellationToken.None);
+        await networks.PruneAsync(forgetAll: false, CancellationToken.None);
         Assert.That(Game.Get<PspspsDbContext>().PlayerAddresses.Count(a => a.PlayerId == felix.Id), Is.Zero, "then forgotten");
     }
 
@@ -292,6 +292,82 @@ public sealed class NetworkBanTests
         Assert.That((await tomHub.InvokeAsync<PlayerCardView>("GetPlayerCard", felix.Id)).Moderation, Is.Null,
             "and nobody else sees a cat's networks");
         Assert.That(tom.Id, Is.Not.EqualTo(felix.Id));
+    }
+
+    [Test]
+    public async Task TurningNetworkBansOff_ForgetsEveryNetworkAndBan()
+    {
+        var (_, adminHub) = await AdminAsync();
+        var (felix, felixHub) = await Game.ConnectGuestAsync(from: "203.0.113.75");
+        await using var _ = adminHub;
+        await using var __ = felixHub;
+        await BanWithNetworksAsync(adminHub, felix.Id, "Spam", "7d");
+
+        await Game.Get<IAddressBanService>().PruneAsync(forgetAll: true, CancellationToken.None);
+
+        var db = Game.Get<PspspsDbContext>();
+        Assert.That(db.PlayerAddresses.Count(a => a.PlayerId == felix.Id), Is.Zero);
+        Assert.That(db.AddressBans.Count(b => b.PlayerId == felix.Id), Is.Zero);
+    }
+
+    [Test]
+    public async Task LiftingACat_FromTheAdminPage_LiftsItsNetworksToo_WhenAsked()
+    {
+        const string Home = "203.0.113.100";
+        var (admin, adminHub) = await AdminAsync();
+        var (felix, felixHub) = await Game.ConnectGuestAsync(from: Home);
+        await using var _ = adminHub;
+        await using var __ = felixHub;
+        await BanWithNetworksAsync(adminHub, felix.Id, "Spam", "7d");
+        using var asAdmin = ClientFor(AdminCookies[admin.Id]);
+        Assert.That((await OverviewAsync(asAdmin)).Sanctioned.Single(s => s.PlayerId == felix.Id).NetworkBans, Is.EqualTo(1),
+            "the page knows there are networks to offer to lift");
+
+        using var lift = new HttpRequestMessage(HttpMethod.Post, new Uri($"/api/admin/players/{felix.Id}/moderate", UriKind.Relative))
+        {
+            Content = JsonContent.Create(new { action = "lift", liftNetworks = true }),
+        };
+        lift.Headers.Add("Sec-Fetch-Site", "same-origin");
+        using var lifted = await asAdmin.SendAsync(lift);
+
+        Assert.That(lifted.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That((await OverviewAsync(asAdmin)).NetworkBans.Select(b => b.PlayerId), Does.Not.Contain(felix.Id));
+        using var guest = await GuestFromAsync(Home);
+        Assert.That(guest.StatusCode, Is.EqualTo(HttpStatusCode.OK), "his home network plays again");
+    }
+
+    [Test]
+    public async Task BanningACatAgainForLess_ShortensItsNetworksBans()
+    {
+        var (_, adminHub) = await AdminAsync();
+        var (felix, felixHub) = await Game.ConnectGuestAsync(from: "203.0.113.105");
+        await using var _ = adminHub;
+        await using var __ = felixHub;
+        await BanWithNetworksAsync(adminHub, felix.Id, "Spam", "7d");
+
+        var card = await adminHub.InvokeAsync<PlayerCardView>("Moderate", felix.Id, "ban", "Second thoughts", "24h");
+
+        Assert.That(card.Moderation!.Networks!.Single().Ban?.Until, Is.EqualTo(Game.ModerationTime.GetUtcNow().AddHours(24)),
+            "never past the cat's ban");
+    }
+
+    [Test]
+    public async Task ANetworkBannedWithAnotherCat_ShowsOnACatsCard_ButIsntThatCatsToLift()
+    {
+        const string School = "203.0.113.110";
+        var (_, adminHub) = await AdminAsync();
+        var (felix, felixHub) = await Game.ConnectGuestAsync(from: School);
+        var (tom, tomCookie) = await Game.SignInGuestAsync(from: School);
+        await using var _ = adminHub;
+        await using var __ = felixHub;
+        await BanWithNetworksAsync(adminHub, felix.Id, "Spam", "24h");
+
+        var tomsNetwork = (await adminHub.InvokeAsync<PlayerCardView>("GetPlayerCard", tom.Id)).Moderation!.Networks!.Single();
+        var felixsNetwork = (await adminHub.InvokeAsync<PlayerCardView>("GetPlayerCard", felix.Id)).Moderation!.Networks!.Single();
+
+        Assert.That((tomsNetwork.Ban is not null, tomsNetwork.BannedWithIt), Is.EqualTo((true, false)));
+        Assert.That(felixsNetwork.BannedWithIt, Is.True);
+        Assert.That(tomCookie, Is.Not.Empty);
     }
 
     // Bans the cat, then every network its card shows, from the admin's hub; the networks as the card has them after.

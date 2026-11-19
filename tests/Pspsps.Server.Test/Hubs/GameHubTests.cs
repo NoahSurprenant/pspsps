@@ -1456,7 +1456,7 @@ public sealed class GameHubTests
         _networks.BanAsync(Tom.Id, Felix, Arg.Any<IReadOnlyCollection<string>>(), TimeSpan.FromHours(24), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<IReadOnlyList<BannedAddress>>([new BannedAddress(key, "aaaaaaaa", ban)]));
         _networks.RecentOfAsync(Tom.Id, Felix, Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult<IReadOnlyList<RecentAddress>>([new RecentAddress(key, "aaaaaaaa", 3, ban.Since, ban)]));
+            .Returns(Task.FromResult<IReadOnlyList<RecentAddress>>([new RecentAddress(key, "aaaaaaaa", 3, ban.Since, ban, BannedWithIt: true)]));
         _friends.GetAsync(Tom.Id, Felix, Arg.Any<CancellationToken>())
             .Returns(new PlayerRelation(Felix, "Felix", FurColor.Black, FriendState.None));
         var hub = Hub();
@@ -1468,7 +1468,7 @@ public sealed class GameHubTests
             Arg.Any<CancellationToken>());
         await _effects.Received(1).NetworksBannedAsync(Arg.Is<IReadOnlyList<BannedAddress>>(b => b.Single().AddressHash == key));
         Assert.That(card.Moderation?.Networks,
-            Is.EqualTo(new[] { new NetworkView(key, "aaaaaaaa", 3, ban.Since, new SanctionView("Spam", ban.Until)) }));
+            Is.EqualTo(new[] { new NetworkView(key, "aaaaaaaa", 3, ban.Since, new SanctionView("Spam", ban.Until), BannedWithIt: true) }));
     }
 
     [Test]
