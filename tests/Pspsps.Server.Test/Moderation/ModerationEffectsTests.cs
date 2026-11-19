@@ -36,7 +36,8 @@ public sealed class ModerationEffectsTests
         moderation.StandingAsync(default, default).ReturnsForAnyArgs(Standing.None);
         _services = new ServiceCollection().AddScoped(_ => moderation).BuildServiceProvider();
         var standings = new StandingCache(_services.GetRequiredService<IServiceScopeFactory>(), _time);
-        _effects = new ModerationEffects(hub, _connections, standings, _grains, _time, NullLogger<ModerationEffects>.Instance);
+        var signal = new LocalModerationSignal(new ModerationOnThisPod(_connections, standings, _time));
+        _effects = new ModerationEffects(hub, signal, standings, _grains, NullLogger<ModerationEffects>.Instance);
     }
 
     [TearDown]
@@ -97,5 +98,22 @@ public sealed class ModerationEffectsTests
         _time.Advance(ModerationEffects.CloseAfter);
 
         tab.Received(1).Abort();
+    }
+
+    [Test]
+    public async Task EveryModeration_IsSignalledToEveryPod_AndOnlyABanClosesConnections()
+    {
+        var signal = Substitute.For<IModerationSignal>();
+        var hub = Substitute.For<IHubContext<GameHub, IGameClient>>();
+        hub.Clients.User(Felix.ToString()).Returns(_felix);
+        var standings = new StandingCache(_services.GetRequiredService<IServiceScopeFactory>(), _time);
+        var effects = new ModerationEffects(hub, signal, standings, _grains, NullLogger<ModerationEffects>.Instance);
+        var now = _time.GetUtcNow();
+
+        await effects.AppliedAsync(Felix, ModerationAction.Mute, new Standing(null, new Sanction("Rude", now, now.AddHours(1), Guid.NewGuid())));
+        await signal.Received(1).SendAsync(Felix, false);
+
+        await effects.AppliedAsync(Felix, ModerationAction.Ban, new Standing(new Sanction("Spam", now, null, Guid.NewGuid()), null));
+        await signal.Received(1).SendAsync(Felix, true);
     }
 }

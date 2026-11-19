@@ -1,3 +1,4 @@
+using Orleans.CodeGeneration;
 using Orleans.Concurrency;
 
 namespace Pspsps.Server.Game;
@@ -6,6 +7,11 @@ namespace Pspsps.Server.Game;
 /// Which connection (browser tab) is a player's current one, keyed by player ID, and which room its cat is in: where
 /// the player's friends find them. A player plays in one tab: the newest.
 /// </summary>
+/// <remarks>
+/// Versioned: a change to it is add-only and bumps the version (docs/architecture.md, "Changing what pods say to each
+/// other"), which Pspsps.Server.Test's WireContractTests check against wire-contracts.txt.
+/// </remarks>
+[Version(1)]
 public interface IPlayerSessionGrain : IGrainWithGuidKey
 {
     /// <summary>Makes <paramref name="connectionId"/> the current tab; returns the tab it replaced, if any.</summary>

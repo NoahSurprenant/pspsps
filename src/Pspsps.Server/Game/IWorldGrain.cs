@@ -1,6 +1,13 @@
+using Orleans.CodeGeneration;
+
 namespace Pspsps.Server.Game;
 
 /// <summary>One world, keyed by its ID: who is in it, against its population cap.</summary>
+/// <remarks>
+/// Versioned: a change to it is add-only and bumps the version (docs/architecture.md, "Changing what pods say to each
+/// other"), which Pspsps.Server.Test's WireContractTests check against wire-contracts.txt.
+/// </remarks>
+[Version(1)]
 public interface IWorldGrain : IGrainWithStringKey
 {
     /// <summary>

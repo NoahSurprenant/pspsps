@@ -7,10 +7,11 @@ namespace Pspsps.Server.Moderation;
 /// <summary>
 /// A player's ban and mute, for the hub to refuse their every call and their chat: read from the database at most once
 /// every <see cref="KeepFor"/> per player on this pod (a move is a call); a change made on this pod is known at once
-/// (<see cref="Know"/>). A ban or mute decided on another pod is seen here within <see cref="KeepFor"/>; one read here
-/// ends at its time. When the database can't answer, what this pod last knew of a player holds; a player it knows nothing
-/// of (it just started) plays until the database is back: a short outage doesn't stop the whole game, at the cost of a
-/// banned player maybe getting in meanwhile.
+/// (<see cref="Know"/>). A ban or mute decided on another pod is read again here at the player's next call, once that
+/// pod's signal arrives (<see cref="Forget"/>, <see cref="IModerationSignal"/>), and within <see cref="KeepFor"/> if it
+/// never does (Redis pub/sub delivers at most once); one read here ends at its time. When the database can't answer,
+/// what this pod last knew of a player holds; a player it knows nothing of (it just started) plays until the database is
+/// back: a short outage doesn't stop the whole game, at the cost of a banned player maybe getting in meanwhile.
 /// </summary>
 public sealed partial class StandingCache(
     IServiceScopeFactory scopes,
@@ -45,6 +46,15 @@ public sealed partial class StandingCache(
 
     /// <summary>The player's standing changed on this pod: it is <paramref name="standing"/> now.</summary>
     public void Know(Guid playerId, Standing standing) => _read[playerId] = new Read(standing, time.GetUtcNow());
+
+    /// <summary>
+    /// The player's standing changed on another pod: their next call reads it again. A read already under way isn't kept
+    /// (it may be from before the change); what this pod knew still holds if the database can't answer.
+    /// </summary>
+    public void Forget(Guid playerId) => _read.AddOrUpdate(
+        playerId,
+        static _ => new Read(Standing.None, DateTimeOffset.MinValue),
+        static (_, known) => new Read(known.Standing, DateTimeOffset.MinValue));
 
     private async Task<Standing> StandingOfAsync(Guid playerId, CancellationToken cancellationToken)
     {

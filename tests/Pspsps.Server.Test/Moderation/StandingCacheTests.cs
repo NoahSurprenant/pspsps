@@ -54,6 +54,47 @@ public sealed class StandingCacheTests
     }
 
     [Test]
+    public async Task AChangeOnAnotherPod_IsReadAgainAtTheNextCall_OnceItsSignalArrives()
+    {
+        Assert.That(await _cache.BanOfAsync(Felix, default), Is.Null);
+        var ban = new Sanction("Spam", _time.GetUtcNow(), null, Guid.NewGuid());
+        _moderation.StandingAsync(Felix, Arg.Any<CancellationToken>()).Returns(new Standing(ban, null));
+
+        _cache.Forget(Felix);
+
+        Assert.That(await _cache.BanOfAsync(Felix, default), Is.EqualTo(ban), "not after KeepFor: at once");
+        await _cache.BanOfAsync(Felix, default);
+        await _moderation.Received(2).StandingAsync(Felix, Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task AReadUnderWayWhenAnotherPodsSignalArrives_IsntKept()
+    {
+        var slow = new TaskCompletionSource<Standing>();
+        _moderation.StandingAsync(Felix, Arg.Any<CancellationToken>()).Returns(slow.Task);
+        var reading = _cache.BanOfAsync(Felix, default);
+        _cache.Forget(Felix);
+        slow.SetResult(Standing.None);
+        await reading;
+        var ban = new Sanction("Spam", _time.GetUtcNow(), null, Guid.NewGuid());
+        _moderation.StandingAsync(Felix, Arg.Any<CancellationToken>()).Returns(new Standing(ban, null));
+
+        Assert.That(await _cache.BanOfAsync(Felix, default), Is.EqualTo(ban), "the read from before the change was dropped");
+    }
+
+    [Test]
+    public async Task WhatThisPodKnew_StillHoldsAfterAnotherPodsSignal_WhenTheDatabaseCantAnswer()
+    {
+        var ban = new Sanction("Spam", _time.GetUtcNow(), null, Guid.NewGuid());
+        _cache.Know(Felix, new Standing(ban, null));
+        _moderation.StandingAsync(default, default).ReturnsForAnyArgs(Task.FromException<Standing>(new TimeoutException()));
+
+        _cache.Forget(Felix);
+
+        Assert.That(await _cache.BanOfAsync(Felix, default), Is.EqualTo(ban));
+    }
+
+    [Test]
     public async Task AChangeOnThisPod_HoldsWhenTheDatabaseCantAnswer()
     {
         var ban = new Sanction("Spam", _time.GetUtcNow(), null, Guid.NewGuid());

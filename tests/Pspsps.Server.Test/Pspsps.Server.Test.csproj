@@ -8,4 +8,7 @@
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
     <PackageReference Include="OpenTelemetry.Exporter.InMemory" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Game/wire-contracts.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>
