@@ -4,7 +4,7 @@ using Orleans.Versions.Selector;
 
 namespace Pspsps.Server.Game;
 
-/// <summary>How the server's silo finds the others (<c>Orleans:Clustering</c>).</summary>
+/// <summary>How the server's silo finds the others (<c>Cluster:Mode</c>).</summary>
 public enum ClusteringMode
 {
     /// <summary>A single local silo, alone: development, the tests, and the chart's one pod.</summary>
@@ -24,7 +24,7 @@ public enum ClusteringMode
 public static class OrleansSetup
 {
     /// <summary>Localhost, Redis or Kubernetes. Unset: Localhost without Redis, else Kubernetes in a pod (POD_NAME), else Redis.</summary>
-    public const string ClusteringKey = "Orleans:Clustering";
+    public const string ClusteringKey = "Cluster:Mode";
 
     /// <summary>The service and cluster IDs outside Kubernetes (where the pod's orleans/* labels give them).</summary>
     public const string ServiceIdKey = "Orleans:ServiceId";

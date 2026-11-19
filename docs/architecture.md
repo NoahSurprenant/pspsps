@@ -12,7 +12,7 @@ server pods ── every pod is the same: ASP.NET Core + SignalR hub + an Orlean
 ```
 
 To handle more players, add replicas: the chart's cluster mode ([cluster.md](cluster.md)). With one replica and no Redis
-configured, the server runs a single local silo, which is what development and the tests use (`Orleans:Clustering`,
+configured, the server runs a single local silo, which is what development and the tests use (`Cluster:Mode`,
 `OrleansSetup`). The browser's hub connection is a WebSocket opened straight away, with no negotiate request, so it stays
 on the pod it opened on and the pods need no sticky sessions; a browser that can't open one falls back to SignalR's
 negotiation (`client/src/net.ts`, `hubTransports`).

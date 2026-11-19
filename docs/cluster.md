@@ -26,7 +26,7 @@ The chart then adds:
 - **Redis** (a Deployment with one pod, `Recreate`, on its own PersistentVolumeClaim): Orleans' membership table, the
   SignalR backplane, and the moderation signal (below). It writes an append-only file (`appendfsync everysec`) to its
   volume, so the membership table survives a restart.
-- **Orleans' Kubernetes hosting** (`Orleans__Clustering=Kubernetes`): each silo takes its name and address from its pod
+- **Orleans' Kubernetes hosting** (`Cluster__Mode=Kubernetes`): each silo takes its name and address from its pod
   and its service and cluster IDs from the pod's `orleans/serviceId` and `orleans/clusterId` labels (`orleans.*` values;
   keep them fixed, so a rolling update joins the running cluster), patches those labels onto its pod, watches the pods,
   and declares dead the silo of a pod that is deleted. The server's ServiceAccount gets a Role for that: `pods` get,
@@ -116,7 +116,7 @@ then reconnect into the cluster.
 
 ## Outside Kubernetes
 
-`Orleans:Clustering` picks how the silos find each other: `Localhost` (one silo; the default without
+`Cluster:Mode` picks how the silos find each other: `Localhost` (one silo; the default without
 `ConnectionStrings:Redis`), `Redis` (silos joined through Redis, anywhere: their addresses are the hosts' own) or
 `Kubernetes` (the default in a pod with Redis). Outside Kubernetes, `Orleans:ServiceId` and `Orleans:ClusterId` (both
 `pspsps` by default) name the cluster. CI's two-pod job runs the image that way (`e2e/cluster/pods.sh`).

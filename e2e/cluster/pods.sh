@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Several server pods of one game as plain containers on one Docker network, for the two-pod end-to-end run
-# (cluster.spec.ts): PostgreSQL, Redis, and pods from the same image, clustered through Redis (Orleans:Clustering=Redis:
+# (cluster.spec.ts): PostgreSQL, Redis, and pods from the same image, clustered through Redis (Cluster:Mode=Redis:
 # Orleans' Kubernetes hosting needs Kubernetes). Each pod's HTTP port is published on the host.
 #
 #   pods.sh up                  PostgreSQL, Redis, pod-a on 8081 and pod-b on 8082; prints E2E_ADMIN_ID and
@@ -25,7 +25,7 @@ start() {
   docker run -d --name "$name" --network "$network" -p "$port:8080" \
     -e ConnectionStrings__Pspsps="Host=postgres;Database=pspsps;Username=postgres;Password=e2e" \
     -e ConnectionStrings__Redis=redis:6379 \
-    -e Orleans__Clustering=Redis \
+    -e Cluster__Mode=Redis \
     -e DOTNET_SHUTDOWNTIMEOUTSECONDS=45 \
     "$@" "$image" > /dev/null
   ready "$port"

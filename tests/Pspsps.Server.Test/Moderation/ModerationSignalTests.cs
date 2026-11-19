@@ -87,7 +87,7 @@ public sealed class ModerationSignalTests
         var sent = new ModerationMessage("pod-a", Felix, Close: true);
 
         Assert.That(ModerationMessage.Parse(sent.Format()), Is.EqualTo(sent));
-        Assert.That(ModerationMessage.Parse(sent with { Close = false }.Format()), Is.EqualTo(sent with { Close = false }));
+        Assert.That(ModerationMessage.Parse((sent with { Close = false }).Format()), Is.EqualTo(sent with { Close = false }));
     }
 
     [Test]

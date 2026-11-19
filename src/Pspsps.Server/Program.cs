@@ -33,7 +33,7 @@ try
         ?? throw new InvalidOperationException("Set ConnectionStrings:Pspsps to the PostgreSQL database.");
 
     // Redis joins the pods into one game: Orleans' membership table, the SignalR backplane and the moderation signal.
-    // Without it the server is a single local silo, which is all development and the tests need. Orleans:Clustering
+    // Without it the server is a single local silo, which is all development and the tests need. Cluster:Mode
     // picks how the silos find each other (OrleansSetup: Kubernetes in a pod, plain Redis elsewhere).
     var redis = builder.Configuration.GetConnectionString("Redis");
     var clustering = OrleansSetup.ModeFrom(builder.Configuration);

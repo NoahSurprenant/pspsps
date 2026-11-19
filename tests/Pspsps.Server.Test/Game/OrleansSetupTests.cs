@@ -40,6 +40,14 @@ public sealed class OrleansSetupTests
     }
 
     [Test]
+    public void TheSetting_IsOutsideOrleansOwnSection()
+    {
+        // Orleans reads "Orleans:Clustering" itself, as the name of a clustering provider to load: a pod set to
+        // "Orleans:Clustering=Redis" stopped at startup ("Could not find Clustering provider named 'Default'").
+        Assert.That(OrleansSetup.ClusteringKey, Does.Not.StartWith("Orleans:"));
+    }
+
+    [Test]
     public void GrainVersions_MixAsTheOrleansDocsAdviseForARollingUpgrade()
     {
         var options = new GrainVersioningOptions();

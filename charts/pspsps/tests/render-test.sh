@@ -191,7 +191,7 @@ grep -qx '    type: Recreate' <<< "$(server)" || fail "one pod isn't replaced wi
 for kind in PodDisruptionBudget Role RoleBinding; do
   [[ -z "$(document "$single" "$kind")" ]] || fail "a $kind renders with cluster.enabled off"
 done
-if grep -qE 'component: redis|preStop:|topologySpreadConstraints|Orleans__Clustering' <<< "$single"; then
+if grep -qE 'component: redis|preStop:|topologySpreadConstraints|Cluster__Mode' <<< "$single"; then
   fail "cluster-mode settings render with cluster.enabled off"
 fi
 grep -qx '      automountServiceAccountToken: false' <<< "$(server)" || fail "one pod mounts the service account token"
@@ -209,7 +209,7 @@ pdb=$(document "$clustered" PodDisruptionBudget)
 [[ -n "$pdb" ]] || fail "no PodDisruptionBudget in cluster mode"
 grep -qx '  maxUnavailable: 1' <<< "$pdb" || fail "the PodDisruptionBudget doesn't allow exactly one pod down"
 grep -qx '      app.kubernetes.io/component: server' <<< "$pdb" || fail "the PodDisruptionBudget doesn't select the server"
-[[ "$(env_value "$deployment" Orleans__Clustering)" == Kubernetes ]] || fail "Orleans__Clustering isn't Kubernetes"
+[[ "$(env_value "$deployment" Cluster__Mode)" == Kubernetes ]] || fail "Cluster__Mode isn't Kubernetes"
 [[ "$(env_value "$deployment" ConnectionStrings__Redis)" == pspsps-redis:6379 ]] || fail "the server isn't pointed at Redis"
 grep -qx '                command: \["sleep", "5"\]' <<< "$deployment" || fail "no 5 s preStop wait in cluster mode"
 grace=$(sed -n 's/^ *terminationGracePeriodSeconds: *//p' <<< "$deployment")

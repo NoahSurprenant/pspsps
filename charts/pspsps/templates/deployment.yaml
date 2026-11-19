@@ -92,7 +92,7 @@ spec:
             - name: ConnectionStrings__Redis
               value: "{{ include "pspsps.redisHost" . }}:6379"
             # Orleans' Kubernetes hosting on Redis membership (src/Pspsps.Server/Game/OrleansSetup.cs).
-            - name: Orleans__Clustering
+            - name: Cluster__Mode
               value: Kubernetes
             - name: ORLEANS_SERVICE_ID
               valueFrom:
