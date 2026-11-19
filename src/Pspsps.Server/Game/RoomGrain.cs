@@ -307,6 +307,27 @@ internal sealed class RoomGrain(
         GoIfEmpty();
     }
 
+    public async Task Rename(Guid playerId, string displayName)
+    {
+        if (_state.Rename(playerId, displayName) is { } cat)
+        {
+            await broadcaster.CatRenamed(_key, RenameView.From(cat));
+        }
+        else
+        {
+            // Not here: asking can be what activated this room (the cat's tab just left it). An empty room goes again.
+            GoIfEmpty();
+        }
+
+        // Whoever visits sees the home named after its owner as they're called now, whether or not their cat is in it:
+        // not through Furnish (HomeChanged), whose Version guards furniture changes racing each other, which this isn't.
+        if (_home is { } home && home.OwnerId == playerId && !string.Equals(home.OwnerName, displayName, StringComparison.Ordinal))
+        {
+            _home = home with { OwnerName = displayName };
+            await broadcaster.HomeRenamed(_key, displayName);
+        }
+    }
+
     // At most one pending fishing timer per cat: a new one replaces (disposes) the cat's last.
     private void Schedule(Guid playerId, TimeSpan due, Func<Task> callback)
     {

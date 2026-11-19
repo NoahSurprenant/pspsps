@@ -2,7 +2,9 @@ using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Pspsps.Application.Abstractions;
+using Pspsps.Application.Moderation;
 using Pspsps.Application.Players;
+using Pspsps.Domain;
 using Pspsps.Domain.Players;
 using Pspsps.Infrastructure.Persistence;
 
@@ -143,6 +145,48 @@ public sealed class PlayerServiceTests
     }
 
     [Test]
+    public async Task RenameAsync_PersistsTheNewName_ThenRefusesASecondWithinTheCooldown()
+    {
+        var guest = await Game.Get<IPlayerService>().CreateGuestAsync(CancellationToken.None);
+
+        var renamed = await Game.Get<IPlayerService>().RenameAsync(guest.Id, "  Sir   Fluff  ", CancellationToken.None);
+
+        Assert.That(renamed.DisplayName, Is.EqualTo("Sir Fluff"));
+        var found = await Game.Get<IPlayerService>().FindAsync(guest.Id, CancellationToken.None);
+        Assert.That(found?.DisplayName, Is.EqualTo("Sir Fluff"), "persisted");
+
+        var refused = Assert.ThrowsAsync<DomainException>(() =>
+            Game.Get<IPlayerService>().RenameAsync(guest.Id, "Lady Fluff", CancellationToken.None));
+        Assert.That(refused!.Message, Does.Contain("once every"));
+        Assert.That((await Game.Get<IPlayerService>().FindAsync(guest.Id, CancellationToken.None))?.DisplayName,
+            Is.EqualTo("Sir Fluff"), "the refused rename wasn't saved");
+    }
+
+    [Test]
+    public async Task RenameAsync_AnAdmin_IsExemptFromTheCooldown()
+    {
+        var guest = await Game.Get<IPlayerService>().CreateGuestAsync(CancellationToken.None);
+        await Game.Get<IPlayerService>().RenameAsync(guest.Id, "Sir Fluff", CancellationToken.None);
+        Game.Admins.Add(guest.Id);
+
+        // Moments later, well within the ordinary 24-hour cooldown.
+        var renamed = await Game.Get<IPlayerService>().RenameAsync(guest.Id, "Lady Fluff", CancellationToken.None);
+
+        Assert.That(renamed.DisplayName, Is.EqualTo("Lady Fluff"));
+    }
+
+    [Test]
+    public async Task RenameAsync_RefusesAFilteredOrImpersonatingName()
+    {
+        var guest = await Game.Get<IPlayerService>().CreateGuestAsync(CancellationToken.None);
+
+        var refused = Assert.ThrowsAsync<DomainException>(() =>
+            Game.Get<IPlayerService>().RenameAsync(guest.Id, "Admin Joe", CancellationToken.None));
+
+        Assert.That(refused!.Message, Does.Contain("admin or moderator"));
+    }
+
+    [Test]
     public async Task LinkLogin_ALoginTakenWhileLinking_IsTakenAndOnlyTheLinkIsForgotten()
     {
         // Another browser signs in with the same account between the owner check and the save: the save hits the
@@ -155,7 +199,7 @@ public sealed class PlayerServiceTests
         // Another change waiting in the same scope: the refused link mustn't take it with it.
         (await db.Players.SingleAsync(p => p.Id == bystander.Id)).EarnCoins(7);
 
-        var result = await new PlayerService(db, TimeProvider.System, Random.Shared)
+        var result = await new PlayerService(db, TimeProvider.System, Random.Shared, Game.Get<IAdmins>(), Game.Get<IChatFilterProvider>())
             .LinkLoginAsync(guest.Id, LoginProvider.Discord, key, CancellationToken.None);
         var leftToSave = db.ChangeTracker.Entries().Where(e => e.State != EntityState.Unchanged)
             .Select(e => e.Entity).ToList();
@@ -185,7 +229,7 @@ public sealed class PlayerServiceTests
         await using var db = RacingContext(async ct =>
             await Game.Get<IPlayerService>().LinkLoginAsync(guest.Id, LoginProvider.Google, key, ct));
 
-        var result = await new PlayerService(db, TimeProvider.System, Random.Shared)
+        var result = await new PlayerService(db, TimeProvider.System, Random.Shared, Game.Get<IAdmins>(), Game.Get<IChatFilterProvider>())
             .LinkLoginAsync(guest.Id, LoginProvider.Google, key, CancellationToken.None);
         var guestAfter = await Game.Get<IPlayerService>().FindAsync(guest.Id, CancellationToken.None);
 
@@ -204,7 +248,7 @@ public sealed class PlayerServiceTests
         await using var db = RacingContext(async ct =>
             await Game.Get<IPlayerService>().LinkLoginAsync(guest.Id, LoginProvider.Discord, first, ct));
 
-        var result = await new PlayerService(db, TimeProvider.System, Random.Shared)
+        var result = await new PlayerService(db, TimeProvider.System, Random.Shared, Game.Get<IAdmins>(), Game.Get<IChatFilterProvider>())
             .LinkLoginAsync(guest.Id, LoginProvider.Discord, second, CancellationToken.None);
         var withFirst = await Game.Get<IPlayerService>()
             .SignInWithLoginAsync(LoginProvider.Discord, first, "Tom", CancellationToken.None);
@@ -228,7 +272,7 @@ public sealed class PlayerServiceTests
         await using var db = RacingContext(async ct =>
             await Game.Get<IPlayerService>().LinkLoginAsync(guest.Id, LoginProvider.Google, key, ct));
 
-        var signedIn = await new PlayerService(db, TimeProvider.System, Random.Shared)
+        var signedIn = await new PlayerService(db, TimeProvider.System, Random.Shared, Game.Get<IAdmins>(), Game.Get<IChatFilterProvider>())
             .SignInWithLoginAsync(LoginProvider.Google, key, "Tom", CancellationToken.None);
 
         Assert.That(signedIn, Is.EqualTo(guest with { IsGuest = false }));
@@ -244,7 +288,7 @@ public sealed class PlayerServiceTests
         await using var db = RacingContext(async ct =>
             await Game.Get<IPlayerService>().EarnCoinsAsync(guest.Id, 5, ct));
 
-        var paid = await new PlayerService(db, TimeProvider.System, Random.Shared)
+        var paid = await new PlayerService(db, TimeProvider.System, Random.Shared, Game.Get<IAdmins>(), Game.Get<IChatFilterProvider>())
             .EarnCoinsAsync(guest.Id, 7, CancellationToken.None);
         var saved = await Game.Get<IPlayerService>().FindAsync(guest.Id, CancellationToken.None);
 
@@ -264,7 +308,7 @@ public sealed class PlayerServiceTests
         await using var db = RacingContext(async ct =>
             await Game.Get<IPlayerService>().EarnCoinsAsync(guest.Id, 20, ct));
 
-        var result = await new PlayerService(db, TimeProvider.System, Random.Shared)
+        var result = await new PlayerService(db, TimeProvider.System, Random.Shared, Game.Get<IAdmins>(), Game.Get<IChatFilterProvider>())
             .LinkLoginAsync(guest.Id, LoginProvider.Google, key, CancellationToken.None);
         var saved = await Game.Get<IPlayerService>().FindAsync(guest.Id, CancellationToken.None);
 
@@ -283,7 +327,7 @@ public sealed class PlayerServiceTests
         await using var db = RacingContext(
             async ct => await Game.Get<IPlayerService>().EarnCoinsAsync(guest.Id, 1, ct), times: int.MaxValue);
 
-        var result = await new PlayerService(db, TimeProvider.System, Random.Shared)
+        var result = await new PlayerService(db, TimeProvider.System, Random.Shared, Game.Get<IAdmins>(), Game.Get<IChatFilterProvider>())
             .LinkLoginAsync(guest.Id, LoginProvider.Google, NewKey(), CancellationToken.None);
         var saved = await Game.Get<IPlayerService>().FindAsync(guest.Id, CancellationToken.None);
 

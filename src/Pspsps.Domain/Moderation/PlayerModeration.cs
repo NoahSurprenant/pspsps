@@ -178,6 +178,24 @@ public sealed class PlayerModeration
     }
 
     /// <summary>
+    /// Refuses <paramref name="by"/> acting on this player at all (not themself, not another admin): the same check
+    /// <see cref="RecordRename"/> makes, exposed so a caller can ask before changing the <c>Player</c> aggregate
+    /// (<see cref="Players.Player.RenameByAdmin"/>), rather than mutate it only to have the save refused and discarded.
+    /// </summary>
+    public void EnsureMayBeActedOnBy(Moderator by) => EnsureMayModerate(by);
+
+    /// <summary>
+    /// Records that an admin renamed the cat (<see cref="Players.Player.RenameByAdmin"/>, in the same save), from
+    /// <paramref name="from"/> to <paramref name="to"/>: the audit trail only, nothing here to change (the name itself is
+    /// on the <c>Player</c> aggregate). The same rules as the rest: not on yourself, not on another admin.
+    /// </summary>
+    public void RecordRename(Moderator by, string from, string to, DateTimeOffset now)
+    {
+        EnsureMayModerate(by);
+        Record(ModerationKind.Renamed, by, now, $"{from} → {to}", until: null);
+    }
+
+    /// <summary>
     /// Refuses chat under <paramref name="mute"/> (a player's last mute, as read) while it holds at <paramref name="now"/>.
     /// </summary>
     public static void EnsureMayChat(Sanction? mute, DateTimeOffset now)

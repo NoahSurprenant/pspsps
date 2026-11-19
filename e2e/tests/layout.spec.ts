@@ -46,6 +46,7 @@ const CHECKS: Record<Screen["name"], Checks> = {
   "player-card": { parts: [".sheet"] },
   report: { parts: [".sheet"] },
   "own-card": { parts: [".sheet"] },
+  "own-card-rename": { parts: [".sheet"] },
   friends: { parts: [".sheet"] },
   catalogue: { parts: [".sheet"] },
   // An admin's view of another cat's card, Moderate open: still a sheet that fits (and scrolls).

@@ -27,6 +27,23 @@ grain IRoomGrain 1: Task<IReadOnlyList<String>> Renew(IReadOnlyList<PlayerSessio
 grain IRoomGrain 1: Task<ReelView> Reel(Guid playerId)
 grain IRoomGrain 1: Task<RoomSnapshot> Join(PlayerCard player, String session, String throughDoor)
 
+grain IRoomGrain 2: Task Cast(Guid playerId)
+grain IRoomGrain 2: Task Dress(OutfitView outfit)
+grain IRoomGrain 2: Task Emote(Guid playerId, String emote)
+grain IRoomGrain 2: Task Furnish(HomeView home)
+grain IRoomGrain 2: Task Leave(Guid playerId, String session)
+grain IRoomGrain 2: Task Move(Guid playerId, Double x, Double z)
+grain IRoomGrain 2: Task Rename(Guid playerId, String displayName)
+grain IRoomGrain 2: Task Say(Guid playerId, String text)
+grain IRoomGrain 2: Task SendOut(IReadOnlyList<Guid> playerIds, String message)
+grain IRoomGrain 2: Task<Boolean> Has(Guid playerId, String session)
+grain IRoomGrain 2: Task<DoorTarget> LeaveThrough(Guid playerId, String session, String doorId)
+grain IRoomGrain 2: Task<IReadOnlyList<ChatView>> RecentChat()
+grain IRoomGrain 2: Task<IReadOnlyList<Guid>> CatsHere()
+grain IRoomGrain 2: Task<IReadOnlyList<String>> Renew(IReadOnlyList<PlayerSession> sessions)
+grain IRoomGrain 2: Task<ReelView> Reel(Guid playerId)
+grain IRoomGrain 2: Task<RoomSnapshot> Join(PlayerCard player, String session, String throughDoor)
+
 grain IWorldGrain 1: Task Leave(Guid playerId, String session)
 grain IWorldGrain 1: Task<Boolean> TryEnter(Guid playerId, String session)
 grain IWorldGrain 1: Task<IReadOnlyList<String>> Renew(IReadOnlyList<PlayerSession> sessions)
@@ -98,6 +115,8 @@ type ReelView 1: String FishId
 type ReelView 2: String FishName
 type ReelView 3: Int32 Coins
 type ReelView 4: Int32? TotalCoins
+type RenameView 0: Guid PlayerId
+type RenameView 1: String DisplayName
 type RoomLink 0: String Id
 type RoomLink 1: String Name
 type RoomSnapshot 0: String WorldId

@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration.CommandLine;
 using Microsoft.Extensions.Configuration.EnvironmentVariables;
 using Microsoft.Extensions.Configuration.Json;
 using Microsoft.Extensions.Options;
+using Pspsps.Application.Players;
 using Pspsps.Domain.Rooms;
 
 namespace Pspsps.Server.Game;
@@ -65,7 +66,7 @@ public sealed class ChatFilterFile(string path)
 /// word list applies to the next line said, without a restart. When the lists can't be used (an action that doesn't
 /// exist, a missing or broken file) it logs a warning and keeps the filter it had; the next good load replaces it.
 /// </summary>
-public sealed partial class ChatFilters : IDisposable
+public sealed partial class ChatFilters : IDisposable, IChatFilterProvider
 {
     private readonly ChatFilterFile _file;
     private readonly ILogger<ChatFilters> _logger;
@@ -175,6 +176,8 @@ public static class ChatFilterSetup
         builder.Services.Configure<ChatFilterOptions>(builder.Configuration.GetSection(ChatFilterOptions.SectionName));
         builder.Services.AddSingleton(new ChatFilterFile(Path.Combine(builder.Environment.ContentRootPath, FilePath)));
         builder.Services.AddSingleton<ChatFilters>();
+        // The same instance a rename is checked against (Player.Rename): the same lists and look-alike handling as chat.
+        builder.Services.AddSingleton<IChatFilterProvider>(sp => sp.GetRequiredService<ChatFilters>());
         return builder;
     }
 

@@ -22,6 +22,10 @@ internal sealed class HubRoomBroadcaster(IHubContext<GameHub, IGameClient> hub, 
 
     public Task CatDressed(string roomKey, OutfitView outfit) => hub.Clients.Group(roomKey).CatDressed(outfit);
 
+    public Task CatRenamed(string roomKey, RenameView rename) => hub.Clients.Group(roomKey).CatRenamed(rename);
+
+    public Task HomeRenamed(string roomKey, string ownerName) => hub.Clients.Group(roomKey).HomeRenamed(ownerName);
+
     public Task FishBit(string session) => hub.Clients.Client(session).FishBit();
 
     public Task FishGotAway(string session) => hub.Clients.Client(session).FishGotAway();

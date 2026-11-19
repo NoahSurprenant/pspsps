@@ -35,6 +35,15 @@ describe("Room", () => {
     expect([...room.cats.values()]).toEqual([{ ...tom, furColor: "Calico", hat: "crown", collar: null }]);
   });
 
+  it("renames a cat that's here, keeping where it stands, and ignores one that isn't", () => {
+    const room = new Room(snapshot([tom]));
+
+    expect(room.rename({ playerId: "tom", displayName: "Sir Fluff" })).toBe(true);
+    expect(room.rename({ playerId: "felix", displayName: "Sir Fluff" })).toBe(false);
+
+    expect([...room.cats.values()]).toEqual([{ ...tom, displayName: "Sir Fluff" }]);
+  });
+
   it("forgets cats that leave", () => {
     const room = new Room(snapshot([tom, felix]));
 
@@ -112,6 +121,16 @@ describe("a home's room", () => {
   it("ignores a home's change in a world's room, or another's home", () => {
     expect(new Room(snapshot([tom])).furnish(home)).toBe(false);
     expect(new Room({ ...snapshot([tom]), home }).furnish({ ...home, ownerId: "felix" })).toBe(false);
+  });
+
+  it("is renamed after its owner, whether or not their cat is in it; a world's room ignores it", () => {
+    const room = new Room({ ...snapshot([]), roomId: "home", roomName: "Tom's home", home });
+
+    expect(room.renameHome("Sir Fluff")).toBe(true);
+
+    expect(room.snapshot.roomName).toBe("Sir Fluff's home");
+    expect(room.snapshot.home?.ownerName).toBe("Sir Fluff");
+    expect(new Room(snapshot([tom])).renameHome("Sir Fluff")).toBe(false);
   });
 });
 

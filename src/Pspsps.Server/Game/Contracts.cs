@@ -72,6 +72,13 @@ public sealed record ChatView([property: Id(0)] Guid PlayerId, [property: Id(1)]
     public static ChatView From(ChatLine line) => new(line.PlayerId, line.Text, line.At);
 }
 
+/// <summary>A cat was renamed: its new name, shown above it and on its card from now on.</summary>
+[GenerateSerializer, Immutable]
+public sealed record RenameView([property: Id(0)] Guid PlayerId, [property: Id(1)] string DisplayName)
+{
+    public static RenameView From(CatInRoom cat) => new(cat.PlayerId, cat.DisplayName);
+}
+
 /// <summary>A cat did an emote (one of Emotes.All: "sit", "meow", "wave", "sleep").</summary>
 [GenerateSerializer, Immutable]
 public sealed record EmoteView([property: Id(0)] Guid PlayerId, [property: Id(1)] string Emote, [property: Id(2)] DateTimeOffset At)
@@ -396,7 +403,7 @@ public sealed record SanctionedPlayerView(
 }
 
 /// <summary>
-/// A line of the audit trail on the admin page. Kind: "Warned", "Muted", "Banned", "MuteLifted", "BanLifted",
+/// A line of the audit trail on the admin page. Kind: "Warned", "Muted", "Banned", "MuteLifted", "BanLifted", "Renamed",
 /// "AddressBanned" or "AddressBanLifted" (those two with Address, the network's label: never the address).
 /// </summary>
 public sealed record ModerationLogView(

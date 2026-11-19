@@ -269,6 +269,36 @@ public sealed class ModerationTests
     }
 
     [Test]
+    public void RecordRename_AddsAnAuditLine_NotModeratingYourselfOrAnotherAdmin()
+    {
+        var felix = PlayerModeration.For(Felix);
+
+        felix.RecordRename(Moderator, "Rude Name", "Nicer Name", Now);
+
+        Assert.That(felix.Entries.Single(), Has.Property(nameof(ModerationEntry.Kind)).EqualTo(ModerationKind.Renamed)
+            .And.Property(nameof(ModerationEntry.Reason)).EqualTo("Rude Name → Nicer Name")
+            .And.Property(nameof(ModerationEntry.ByPlayerId)).EqualTo(Admin));
+        Assert.That(felix.BanAt(Now), Is.Null, "a rename changes nothing else");
+
+        var admin = PlayerModeration.For(Admin);
+        Assert.Throws<DomainException>(() => admin.RecordRename(Moderator, "A", "B", Now));
+        var other = PlayerModeration.For(OtherAdmin);
+        Assert.Throws<DomainException>(() => other.RecordRename(Moderator, "A", "B", Now));
+    }
+
+    [Test]
+    public void EnsureMayBeActedOnBy_IsTheSameCheckAsRecordRename_AskedBeforeChangingThePlayer()
+    {
+        var felix = PlayerModeration.For(Felix);
+        Assert.DoesNotThrow(() => felix.EnsureMayBeActedOnBy(Moderator));
+
+        var admin = PlayerModeration.For(Admin);
+        Assert.Throws<DomainException>(() => admin.EnsureMayBeActedOnBy(Moderator));
+        var other = PlayerModeration.For(OtherAdmin);
+        Assert.Throws<DomainException>(() => other.EnsureMayBeActedOnBy(Moderator));
+    }
+
+    [Test]
     public void Sanction_SaysItsEnd_InUtc()
     {
         var sanction = new Sanction("Spam", Now, new DateTimeOffset(2026, 11, 19, 9, 5, 0, TimeSpan.FromHours(2)), Admin);

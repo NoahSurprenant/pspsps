@@ -40,6 +40,8 @@ describe("the admin page", () => {
       .toBe("18 Nov 2026, 14:00 · Ann muted Felix until 18 Nov 2026, 15:00: Rude");
     expect(logLine({ ...line, kind: "Warned", reason: "Be nice" }, utc)).toBe("18 Nov 2026, 14:00 · Ann warned Felix: Be nice");
     expect(logLine({ ...line, kind: "BanLifted", reason: null }, utc)).toBe("18 Nov 2026, 14:00 · Ann lifted Felix's ban");
+    expect(logLine({ ...line, kind: "Renamed", reason: "Rude Name → Nicer Name" }, utc))
+      .toBe("18 Nov 2026, 14:00 · Ann renamed Felix: Rude Name → Nicer Name");
     expect(logLine({ ...line, kind: "AddressBanned", reason: "Spam", until: "2026-11-19T14:00:00Z", address: "1a2b3c4d" }, utc))
       .toBe("18 Nov 2026, 14:00 · Ann banned Felix's network 1a2b3c4d until 19 Nov 2026, 14:00: Spam");
     expect(logLine({ ...line, kind: "AddressBanLifted", reason: null, address: "1a2b3c4d" }, utc))

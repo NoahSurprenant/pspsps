@@ -25,7 +25,7 @@ export interface SanctionedPlayer {
 
 /** What an admin did (Contracts.cs, ModerationLogView). */
 export type ModerationKind =
-  | "Warned" | "Muted" | "Banned" | "MuteLifted" | "BanLifted" | "AddressBanned" | "AddressBanLifted";
+  | "Warned" | "Muted" | "Banned" | "MuteLifted" | "BanLifted" | "Renamed" | "AddressBanned" | "AddressBanLifted";
 
 export interface ModerationLogLine {
   playerId: string;
@@ -131,6 +131,7 @@ export function logLine(line: ModerationLogLine, format: TimeFormat = {}): strin
     Banned: `${line.byName} banned ${line.playerName} ${until}`,
     MuteLifted: `${line.byName} lifted ${line.playerName}'s mute`,
     BanLifted: `${line.byName} lifted ${line.playerName}'s ban`,
+    Renamed: `${line.byName} renamed ${line.playerName}`,
     AddressBanned: `${line.byName} banned ${line.playerName}'s network ${line.address ?? ""} ${until}`,
     AddressBanLifted: `${line.byName} lifted the ban on ${line.playerName}'s network ${line.address ?? ""}`,
   };

@@ -33,7 +33,7 @@ export interface Network {
 }
 
 /** What an admin can do to a player, as the hub's Moderate takes it. */
-export type ModerationAction = "warn" | "mute" | "ban" | "lift";
+export type ModerationAction = "warn" | "mute" | "ban" | "lift" | "rename";
 
 /** An admin's action from a card: what, why (shown to the player), and for a mute or ban how long. */
 export interface ModerationRequest {
@@ -199,6 +199,8 @@ export function doneMessage(request: ModerationRequest, name: string): string {
       return request.liftNetworks
         ? `${name} can play and chat again, and so can their networks.`
         : `${name} can play and chat again.`;
+    case "rename":
+      return `${name} was renamed to "${request.reason}".`;
   }
 }
 

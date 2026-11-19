@@ -15,6 +15,7 @@ import {
 import {
   catalogueSections, hasMoreToWear, wardrobeSections, wearingLine, type ShopAction, type ShopRow, type ShopSection,
 } from "./shop";
+import { maxDisplayNameLength, minDisplayNameLength, type OwnCardRename } from "./rename";
 import { pageTitle } from "./title";
 import type {
   DoorView, Emote, FurColor, Friend, FurnitureView, HomeVisitors, MutedView, Player, PlayerCard, RoomSnapshot, Shop,
@@ -620,12 +621,13 @@ export class Overlay {
   }
 
   /**
-   * The player's own card, over the room (a tap on their own cat): their name, a picture of their cat as it looks now,
-   * what it wears, and everything they have to wear, with Wear or Take off (a fur is changed, not taken off). `act`
-   * runs a button's change.
+   * The player's own card, over the room (a tap on their own cat): their name with a small Rename control (`rename`,
+   * which opens an inline text box with Save and Cancel), a picture of their cat as it looks now, what it wears, and
+   * everything they have to wear, with Wear or Take off (a fur is changed, not taken off). `act` runs a button's change.
    */
   showOwnCard(
-    name: string, shop: Shop, picture: CatPicture, act: (action: ShopAction, itemId: string) => void, playerId?: string,
+    name: string, shop: Shop, picture: CatPicture, act: (action: ShopAction, itemId: string) => void,
+    rename: OwnCardRename, playerId?: string,
   ): void {
     const wearing = wearingLine({
       hatName: shop.items.find((item) => item.id === shop.hat)?.name,
@@ -633,6 +635,7 @@ export class Overlay {
     });
     this.openDialog({ kind: "own-card" }, "player-card own-card",
       openingHeading(name),
+      rename.editing ? renameForm(name, rename) : renameButton(rename.start),
       portrait(picture),
       el("p", { className: "fur" }, swatchOf(shop.furColor), el("span", { text: `${shop.furColor} fur` })),
       el("p", { text: wearing ?? "Wearing nothing yet", className: "wearing" }),
@@ -642,6 +645,14 @@ export class Overlay {
       ...sectionsOf(wardrobeSections(shop), act),
       ...(playerId ? [details(playerId)] : []),
     );
+    if (rename.editing) {
+      // Not from a fresh showModal() (autofocus only applies then): moved here by hand, as the decorating panel does.
+      const input = this.dialog?.element.querySelector<HTMLInputElement>("#rename-input");
+      if (input && document.activeElement !== input) {
+        input.focus();
+        input.select();
+      }
+    }
   }
 
   /** What is open over the room: a player card (whose), the player's own card, the friends list, the catalogue, or nothing. */
@@ -869,6 +880,36 @@ export type OpenDialog =
   | { kind: "catalogue" }
   | { kind: "notice" };
 
+/** The small control under the player's own name on their own card, to open the inline Rename box. */
+function renameButton(start: () => void): HTMLElement {
+  const edit = button("Rename", start, "quiet");
+  edit.setAttribute("aria-label", "Rename your cat");
+  return edit;
+}
+
+/**
+ * The inline text box that replaces the Rename button once tapped, pre-filled with the cat's name now: Save sends it,
+ * Cancel closes the box without saving. Big enough to tap and to type into without the page zooming in.
+ */
+function renameForm(name: string, rename: OwnCardRename): HTMLElement {
+  const input = el("input", { id: "rename-input" });
+  input.type = "text";
+  input.value = name;
+  input.minLength = minDisplayNameLength;
+  input.maxLength = maxDisplayNameLength;
+  input.autocomplete = "off";
+  input.setAttribute("aria-label", "New name");
+  const form = el("form", { className: "rename-form" },
+    input,
+    button("Save", () => {}, "primary", "submit"),
+    button("Cancel", rename.cancel));
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    rename.save(input.value);
+  });
+  return form;
+}
+
 /**
  * The player's own details, folded away at the bottom of their card: their player ID, which is what makes a player an
  * admin (the server's admin list).
@@ -967,9 +1008,29 @@ function moderateSection(
       labelled(text, () => act(action, choice.value), action === "ban" ? "danger" : ""), forLabel, choice);
   };
 
+  const renameTo = el("input", { id: "moderate-rename" });
+  renameTo.maxLength = maxDisplayNameLength;
+  renameTo.minLength = minDisplayNameLength;
+  renameTo.autocomplete = "off";
+  renameTo.value = before?.querySelector<HTMLInputElement>("#moderate-rename")?.value ?? "";
+  renameTo.setAttribute("aria-label", `${name}'s new name`);
+  const renameLabel = el("label", { text: "New name" });
+  renameLabel.htmlFor = renameTo.id;
+  const renameAct = () => {
+    const newName = renameTo.value.trim();
+    if (newName.length === 0) {
+      say("Type a new name first.");
+      renameTo.focus();
+      return;
+    }
+
+    moderate({ action: "rename", reason: newName });
+  };
+
   section.append(
     el("div", { className: "moderate-reason" }, label, reason),
     el("div", { className: "moderate-row" }, labelled("Warn", () => act("warn"))),
+    el("div", { className: "moderate-row moderate-rename" }, renameLabel, renameTo, labelled("Rename", renameAct)),
     lengthRow("mute", "Mute", muteLengths),
     lengthRow("ban", "Ban", banLengths),
     ...(networks ? [networks.part] : []),

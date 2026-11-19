@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Pspsps.Application.Abstractions;
+using Pspsps.Application.Players;
 using Pspsps.Domain;
 using Pspsps.Domain.Moderation;
 using Pspsps.Domain.Safety;
@@ -9,7 +10,8 @@ using Attempt = Pspsps.Application.Moderation.ModerationSaves.Attempt;
 namespace Pspsps.Application.Moderation;
 
 internal sealed class ModerationService(
-    IApplicationDbContext db, IAdmins admins, [FromKeyedServices(ModerationClock.Key)] TimeProvider time)
+    IApplicationDbContext db, IAdmins admins, IChatFilterProvider chatFilters,
+    [FromKeyedServices(ModerationClock.Key)] TimeProvider time)
     : IModerationService
 {
     /// <summary>How many lines of the audit trail the admin page shows.</summary>
@@ -37,17 +39,31 @@ internal sealed class ModerationService(
     {
         ArgumentNullException.ThrowIfNull(request);
         var moderator = Moderator.Of(adminId, admins.Current);
-        if (!await db.Players.AnyAsync(p => p.Id == playerId, cancellationToken))
-        {
-            throw new DomainException(NoSuchCat);
-        }
 
         return await SaveAsync(async attempt =>
         {
+            // Tracked, not just checked exists: a rename changes it, in the same save as the audit line. Read inside the
+            // attempt (like the moderation below), so a retry (another change landed on it meanwhile) reads it fresh
+            // rather than saving a change already tried against a now-detached, once-renamed copy.
+            var player = await db.Players.FirstOrDefaultAsync(p => p.Id == playerId, cancellationToken)
+                ?? throw new DomainException(NoSuchCat);
+            attempt.Forget.Add(() => db.Forget(player));
             // Never null: made when there is none.
             var moderation = (await ReadAsync(playerId, create: true, attempt, cancellationToken))!;
             var now = time.GetUtcNow();
-            Apply(moderation, moderator, request, now);
+            if (request.Action == ModerationAction.Rename)
+            {
+                // Checked before the Player aggregate changes: never renamed only to have the save refused.
+                moderation.EnsureMayBeActedOnBy(moderator);
+                var from = player.DisplayName;
+                player.RenameByAdmin(request.Reason ?? "", chatFilters.Current);
+                moderation.RecordRename(moderator, from, player.DisplayName, now);
+            }
+            else
+            {
+                Apply(moderation, moderator, request, now);
+            }
+
             await FollowNetworksAsync(moderation, moderator, request, now, attempt, cancellationToken);
             return Standing.Of(moderation, now);
         }, cancellationToken);
@@ -199,7 +215,8 @@ internal sealed class ModerationService(
         _ => throw new DomainException("A report is dismissed, or the cat warned, muted or banned."),
     };
 
-    // The admin's action, by the aggregate's rules.
+    // The admin's action, by the aggregate's rules. Rename is handled by the caller (ModerateAsync): it touches the
+    // Player aggregate too, not just its moderation, and a report is never decided by renaming the reported cat.
     private static void Apply(PlayerModeration moderation, Moderator moderator, ModerationRequest request, DateTimeOffset now)
     {
         switch (request.Action)

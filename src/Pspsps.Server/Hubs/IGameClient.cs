@@ -30,6 +30,18 @@ public interface IGameClient
     /// <summary>A cat in the room put on or took off a hat or collar, or changed its fur.</summary>
     Task CatDressed(OutfitView outfit);
 
+    /// <summary>A cat in the room was renamed: its label above it, and anywhere else this tab shows it, is shown it now.</summary>
+    Task CatRenamed(RenameView rename);
+
+    /// <summary>This room is a home whose owner (not necessarily this tab's cat) was renamed: shown as their new name's home.</summary>
+    Task HomeRenamed(string ownerName);
+
+    /// <summary>
+    /// This player (any of their tabs) renamed their own cat: their own card and the catalogue, wherever they show the
+    /// name, are brought up to date.
+    /// </summary>
+    Task Renamed(string displayName);
+
     /// <summary>Something bit this tab's line: reel in within <see cref="Pspsps.Domain.Fishing.FishingLine.BiteWindow"/>.</summary>
     Task FishBit();
 

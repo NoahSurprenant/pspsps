@@ -14,4 +14,7 @@ public enum ModerationKind
 
     /// <summary>A network's ban was lifted.</summary>
     AddressBanLifted,
+
+    /// <summary>An admin renamed the cat from its card, to fix a rude name.</summary>
+    Renamed,
 }

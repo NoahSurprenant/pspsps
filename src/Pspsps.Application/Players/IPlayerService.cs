@@ -25,4 +25,11 @@ public interface IPlayerService
 
     /// <summary>Pays the player <paramref name="coins"/> (a catch, a game's prize); the player as saved after.</summary>
     Task<PlayerProfile> EarnCoinsAsync(Guid playerId, int coins, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Renames the player's own cat, from their own card (<see cref="Domain.Players.Player.Rename"/>): the name rules, the
+    /// chat filter's lists, no staff impersonation, and at most once a day, unless the player is an admin (configured),
+    /// who is exempt. The player as saved after.
+    /// </summary>
+    Task<PlayerProfile> RenameAsync(Guid playerId, string displayName, CancellationToken cancellationToken);
 }

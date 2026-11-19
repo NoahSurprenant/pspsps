@@ -146,6 +146,28 @@ public sealed class RoomStateTests
     }
 
     [Test]
+    public void Rename_ChangesTheCatsLabel_WhereItStands()
+    {
+        var state = new RoomState(Room);
+        state.Join(Tom, "Tom", FurColor.Grey, TabA, Now);
+        state.Move(Tom, new Position(3, 0));
+
+        var renamed = state.Rename(Tom, "Sir Fluff");
+
+        Assert.That(renamed, Is.EqualTo(new CatInRoom(Tom, "Sir Fluff", FurColor.Grey, new Position(3, 0))));
+        Assert.That(state.Cats.Single().DisplayName, Is.EqualTo("Sir Fluff"));
+    }
+
+    [Test]
+    public void Rename_ACatThatIsntHere_IsNothing()
+    {
+        var state = new RoomState(Room);
+
+        Assert.That(state.Rename(Tom, "Sir Fluff"), Is.Null);
+        Assert.That(state.Cats, Is.Empty);
+    }
+
+    [Test]
     public void Join_RefusesAFullRoom()
     {
         var state = new RoomState(Room);

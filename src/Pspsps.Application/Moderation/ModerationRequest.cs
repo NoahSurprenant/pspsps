@@ -10,11 +10,15 @@ public enum ModerationAction
     Mute,
     Ban,
     Lift,
+
+    /// <summary>Renames the cat, to fix a rude name (the "reason" carries the new name): the same rules as the player's
+    /// own <see cref="Domain.Players.Player.Rename"/>, except the 24-hour cooldown, which doesn't apply.</summary>
+    Rename,
 }
 
 /// <summary>
 /// An admin's action on a player, as asked: warn (the reason is the warning), mute for an hour, a day or a week, ban
-/// for a day, a week or for good, or lift whatever ban and mute there are.
+/// for a day, a week or for good, rename (the reason carries the new name), or lift whatever ban and mute there are.
 /// </summary>
 public sealed record ModerationRequest(ModerationAction Action, string? Reason, TimeSpan? Length)
 {

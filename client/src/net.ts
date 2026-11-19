@@ -8,7 +8,7 @@ import type { ReportRequest } from "./safety";
 import type { ShopAction } from "./shop";
 import type {
   CatchView, CatView, ChatView, Emote, EmoteView, Friend, HomeView, HomeVisitors, MutedView, OutfitView, Player, PlayerCard,
-  ReelView, ReportReceipt, RoomSnapshot, Shop, WorldSummary,
+  ReelView, RenameView, ReportReceipt, RoomSnapshot, Shop, WorldSummary,
 } from "./types";
 
 export interface GameEvents {
@@ -19,6 +19,12 @@ export interface GameEvents {
   catEmoted(emote: EmoteView): void;
   /** A cat in the room put on or took off a hat or collar, or changed its fur. */
   catDressed(outfit: OutfitView): void;
+  /** A cat in the room was renamed. */
+  catRenamed(rename: RenameView): void;
+  /** This room is a home whose owner (not necessarily our cat) was renamed: shown as their new name's home. */
+  homeRenamed(ownerName: string): void;
+  /** We renamed our own cat, from this tab or another: the own card and anywhere else we show our name. */
+  renamed(displayName: string): void;
   /** Something bit our line: reel now. */
   fishBit(): void;
   fishGotAway(): void;
@@ -178,6 +184,9 @@ export class GameConnection {
     hub.on("ChatSaid", (line: ChatView) => events.chatSaid(line));
     hub.on("CatEmoted", (emote: EmoteView) => events.catEmoted(emote));
     hub.on("CatDressed", (outfit: OutfitView) => events.catDressed(outfit));
+    hub.on("CatRenamed", (rename: RenameView) => events.catRenamed(rename));
+    hub.on("HomeRenamed", (ownerName: string) => events.homeRenamed(ownerName));
+    hub.on("Renamed", (displayName: string) => events.renamed(displayName));
     hub.on("FishBit", () => events.fishBit());
     hub.on("FishGotAway", () => events.fishGotAway());
     hub.on("CatFished", (caught: CatchView) => events.catFished(caught));
@@ -303,6 +312,11 @@ export class GameConnection {
 
   getPlayerCard(playerId: string): Promise<PlayerCard> {
     return this.call<PlayerCard>("GetPlayerCard", playerId);
+  }
+
+  /** Renames the player's own cat, from their own card; the new name, as the server has it. */
+  rename(displayName: string): Promise<string> {
+    return this.call<string>("Rename", displayName);
   }
 
   /** A change to the friendship with another cat; the card as it is after. */
