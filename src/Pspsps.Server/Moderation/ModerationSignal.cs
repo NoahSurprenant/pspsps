@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Microsoft.AspNetCore.SignalR;
 using Pspsps.Domain.Moderation;
 using StackExchange.Redis;
 
