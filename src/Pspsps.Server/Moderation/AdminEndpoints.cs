@@ -31,6 +31,21 @@ public static class AdminEndpoints
         services.AddSingleton<AddressGuard>();
         services.AddHostedService<AddressPruning>();
         services.AddSingleton<PlayerConnections>();
+        services.AddSingleton<ModerationOnThisPod>();
+        // Several pods (Redis): a moderation reaches every pod's connections and standing reads through Redis pub/sub.
+        if (configuration.GetConnectionString("Redis") is { Length: > 0 } redis)
+        {
+            services.AddSingleton(provider => new RedisModerationSignal(
+                redis, provider.GetRequiredService<ModerationOnThisPod>(),
+                provider.GetRequiredService<ILogger<RedisModerationSignal>>()));
+            services.AddSingleton<IModerationSignal>(provider => provider.GetRequiredService<RedisModerationSignal>());
+            services.AddHostedService(provider => provider.GetRequiredService<RedisModerationSignal>());
+        }
+        else
+        {
+            services.AddSingleton<IModerationSignal, LocalModerationSignal>();
+        }
+
         services.AddSingleton<ModerationHubFilter>();
         services.AddSingleton<IModerationEffects, ModerationEffects>();
         services.AddSingleton<IAuthorizationHandler, NotBannedHandler>();

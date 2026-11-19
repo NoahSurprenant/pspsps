@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using Microsoft.AspNetCore.SignalR;
 using Pspsps.Application.Moderation;
 using Pspsps.Domain.Moderation;
@@ -13,14 +12,15 @@ public interface IModerationEffects
     /// <summary>
     /// <paramref name="action"/> was done to <paramref name="playerId"/>, who stands at <paramref name="standing"/> now:
     /// their tabs are told (a warning to fetch, their mute, their ban). A banned player's tabs are told why and until when,
-    /// then closed, and their cat is taken out of its room. Never throws: the change is saved, and shows anyway the next
-    /// time they connect or speak.
+    /// then closed on every pod, and their cat is taken out of its room. Never throws: the change is saved, and shows
+    /// anyway the next time they connect or speak.
     /// </summary>
     Task AppliedAsync(Guid playerId, ModerationAction action, Standing standing);
 
     /// <summary>
     /// The networks <paramref name="banned"/> were banned: every tab on one (but an admin's) is told why and until when, as
-    /// a banned player's are; this pod's are closed shortly, and their cats taken out of their rooms. Never throws.
+    /// a banned player's are; every pod closes the connections it holds on them two seconds later, and their cats are
+    /// taken out of their rooms. Never throws.
     /// </summary>
     Task NetworksBannedAsync(IReadOnlyList<BannedAddress> banned);
 
@@ -30,26 +30,24 @@ public interface IModerationEffects
 
 internal sealed partial class ModerationEffects(
     IHubContext<GameHub, IGameClient> hub,
+    IModerationSignal signal,
     PlayerConnections connections,
     StandingCache standings,
     IGrainFactory grains,
-    TimeProvider time,
     ILogger<ModerationEffects> logger,
     AddressBanCache? networks = null) : IModerationEffects
 {
-    /// <summary>How long a banned player's tab has to hear why before its connection is closed.</summary>
-    public static readonly TimeSpan CloseAfter = TimeSpan.FromSeconds(2);
-
-    // The timers that will close banned players' connections: kept, so they aren't collected before they fire.
-    private readonly ConcurrentDictionary<ITimer, byte> _closing = new();
-
     public async Task AppliedAsync(Guid playerId, ModerationAction action, Standing standing)
     {
         ArgumentNullException.ThrowIfNull(standing);
         standings.Know(playerId, standing);
+        // Through SignalR's user, which the backplane carries to the player's tabs on every pod.
         var player = hub.Clients.User(PlayerUserIdProvider.For(playerId));
         try
         {
+            // Every pod reads the new standing at the player's next call, and a ban closes their tabs wherever they are.
+            var ban = action == ModerationAction.Ban ? standing.Ban : null;
+            await signal.SendAsync(playerId, close: ban is not null);
             switch (action)
             {
                 case ModerationAction.Warn:
@@ -62,9 +60,7 @@ internal sealed partial class ModerationEffects(
                     // A ban lifted has no tab to tell: the player's next visit just works.
                     await player.Muted(null);
                     break;
-                case ModerationAction.Ban when standing.Ban is { } ban:
-                    // This pod's tabs are closed shortly; another pod's are told too, and refused from then on.
-                    CloseLater(playerId);
+                case ModerationAction.Ban when ban is not null:
                     await player.Banned(SanctionView.From(ban)!);
                     await SendOutOfRoomAsync(playerId, ban);
                     break;
@@ -84,13 +80,17 @@ internal sealed partial class ModerationEffects(
         foreach (var network in banned)
         {
             networks?.Know(network.AddressHash, network.Ban);
-            var here = connections.OnNetwork(network.AddressHash);
             try
             {
-                // This pod's tabs on it are closed shortly; another pod's are told too, and refused from then on.
-                CloseLater([.. here.Select(open => open.Connection)]);
+                // To the SignalR group of the network, which the backplane carries to every pod's tabs on it.
                 await hub.Clients.Group(AddressGuard.GroupOf(network.AddressHash)).Banned(SanctionView.From(network.Ban));
-                foreach (var playerId in here.Select(open => open.PlayerId).Distinct())
+                // Every pod closes the connections it holds on the network two seconds later (ModerationOnThisPod,
+                // through the same cross-pod signal as a player's ban), and reads the ban again rather than trusting
+                // what it cached.
+                await signal.SendNetworkAsync(network.AddressHash, close: true);
+                // Only the players this pod itself holds a connection for: a tab on another pod is sent out of its room
+                // when that pod notices the ban (ModerationHubFilter, once the signal or AddressBanCache.KeepFor catches up).
+                foreach (var playerId in connections.OnNetwork(network.AddressHash).Select(open => open.PlayerId).Distinct())
                 {
                     await SendOutOfRoomAsync(playerId, network.Ban);
                 }
@@ -110,32 +110,6 @@ internal sealed partial class ModerationEffects(
         {
             networks?.Know(hash, null);
         }
-    }
-
-    // Closes the player's connections on this pod after CloseAfter, once their tabs have had time to hear why.
-    private void CloseLater(Guid playerId) => CloseLater(connections.Of(playerId));
-
-    private void CloseLater(IReadOnlyList<HubCallerContext> open)
-    {
-        if (open.Count == 0)
-        {
-            return;
-        }
-
-        ITimer? timer = null;
-        timer = time.CreateTimer(state =>
-        {
-            foreach (var connection in open)
-            {
-                connection.Abort();
-            }
-
-            if (timer is not null && _closing.TryRemove(timer, out _))
-            {
-                timer.Dispose();
-            }
-        }, null, CloseAfter, Timeout.InfiniteTimeSpan);
-        _closing[timer] = 0;
     }
 
     // Out of whatever room the cat is in, wherever its tab's connection is: a tab on another pod that ignores the ban

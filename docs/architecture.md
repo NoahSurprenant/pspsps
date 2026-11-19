@@ -7,12 +7,15 @@ browser (Babylon.js client)
    │  one SignalR connection (/hubs/game) + a few HTTP calls (/auth, /api)
    ▼
 server pods ── every pod is the same: ASP.NET Core + SignalR hub + an Orleans silo
-   │   ├─ Redis: Orleans' membership table (which pods are alive) and the SignalR backplane
+   │   ├─ Redis: Orleans' membership table (which pods are alive), the SignalR backplane, the moderation signal
    │   └─ PostgreSQL: players and everything else that lasts (EF Core), and the shared key ring
 ```
 
-To handle more players, add replicas. With one replica and no Redis configured, the server runs a single local silo,
-which is what development and the tests use.
+To handle more players, add replicas: the chart's cluster mode ([cluster.md](cluster.md)). With one replica and no Redis
+configured, the server runs a single local silo, which is what development and the tests use (`Cluster:Mode`,
+`OrleansSetup`). The browser's hub connection is a WebSocket opened straight away, with no negotiate request, so it stays
+on the pod it opened on and the pods need no sticky sessions; a browser that can't open one falls back to SignalR's
+negotiation (`client/src/net.ts`, `hubTransports`).
 
 ## Worlds, rooms and actors
 
@@ -43,7 +46,9 @@ The other way round, when a world or room grain's pod dies, the grain comes back
 the live tabs back in as their renewals arrive (but not tabs that left it lately: a renewal sent just before a tab left
 can arrive after it); a tab it can't take back because it filled up meanwhile is told (`WorldLost`) and goes back to
 the world picker. A room answers a renewal with the tabs whose cats it no longer has (`RoomState.Renew`: renewed, taken
-over by a newer tab, or gone); those tabs leave its SignalR group, are told (`RoomLost`), and go back to the room.
+over by a newer tab, or gone); those tabs leave its SignalR group, are told (`RoomLost`), and go back to the room. A
+room on a pod that is stopping (a rolling update) doesn't wait for that: it tells its tabs `RoomLost` as it
+deactivates.
 
 A move goes like this:
 
@@ -223,14 +228,17 @@ report about a cat that no longer exists can only be dismissed.
 The hub refuses a banned player: their connection at the door (the hub's `not-banned` policy, a 403), and every call on
 a connection already open (`ModerationHubFilter`), with why and until when. Whether a player is banned is read from the
 database at most once every 5 seconds per player on each pod (`StandingCache`; a change made on the pod is read at
-once), since every move is a call. A ban is put into effect at once (`ModerationEffects`): the player's tabs are told
-(`Banned`), show why and until when, and stop; this pod closes their connections two seconds later; their cat is taken
-out of its room, wherever it is; and `/api/me` tells a page that loads why it can't play. Chat is refused while muted
-(`PlayerModeration.EnsureMayChat`, asked by `GameHub.Say` with the same per-pod read, so a mute or a lift decided on
-another pod takes up to 5 seconds there), and the player's tabs are told at once (`Muted`), which turns their chat box
-into why and until when. A warning is shown (at once when the tabs are told `Warned`, or on the player's next visit)
-until the player closes it, which tells the server they saw it (`SawWarning`): two warnings meanwhile both show, one
-after the other. When the database can't answer, the last read holds and a player never read plays.
+once), since every move is a call. Every moderation is signalled to every pod (`IModerationSignal`: Redis pub/sub with
+several pods), and each drops what it knew of the player's standing, so it is read again at their next call; should a
+pod miss the signal, its read is at most 5 seconds old. A ban is put into effect at once (`ModerationEffects`): the
+player's tabs are told (`Banned`), show why and until when, and stop; every pod closes the player's connections it holds
+two seconds later (`ModerationOnThisPod`), so a tab that ignores the ban is closed too; their cat is taken out of its
+room, wherever it is; and `/api/me` tells a page that loads why it can't play. Chat is refused while muted
+(`PlayerModeration.EnsureMayChat`, asked by `GameHub.Say` with the same per-pod read), and the player's tabs are told at
+once (`Muted`), which turns their chat box into why and until when. A warning is shown (at once when the tabs are told
+`Warned`, or on the player's next visit) until the player closes it, which tells the server they saw it (`SawWarning`):
+two warnings meanwhile both show, one after the other. When the database can't answer, the last read holds and a player
+never read plays.
 
 ### Network bans
 
@@ -270,14 +278,45 @@ browser shows the banned screen), a Discord or Google sign-in makes no cat and i
 page asks `/auth/ban` why, and shows it), `/api/me` says the player is banned, and the hub refuses the connection at the
 door (the `not-banned` policy) and every call on one opened before (`ModerationHubFilter`, with the network the
 connection opened from). Tabs already open there are told at once (`Banned`, to the SignalR group of the network, which
-every connection but an admin's joins as it opens), this pod closes its own two seconds later and takes their cats out
-of their rooms, and another pod's tab that ignores it is refused and closed at its next call. Whether a network is
-banned is read at most once every 5 seconds per network on each pod (`AddressBanCache`, as `StandingCache` for players;
-a change made on the pod is known at once). Admins (the configured list) are never refused by a network's ban, so the
-owner can't lock themself out.
+every connection but an admin's joins as it opens, carried to every pod's tabs by the SignalR backplane), and every pod
+closes the connections it holds on that network two seconds later and takes their cats out of their rooms
+(`ModerationOnThisPod`, through the same cross-pod signal as a player's ban: a network-ban message carrying the network's
+hash, never the address); a pod that misses the signal still refuses and closes a tab at its next call. Whether a
+network is banned is read at most once every 5 seconds per network on each pod (`AddressBanCache`, as `StandingCache`
+for players; a ban made on another pod is read again at once, a lift within that time). Admins (the configured list)
+are never refused by a network's ban, so the owner can't lock themself out.
 
 The end-to-end tests' server sees one address for every browser, so a network ban there would lock the whole run out:
 the refusals are tested through the hosted server in the integration tests, each request from an address of its own.
+
+## Changing what pods say to each other
+
+During a rolling update old and new pods run side by side ([cluster.md](cluster.md)): a grain call made by a pod on the
+old code can run on an activation on the new code, and a Redis message one pod publishes, the other reads. Grain
+interfaces are versioned (`[Version]` on `IRoomGrain`, `IWorldGrain`, `IPlayerSessionGrain`) with Orleans' rolling
+upgrade settings (`OrleansSetup.ConfigureVersioning`: `BackwardCompatible`, `AllCompatibleVersions`; see Orleans'
+[grain interface versioning](https://learn.microsoft.com/dotnet/orleans/grains/grain-versioning/grain-versioning) and
+[backward compatibility guidelines](https://learn.microsoft.com/dotnet/orleans/grains/grain-versioning/backward-compatibility-guidelines)).
+Orleans can't check that a new version really is compatible; these rules make it so:
+
+- **A grain interface changes only by adding.** A new method, or a new overload, never a changed signature: not a
+  parameter added, removed, retyped, reordered or renamed (Orleans matches arguments by position, so swapping two names
+  swaps the values), not a return type. Every change raises the interface's `[Version]` by one.
+- **A method stays for a release after it's replaced.** Mark it `[Obsolete]` in the version that replaces it, keep it
+  working (old pods still call it), and remove it in a later version, once no pod on the old code can be running.
+- **A method's meaning doesn't change** under the same signature, except to fix a bug: a new behaviour is a new method.
+- **A `[GenerateSerializer]` type changes only by adding members**, each with a new `[Id]`. An Id is never reused, even
+  after its member is removed. A pod on the old code sending the type leaves a new member at its default (null, 0,
+  false), not the C# default parameter value: the code reading it must treat that as "not sent". A member's type never
+  changes; a new type is a new member.
+- **Messages between pods outside Orleans** (the moderation signal, `ModerationMessage` and `NetworkModerationMessage`)
+  carry a version and are read by their known fields only: a new field goes at the end, and an older pod ignores it.
+
+`WireContractTests` (in `Pspsps.Server.Test`) holds the record of every grain interface version and every serialized
+member's Id, `tests/Pspsps.Server.Test/Game/wire-contracts.txt`, and fails when an interface changes without a new
+version, when a new version drops a method of the last that wasn't `[Obsolete]`, or when an Id changes its member. The
+failure prints the record as today's code would make it: after a deliberate, compatible change, add the new lines,
+keeping the old ones.
 
 ## Layers (Clean Architecture)
 

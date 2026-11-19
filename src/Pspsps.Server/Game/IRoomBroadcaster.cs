@@ -21,6 +21,12 @@ public interface IRoomBroadcaster
     /// <summary>Tells one tab that the bite on its line wasn't reeled in time: the fish got away, the line is in.</summary>
     Task FishGotAway(string session);
 
+    /// <summary>
+    /// Tells one tab its room no longer has its cat (the room's pod is shutting down, and the room starts over empty
+    /// elsewhere): the tab walks back in at once, rather than at its next lease renewal.
+    /// </summary>
+    Task RoomLost(string session);
+
     /// <summary>Shows a home's room its furniture and who may visit, as its owner just changed them.</summary>
     Task HomeChanged(string roomKey, HomeView home);
 

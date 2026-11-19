@@ -21,7 +21,10 @@ public sealed partial class AddressGuard(
     private const int ForgetAbove = 10_000;
 
     // When this pod last saved each player's network: within the hour, the database's copy holds (PlayerAddress.SeenEvery),
-    // so another connection from it saves nothing and reads nothing.
+    // so another connection from it saves nothing and reads nothing. Each pod keeps its own copy of this cache, so a
+    // player seen on several pods within the hour is saved once per pod rather than once overall; the database's
+    // SeenEvery throttle (and SeenAsync's handling of the resulting unique-violation race) still holds regardless, so
+    // that is only ever a few extra, harmless writes.
     private readonly ConcurrentDictionary<(Guid PlayerId, string Network), DateTimeOffset> _saved = new();
 
     /// <summary>The SignalR group of the connections on a network (not an admin's): told at once when it is banned.</summary>
@@ -103,8 +106,10 @@ public sealed partial class AddressGuard(
 /// <summary>
 /// The networks' bans, for refusing every hub call from one: read from the database at most once every
 /// <see cref="KeepFor"/> per network on this pod, as <see cref="StandingCache"/> reads players' (a move is a call). A ban
-/// or lift decided on this pod is known at once (<see cref="Know"/>); one decided on another pod is seen here within
-/// <see cref="KeepFor"/>. When the database can't answer, the last read holds, and a network never read is let in.
+/// or lift decided on this pod is known at once (<see cref="Know"/>); a ban decided on another pod is read again here at
+/// once (<see cref="Forget"/>, <see cref="IModerationSignal"/>), and within <see cref="KeepFor"/> if its signal never
+/// arrives; a lift decided on another pod is seen here within <see cref="KeepFor"/>. When the database can't answer, the
+/// last read holds, and a network never read is let in.
 /// </summary>
 public sealed partial class AddressBanCache(
     IServiceScopeFactory scopes,
@@ -130,6 +135,16 @@ public sealed partial class AddressBanCache(
 
     /// <summary>The network's ban changed on this pod: it is <paramref name="ban"/> now (null: lifted).</summary>
     public void Know(string addressHash, Sanction? ban) => _read[addressHash] = new Read(ban, time.GetUtcNow());
+
+    /// <summary>
+    /// The network's ban changed on another pod (<see cref="IModerationSignal"/>): its next read reads it again. A read
+    /// already under way isn't kept (it may be from before the change); what this pod knew still holds if the database
+    /// can't answer.
+    /// </summary>
+    public void Forget(string addressHash) => _read.AddOrUpdate(
+        addressHash,
+        static _ => new Read(null, DateTimeOffset.MinValue),
+        static (_, known) => new Read(known.Ban, DateTimeOffset.MinValue));
 
     private async Task<Sanction?> LastBanAsync(string addressHash, CancellationToken cancellationToken)
     {

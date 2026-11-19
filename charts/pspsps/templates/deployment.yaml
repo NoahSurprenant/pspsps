@@ -5,6 +5,14 @@
 {{- /* The startup probe below is sized for at most 120 s of waiting. */}}
 {{- fail "server.databaseStartupWaitSeconds must be from 1 to 120" }}
 {{- end }}
+{{- if and .Values.cluster.enabled (lt (int .Values.cluster.replicas) 2) }}
+{{- /* One pod is the default mode: a cluster of one would only add Redis, and its disruption budget would block drains. */}}
+{{- fail "cluster.replicas must be at least 2 with cluster.enabled (one pod: leave cluster.enabled false)" }}
+{{- end }}
+{{- if or (lt (int .Values.cluster.preStopSeconds) 0) (gt (int .Values.cluster.preStopSeconds) 10) }}
+{{- /* terminationGracePeriodSeconds (60) covers it and the 45 s shutdown. */}}
+{{- fail "cluster.preStopSeconds must be from 0 to 10" }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -40,7 +48,20 @@ spec:
       automountServiceAccountToken: {{ .Values.cluster.enabled }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      # Room for the preStop wait (cluster mode), then the host's shutdown (DOTNET_SHUTDOWNTIMEOUTSECONDS): the hub's
+      # connections close (the browsers reconnect to another pod), then the silo leaves the cluster and hands its grains
+      # on.
       terminationGracePeriodSeconds: 60
+      {{- if and .Values.cluster.enabled .Values.cluster.topologySpread }}
+      # The pods on different nodes where they can be: one node going down doesn't take the whole game.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              {{- include "pspsps.selectorLabels" (dict "root" . "component" "server") | nindent 14 }}
+      {{- end }}
       containers:
         - name: server
           image: {{ include "pspsps.imageRef" .Values.image }}
@@ -70,6 +91,9 @@ spec:
             {{- if .Values.cluster.enabled }}
             - name: ConnectionStrings__Redis
               value: "{{ include "pspsps.redisHost" . }}:6379"
+            # Orleans' Kubernetes hosting on Redis membership (src/Pspsps.Server/Game/OrleansSetup.cs).
+            - name: Cluster__Mode
+              value: Kubernetes
             - name: ORLEANS_SERVICE_ID
               valueFrom:
                 fieldRef:
@@ -162,6 +186,14 @@ spec:
               path: /health/ready
               port: http
             periodSeconds: 5
+          {{- if .Values.cluster.enabled }}
+          # Out of the Service's endpoints before the server starts stopping: the proxies stop sending this pod new
+          # connections first, so none land on a pod that's closing.
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sleep", "{{ .Values.cluster.preStopSeconds }}"]
+          {{- end }}
           resources:
             {{- toYaml .Values.server.resources | nindent 12 }}
           securityContext:

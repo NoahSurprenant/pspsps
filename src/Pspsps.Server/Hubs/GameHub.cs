@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Orleans.Runtime;
 using Pspsps.Application.Friends;
 using Pspsps.Application.Homes;
 using Pspsps.Application.Moderation;
@@ -132,15 +133,15 @@ public sealed partial class GameHub(
         }
 
         await EnsureCurrentTab();
-        var ownerName = await PlayersRule(() => homes.VisitAsync(PlayerId, ownerId, Context.ConnectionAborted));
+        await PlayersRule(() => homes.VisitAsync(PlayerId, ownerId, Context.ConnectionAborted));
         // Read after the waits: the heartbeat may have moved it meanwhile (a lost room or world).
         var place = Here ?? throw new HubException("Pick a world first.");
         var key = RoomKey.ForHome(ownerId);
-        if (place.RoomKey == key)
-        {
-            throw new HubException(ownerId == PlayerId ? "You're home already." : $"You're in {ownerName}'s home already.");
-        }
 
+        // Not refused as "You're home already": a room deactivating with cats still in it tells each tab RoomLost
+        // itself (RoomGrain.TellLost), which doesn't go through SessionHeartbeat.LeaveLostRoom, so the hub's place for
+        // this tab can still point at that same, now-lost home. The client answers RoomLost by calling VisitHome again;
+        // MoveInto treats place.RoomKey == key as already left (skips Leave) and walks it back in.
         var snapshot = await MoveInto(place, key);
         if (ownerId == PlayerId)
         {
@@ -248,9 +249,24 @@ public sealed partial class GameHub(
             throw new HubException(ClosedMessage);
         }
 
-        if (place.RoomKey is { } was)
+        // was == key: walking back into the very room this tab's place still names (RoomGrain.TellLost told it RoomLost
+        // without clearing this place; see VisitHome). Leave would only wake the fresh, empty activation that answers
+        // for <key> now, whose GoIfEmpty immediately deactivates it again (nothing to leave: this tab was never in it) -
+        // so treat the old place as already left instead of calling Leave at all.
+        if (place.RoomKey is { } was && was != key)
         {
-            await LeaveRoom(was);
+            try
+            {
+                await LeaveRoom(was);
+            }
+            catch (Exception e) when (e is TimeoutException or SiloUnavailableException)
+            {
+                // The room can't answer (its pod is stopping: the tab was told the room is lost, and is walking back in).
+                // The tab is out of its group already, and nothing renews its lease there any more: it runs out. Any
+                // other failure (a live room's own rule, a bug) is a real problem with a cat still in a room nobody
+                // told to leave: it must stop the move here, not be swallowed into a ghost cat.
+                LogLeaveRoomFailed(logger, e, PlayerId, was);
+            }
         }
 
         try
@@ -1016,6 +1032,9 @@ public sealed partial class GameHub(
             throw new HubException(e.Message);
         }
     }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Player {PlayerId} couldn't leave {RoomKey} on the way to another room; the lease there runs out instead")]
+    private static partial void LogLeaveRoomFailed(ILogger logger, Exception exception, Guid playerId, string roomKey);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't record that player {PlayerId} is in {RoomKey}; friends won't find them there")]
     private static partial void LogArrivalNotRecorded(ILogger logger, Exception exception, Guid playerId, string roomKey);

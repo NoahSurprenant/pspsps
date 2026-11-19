@@ -1,6 +1,13 @@
+using Orleans.CodeGeneration;
+
 namespace Pspsps.Server.Game;
 
 /// <summary>One room of one world, keyed by <see cref="RoomKey"/>. One activation in the whole cluster.</summary>
+/// <remarks>
+/// Versioned: a change to it is add-only and bumps the version (docs/architecture.md, "Changing what pods say to each
+/// other"), which Pspsps.Server.Test's WireContractTests check against wire-contracts.txt.
+/// </remarks>
+[Version(1)]
 public interface IRoomGrain : IGrainWithStringKey
 {
     /// <summary>

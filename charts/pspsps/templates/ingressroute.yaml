@@ -25,5 +25,14 @@ spec:
       services:
         - name: {{ include "pspsps.fullname" $ }}
           port: 80
+          {{- if .sticky }}
+          # For browsers that can't open a WebSocket and fall back to SignalR's negotiation (docs/cluster.md).
+          sticky:
+            cookie:
+              name: pspsps-pod
+              httpOnly: true
+              secure: true
+              sameSite: lax
+          {{- end }}
 {{- end }}
 {{- end }}

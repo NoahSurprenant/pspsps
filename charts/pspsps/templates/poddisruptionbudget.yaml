@@ -1,0 +1,15 @@
+{{- if .Values.cluster.enabled }}
+# A node drain takes at most one server pod at a time: the others keep the game, and the grains move to them.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "pspsps.fullname" . }}
+  labels:
+    {{- include "pspsps.labels" . | nindent 4 }}
+    app.kubernetes.io/component: server
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      {{- include "pspsps.selectorLabels" (dict "root" . "component" "server") | nindent 6 }}
+{{- end }}
