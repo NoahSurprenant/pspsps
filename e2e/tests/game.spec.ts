@@ -861,7 +861,7 @@ test("an admin bans a cat with its network from its card: a new guest there is s
     await card.getByLabel("Why (they're shown this)").fill("Came back to spam");
     await card.getByLabel(`Ban ${felix.name} for`).selectOption("24h");
     await card.getByRole("button", { name: `Ban ${felix.name}`, exact: true }).click();
-    await expect(admin.getByText(`${felix.name} is banned for 24 hours, and their network for 7 days.`)).toBeVisible();
+    await expect(admin.locator("#toast")).toHaveText(`${felix.name} is banned for 24 hours, and their network for 7 days.`);
     // Never past Felix's own ban: a day, not a week.
     await expect(card.getByText(/^Network [0-9a-f]{8} · 1 cat this week · banned until /)).toBeVisible();
 
@@ -874,7 +874,7 @@ test("an admin bans a cat with its network from its card: a new guest there is s
     // Lift, with its networks' bans (offered, checked).
     await expect(card.getByRole("checkbox", { name: "Also lift its networks' bans" })).toBeChecked();
     await card.getByRole("button", { name: `Lift ${felix.name}`, exact: true }).click();
-    await expect(admin.getByText(`${felix.name} can play and chat again, and so can their networks.`)).toBeVisible();
+    await expect(admin.locator("#toast")).toHaveText(`${felix.name} can play and chat again, and so can their networks.`);
     await newcomer.page.reload();
     await newcomer.page.getByRole("button", { name: "Play as a guest" }).click();
     await expect(newcomer.page.getByRole("button", { name: /^Calico · / })).toBeVisible();
