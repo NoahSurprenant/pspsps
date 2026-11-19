@@ -1,3 +1,7 @@
+# Run to completion, then read its log: an attached run (-i) misses what a pod prints before it attaches.
+k run np-probe --image=docker.io/library/redis:8-alpine --restart=Never --command -- sh -c ""
+k wait pod/np-probe --for=jsonpath='{.status.phase}'=Succeeded --timeout=120s || true
+probe=$(k logs np-probe)
 #!/usr/bin/env bash
 # The chart in cluster mode in a real, throwaway Kubernetes cluster (CI's "Cluster mode in Kubernetes" job, on kind):
 # two server pods, Redis and PostgreSQL as the chart makes them, its RBAC and NetworkPolicies in force. Checks that
@@ -130,9 +134,11 @@ step "The NetworkPolicies are enforced"
 k run np-open --image=docker.io/library/redis:8-alpine --restart=Never --labels=app=np-open
 k wait pod/np-open --for=condition=Ready --timeout=120s
 open_ip=$(k get pod np-open -o jsonpath='{.status.podIP}')
-probe=$(k run np-probe --image=docker.io/library/redis:8-alpine --restart=Never --rm -i --quiet --command -- \
-  sh -c "echo open:\$(timeout 10 redis-cli -h $open_ip -p 6379 ping); echo chart:\$(timeout 10 redis-cli -h pspsps-redis -p 6379 ping 2> /dev/null)" \
-  || true)
+# Run to completion, then read its log: an attached run (-i) misses what the pod prints before it attaches.
+k run np-probe --image=docker.io/library/redis:8-alpine --restart=Never --command -- \
+  sh -c "echo open:\$(timeout 10 redis-cli -h $open_ip -p 6379 ping); echo chart:\$(timeout 10 redis-cli -h pspsps-redis -p 6379 ping 2> /dev/null)"
+k wait pod/np-probe --for=jsonpath='{.status.phase}'=Succeeded --timeout=120s || true
+probe=$(k logs np-probe)
 echo "$probe"
 grep -qx 'open:PONG' <<< "$probe" || fail "the probe couldn't reach a Redis no policy covers: it proves nothing"
 if grep -qx 'chart:PONG' <<< "$probe"; then
