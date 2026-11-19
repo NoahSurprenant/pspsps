@@ -26,6 +26,8 @@ internal sealed class HubRoomBroadcaster(IHubContext<GameHub, IGameClient> hub, 
 
     public Task FishGotAway(string session) => hub.Clients.Client(session).FishGotAway();
 
+    public Task RoomLost(string session) => hub.Clients.Client(session).RoomLost();
+
     public Task HomeChanged(string roomKey, HomeView home) => hub.Clients.Group(roomKey).HomeChanged(home);
 
     public async Task SentOut(string roomKey, string session, string message)

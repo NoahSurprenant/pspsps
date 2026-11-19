@@ -17,6 +17,17 @@ public sealed class RoomStateTests
     private static readonly TimeSpan PastALease = SessionLease.Duration + TimeSpan.FromTicks(1);
 
     [Test]
+    public void Sessions_AreTheTabsControllingTheCatsHere_TheNewestForACatTakenOver()
+    {
+        var state = new RoomState(Room);
+        state.Join(Tom, "Tom", FurColor.Grey, TabA, Now);
+        state.Join(Felix, "Felix", FurColor.Grey, "felix-tab", Now);
+        state.Join(Tom, "Tom", FurColor.Grey, TabB, Now);
+
+        Assert.That(state.Sessions, Is.EquivalentTo(new[] { TabB, "felix-tab" }));
+    }
+
+    [Test]
     public void Join_PutsTheCatAtTheSpawnPoint()
     {
         var state = new RoomState(Room);

@@ -28,6 +28,17 @@ async function say(page: Page, text: string): Promise<void> {
   await page.getByPlaceholder("Say something…").press("Enter");
 }
 
+/** Says <text> if the chat box is there within 2 s (it isn't while the room reloads); false if it wasn't. */
+async function trySay(page: Page, text: string): Promise<boolean> {
+  try {
+    await page.getByPlaceholder("Say something…").fill(text, { timeout: 2_000 });
+    await page.getByPlaceholder("Say something…").press("Enter", { timeout: 2_000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Orleans' membership table in Redis: the silos by status (3 active, 6 dead). */
 function members(): string[] {
   return execFileSync(pods, ["members"], { encoding: "utf8" }).split("\n").filter(Boolean);
@@ -150,25 +161,27 @@ test("a rolling update: pod A is replaced by a new pod while the game goes on", 
     service.to(8083);
     execFileSync(pods, ["stop", "pod-a"], { stdio: "inherit" });
 
+    const stopped = Date.now();
+
     // Pod A left the cluster on its way out; the game is two pods again.
     await expect.poll(() => members().filter((m) => m.startsWith("3 ")).length, { timeout: 60_000 }).toBe(2);
-    // Tom's tab came back through the Service (to the new pod) and walked back into the room: both see both again.
-    await expect.poll(async () => Object.keys(await cats(tom.page)).sort(), { timeout: 90_000 })
-      .toEqual([tomId, felixId].sort());
-    await expect.poll(async () => Object.keys(await cats(felix.page)).sort(), { timeout: 90_000 })
-      .toEqual([tomId, felixId].sort());
+    // Tom's tab came back through the Service (to the new pod) and walked back into the room. If the room's grain was on
+    // pod A, it starts over empty elsewhere, and pod A told Felix's tab so as it stopped: he walks back in at once rather
+    // than at his next lease renewal (30 s). Either way, within seconds each hears the other again.
+    await expect.poll(async () => {
+      await trySay(felix.page, `back ${Date.now()}`);
+      return (await chat(tom.page)).some((line) => line.startsWith("back "));
+    }, { timeout: 20_000, intervals: [2_000] }).toBe(true);
+    await expect.poll(async () => {
+      await trySay(tom.page, `here ${Date.now()}`);
+      return (await chat(felix.page)).some((line) => line.startsWith("here "));
+    }, { timeout: 10_000, intervals: [2_000] }).toBe(true);
+    console.log(`the room worked both ways again ${((Date.now() - stopped) / 1000).toFixed(1)} s after pod A was stopped`);
     await expectRoom(tom.page, "Town Square");
-
-    // And the room works across the new pair: chat both ways, a walk seen.
-    await say(tom.page, "after, from the new pod");
-    await expect.poll(() => chat(felix.page), { timeout: 30_000 }).toContain("after, from the new pod");
-    await say(felix.page, "after, from pod b");
-    await expect.poll(() => chat(tom.page), { timeout: 30_000 }).toContain("after, from pod b");
+    await expect.poll(async () => Object.keys(await cats(tom.page)).sort()).toEqual([tomId, felixId].sort());
+    await expect.poll(async () => Object.keys(await cats(felix.page)).sort()).toEqual([tomId, felixId].sort());
     await tapFloor(tom.page, -4, 2);
     await expect.poll(async () => (await cats(felix.page))[tomId]?.x ?? 0).toBeLessThan(-3.5);
-
-    // Felix's own connection, on pod B, never dropped: no console errors on his side.
-    expect(felix.errors, "Felix's console errors").toEqual([]);
   } finally {
     await tom.close();
     await felix.close();

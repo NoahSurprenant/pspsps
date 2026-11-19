@@ -70,14 +70,35 @@ internal sealed class RoomGrain(
             new GrainTimerCreationOptions { DueTime = SessionLease.RenewEvery, Period = SessionLease.RenewEvery });
     }
 
-    public override Task OnDeactivateAsync(DeactivationReason reason, CancellationToken cancellationToken)
+    public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken cancellationToken)
     {
         if (_counted)
         {
             metrics.RoomDeactivated();
         }
 
-        return Task.CompletedTask;
+        // This pod is stopping (a rolling update): the room starts over empty on another pod at its next call. Its tabs,
+        // on whichever pods, walk back in now, not at their next renewal (up to SessionLease.RenewEvery from now).
+        if (reason.ReasonCode == DeactivationReasonCode.ShuttingDown && _state is not null)
+        {
+            await TellLost(_state.Sessions, broadcaster);
+        }
+    }
+
+    /// <summary>Tells each tab its room is lost; a tab that can't be told finds out at its next renewal.</summary>
+    internal static async Task TellLost(IEnumerable<string> sessions, IRoomBroadcaster broadcaster)
+    {
+        foreach (var session in sessions)
+        {
+            try
+            {
+                await broadcaster.RoomLost(session);
+            }
+            catch (Exception e) when (e is not OperationCanceledException)
+            {
+                // Its renewal tells it instead.
+            }
+        }
     }
 
     public async Task<RoomSnapshot> Join(PlayerCard player, string session, string? throughDoor)

@@ -41,4 +41,27 @@ public sealed class HubRoomBroadcasterTests
             tab.SentOut(Guid.Empty, "Banned.");
         });
     }
+
+    [Test]
+    public async Task ARoomOnAStoppingPod_TellsEachOfItsTabsItIsLost_EvenWhenOneCantBeTold()
+    {
+        var broadcaster = Substitute.For<IRoomBroadcaster>();
+        broadcaster.RoomLost("gone-tab").Returns(Task.FromException(new IOException("gone")));
+
+        await RoomGrain.TellLost(["gone-tab", "felix-tab"], broadcaster);
+
+        await broadcaster.Received(1).RoomLost("felix-tab");
+    }
+
+    [Test]
+    public async Task ALostRoom_IsToldToTheTabsConnection()
+    {
+        var hub = Substitute.For<IHubContext<GameHub, IGameClient>>();
+        var tab = Substitute.For<IGameClient>();
+        hub.Clients.Client("felix-tab").Returns(tab);
+
+        await new HubRoomBroadcaster(hub, new FakeTimeProvider()).RoomLost("felix-tab");
+
+        await tab.Received(1).RoomLost();
+    }
 }
