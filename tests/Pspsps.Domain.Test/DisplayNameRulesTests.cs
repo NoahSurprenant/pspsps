@@ -53,14 +53,18 @@ public sealed class DisplayNameRulesTests
     [TestCase("ADMIN")]
     [TestCase("Moderator Mike")]
     [TestCase("mod Squad")]
+    [TestCase("Mod")]
+    [TestCase("4dmin")]
     public void EnsureAllowed_RefusesStaffImpersonation(string name)
     {
         var refused = Assert.Throws<DomainException>(() => DisplayNameRules.EnsureAllowed(name, Filter));
         Assert.That(refused?.Message, Is.EqualTo(DisplayNameRules.ImpersonatingMessage));
     }
 
-    [Test]
-    public void EnsureAllowed_AllowsAWordThatMerelyContainsModAsASubstringWithoutTheSpace() =>
-        // "mod " (with the trailing space) doesn't catch "modern": only a whole word "mod" followed by another word.
-        Assert.DoesNotThrow(() => DisplayNameRules.EnsureAllowed("Modern Cat", Filter));
+    [TestCase("Modern Cat")]
+    [TestCase("Badminton")]
+    public void EnsureAllowed_NeverCatchesAWordJustBecauseItContainsOneOfTheStaffWords(string name) =>
+        // A whole word only ("admin", "moderator", "mod"), as the chat filter never trips a word inside a longer one
+        // ("class" doesn't trip "ass"): "Badminton" has "admin" inside it, "Modern" has "mod", neither is the whole word.
+        Assert.DoesNotThrow(() => DisplayNameRules.EnsureAllowed(name, Filter));
 }

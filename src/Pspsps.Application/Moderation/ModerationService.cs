@@ -4,6 +4,7 @@ using Pspsps.Application.Abstractions;
 using Pspsps.Application.Players;
 using Pspsps.Domain;
 using Pspsps.Domain.Moderation;
+using Pspsps.Domain.Players;
 using Pspsps.Domain.Safety;
 using Attempt = Pspsps.Application.Moderation.ModerationSaves.Attempt;
 
@@ -42,16 +43,26 @@ internal sealed class ModerationService(
 
         return await SaveAsync(async attempt =>
         {
-            // Tracked, not just checked exists: a rename changes it, in the same save as the audit line. Read inside the
-            // attempt (like the moderation below), so a retry (another change landed on it meanwhile) reads it fresh
-            // rather than saving a change already tried against a now-detached, once-renamed copy.
-            var player = await db.Players.FirstOrDefaultAsync(p => p.Id == playerId, cancellationToken)
-                ?? throw new DomainException(NoSuchCat);
-            attempt.Forget.Add(() => db.Forget(player));
+            // Only a rename touches the Player aggregate: everything else still just checks the cat exists, as before.
+            Player? player = null;
+            if (request.Action == ModerationAction.Rename)
+            {
+                // Tracked, not just checked exists: a rename changes it, in the same save as the audit line. Read inside
+                // the attempt (like the moderation below), so a retry (another change landed on it meanwhile) reads it
+                // fresh rather than saving a change already tried against a now-detached, once-renamed copy.
+                player = await db.Players.FirstOrDefaultAsync(p => p.Id == playerId, cancellationToken)
+                    ?? throw new DomainException(NoSuchCat);
+                attempt.Forget.Add(() => db.Forget(player));
+            }
+            else if (!await db.Players.AnyAsync(p => p.Id == playerId, cancellationToken))
+            {
+                throw new DomainException(NoSuchCat);
+            }
+
             // Never null: made when there is none.
             var moderation = (await ReadAsync(playerId, create: true, attempt, cancellationToken))!;
             var now = time.GetUtcNow();
-            if (request.Action == ModerationAction.Rename)
+            if (player is not null)
             {
                 // Checked before the Player aggregate changes: never renamed only to have the save refused.
                 moderation.EnsureMayBeActedOnBy(moderator);
