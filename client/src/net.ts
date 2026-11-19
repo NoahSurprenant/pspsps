@@ -203,6 +203,13 @@ export class GameConnection {
       return;
     }
 
+    // Each start tries the WebSocket first: a failure that made the last one negotiate (a pod restarting, a dropped
+    // network) needn't have been the WebSocket's fault, and negotiation needs sticky sessions with several pods.
+    if (this.transport !== 0) {
+      this.transport = 0;
+      this.hub = this.connect(this.transport);
+    }
+
     try {
       await this.hub.start();
     } catch (error) {

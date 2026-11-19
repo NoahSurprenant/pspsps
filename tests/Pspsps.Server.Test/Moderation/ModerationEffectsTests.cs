@@ -81,7 +81,7 @@ public sealed class ModerationEffectsTests
         tab.DidNotReceive().Abort();
 
         // The tab has a moment to hear why, then its connection closes.
-        _time.Advance(ModerationEffects.CloseAfter);
+        _time.Advance(ModerationOnThisPod.CloseAfter);
         tab.Received(1).Abort();
     }
 
@@ -95,7 +95,7 @@ public sealed class ModerationEffectsTests
 
         await _effects.AppliedAsync(
             Felix, ModerationAction.Ban, new Standing(new Sanction("Spam", _time.GetUtcNow(), null, Guid.NewGuid()), null));
-        _time.Advance(ModerationEffects.CloseAfter);
+        _time.Advance(ModerationOnThisPod.CloseAfter);
 
         tab.Received(1).Abort();
     }

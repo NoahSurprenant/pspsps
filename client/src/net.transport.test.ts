@@ -93,6 +93,18 @@ describe("the hub's transport", () => {
     expect(on.closed).toHaveBeenCalledOnce();
   });
 
+  it("tries the WebSocket first again on the next start: one failure (a pod restarting, say) doesn't stick", async () => {
+    const { game, hubs } = connection([false, true, true]);
+    await game.start();
+    hub(hubs, 1).state = HubConnectionState.Disconnected;
+
+    await game.start();
+
+    expect(hubs).toHaveLength(3);
+    expect(hub(hubs, 2).options).toEqual({ transport: HttpTransportType.WebSockets, skipNegotiation: true });
+    expect(hub(hubs, 2).state).toBe(HubConnectionState.Connected);
+  });
+
   it("isn't connected again while it is up", async () => {
     const { game, hubs } = connection([true]);
     await game.start();

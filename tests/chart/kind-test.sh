@@ -125,11 +125,20 @@ curl -fs -X POST http://localhost:8080/auth/guest | jq -e .id > /dev/null || fai
 done_step
 
 step "The NetworkPolicies are enforced"
-# A pod the policies don't name can't reach Redis: so the API server check above ran under the server's policy.
-if k run np-probe --image=docker.io/library/redis:8-alpine --restart=Never --rm -i --quiet --command -- \
-  timeout 10 redis-cli -h pspsps-redis -p 6379 ping 2> /dev/null | grep -q PONG; then
-  fail "a pod outside the policies reached Redis: NetworkPolicies aren't enforced in this cluster"
+# A pod the policies don't name can't reach the chart's Redis, while it reaches a Redis no policy covers: so the probe
+# itself works, the block is the policy's doing, and the API server check above ran under the server's policy.
+k run np-open --image=docker.io/library/redis:8-alpine --restart=Never --labels=app=np-open
+k wait pod/np-open --for=condition=Ready --timeout=120s
+open_ip=$(k get pod np-open -o jsonpath='{.status.podIP}')
+probe=$(k run np-probe --image=docker.io/library/redis:8-alpine --restart=Never --rm -i --quiet --command -- \
+  sh -c "echo open:\$(timeout 10 redis-cli -h $open_ip -p 6379 ping); echo chart:\$(timeout 10 redis-cli -h pspsps-redis -p 6379 ping 2> /dev/null)" \
+  || true)
+echo "$probe"
+grep -qx 'open:PONG' <<< "$probe" || fail "the probe couldn't reach a Redis no policy covers: it proves nothing"
+if grep -qx 'chart:PONG' <<< "$probe"; then
+  fail "a pod outside the policies reached the chart's Redis: NetworkPolicies aren't enforced in this cluster"
 fi
+grep -qx 'chart:' <<< "$probe" || fail "the probe didn't get as far as trying the chart's Redis"
 done_step
 
 echo "cluster mode works in Kubernetes"

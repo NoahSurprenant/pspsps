@@ -124,7 +124,9 @@ internal sealed partial class RedisModerationSignal(
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         var options = ConfigurationOptions.Parse(configuration);
-        // Starts, and keeps trying, while Redis is down: the game goes on, the signals reach this pod once it's back.
+        // Redis must answer at startup (Orleans' membership table needs it then too). Once connected, the multiplexer
+        // reconnects by itself and subscribes again if Redis restarts; signals published meanwhile are missed, and
+        // StandingCache.KeepFor covers them.
         options.AbortOnConnectFail = false;
         _redis = await ConnectionMultiplexer.ConnectAsync(options);
         await _redis.GetSubscriber().SubscribeAsync(Channel, (_, value) => Receive(value));

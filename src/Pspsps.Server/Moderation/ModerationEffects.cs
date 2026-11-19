@@ -25,9 +25,6 @@ internal sealed partial class ModerationEffects(
     IGrainFactory grains,
     ILogger<ModerationEffects> logger) : IModerationEffects
 {
-    /// <summary>How long a banned player's tab has to hear why before its connection is closed.</summary>
-    public static TimeSpan CloseAfter => ModerationOnThisPod.CloseAfter;
-
     public async Task AppliedAsync(Guid playerId, ModerationAction action, Standing standing)
     {
         ArgumentNullException.ThrowIfNull(standing);

@@ -48,9 +48,25 @@ public sealed class HubRoomBroadcasterTests
         var broadcaster = Substitute.For<IRoomBroadcaster>();
         broadcaster.RoomLost("gone-tab").Returns(Task.FromException(new IOException("gone")));
 
-        await RoomGrain.TellLost(["gone-tab", "felix-tab"], broadcaster);
+        await RoomGrain.TellLost(["gone-tab", "felix-tab"], broadcaster, CancellationToken.None);
 
         await broadcaster.Received(1).RoomLost("felix-tab");
+    }
+
+    [Test]
+    public async Task TellingALostRoomsTabs_DoesntOutlastTheDeactivation_WhenTheBackplaneHangs()
+    {
+        // Told all at once, and given up when the deactivation is: a slow backplane doesn't hold up the pod's shutdown.
+        var broadcaster = Substitute.For<IRoomBroadcaster>();
+        broadcaster.RoomLost(Arg.Any<string>()).Returns(new TaskCompletionSource().Task);
+        using var deactivation = new CancellationTokenSource();
+
+        var telling = RoomGrain.TellLost(["tom-tab", "felix-tab"], broadcaster, deactivation.Token);
+        await broadcaster.Received(1).RoomLost("tom-tab");
+        await broadcaster.Received(1).RoomLost("felix-tab");
+        await deactivation.CancelAsync();
+
+        Assert.That(async () => await telling.WaitAsync(TimeSpan.FromSeconds(5)), Throws.Nothing);
     }
 
     [Test]
