@@ -71,7 +71,7 @@ public sealed class WayOutTests
         Assert.Multiple(() =>
         {
             Assert.That(Whereabouts.Room("cafe"), Is.EqualTo(Cafe));
-            Assert.That(Whereabouts.Home(Tom), Is.EqualTo(Whereabouts.Home(Tom)));
+            Assert.That(Whereabouts.Home(Tom), Is.EqualTo(Whereabouts.Home(new Guid(Tom.ToString()))));
             Assert.That(Whereabouts.Home(Tom), Is.Not.EqualTo(Whereabouts.Home(Felix)));
         });
     }
