@@ -193,3 +193,19 @@ button:disabled {
 button.quiet {
   background: white;
 }
+
+/* "Also lift the bans on their networks", by Lift: the box and its words, big enough to tap. */
+.check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+}
+
+.check input {
+  flex: none;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin: 0;
+  accent-color: var(--accent);
+}

@@ -44,6 +44,11 @@ try
         options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
     // Admins (by player ID, from Moderation:AdminPlayerIds), and what keeps a banned player off the hub.
     builder.Services.AddModeration(builder.Configuration);
+    if (ClientAddresses.StartupWarning(builder.Configuration) is { } networkWarning)
+    {
+        Log.Warning("{Warning}", networkWarning);
+    }
+
     var signalR = builder.Services.AddSignalR(options =>
         {
             options.AddFilter<HubCallMetricsFilter>();

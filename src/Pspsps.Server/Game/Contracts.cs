@@ -329,14 +329,17 @@ public sealed record CardModerationView(
 /// <summary>
 /// A network a cat played from lately, for an admin: Key (its keyed hash, which the admin bans it by) and Label (the hash's
 /// first 8 hex digits: never the address), how many players were on it in the last 7 days (more than one: a shared
-/// network, a school or a phone network maybe), when this cat last was, and its ban in force.
+/// network, a school or a phone network maybe), when this cat last was, its ban in force, and whether that ban is this
+/// cat's (BannedWithIt: lifted with it) or another cat's on the same network.
 /// </summary>
-public sealed record NetworkView(string Key, string Label, int Players, DateTimeOffset LastSeen, SanctionView? Ban)
+public sealed record NetworkView(
+    string Key, string Label, int Players, DateTimeOffset LastSeen, SanctionView? Ban, bool BannedWithIt = false)
 {
     public static NetworkView From(RecentAddress address)
     {
         ArgumentNullException.ThrowIfNull(address);
-        return new(address.AddressHash, address.Label, address.Players, address.LastSeen, SanctionView.From(address.Ban));
+        return new(address.AddressHash, address.Label, address.Players, address.LastSeen, SanctionView.From(address.Ban),
+            address.BannedWithIt);
     }
 }
 
@@ -370,13 +373,17 @@ public sealed record MeView(
 /// <summary>A ban or mute in force, for the admin page: why, since and until when, and which admin decided it.</summary>
 public sealed record AdminSanctionView(string Reason, DateTimeOffset Since, DateTimeOffset? Until, Guid ById, string ByName);
 
-/// <summary>A player banned or muted now, on the admin page.</summary>
-public sealed record SanctionedPlayerView(Guid PlayerId, string DisplayName, AdminSanctionView? Ban, AdminSanctionView? Mute)
+/// <summary>
+/// A player banned or muted now, on the admin page, with how many networks are banned with them now (Lift offers them).
+/// </summary>
+public sealed record SanctionedPlayerView(
+    Guid PlayerId, string DisplayName, AdminSanctionView? Ban, AdminSanctionView? Mute, int NetworkBans = 0)
 {
     public static SanctionedPlayerView From(SanctionedPlayer player)
     {
         ArgumentNullException.ThrowIfNull(player);
-        return new(player.PlayerId, player.DisplayName, Of(player.Ban, player.BannedByName), Of(player.Mute, player.MutedByName));
+        return new(player.PlayerId, player.DisplayName, Of(player.Ban, player.BannedByName), Of(player.Mute, player.MutedByName),
+            player.NetworkBans);
     }
 
     private static AdminSanctionView? Of(Sanction? sanction, string? byName) =>
@@ -475,8 +482,11 @@ public sealed record OpenReportView(
     }
 }
 
-/// <summary>An admin's action on a player, from the admin page (as the hub's Moderate takes it).</summary>
-public sealed record ModerateRequestView(string? Action, string? Reason, string? Length);
+/// <summary>
+/// An admin's action on a player, from the admin page (as the hub's Moderate takes it); with a lift, LiftNetworks lifts the
+/// networks banned with them too (as the hub's LiftNetworkBans).
+/// </summary>
+public sealed record ModerateRequestView(string? Action, string? Reason, string? Length, bool LiftNetworks = false);
 
 /// <summary>A warning from the admins the player hasn't seen yet: its ID (to say it was seen) and its words.</summary>
 public sealed record WarningView(Guid Id, string Text);

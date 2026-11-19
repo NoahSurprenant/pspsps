@@ -23,6 +23,9 @@ public sealed class AddressBan
         AddressHash = addressHash;
     }
 
+    /// <summary>The most networks banned at once (a cat seen on more than a few is unusual already).</summary>
+    public const int MaxAtOnce = 20;
+
     /// <summary>How long a network's ban lasts: a day or a week. Never for good.</summary>
     public static IReadOnlyList<TimeSpan> Lengths { get; } = [TimeSpan.FromHours(24), TimeSpan.FromDays(7)];
 
@@ -64,6 +67,25 @@ public sealed class AddressBan
 
     /// <summary>The ban in force at <paramref name="now"/>, if any.</summary>
     public Sanction? BanAt(DateTimeOffset now) => Ban is { } ban && ban.InForceAt(now) ? ban : null;
+
+    /// <summary>Whether it is banned at <paramref name="now"/> with the cat <paramref name="playerId"/> (its to lift with it).</summary>
+    public bool IsBannedWith(Guid playerId, DateTimeOffset now) => PlayerId == playerId && BanAt(now) is not null;
+
+    /// <summary>
+    /// The networks an admin picked to ban at once: keyed hashes, each once, at least one and at most
+    /// <see cref="MaxAtOnce"/>.
+    /// </summary>
+    public static IReadOnlyList<string> Picked(IEnumerable<string?> addressHashes)
+    {
+        ArgumentNullException.ThrowIfNull(addressHashes);
+        List<string> picked = [.. addressHashes.Select(AddressHashes.Valid).Distinct()];
+        return picked.Count switch
+        {
+            0 => throw new DomainException("Pick a network to ban."),
+            > MaxAtOnce => throw new DomainException($"Ban at most {MaxAtOnce} networks at once."),
+            _ => picked,
+        };
+    }
 
     /// <summary>
     /// Bans the network for <paramref name="length"/> (one of <see cref="Lengths"/>), with the player it was
@@ -111,6 +133,24 @@ public sealed class AddressBan
         (PlayerId, Reason, BannedAt, BannedUntil, BannedBy, LiftedAt, LiftedBy) =
             (player.PlayerId, reason, now, until, by.PlayerId, null, null);
         Record(ModerationKind.AddressBanned, by, now, reason, until);
+    }
+
+    /// <summary>
+    /// The cat it was banned with (<paramref name="player"/>) was banned again: a network's ban never outlasts the cat's,
+    /// so it ends by then if it would end later (a line of the trail). A longer ban of the cat doesn't lengthen it.
+    /// </summary>
+    public void FollowCat(Moderator by, PlayerModeration player, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(by);
+        ArgumentNullException.ThrowIfNull(player);
+        if (player.PlayerId != PlayerId || BanAt(now) is null || player.BanAt(now)?.Until is not { } catsEnd
+            || catsEnd >= BannedUntil)
+        {
+            return;
+        }
+
+        BannedUntil = catsEnd;
+        Record(ModerationKind.AddressBanned, by, now, Reason, catsEnd);
     }
 
     /// <summary>Lifts the ban in force; refused when there is none.</summary>

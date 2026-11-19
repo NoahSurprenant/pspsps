@@ -243,9 +243,13 @@ an address: it is a keyed hash, HMAC-SHA256 with the server's secret `Moderation
 gets a whole /64 and picks new addresses in it at will) (`ClientAddresses`). The address is the one ASP.NET Core
 resolved, `HttpContext.Connection.RemoteIpAddress` after `UseForwardedHeaders`, which applies a forwarded header only
 from the proxies configured as trusted (`forwardedHeaders` in the chart): a header a browser sets itself is ignored.
+An address that isn't on the internet (loopback, private, link-local, unique-local, carrier-shared) is never a network:
+it is the server's side of a proxy whose header isn't trusted, where every player would look the same, or a local
+network; the server warns as it starts when network bans are on and no proxy is trusted. An admin's network is never
+kept, and a pod saves a player's network at most once an hour.
 Network bans are on exactly when the key is set, unless `Moderation:AddressBans:Enabled` (the chart's
 `moderation.addressBans.enabled`) says otherwise; asked for with no key, the server refuses to start. What is kept, and
-for how long: [privacy.md](privacy.md).
+for how long: [privacy.md](privacy.md). Turned off, the next pruning forgets every network and network ban kept.
 
 An admin banning a cat sees, under Moderate on its card, the networks it played from this week by label (the first 8 hex
 digits of the hash), each with how many players were on it this week (more than one: a school, a phone network, a
@@ -253,10 +257,13 @@ household), and checks the ones to ban with it, for a day or a week. A network's
 own, keyed by the hash) is the Domain's rules: only an admin, never their own nor another admin's network, only a
 network the cat was on in the last 7 days, only while the cat is banned, with that ban's reason, for a day or a week and
 never past the cat's ban (never for good: a network can be shared); a new one takes the place of the last, and it ends
-at its time or when an admin lifts it. Each ban and lift is a line of the cat's audit trail, with the network's label.
-Lifting the cat's ban from its card offers to lift its networks' bans too (checked by default); `/admin` lists the
-networks banned now (label, the cat, how many players, until when, why) with Lift. Ended and lifted bans are forgotten
-with the old networks.
+at its time or when an admin lifts it. A cat banned again for less takes its networks' bans down to its new end
+(`AddressBan.FollowCat`, in the same save); a cat banned already can have its networks banned alone ("Ban the checked
+networks"), its own ban left as it is. Each ban and lift is a line of the cat's audit trail, with the network's label.
+Lifting the cat's ban, from its card or from `/admin`, offers to lift the bans on the networks banned with it too
+(checked by default); a card also shows a network banned with another cat, which is that cat's to lift. `/admin` lists
+the networks banned now (label, the cat, how many players, until when, why) with Lift. Ended and lifted bans are
+forgotten with the old networks.
 
 From a banned network, a new guest is refused (403, with the same "banned until ... Why: ..." as a banned cat, and the
 browser shows the banned screen), a Discord or Google sign-in makes no cat and is sent back to `/?signin=banned` (the

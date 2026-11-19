@@ -824,8 +824,9 @@ async function changeFriendship(action: FriendAction, playerId: string): Promise
 /** An admin's action on another cat, from its card: the card as it is after, and what was done; or why not. */
 async function moderate(playerId: string, name: string, request: ModerationRequest): Promise<void> {
   try {
-    // The cat's own action first (unless a lift finds only its networks banned), then its networks'.
-    let card = request.action === "lift" && request.liftCat === false
+    // The cat's own action first (unless a lift finds only its networks banned, or only its networks are to be banned),
+    // then its networks'.
+    let card = (request.action === "lift" && request.liftCat === false) || request.networksOnly
       ? undefined
       : await connection.moderate(playerId, request);
     if (request.action === "ban" && request.networks?.length) {
@@ -843,6 +844,11 @@ async function moderate(playerId: string, name: string, request: ModerationReque
     overlay.toast(doneMessage(request, name));
   } catch (error) {
     overlay.toast(messageOf(error));
+    // The cat's part may have been done before its networks' was refused: the card shows what holds now.
+    const open = overlay.openDialogFor;
+    if (open?.kind === "card" && open.playerId === playerId) {
+      await connection.getPlayerCard(playerId).then(showCard, () => undefined);
+    }
   }
 }
 

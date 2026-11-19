@@ -12,9 +12,13 @@ public sealed record Standing(Sanction? Ban, Sanction? Mute)
         moderation is null ? None : new(moderation.BanAt(now), moderation.MuteAt(now));
 }
 
-/// <summary>A player banned or muted now, for the admins: who, and each sanction with the admin who decided it.</summary>
+/// <summary>
+/// A player banned or muted now, for the admins: who, each sanction with the admin who decided it, and how many networks
+/// are banned with them now (to offer to lift with them).
+/// </summary>
 public sealed record SanctionedPlayer(
-    Guid PlayerId, string DisplayName, Sanction? Ban, string? BannedByName, Sanction? Mute, string? MutedByName);
+    Guid PlayerId, string DisplayName, Sanction? Ban, string? BannedByName, Sanction? Mute, string? MutedByName,
+    int NetworkBans = 0);
 
 /// <summary>One line of the audit trail, with names: who did what to whom, when, why, until when.</summary>
 public sealed record ModerationLogLine(

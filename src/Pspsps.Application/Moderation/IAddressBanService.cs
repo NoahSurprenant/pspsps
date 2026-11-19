@@ -33,16 +33,19 @@ public interface IAddressBanService
 
     /// <summary>
     /// Forgets the networks not seen for 7 days, and the bans that ended or were lifted (their audit lines stay, with the
-    /// network's label only); how many rows went.
+    /// network's label only); with <paramref name="forgetAll"/> (network bans turned off), every network and ban. How many
+    /// rows went.
     /// </summary>
-    Task<int> PruneAsync(CancellationToken cancellationToken);
+    Task<int> PruneAsync(bool forgetAll, CancellationToken cancellationToken);
 }
 
 /// <summary>
 /// A network a player was seen on lately, for an admin: its hash (to ban it by) and label (the hash's first 8 hex digits:
-/// never the address), how many players were seen on it in the last 7 days, when this player last was, and its ban in force.
+/// never the address), how many players were seen on it in the last 7 days, when this player last was, its ban in force,
+/// and whether that ban is this player's (banned with them, so lifted with them) or another's on the same network.
 /// </summary>
-public sealed record RecentAddress(string AddressHash, string Label, int Players, DateTimeOffset LastSeen, Sanction? Ban);
+public sealed record RecentAddress(
+    string AddressHash, string Label, int Players, DateTimeOffset LastSeen, Sanction? Ban, bool BannedWithIt = false);
 
 /// <summary>A network banned: its hash and label, and the ban.</summary>
 public sealed record BannedAddress(string AddressHash, string Label, Sanction Ban);

@@ -5,7 +5,8 @@ What the server keeps about where players play from, for network bans (architect
 - **What:** for each player, the networks they played from: a keyed hash of each (HMAC-SHA256 with the server's secret
   `Moderation:AddressKey`) and when they were last seen on it. Never the address. An IPv4 address is hashed whole; an
   IPv6 address by its first 64 bits (its /64), so it says no more than the household or phone network. Without the key,
-  a hash can't be turned back into an address, nor checked against one.
+  a hash can't be turned back into an address, nor checked against one. Nothing is kept for an admin, nor for an
+  address that isn't on the internet (loopback, private and local ranges).
 - **When:** as a player makes a guest, signs in with Discord or Google, or connects to the game.
 - **How long:** 7 days after the player was last seen on that network; older ones are deleted every hour. Turning
   network bans off deletes them all within the hour.

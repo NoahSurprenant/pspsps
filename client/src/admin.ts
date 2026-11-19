@@ -19,6 +19,8 @@ export interface SanctionedPlayer {
   displayName: string;
   ban: AdminSanction | null;
   mute: AdminSanction | null;
+  /** How many networks are banned with them now: Lift offers to lift those too. */
+  networkBans: number;
 }
 
 /** What an admin did (Contracts.cs, ModerationLogView). */
@@ -108,6 +110,16 @@ export function liftLabel(player: SanctionedPlayer): string {
 export function networkBanLine(ban: NetworkBan, format: TimeFormat = {}): string {
   const cats = ban.players === 1 ? "1 cat" : `${ban.players} cats`;
   return `${ban.playerName}'s network ${ban.label} · ${cats} this week · ${untilText(ban.until, format)} by ${ban.byName}: ${ban.reason}`;
+}
+
+/** What Lift offers for the networks banned with the player (checked: lifted too), or nothing when there are none. */
+export function networkLiftText(player: SanctionedPlayer): string | undefined {
+  if (player.networkBans <= 0) {
+    return undefined;
+  }
+  return player.networkBans === 1
+    ? `Also lift the ban on ${player.displayName}'s network`
+    : `Also lift the bans on ${player.displayName}'s ${player.networkBans} networks`;
 }
 
 /** A line of the audit trail: who did what to whom, until when, and why. */

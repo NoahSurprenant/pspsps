@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Pspsps.Application.Abstractions;
 using Pspsps.Domain;
 using Pspsps.Domain.Moderation;
+using Attempt = Pspsps.Application.Moderation.ModerationSaves.Attempt;
 
 namespace Pspsps.Application.Moderation;
 
@@ -10,8 +11,8 @@ internal sealed class AddressBanService(
     IApplicationDbContext db, IAdmins admins, [FromKeyedServices(ModerationClock.Key)] TimeProvider time)
     : IAddressBanService
 {
-    /// <summary>How many of a player's networks an admin sees (the latest): more than a few is unusual already.</summary>
-    internal const int RecentShown = 20;
+    /// <summary>How many of a player's networks an admin sees (the latest): as many as can be banned at once.</summary>
+    internal const int RecentShown = AddressBan.MaxAtOnce;
 
     private const string NotBanned = "That network isn't banned.";
 
@@ -71,9 +72,13 @@ internal sealed class AddressBanService(
             .ToDictionaryAsync(b => b.AddressHash, cancellationToken);
         return
         [
-            .. recent.Select(a => new RecentAddress(
-                a.AddressHash, AddressHashes.Label(a.AddressHash), players.GetValueOrDefault(a.AddressHash), a.LastSeen,
-                bans.TryGetValue(a.AddressHash, out var ban) ? ban.BanAt(now) : null)),
+            .. recent.Select(a =>
+            {
+                var ban = bans.GetValueOrDefault(a.AddressHash);
+                return new RecentAddress(
+                    a.AddressHash, AddressHashes.Label(a.AddressHash), players.GetValueOrDefault(a.AddressHash), a.LastSeen,
+                    ban?.BanAt(now), ban?.IsBannedWith(playerId, now) ?? false);
+            }),
         ];
     }
 
@@ -83,17 +88,7 @@ internal sealed class AddressBanService(
     {
         ArgumentNullException.ThrowIfNull(addressHashes);
         var moderator = Moderator.Of(adminId, admins.Current);
-        List<string> wanted = [.. addressHashes.Select(AddressHashes.Valid).Distinct()];
-        if (wanted.Count == 0)
-        {
-            throw new DomainException("Pick a network to ban.");
-        }
-
-        if (wanted.Count > RecentShown)
-        {
-            throw new DomainException($"Ban at most {RecentShown} networks at once.");
-        }
-
+        var wanted = AddressBan.Picked(addressHashes);
         return await SaveAsync(async tracked =>
         {
             var now = time.GetUtcNow();
@@ -162,8 +157,14 @@ internal sealed class AddressBanService(
         }, cancellationToken);
     }
 
-    public async Task<int> PruneAsync(CancellationToken cancellationToken)
+    public async Task<int> PruneAsync(bool forgetAll, CancellationToken cancellationToken)
     {
+        if (forgetAll)
+        {
+            return await db.PlayerAddresses.ExecuteDeleteAsync(cancellationToken)
+                + await db.AddressBans.ExecuteDeleteAsync(cancellationToken);
+        }
+
         var now = time.GetUtcNow();
         var since = PlayerAddress.RecentSince(now);
         var addresses = await db.PlayerAddresses
@@ -188,37 +189,14 @@ internal sealed class AddressBanService(
     }
 
     // Decides a change to networks' bans (<decide> reads them tracked, into the list it is given, and changes them by the
-    // Domain's rules), adds their new audit lines, and saves it all at once. Version is a concurrency token, and two firsts
-    // collide on the key: either way the change is decided again on what is there now. A rule broken saves nothing.
-    private async Task<T> SaveAsync<T>(Func<List<AddressBan>, Task<T>> decide, CancellationToken cancellationToken)
-    {
-        for (var tries = 1; ; tries++)
+    // Domain's rules), with their new audit lines, saved at once and decided again on a conflict (ModerationSaves).
+    private Task<T> SaveAsync<T>(Func<List<AddressBan>, Task<T>> decide, CancellationToken cancellationToken) =>
+        ModerationSaves.SaveAsync(db, async (Attempt attempt) =>
         {
             var tracked = new List<AddressBan>();
-            try
-            {
-                var result = await decide(tracked);
-                foreach (var ban in tracked)
-                {
-                    db.ModerationEntries.AddRange(ban.Entries);
-                }
-
-                await db.SaveChangesAsync(cancellationToken);
-                return result;
-            }
-            catch (DomainException)
-            {
-                tracked.ForEach(db.Forget);
-                throw;
-            }
-            catch (DbUpdateException saving) when (saving is DbUpdateConcurrencyException || db.IsUniqueViolation(saving))
-            {
-                tracked.ForEach(db.Forget);
-                if (tries == ModerationService.Attempts)
-                {
-                    throw new DomainException("That changed just now. Try again.");
-                }
-            }
-        }
-    }
+            attempt.Forget.Add(() => tracked.ForEach(db.Forget));
+            var result = await decide(tracked);
+            attempt.BeforeSave.Add(() => tracked.ForEach(ban => db.ModerationEntries.AddRange(ban.Entries)));
+            return result;
+        }, cancellationToken);
 }

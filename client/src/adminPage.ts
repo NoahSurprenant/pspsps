@@ -1,7 +1,7 @@
 import { el } from "./dom";
 import {
-  decidedMessage, decisionChoices, decisionRequest, liftLabel, logLine, networkBanLine, reportFacts, reportHeading,
-  sanctionLine, when, type AdminOverview, type NetworkBan, type OpenReport, type SanctionedPlayer,
+  decidedMessage, decisionChoices, decisionRequest, liftLabel, logLine, networkBanLine, networkLiftText, reportFacts,
+  reportHeading, sanctionLine, when, type AdminOverview, type NetworkBan, type OpenReport, type SanctionedPlayer,
 } from "./admin";
 import { maxReasonLength } from "./moderation";
 import { startTelemetry } from "./telemetry/core";
@@ -166,12 +166,20 @@ function sanctioned(player: SanctionedPlayer): HTMLElement {
   const lift = el("button", { text: "Lift", id: `lift-${player.playerId}` });
   lift.type = "button";
   lift.setAttribute("aria-label", liftLabel(player));
-  lift.addEventListener("click", () => void liftFor(player, lift));
+  // The networks banned with them: offered with Lift, checked.
+  const offer = networkLiftText(player);
+  const networks = el("input", { id: `lift-networks-${player.playerId}` });
+  networks.type = "checkbox";
+  networks.checked = true;
+  const networksLabel = el("label", { text: offer ?? "" });
+  networksLabel.htmlFor = networks.id;
+  lift.addEventListener("click", () => void liftFor(player, lift, offer !== undefined && networks.checked));
   return el("li", { className: "player" },
     el("h3", { text: player.displayName }),
     ...(player.ban ? [el("p", { text: sanctionLine("Banned", player.ban) })] : []),
     ...(player.mute ? [el("p", { text: sanctionLine("Muted", player.mute) })] : []),
     el("p", { className: "id" }, el("span", { text: "Player ID " }), el("code", { text: player.playerId })),
+    ...(offer ? [el("p", { className: "check" }, networks, networksLabel)] : []),
     lift,
   );
 }
@@ -196,11 +204,13 @@ async function liftNetwork(ban: NetworkBan, button: HTMLButtonElement): Promise<
   await load();
 }
 
-async function liftFor(player: SanctionedPlayer, button: HTMLButtonElement): Promise<void> {
+async function liftFor(player: SanctionedPlayer, button: HTMLButtonElement, liftNetworks: boolean): Promise<void> {
   button.disabled = true;
   try {
-    await post(`/api/admin/players/${encodeURIComponent(player.playerId)}/moderate`, { action: "lift" });
-    say(`${player.displayName} can play and chat again.`);
+    await post(`/api/admin/players/${encodeURIComponent(player.playerId)}/moderate`, { action: "lift", liftNetworks });
+    say(liftNetworks
+      ? `${player.displayName} can play and chat again, and so can their networks.`
+      : `${player.displayName} can play and chat again.`);
   } catch (error) {
     say(error instanceof Error ? error.message : String(error));
     button.disabled = false;

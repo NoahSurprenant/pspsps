@@ -94,7 +94,7 @@ public static class AdminEndpoints
         // From the admin page only (Sec-Fetch-Site or Origin): another site can't act through an admin's cookie.
         admin.MapPost("/players/{playerId:guid}/moderate", async (
             Guid playerId, ModerateRequestView body, HttpRequest request, ClaimsPrincipal user, IModerationService moderation,
-            IModerationEffects effects, CancellationToken ct) =>
+            IAddressBanService networks, IModerationEffects effects, CancellationToken ct) =>
         {
             if (!SameOriginRequest.IsFromThisSite(request) || user.GetPlayerId() is not { } adminId
                 || !moderation.IsAdmin(adminId))
@@ -108,6 +108,11 @@ public static class AdminEndpoints
                 // Not the request's token: a change saved must be told, even if the admin's page goes meanwhile.
                 var standing = await moderation.ModerateAsync(adminId, playerId, asked, CancellationToken.None);
                 await effects.AppliedAsync(playerId, asked.Action, standing);
+                if (asked.Action == ModerationAction.Lift && body.LiftNetworks)
+                {
+                    effects.NetworksLifted(await networks.LiftOfPlayerAsync(adminId, playerId, CancellationToken.None));
+                }
+
                 return Results.Ok(new CardModerationView(
                     moderation.IsAdmin(playerId), SanctionView.From(standing.Ban), SanctionView.From(standing.Mute)));
             }

@@ -60,7 +60,8 @@ public static class AuthEndpoints
 
             // From a banned network, only an admin signs in (the owner can't lock themself out), and a new login gets no
             // cat: the page is sent to ask why, and shows it.
-            if (await networks.BanOfAsync(http, await players.FindByLoginAsync(provider, key, ct), ct) is not null)
+            if (networks.Enabled
+                && await networks.BanOfAsync(http, await players.FindByLoginAsync(provider, key, ct), ct) is not null)
             {
                 return Results.Redirect(AuthRedirects.SignInBanned);
             }

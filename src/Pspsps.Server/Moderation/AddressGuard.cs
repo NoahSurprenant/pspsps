@@ -7,15 +7,23 @@ namespace Pspsps.Server.Moderation;
 /// <summary>
 /// Keeps banned networks out (<see cref="AddressBan"/>): whether a request's or a connection's network is banned, never
 /// for an admin (by the configured list: the owner can't lock themself out), and remembering which networks each player
-/// plays from. Does nothing when network bans are off (<see cref="ClientAddresses"/>).
+/// plays from (never an admin's). Does nothing when network bans are off (<see cref="ClientAddresses"/>).
 /// </summary>
 public sealed partial class AddressGuard(
     ClientAddresses addresses,
     AddressBanCache bans,
     IAdmins admins,
     IServiceScopeFactory scopes,
+    [FromKeyedServices(ModerationClock.Key)] TimeProvider time,
     ILogger<AddressGuard> logger)
 {
+    // Past this many players' networks remembered on this pod, the ones saved over an hour ago are dropped.
+    private const int ForgetAbove = 10_000;
+
+    // When this pod last saved each player's network: within the hour, the database's copy holds (PlayerAddress.SeenEvery),
+    // so another connection from it saves nothing and reads nothing.
+    private readonly ConcurrentDictionary<(Guid PlayerId, string Network), DateTimeOffset> _saved = new();
+
     /// <summary>The SignalR group of the connections on a network (not an admin's): told at once when it is banned.</summary>
     public static string GroupOf(string addressHash) => "network:" + addressHash;
 
@@ -40,17 +48,37 @@ public sealed partial class AddressGuard(
         addressHash is null ? Task.FromResult<Sanction?>(null) : bans.BanOfAsync(addressHash, cancellationToken);
 
     /// <summary>
-    /// Remembers that the player played from the request's network (for 7 days). Never throws: a network not remembered
-    /// only can't be banned.
+    /// Remembers that the player played from the request's network (for 7 days), unless they are an admin. Never throws: a
+    /// network not remembered only can't be banned.
     /// </summary>
-    public Task SeenAsync(HttpContext http, Guid playerId) => SeenAsync(addresses.HashOf(http), playerId);
+    public Task SeenAsync(HttpContext http, Guid playerId) => SeenAsync(NetworkOf(http, playerId), playerId);
 
-    /// <summary>As <see cref="SeenAsync(HttpContext, Guid)"/>, with the network's hash (null: nothing to remember).</summary>
+    /// <summary>
+    /// As <see cref="SeenAsync(HttpContext, Guid)"/>, with the network's hash (null: nothing to remember). Saved at most once
+    /// an hour per player and network from this pod.
+    /// </summary>
     public async Task SeenAsync(string? addressHash, Guid playerId)
     {
         if (addressHash is null)
         {
             return;
+        }
+
+        var now = time.GetUtcNow();
+        if (_saved.TryGetValue((playerId, addressHash), out var saved) && now - saved < PlayerAddress.SeenEvery && now >= saved)
+        {
+            return;
+        }
+
+        if (_saved.Count > ForgetAbove)
+        {
+            foreach (var (key, at) in _saved)
+            {
+                if (now - at >= PlayerAddress.SeenEvery)
+                {
+                    _saved.TryRemove(new KeyValuePair<(Guid, string), DateTimeOffset>(key, at));
+                }
+            }
         }
 
         try
@@ -59,6 +87,7 @@ public sealed partial class AddressGuard(
             // Not a request's token: a sign-in that is done is remembered even if the browser goes meanwhile.
             await scope.ServiceProvider.GetRequiredService<IAddressBanService>()
                 .SeenAsync(playerId, addressHash, CancellationToken.None);
+            _saved[(playerId, addressHash)] = now;
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

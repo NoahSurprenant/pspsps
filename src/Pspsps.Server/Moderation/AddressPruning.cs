@@ -4,11 +4,12 @@ namespace Pspsps.Server.Moderation;
 
 /// <summary>
 /// Forgets, every <see cref="Every"/> (and once as the server starts), the networks players haven't been seen on for
-/// 7 days and the networks' bans that are over (<see cref="IAddressBanService.PruneAsync"/>). Runs with network bans off
-/// too, so turning them off forgets what was kept. Every pod does it; a second run finds nothing to do.
+/// 7 days and the networks' bans that are over (<see cref="IAddressBanService.PruneAsync"/>). With network bans off, every
+/// network and ban kept: turning them off forgets them all within the hour. Every pod does it; a second run finds nothing.
 /// </summary>
 public sealed partial class AddressPruning(
-    IServiceScopeFactory scopes, TimeProvider time, ILogger<AddressPruning> logger) : BackgroundService
+    IServiceScopeFactory scopes, ClientAddresses addresses, TimeProvider time, ILogger<AddressPruning> logger)
+    : BackgroundService
 {
     public static readonly TimeSpan Every = TimeSpan.FromHours(1);
 
@@ -18,7 +19,8 @@ public sealed partial class AddressPruning(
         try
         {
             await using var scope = scopes.CreateAsyncScope();
-            var pruned = await scope.ServiceProvider.GetRequiredService<IAddressBanService>().PruneAsync(cancellationToken);
+            var pruned = await scope.ServiceProvider.GetRequiredService<IAddressBanService>()
+                .PruneAsync(forgetAll: !addresses.Enabled, cancellationToken);
             if (pruned > 0)
             {
                 LogPruned(logger, pruned);

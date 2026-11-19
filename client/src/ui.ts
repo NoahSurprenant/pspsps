@@ -918,8 +918,8 @@ function moderateSection(
   liftNetworks.checked = before?.querySelector<HTMLInputElement>("#lift-networks")?.checked ?? true;
   const liftCat = moderation.ban !== null || moderation.mute !== null;
 
-  const act = (action: ModerationAction, length?: string) => {
-    const request = requestFor(action, reason.value, length);
+  const act = (action: ModerationAction, length?: string, networksOnly = false) => {
+    const request = requestFor(action, reason.value, length, { networksOnly });
     if (typeof request === "string") {
       say(request);
       reason.focus();
@@ -927,6 +927,10 @@ function moderateSection(
     }
     if (action === "ban" && networks) {
       const checked = networks.boxes.filter((box) => box.checked).map((box) => box.value);
+      if (request.networksOnly && checked.length === 0) {
+        say("Check a network to ban first.");
+        return;
+      }
       if (checked.length > 0) {
         request.networks = checked;
         request.networkLength = networks.length.value;
@@ -969,11 +973,20 @@ function moderateSection(
     lengthRow("mute", "Mute", muteLengths),
     lengthRow("ban", "Ban", banLengths),
     ...(networks ? [networks.part] : []),
+    // A cat banned already: its networks can be banned alone, its own ban left as it is.
+    ...(networks && moderation.ban !== null ? [networksOnlyRow(name, () => act("ban", undefined, true))] : []),
     ...(canLift(moderation) ? [el("div", { className: "moderate-row" }, labelled("Lift", () => act("lift"), "primary"))] : []),
     // Lifting the cat's ban offers to lift its networks' too (only theirs to lift: no choice).
     ...(liftCat && bannedNetworks(moderation) > 0 ? [choice(liftNetworks, "Also lift its networks' bans")] : []),
   );
   return section;
+}
+
+/** "Ban the checked networks": for a cat banned already, its networks alone (its own ban stays as it is). */
+function networksOnlyRow(name: string, onClick: () => void): HTMLElement {
+  const ban = button("Ban the checked networks", onClick, "danger");
+  ban.setAttribute("aria-label", `Ban ${name}'s checked networks`);
+  return el("div", { className: "moderate-row" }, ban);
 }
 
 /**
