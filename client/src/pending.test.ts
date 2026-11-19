@@ -106,4 +106,20 @@ describe("loadRoom", () => {
     expect(applied).toBe(false);
     expect(pending.hold(() => {})).toBe(false);
   });
+
+  // Town Square refused the cat, and the server landed it in the café instead: Town Square's own events, which arrived
+  // while its join was still failing, must not be replayed onto the café.
+  it("drops what was held when it lands somewhere other than where it asked to go", async () => {
+    const pending = new PendingEvents<(room: string[]) => void>();
+    const cafe: string[] = [];
+
+    const shown = await loadRoom(pending, async () => {
+      pending.hold((room) => room.push("a Town Square cat joined"));
+      return cafe;
+    }, undefined, () => false);
+
+    expect(shown).toBe(cafe);
+    expect(cafe).toEqual([]);
+    expect(pending.hold(() => {})).toBe(false);
+  });
 });

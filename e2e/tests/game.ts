@@ -128,6 +128,7 @@ declare global {
       mutes(): string[];
       bubble(playerId: string): string | undefined;
       portrait(outfit: { fur: string; hat: string | null; collar: string | null }): Promise<string> | undefined;
+      wardrobe(): Promise<{ hats: readonly string[]; collars: readonly string[] }>;
     };
   }
 }
@@ -389,6 +390,12 @@ export async function pictureOf(page: Page, outfit: Outfit): Promise<Buffer> {
 /** How many of a PNG's pixels differ from another's of the same size: what a hat or a collar adds to a picture. */
 export function differing(a: Buffer, b: Buffer): number {
   const [one, two] = [PNG.sync.read(a), PNG.sync.read(b)];
+  if (one.width !== two.width || one.height !== two.height) {
+    // Read past the shorter buffer otherwise: undefined bytes make every difference read as 0, undercounting rather
+    // than failing loudly.
+    throw new Error(`differing() needs two pictures the same size, not ${one.width}x${one.height} and ${two.width}x${two.height}`);
+  }
+
   let count = 0;
   for (let i = 0; i < one.data.length; i += 4) {
     const d = Math.abs(one.data[i]! - two.data[i]!) + Math.abs(one.data[i + 1]! - two.data[i + 1]!)

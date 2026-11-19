@@ -38,12 +38,19 @@ public sealed partial class GameHub(
     IMuteService mutes,
     IReportService reports,
     SessionHeartbeat heartbeat,
+    TimeProvider time,
     GameMetrics metrics,
     ILogger<GameHub> logger)
     : Hub<IGameClient>
 {
     /// <summary>What a replaced tab is told; the client shows the same words.</summary>
     public const string ReplacedMessage = "You've joined from another tab.";
+
+    // How long GoSomewhere's whole way-out loop may take: each place it tries can itself take about 30 s (the grains'
+    // response timeout), so without a limit an unreachable silo could keep a hub call hanging for minutes. Past this, it
+    // stops and falls back exactly as when every place in WayOut.For refuses: the connection keeps the room it left, and
+    // the next renewal finds the cat gone and sends RoomLost.
+    private static readonly TimeSpan WayOutTimeLimit = TimeSpan.FromSeconds(10);
 
     /// <summary>What a call that finishes after its connection closed answers (nobody reads it).</summary>
     public const string ClosedMessage = "This connection has closed.";
@@ -178,8 +185,10 @@ public sealed partial class GameHub(
         }
         catch (Exception e)
         {
-            // Couldn't be checked: not let in, rather than in a home the browser doesn't know it is in.
-            if (await BackOut(place, key, e) is { } landed)
+            // Couldn't be checked: not let in, rather than in a home the browser doesn't know it is in. The home did
+            // open (the check is what failed), so BackOut is told that, rather than the generic "couldn't be opened".
+            var refused = new HubException("Couldn't check that you may visit.");
+            if (await BackOut(place, key, refused) is { } landed)
             {
                 return landed;
             }
@@ -220,23 +229,62 @@ public sealed partial class GameHub(
         }
 
         var cameFrom = from.RoomKey is { } was ? RoomKey.WhereaboutsOf(was) : null;
+        var deadline = time.GetUtcNow() + WayOutTimeLimit;
         foreach (var place in WayOut.For(PlayerId, cameFrom, RoomKey.WhereaboutsOf(refused)))
         {
+            var timeLeft = deadline - time.GetUtcNow();
+            if (timeLeft <= TimeSpan.Zero)
+            {
+                break;
+            }
+
             var key = RoomKey.For(from.WorldId, place);
             var back = place == cameFrom;
+            var joining = JoinRoom(from.WorldId, key, back ? throughDoor : null);
+            if (await Task.WhenAny(joining, Task.Delay(timeLeft, time)) != joining)
+            {
+                // Nothing answered within what's left of the time limit: stop rather than wait out every remaining
+                // place's own ~30 s grain timeout too.
+                LogWayOutTimedOut(logger, PlayerId, key);
+                break;
+            }
+
             try
             {
-                var snapshot = await JoinRoom(from.WorldId, key, back ? throughDoor : null);
+                var snapshot = await joining;
                 return back ? null : snapshot with { Notice = Landed(reason, snapshot) };
+            }
+            catch (HubException e) when (!heartbeat.IsClosed(Context.ConnectionId))
+            {
+                // An ordinary refusal (the room is full, or its owner shut it, or JoinRoom didn't find a profile): the
+                // rule, not a fault, so it's expected and logged quietly rather than flooding Warning.
+                LogRoomRefused(logger, e, PlayerId, key);
             }
             catch (Exception e) when (e is not OperationCanceledException && !heartbeat.IsClosed(Context.ConnectionId))
             {
+                // A real failure (a timeout, say) may still have gone through on the grain's side even though this call
+                // didn't hear back: best effort to take the cat back out, so it isn't left there while the loop moves on.
+                await BestEffortLeave(key);
                 LogNotLandedIn(logger, e, PlayerId, key);
             }
         }
 
         MoveTo(from);
         return null;
+    }
+
+    // Best effort: leaves the room <key> after a failed join that may have gone through anyway (a timeout doesn't say
+    // which). A failure here is logged and otherwise ignored: the lease will run out on its own.
+    private async Task BestEffortLeave(string key)
+    {
+        try
+        {
+            await grains.GetGrain<IRoomGrain>(key).Leave(PlayerId, Context.ConnectionId);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            LogLeaveAfterFailedJoinFailed(logger, e, PlayerId, key);
+        }
     }
 
     // What a cat that landed in <landed> is told: why it isn't where it was going (a rule's own words; any other failure,
@@ -1040,8 +1088,17 @@ public sealed partial class GameHub(
     [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't show the room {RoomKey} what player {PlayerId} put on; it shows on their next arrival")]
     private static partial void LogDressNotShown(ILogger logger, Exception exception, Guid playerId, string roomKey);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Player {PlayerId} couldn't go into {RoomKey} on their way out; trying the next place")]
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Player {PlayerId} couldn't go into {RoomKey} on their way out")]
     private static partial void LogNotLandedIn(ILogger logger, Exception exception, Guid playerId, string roomKey);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Player {PlayerId} was refused {RoomKey} on their way out")]
+    private static partial void LogRoomRefused(ILogger logger, Exception exception, Guid playerId, string roomKey);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Nothing answered for player {PlayerId} within the way-out time limit, trying {RoomKey}")]
+    private static partial void LogWayOutTimedOut(ILogger logger, Guid playerId, string roomKey);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't leave {RoomKey} for player {PlayerId} after its join failed; a ghost may stay until its lease runs out")]
+    private static partial void LogLeaveAfterFailedJoinFailed(ILogger logger, Exception exception, Guid playerId, string roomKey);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't send an ex-friend out of the home of player {PlayerId}; they stay until they leave")]
     private static partial void LogSendOutFailed(ILogger logger, Exception exception, Guid playerId);

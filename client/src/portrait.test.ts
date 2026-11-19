@@ -1,13 +1,8 @@
 import { NullEngine } from "@babylonjs/core";
 import { describe, expect, it } from "vitest";
 import { loadCatModel } from "./cat";
-import catGlb from "./models/cat.glb?inline";
 import { outfitKey, Portraits } from "./portrait";
-
-/** The real cat model's bytes, from the data URL Vite makes of it. */
-function modelBytes(): Uint8Array {
-  return Uint8Array.from(atob(catGlb.slice(catGlb.indexOf(",") + 1)), (c) => c.charCodeAt(0));
-}
+import { modelBytes } from "./testCatModel";
 
 /** Portraits whose "picture" is what the cat sat for it wearing, and how many were taken. */
 function studio() {

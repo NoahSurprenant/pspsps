@@ -35,9 +35,15 @@ export class PendingEvents<T> {
  * order; resolves to it. When loading fails, the events held meanwhile go onto `stay`, the room still showing, when the
  * server kept the cat there (a door that refused it); with no room to stay in, they are dropped. The failure is passed
  * on either way.
+ *
+ * The room events held while loading carry no room id, so when the room asked for refuses the cat (the server lands it
+ * somewhere else instead, on its own way out), some of what was held is about the refused room, not the one that shows:
+ * replaying it onto the landed room would show its chat and its cats. `landedAsAsked`, given the room that loaded, says
+ * whether it is the one asked for; when it isn't, the held events are dropped rather than replayed.
  */
 export async function loadRoom<R>(
   pending: PendingEvents<(room: R) => void>, open: () => Promise<R>, stay: R | undefined,
+  landedAsAsked: (shown: R) => boolean = () => true,
 ): Promise<R> {
   pending.start();
   let shown: R;
@@ -53,8 +59,11 @@ export async function loadRoom<R>(
     }
     throw error;
   }
-  for (const apply of pending.finish()) {
-    apply(shown);
+  const held = pending.finish();
+  if (landedAsAsked(shown)) {
+    for (const apply of held) {
+      apply(shown);
+    }
   }
   return shown;
 }

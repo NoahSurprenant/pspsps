@@ -2,7 +2,9 @@ using System.Diagnostics.Metrics;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using Pspsps.Application.Friends;
@@ -1124,6 +1126,58 @@ public sealed class GameHubTests
     }
 
     [Test]
+    public async Task EnterWorld_WhenARoomOnTheWayOutFailsForARealReason_LeavesItBestEffort_BeforeTryingTheNextPlace()
+    {
+        // A timeout doesn't say whether the grain's side of the join went through; best effort to take the cat back out
+        // of the café before the shop takes it, or the café would keep a ghost of it until its lease runs out.
+        _room.Join(default!, default!, default).ThrowsAsyncForAnyArgs(new GameRuleException("Town Square is full."));
+        _cafe.Join(default!, default!, default).ThrowsAsyncForAnyArgs(new TimeoutException());
+        RenewalsFindEveryCat();
+
+        var landed = await Hub().EnterWorld("tabby");
+
+        Assert.That(landed.RoomId, Is.EqualTo("shop"));
+        await _cafe.Received(1).Leave(Tom.Id, Connection);
+    }
+
+    [Test]
+    public async Task EnterWorld_WhenOrdinaryRefusalsOnTheWayOut_LogsThemQuietly_NotAsWarnings()
+    {
+        // Town Square and the café are both ordinarily full: expected, so neither is a Warning, which is for the real
+        // failures (grain timeouts and the like) that this would otherwise drown out.
+        var recorder = new RecordingLogger();
+        _room.Join(default!, default!, default).ThrowsAsyncForAnyArgs(new GameRuleException("Town Square is full."));
+        _cafe.Join(default!, default!, default).ThrowsAsyncForAnyArgs(new GameRuleException("Cat Café is full."));
+        RenewalsFindEveryCat();
+
+        await Hub(logger: recorder).EnterWorld("tabby");
+
+        Assert.That(recorder.Levels, Has.Some.EqualTo(LogLevel.Debug));
+        Assert.That(recorder.Levels, Has.None.EqualTo(LogLevel.Warning));
+    }
+
+    [Test]
+    public async Task EnterWorld_WhenNoPlaceAnswersWithinTheWayOutTimeLimit_FallsBackAsThoughEveryPlaceHadRefused()
+    {
+        // The grains are unreachable: without a limit on the whole loop, each of the café, the shop and home would wait
+        // out its own ~30 s grain timeout in turn, keeping the tab on the loading screen for minutes.
+        var time = new FakeTimeProvider();
+        _room.Join(default!, default!, default).ThrowsAsyncForAnyArgs(new GameRuleException("Town Square is full."));
+        var neverAnswers = new TaskCompletionSource<RoomSnapshot>();
+        _cafe.Join(default!, default!, default).ReturnsForAnyArgs(neverAnswers.Task);
+        _shopRoom.Join(default!, default!, default).ReturnsForAnyArgs(neverAnswers.Task);
+        var tomsHome = HomeOf(Tom.Id);
+        tomsHome.Join(default!, default!, default).ReturnsForAnyArgs(neverAnswers.Task);
+        var hub = Hub(time);
+
+        var entering = hub.EnterWorld("tabby");
+        time.Advance(TimeSpan.FromSeconds(10) + TimeSpan.FromMilliseconds(1));
+        var refused = Assert.ThrowsAsync<HubException>(async () => await entering);
+
+        Assert.That(refused!.Message, Is.EqualTo("Town Square is full."));
+    }
+
+    [Test]
     public async Task EnterWorld_WhenTownSquareCannotAnswer_LandsInTheCafe_OutOfTownSquaresGroup()
     {
         // Its group joined before the join that failed: left again, or the tab would hear Town Square from the café.
@@ -1195,6 +1249,27 @@ public sealed class GameHubTests
 
         await felixHome.Received(1).Leave(Tom.Id, Connection);
         await _room.Received(2).Join(Arg.Is<PlayerCard>(c => c.PlayerId == Tom.Id), Connection, null);
+    }
+
+    [Test]
+    public async Task VisitHome_WhenTheSecondCheckFailsForANonRuleReason_AndLandsElsewhere_SaysTheCheckFailed()
+    {
+        // Town Square is also full, so BackOut can't go back where Tom came from and lands in the café instead: the
+        // notice must say the check failed, not the generic "couldn't be opened", since the home did open.
+        var felixHome = HomeOf(Felix);
+        _homes.VisitAsync(Tom.Id, Felix, Arg.Any<CancellationToken>()).Returns(
+            Task.FromResult("Felix"), Task.FromException<string>(new TimeoutException()));
+        felixHome.Join(default!, default!, default).ReturnsForAnyArgs(HomeSnapshot(Felix));
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+        _room.Join(default!, default!, default).ThrowsAsyncForAnyArgs(new GameRuleException("Town Square is full."));
+        RenewalsFindEveryCat();
+
+        var landed = await hub.VisitHome(Felix);
+
+        Assert.That(landed.RoomId, Is.EqualTo("cafe"));
+        Assert.That(landed.Notice, Is.EqualTo("Couldn't check that you may visit. You went to Cat Café instead."));
+        await felixHome.Received(1).Leave(Tom.Id, Connection);
     }
 
     [Test]
@@ -1611,7 +1686,7 @@ public sealed class GameHubTests
         Assert.That(await hub.GetWarnings(), Is.EqualTo(new[] { new WarningView(id, "Be nice.") }));
     }
 
-    private GameHub Hub()
+    private GameHub Hub(TimeProvider? time = null, ILogger<GameHub>? logger = null)
     {
         var context = Substitute.For<HubCallerContext>();
         context.ConnectionId.Returns(Connection);
@@ -1622,11 +1697,26 @@ public sealed class GameHubTests
         return new GameHub(
             _grains, _players, _friends, _shop, _homes, _moderation, _effects,
             new StandingCache(_services.GetRequiredService<IServiceScopeFactory>(), TimeProvider.System), _mutes, _reports,
-            _heartbeat, metrics, NullLogger<GameHub>.Instance)
+            _heartbeat, time ?? TimeProvider.System, metrics, logger ?? NullLogger<GameHub>.Instance)
         {
             Context = context,
             Groups = Substitute.For<IGroupManager>(),
             Clients = _clients = Substitute.For<IHubCallerClients<IGameClient>>(),
         };
+    }
+
+    // Records the level of everything logged, so a test can tell an ordinary refusal (Debug) from a real failure
+    // (Warning) without a logging test package.
+    private sealed class RecordingLogger : ILogger<GameHub>
+    {
+        public List<LogLevel> Levels { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+            Levels.Add(logLevel);
     }
 }

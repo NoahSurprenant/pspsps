@@ -3,9 +3,9 @@ import { NullEngine, Scene, StandardMaterial, TransformNode, Vector3, type Picki
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { loadCatModel } from "./cat";
-import catGlb from "./models/cat.glb?inline";
 import { lookOf } from "./looks";
 import { catPlayerIdOf, RoomScene } from "./scene";
+import { modelBytes } from "./testCatModel";
 import type { RoomSnapshot } from "./types";
 
 const room: RoomSnapshot = {
@@ -22,11 +22,6 @@ function deferred<T>(): { promise: Promise<T>; resolve(value: T): void; reject(e
     reject = no;
   });
   return { promise, resolve, reject };
-}
-
-/** The real cat model's bytes, from the data URL Vite makes of it. */
-function modelBytes(): Uint8Array {
-  return Uint8Array.from(atob(catGlb.slice(catGlb.indexOf(",") + 1)), (c) => c.charCodeAt(0));
 }
 
 /** A model loader whose first room gets <first>, and every later one a model still loading. */

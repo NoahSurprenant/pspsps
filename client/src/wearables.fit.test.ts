@@ -3,18 +3,15 @@ import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import { Scene } from "@babylonjs/core/scene";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { Cat, loadCatModel, outlineWidth as outline } from "./cat";
-import catGlb from "./models/cat.glb?inline";
+import { modelBytes } from "./testCatModel";
 import { collarIds, hatIds } from "./wearables";
 
 // How what a cat wears sits on the model, measured against the model itself (in the body's units: +y up, +z forward),
 // so a hat rests on the head instead of sinking into it or floating, keeps out of the ears, and a collar hugs the body.
-
-function modelBytes(): Uint8Array {
-  return Uint8Array.from(atob(catGlb.slice(catGlb.indexOf(",") + 1)), (c) => c.charCodeAt(0));
-}
-
+// One model, loaded once (beforeAll) and re-dressed by each case, rather than parsed anew for each of the roughly 25
+// cases: the GLB decode and parse are the slow part, and dressing a cat already disposes what it wore before.
 
 describe("what a cat wears, on the model", () => {
   let engine: NullEngine;
@@ -22,7 +19,7 @@ describe("what a cat wears, on the model", () => {
   let cat: Cat;
   let toBody: Matrix;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     engine = new NullEngine();
     scene = new Scene(engine);
     const model = await loadCatModel(scene, modelBytes());
@@ -35,7 +32,7 @@ describe("what a cat wears, on the model", () => {
     toBody = body.computeWorldMatrix(true).clone().invert();
   });
 
-  afterEach(() => {
+  afterAll(() => {
     scene.dispose();
     engine.dispose();
   });

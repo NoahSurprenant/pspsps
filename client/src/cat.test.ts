@@ -6,12 +6,7 @@ import { Scene } from "@babylonjs/core/scene";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { animationFor, Cat, catAnimations, colourOf, colourOfMesh, facing, loadCatModel, loops, MeowClip, type CatDoing } from "./cat";
 import { coatOf } from "./fur";
-import catGlb from "./models/cat.glb?inline";
-
-/** The model's bytes, from the data URL Vite makes of it. */
-function modelBytes(): Uint8Array {
-  return Uint8Array.from(atob(catGlb.slice(catGlb.indexOf(",") + 1)), (c) => c.charCodeAt(0));
-}
+import { modelBytes } from "./testCatModel";
 
 const standing: CatDoing = { moving: false, pose: undefined, waving: false, meowing: false };
 

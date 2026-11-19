@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { comeBack, landingNotice, saysSentOutAgain, stayAfterRefusal, walkBackIn } from "./rejoin";
+import { comeBack, saysSentOutAgain, stayAfterRefusal, walkBackIn } from "./rejoin";
 
 describe("walkBackIn", () => {
   function recorder(arrivesIn: string | undefined) {
@@ -79,18 +79,6 @@ describe("comeBack", () => {
     );
 
     expect(calls).toEqual(["enter tabby", "goTo cafe"]);
-  });
-});
-
-describe("landingNotice", () => {
-  it("says why the cat is where it landed, when it isn't where it was going", () => {
-    expect(landingNotice({ notice: "Town Square is full. You went to Cat Café instead." }))
-      .toBe("Town Square is full. You went to Cat Café instead.");
-  });
-
-  it("says nothing for a room the cat was going to, or from an older server", () => {
-    expect(landingNotice({ notice: null })).toBeUndefined();
-    expect(landingNotice({})).toBeUndefined();
   });
 });
 

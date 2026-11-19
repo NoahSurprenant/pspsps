@@ -5,7 +5,7 @@ import { addressNote, linkUrl, loginUrl } from "./link";
 import { GameConnection, fetchMe, fetchProviders, messageOf, playAsGuest, signOut } from "./net";
 import { lazily } from "./lazy";
 import { loadRoom, PendingEvents } from "./pending";
-import { comeBack, landingNotice, saysSentOutAgain, stayAfterRefusal } from "./rejoin";
+import { comeBack, saysSentOutAgain, stayAfterRefusal } from "./rejoin";
 import { catchBubble, FishingState, gotAwayMessage, paid, pondEdge, reelMessage, type Fishing } from "./fishing";
 import { Room } from "./room";
 import type { CatAnimation } from "./cat";
@@ -149,6 +149,8 @@ declare global {
       bubble(playerId: string): string | undefined;
       /** A picture of a cat dressed in <outfit>, as the player cards show it, once a room has loaded the model. */
       portrait(outfit: Outfit): Promise<string> | undefined;
+      /** The hat and collar IDs the shop catalogue draws (wearables.ts), for the wardrobe's contact sheet. */
+      wardrobe(): Promise<{ hats: readonly string[]; collars: readonly string[] }>;
     };
   }
 }
@@ -166,6 +168,12 @@ window.pspsps = {
   mutes: () => mutes.list.map((muted) => muted.playerId),
   bubble: (playerId) => scene?.bubbleOf(playerId),
   portrait: (outfit) => scene?.portraits.picture(outfit),
+  // A dynamic import, not a top-level one: wearables.ts pulls in Babylon's mesh builders, which the sign-in screen must
+  // not load before there is a room to draw.
+  wardrobe: async () => {
+    const { hatIds, collarIds } = await import("./wearables");
+    return { hats: hatIds, collars: collarIds };
+  },
 };
 
 const connection = new GameConnection({
@@ -558,7 +566,9 @@ async function goTo(roomId: string, stay?: Room): Promise<void> {
 /**
  * Leaves the room showing and loads the next. The server sends the new room's events (our own join among them) from
  * just before it takes the snapshot, so they are held until the snapshot shows and then replayed onto it, in order;
- * the room's updates are idempotent, so those already in the snapshot change nothing.
+ * the room's updates are idempotent, so those already in the snapshot change nothing. A room that refused the cat can
+ * send its own events in that same window (chat, another cat's moves): the snapshot's notice says the cat landed
+ * somewhere else, so those are dropped rather than replayed onto the room that shows.
  * A load that fails leaves the page in `stay` (with what it said meanwhile) when the server kept the cat there.
  */
 async function load(request: () => Promise<RoomSnapshot>, stay?: Room): Promise<void> {
@@ -570,11 +580,10 @@ async function load(request: () => Promise<RoomSnapshot>, stay?: Room): Promise<
     const shown = await loadRoom(loading, async () => {
       const view = await stage();
       return show(await request(), view);
-    }, stay);
+    }, stay, (room) => !room.snapshot.notice);
     // Not where it was going (that room was full): where it landed instead, and why.
-    const notice = landingNotice(shown.snapshot);
-    if (notice) {
-      overlay.toast(notice);
+    if (shown.snapshot.notice) {
+      overlay.toast(shown.snapshot.notice);
     }
   } catch (error) {
     // Still in `stay` if the server kept the cat there (a door that refused it, a Go to that couldn't); in no room

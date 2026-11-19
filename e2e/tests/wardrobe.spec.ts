@@ -5,14 +5,16 @@ import { differing, enterWorld, expect, pictureOf, test } from "./game";
 // differs from the same cat wearing nothing), and they are put side by side on a contact sheet
 // (screenshots/wardrobe.png), which CI links on the PR, so a change to how they sit is seen up close.
 
-const hats = ["party-hat", "bow", "beanie", "top-hat", "crown"];
-const collars = ["red-collar", "blue-collar", "green-collar", "bell-collar"];
 // Dark and light coats, plain and patched: a hat's outline must read on black, and its colour on white.
 const furs = ["Tuxedo", "Black", "White", "Calico", "Orange"];
 
 test("every hat and collar shows on every coat, and the wardrobe's contact sheet is made", async ({ page, browser }) => {
   test.setTimeout(180_000);
   await enterWorld(page, "Siamese");
+  // From the shop catalogue (wearables.ts), not copied here: a hat added there always shows up on this sheet too.
+  const wardrobe = await page.evaluate(() => window.pspsps?.wardrobe());
+  expect(wardrobe, "window.pspsps.wardrobe()").toBeDefined();
+  const { hats, collars } = wardrobe!;
 
   const rows: { fur: string; cells: { label: string; png: Buffer }[] }[] = [];
   for (const fur of furs) {
