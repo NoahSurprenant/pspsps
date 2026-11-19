@@ -60,7 +60,7 @@ internal sealed class RoomGrain(
             room = RoomCatalog.Find(roomId) ?? throw new InvalidOperationException($"No room '{roomId}'.");
         }
 
-        _state = new RoomState(room);
+        _state = new RoomState(room, _home?.OwnerId);
         _doors = [.. room.Doors.Select(DoorView.From)];
         // A home's furniture is its room's props (Home.PropOf, as every change to it after: HomeView.Props).
         _props = [.. room.Props.Select(PropView.From)];

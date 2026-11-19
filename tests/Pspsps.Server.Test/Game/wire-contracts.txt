@@ -112,3 +112,4 @@ type RoomSnapshot 8: PondView Pond
 type RoomSnapshot 9: IReadOnlyList<DoorView> Doors
 type RoomSnapshot 10: IReadOnlyList<PropView> Props
 type RoomSnapshot 11: HomeView Home
+type RoomSnapshot 12: String Notice

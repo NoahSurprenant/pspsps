@@ -1,3 +1,5 @@
+using Pspsps.Domain.Rooms;
+
 namespace Pspsps.Server.Game;
 
 /// <summary>
@@ -31,4 +33,15 @@ public static class RoomKey
     /// <summary>Whose home the room <paramref name="roomId"/> of <paramref name="worldId"/> (a key's parts) is, or null.</summary>
     public static Guid? HomeOwner(string worldId, string roomId) =>
         worldId == Homes && Guid.TryParse(roomId, out var owner) ? owner : null;
+
+    /// <summary>The key of <paramref name="place"/>, in the world <paramref name="worldId"/> (a home's key has none).</summary>
+    public static string For(string worldId, Whereabouts place)
+    {
+        ArgumentNullException.ThrowIfNull(place);
+        return place.HomeOwner is { } owner ? ForHome(owner) : For(worldId, place.RoomId!);
+    }
+
+    /// <summary>Which place in its world the room <paramref name="key"/> is: one of the world's rooms, or a home.</summary>
+    public static Whereabouts WhereaboutsOf(string key) =>
+        HomeOwner(key) is { } owner ? Whereabouts.Home(owner) : Whereabouts.Room(Parse(key).RoomId);
 }

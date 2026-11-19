@@ -39,6 +39,33 @@ public sealed class RoomStateTests
     }
 
     [Test]
+    public void Join_AFullRoom_IsRefused_WithItsName()
+    {
+        var state = new RoomState(Room);
+        state.Join(Tom, "Tom", FurColor.Grey, TabA, Now);
+        state.Join(Felix, "Felix", FurColor.Black, "felix-tab", Now);
+
+        var full = Assert.Throws<DomainException>(() => state.Join(Guid.NewGuid(), "Garfield", FurColor.Orange, "g-tab", Now));
+
+        Assert.That(full!.Message, Is.EqualTo("Test Room is full."));
+    }
+
+    [Test]
+    public void Join_AFullHome_StillLetsItsOwnerIn()
+    {
+        // The last place a cat with nowhere else to go is sent (WayOut): its own home never refuses it.
+        var state = new RoomState(Room, owner: Tom);
+        state.Join(Felix, "Felix", FurColor.Black, "felix-tab", Now);
+        state.Join(Guid.NewGuid(), "Garfield", FurColor.Orange, "g-tab", Now);
+
+        state.Join(Tom, "Tom", FurColor.Grey, TabA, Now);
+
+        Assert.That(state.Cats.Select(c => c.PlayerId), Does.Contain(Tom));
+        // Only the owner: anyone else is still refused.
+        Assert.Throws<DomainException>(() => state.Join(Guid.NewGuid(), "Nermal", FurColor.Grey, "n-tab", Now));
+    }
+
+    [Test]
     public void Join_FromAnotherTab_TakesTheCatOverWhereItStands()
     {
         var state = new RoomState(Room);

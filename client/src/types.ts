@@ -100,6 +100,11 @@ export interface RoomSnapshot {
   props: PropView[] | null;
   /** The player's home this room is, if it is one (missing from an older server). */
   home?: HomeView | null;
+  /**
+   * Why the cat is here, when it isn't where it was going: that room was full (or closed to it), and it landed in the
+   * next place on its way out ("Town Square is full. You went to Cat Café instead."). Missing from an older server.
+   */
+  notice?: string | null;
 }
 
 /** Who may come into a player's home, besides its owner (the Domain's HomeVisitors). */

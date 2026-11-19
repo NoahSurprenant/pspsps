@@ -7,7 +7,7 @@ namespace Pspsps.Domain.Rooms;
 /// Who is in one room of one world and what they said lately. Lives in memory only (the room's actor holds it) and is
 /// never saved: a room that empties forgets everything.
 /// </summary>
-public sealed class RoomState(RoomDefinition room)
+public sealed class RoomState(RoomDefinition room, Guid? owner = null)
 {
     public const int MaxChatLength = 120;
     public const int ChatHistory = 20;
@@ -35,6 +35,9 @@ public sealed class RoomState(RoomDefinition room)
     private readonly Dictionary<Guid, DateTimeOffset> _lastCasts = [];
 
     public RoomDefinition Room { get; } = room;
+
+    /// <summary>Whose home the room is, or null for a world's room. However full the home, its owner gets in.</summary>
+    public Guid? Owner { get; } = owner;
 
     public IReadOnlyCollection<CatInRoom> Cats => _cats.Values;
 
@@ -74,7 +77,7 @@ public sealed class RoomState(RoomDefinition room)
             return Dress(playerId, furColor, hat, collar, outfitVersion) ?? existing;
         }
 
-        if (IsFull)
+        if (IsFull && playerId != Owner)
         {
             throw new DomainException($"{Room.Name} is full.");
         }

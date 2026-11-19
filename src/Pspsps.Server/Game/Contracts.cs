@@ -79,6 +79,10 @@ public sealed record EmoteView([property: Id(0)] Guid PlayerId, [property: Id(1)
     public static EmoteView From(CatEmote emote) => new(emote.PlayerId, emote.Emote, emote.At);
 }
 
+/// <summary>
+/// A room as the browser draws it when the cat comes in. <see cref="Notice"/> says why the cat is here when it isn't where
+/// it was going (that room was full, say, and it landed in the next place on its way out).
+/// </summary>
 [GenerateSerializer, Immutable]
 public sealed record RoomSnapshot(
     [property: Id(0)] string WorldId,
@@ -92,7 +96,8 @@ public sealed record RoomSnapshot(
     [property: Id(8)] PondView? Pond,
     [property: Id(9)] IReadOnlyList<DoorView> Doors,
     [property: Id(10)] IReadOnlyList<PropView> Props,
-    [property: Id(11)] HomeView? Home = null);
+    [property: Id(11)] HomeView? Home = null,
+    [property: Id(12)] string? Notice = null);
 
 /// <summary>
 /// A player's home, as the browser draws it and its owner decorates it: whose it is, who may visit ("Friends", "Anyone"

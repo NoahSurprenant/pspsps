@@ -162,10 +162,18 @@ The owner chooses who may come in (`HomeVisitors`): their friends (every home st
 always may (`Home.MayVisit`). Visiting checks it (`HomeService.VisitAsync`), and "Go to" a friend who is in a home visits
 that home on the same terms. When the owner makes it stricter, the hub asks the home who is in it, the home's rule says
 who may no longer stay (`HomeService.MustLeaveAsync`), and the room sends them out (`IRoomGrain.SendOut`): each tab
-is told (`SentOut`) and goes back to Town Square in its own world. Ending a friendship asks both homes the same way.
-A move into a room or home that fails never leaves the cat in no room: it goes back into the room it left, except
-straight back into another player's home (which may no longer let it in), where the next renewal sends `RoomLost`
-and the browser comes back in by the checked way.
+is told (`SentOut`) and goes to Town Square in its own world (or on along its way out, below). Ending a friendship asks both homes the same way.
+
+A cat is never left in no room. When the room it was going to doesn't take it (full, a home closed to it, or a room
+that couldn't be opened), the Domain's way out (`WayOut`) says where it goes instead, in order: back into the room it
+left (by the door it went out of, if it took one), unless that is another player's home, which may no longer let it in;
+then the world's rooms, Town Square first, then the café and the shop; then its own home, which always has room for its
+owner (`RoomState` lets a home's owner into it however full it is). So a cat sent out of a home into a full Town Square
+lands in the café, and a world whose Town Square is full is entered by its next room. The hub tries each in turn, and a
+cat that lands somewhere it wasn't going gets that room with why (`RoomSnapshot.Notice`, "Town Square is full. You went
+to Cat Café instead."), which the browser says. Only when nothing at all answers (the grains can't be reached) does the
+connection keep the room it left as its place, whose next renewal finds the cat gone and sends `RoomLost`, and the
+browser asks again.
 
 In the browser, the way home is at the top of the friends list (the room bar has no room for another button on a folded
 phone). In their own home, the owner has Decorate and who can visit in the dock; decorating (`client/src/home.ts`) picks

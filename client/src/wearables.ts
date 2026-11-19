@@ -18,9 +18,11 @@ const ink = "#2a2230";
 const gold = "#f2c230";
 
 /**
- * The shapes, in the cat model's units (before the cat's scale): its head is the top of a 1.25 cube, with the ears at
- * its sides rising about 0.27 above it, so hats sit between them. A hat is modelled with its brim at y = 0, for the
- * head-top anchor; a collar around the body (the cube, centred 0.63 behind the neck anchor), its tag at the origin.
+ * The shapes, in the cat model's units (before the cat's scale). The cat is a cube 1.25 a side with its edges bevelled:
+ * its head's top is flat, and the ears stand up from its front corners (from about 0.2 either side of the middle, and
+ * 0.19 in front of the head-top anchor). A hat is modelled with its brim at y = 0, on the head-top anchor, and kept
+ * behind the ears; a collar goes round the body (centred 0.63 behind the neck anchor), its tag at the origin.
+ * wearables.fit.test.ts measures them against the model.
  */
 type Maker = (part: (mesh: Mesh, colour: string) => Mesh, scene: Scene, name: string) => void;
 
@@ -32,51 +34,70 @@ const hats: Record<(typeof hatIds)[number], Maker> = {
     pompom.position.y = 0.57;
   },
   bow: (part, scene, name) => {
-    // Two loops (flattened cones, points in) and a knot, a little forward on the head.
+    // Two loops (flattened cones, points in) and a knot, tied on the top of the head just behind the ears.
     for (const side of [-1, 1]) {
       const loop = part(CreateCylinder(`${name}-loop-${side}`, { height: 0.26, diameterTop: 0.04, diameterBottom: 0.26, tessellation: 8 }, scene), "#e8475f");
       loop.rotation.z = side * Math.PI / 2;
       loop.scaling.z = 0.45;
-      loop.position.set(side * 0.15, 0.12, 0.15);
+      loop.position.set(side * 0.15, 0.13, 0);
     }
     const knot = part(CreateBox(`${name}-knot`, { width: 0.1, height: 0.12, depth: 0.12 }, scene), "#c7304a");
-    knot.position.set(0, 0.12, 0.15);
+    knot.position.set(0, 0.13, 0);
   },
   beanie: (part, scene, name) => {
-    const dome = part(CreateSphere(`${name}-dome`, { diameter: 0.78, segments: 6, slice: 0.5 }, scene), "#4a7bd0");
-    dome.scaling.y = 0.75;
-    const band = part(CreateCylinder(`${name}-band`, { height: 0.12, diameter: 0.8, tessellation: 12 }, scene), "#3a63ad");
-    band.position.y = 0.06;
-    const pompom = part(CreateSphere(`${name}-pompom`, { diameter: 0.18, segments: 4 }, scene), "#f6f3ee");
-    pompom.position.y = 0.33;
+    // Snug on the flat of the head, between and behind the ears: a dome on a ribbed band, and a pompom.
+    const back = -0.12;
+    const dome = part(CreateSphere(`${name}-dome`, { diameter: 0.6, segments: 6, slice: 0.5 }, scene), "#4a7bd0");
+    dome.scaling.y = 0.8;
+    dome.position.set(0, 0.08, back);
+    const band = part(CreateCylinder(`${name}-band`, { height: 0.1, diameter: 0.62, tessellation: 12 }, scene), "#3a63ad");
+    band.position.set(0, 0.05, back);
+    const pompom = part(CreateSphere(`${name}-pompom`, { diameter: 0.17, segments: 4 }, scene), "#f6f3ee");
+    pompom.position.set(0, 0.35, back);
   },
   "top-hat": (part, scene, name) => {
-    part(CreateCylinder(`${name}-brim`, { height: 0.04, diameter: 0.72, tessellation: 12 }, scene), "#2b2b33").position.y = 0.02;
-    part(CreateCylinder(`${name}-crown`, { height: 0.5, diameter: 0.46, tessellation: 12 }, scene), "#2b2b33").position.y = 0.29;
-    part(CreateCylinder(`${name}-band`, { height: 0.08, diameter: 0.475, tessellation: 12 }, scene), "#c7304a").position.y = 0.09;
+    const back = -0.1;
+    part(CreateCylinder(`${name}-brim`, { height: 0.04, diameter: 0.62, tessellation: 12 }, scene), "#2b2b33").position.set(0, 0.02, back);
+    part(CreateCylinder(`${name}-crown`, { height: 0.5, diameter: 0.42, tessellation: 12 }, scene), "#2b2b33").position.set(0, 0.29, back);
+    // The ribbon stands out from the crown past its outline, which would hide anything closer.
+    part(CreateCylinder(`${name}-band`, { height: 0.08, diameter: 0.5, tessellation: 12 }, scene), "#c7304a").position.set(0, 0.09, back);
   },
   crown: (part, scene, name) => {
-    part(CreateCylinder(`${name}-band`, { height: 0.18, diameter: 0.52, tessellation: 10 }, scene), gold).position.y = 0.09;
+    const back = -0.05;
+    part(CreateCylinder(`${name}-band`, { height: 0.18, diameter: 0.52, tessellation: 10 }, scene), gold).position.set(0, 0.09, back);
     for (let i = 0; i < 5; i++) {
       const point = part(CreateCylinder(`${name}-point-${i}`, { height: 0.16, diameterTop: 0, diameterBottom: 0.13, tessellation: 4 }, scene), gold);
       const turn = (i / 5) * Math.PI * 2;
-      point.position.set(Math.sin(turn) * 0.2, 0.26, Math.cos(turn) * 0.2);
+      point.position.set(Math.sin(turn) * 0.2, 0.26, back + Math.cos(turn) * 0.2);
     }
-    part(CreateSphere(`${name}-gem`, { diameter: 0.09, segments: 3 }, scene), "#d6304a").position.set(0, 0.09, 0.26);
+    part(CreateSphere(`${name}-gem`, { diameter: 0.09, segments: 3 }, scene), "#d6304a").position.set(0, 0.09, back + 0.26);
   },
 };
 
-/** A band round the body, a little out from it (clear of the coat's outline), and what hangs at the front. */
+/**
+ * The band of a collar, seen from above: a regular octagon, its flat sides on the cat's sides and on the cube's cut-off
+ * upright edges, this far out from the middle. The body there is an octagon too, its sides 0.625 out and its cut-off
+ * edges 0.66: the band clears both by the coat's outline (0.033) and more, as the outline is drawn pulled towards the
+ * camera and shows through a band nearer than that; and by little more, so it hugs the cat all round.
+ */
+const collarApothem = 0.735;
+const collarHeight = 0.1;
+
+/** A band round the body, following its shape just clear of it, and what hangs at the front. */
 function collar(colour: string, bell: boolean): Maker {
   return (part, scene, name) => {
-    const band = part(CreateBox(`${name}-band`, { width: 1.37, height: 0.11, depth: 1.37 }, scene), colour);
+    const band = part(CreateCylinder(`${name}-band`, {
+      height: collarHeight, diameter: (2 * collarApothem) / Math.cos(Math.PI / 8), tessellation: 8,
+    }, scene), colour);
+    // Its sides square to the cat's (a cylinder's first corner points along x).
+    band.rotation.y = Math.PI / 8;
     band.position.z = -0.63;
     if (bell) {
-      part(CreateSphere(`${name}-bell`, { diameter: 0.2, segments: 4 }, scene), gold).position.set(0, -0.1, 0.1);
+      part(CreateSphere(`${name}-bell`, { diameter: 0.2, segments: 4 }, scene), gold).position.set(0, -0.08, 0.2);
     } else {
       const tag = part(CreateCylinder(`${name}-tag`, { height: 0.03, diameter: 0.14, tessellation: 8 }, scene), "#d9dde3");
       tag.rotation.x = Math.PI / 2;
-      tag.position.set(0, -0.09, 0.07);
+      tag.position.set(0, -0.08, 0.13);
     }
   };
 }

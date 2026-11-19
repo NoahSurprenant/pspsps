@@ -7,7 +7,7 @@ import {
 } from "./net";
 import { lazily } from "./lazy";
 import { loadRoom, PendingEvents } from "./pending";
-import { comeBack } from "./rejoin";
+import { comeBack, saysSentOutAgain, stayAfterRefusal } from "./rejoin";
 import { catchBubble, FishingState, gotAwayMessage, paid, pondEdge, reelMessage, type Fishing } from "./fishing";
 import { Room } from "./room";
 import type { CatAnimation } from "./cat";
@@ -149,6 +149,10 @@ declare global {
       mutes(): string[];
       /** What the bubble over a cat in the room says now, if anything. */
       bubble(playerId: string): string | undefined;
+      /** A picture of a cat dressed in <outfit>, as the player cards show it, once a room has loaded the model. */
+      portrait(outfit: Outfit): Promise<string> | undefined;
+      /** The hat and collar IDs the shop catalogue draws (wearables.ts), for the wardrobe's contact sheet. */
+      wardrobe(): Promise<{ hats: readonly string[]; collars: readonly string[] }>;
     };
   }
 }
@@ -165,6 +169,13 @@ window.pspsps = {
   decorating: () => decorating,
   mutes: () => mutes.list.map((muted) => muted.playerId),
   bubble: (playerId) => scene?.bubbleOf(playerId),
+  portrait: (outfit) => scene?.portraits.picture(outfit),
+  // A dynamic import, not a top-level one: wearables.ts pulls in Babylon's mesh builders, which the sign-in screen must
+  // not load before there is a room to draw.
+  wardrobe: async () => {
+    const { hatIds, collarIds } = await import("./wearables");
+    return { hats: hatIds, collars: collarIds };
+  },
 };
 
 const connection = new GameConnection({
@@ -499,8 +510,9 @@ function leaveHomeIfSentOut(): void {
   if (room?.snapshot.home?.ownerId === out.ownerId) {
     pick(async () => {
       await goTo("town-square");
-      // Said again once out; a walk that failed has said why instead.
-      if (room && !room.snapshot.home) {
+      // Said again once out in Town Square; a cat that landed elsewhere was told where and why, and a walk that failed
+      // has said why instead.
+      if (saysSentOutAgain(room?.snapshot)) {
         overlay.toast(out.message);
       }
     });
@@ -519,7 +531,7 @@ function rejoin(reason: "roomLost" | "reconnected"): void {
         return room?.snapshot.roomId;
       },
       // Back into the home the cat was in, if it still lets the cat in; Town Square if not.
-      current.home ? () => backInto(current.home?.ownerId ?? "") : goTo,
+      current.home ? () => backInto(current.home?.ownerId ?? "") : (roomId) => goTo(roomId, stayAfterRefusal(reason, room)),
     );
   }
 }
@@ -545,14 +557,20 @@ async function enter(worldId: string): Promise<void> {
   await load(() => connection.enterWorld(worldId));
 }
 
-async function goTo(roomId: string): Promise<void> {
-  await load(() => connection.goToRoom(roomId));
+/**
+ * Goes to a room of the world; refused (the server lands the cat in the next place on its way out, which shows instead,
+ * unless nothing answered), the page shows <stay>, where the server still has the cat, or no room.
+ */
+async function goTo(roomId: string, stay?: Room): Promise<void> {
+  await load(() => connection.goToRoom(roomId), stay);
 }
 
 /**
  * Leaves the room showing and loads the next. The server sends the new room's events (our own join among them) from
  * just before it takes the snapshot, so they are held until the snapshot shows and then replayed onto it, in order;
- * the room's updates are idempotent, so those already in the snapshot change nothing.
+ * the room's updates are idempotent, so those already in the snapshot change nothing. A room that refused the cat can
+ * send its own events in that same window (chat, another cat's moves): the snapshot's notice says the cat landed
+ * somewhere else, so those are dropped rather than replayed onto the room that shows.
  * A load that fails leaves the page in `stay` (with what it said meanwhile) when the server kept the cat there.
  */
 async function load(request: () => Promise<RoomSnapshot>, stay?: Room): Promise<void> {
@@ -561,10 +579,14 @@ async function load(request: () => Promise<RoomSnapshot>, stay?: Room): Promise<
   try {
     // The 3D scene before the room (the first room loads it): had it failed after, the server would have the cat in a
     // room the page can't show.
-    await loadRoom(loading, async () => {
+    const shown = await loadRoom(loading, async () => {
       const view = await stage();
       return show(await request(), view);
-    }, stay);
+    }, stay, (room) => !room.snapshot.notice);
+    // Not where it was going (that room was full): where it landed instead, and why.
+    if (shown.snapshot.notice) {
+      overlay.toast(shown.snapshot.notice);
+    }
   } catch (error) {
     // Still in `stay` if the server kept the cat there (a door that refused it, a Go to that couldn't); in no room
     // otherwise.

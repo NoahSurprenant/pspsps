@@ -6,13 +6,12 @@ import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import { Scene } from "@babylonjs/core/scene";
 import { describe, expect, it } from "vitest";
 import { Cat, loadCatModel } from "./cat";
-import catGlb from "./models/cat.glb?inline";
+import { modelBytes } from "./testCatModel";
 
 describe("a cat's outlines", () => {
   it("are drawn: the cat brings the outline renderer with it", async () => {
     const scene = new Scene(new NullEngine());
-    const bytes = Uint8Array.from(atob(catGlb.slice(catGlb.indexOf(",") + 1)), (c) => c.charCodeAt(0));
-    const model = await loadCatModel(scene, bytes);
+    const model = await loadCatModel(scene, modelBytes());
 
     new Cat(scene, model, new TransformNode("cat", scene), "cat-a", "Grey");
 

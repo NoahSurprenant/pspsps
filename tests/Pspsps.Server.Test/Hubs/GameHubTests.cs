@@ -2,7 +2,9 @@ using System.Diagnostics.Metrics;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using Pspsps.Application.Friends;
@@ -50,6 +52,7 @@ public sealed class GameHubTests
     private IModerationEffects _effects = null!;
     private IPlayerSessionGrain _session = null!;
     private IRoomGrain _cafe = null!;
+    private IRoomGrain _shopRoom = null!;
     private IHubCallerClients<IGameClient> _clients = null!;
     private SessionHeartbeat _heartbeat = null!;
 
@@ -63,6 +66,12 @@ public sealed class GameHubTests
         var session = _session = Substitute.For<IPlayerSessionGrain>();
         _cafe = Substitute.For<IRoomGrain>();
         _grains.GetGrain<IRoomGrain>("tabby/cafe", null).Returns(_cafe);
+        _shopRoom = Substitute.For<IRoomGrain>();
+        _grains.GetGrain<IRoomGrain>("tabby/shop", null).Returns(_shopRoom);
+        // Each room answers a join with itself: where a cat lands is read from the snapshot.
+        _room.Join(default!, default!, default).ReturnsForAnyArgs(SnapshotOf("town-square", "Town Square"));
+        _cafe.Join(default!, default!, default).ReturnsForAnyArgs(SnapshotOf("cafe", "Cat Café"));
+        _shopRoom.Join(default!, default!, default).ReturnsForAnyArgs(SnapshotOf("shop", "Cat Shop"));
         _grains.GetGrain<IWorldGrain>("tabby", null).Returns(_world);
         _grains.GetGrain<IRoomGrain>("tabby/town-square", null).Returns(_room);
         _grains.GetGrain<IPlayerSessionGrain>(Tom.Id, null).Returns(session);
@@ -593,6 +602,7 @@ public sealed class GameHubTests
         _world.Renew(default!).ReturnsForAnyArgs(Task.FromResult<IReadOnlyList<string>>([]));
         _room.Renew(default!).ReturnsForAnyArgs(Task.FromResult<IReadOnlyList<string>>([]));
         _cafe.Renew(default!).ReturnsForAnyArgs(Task.FromResult<IReadOnlyList<string>>([]));
+        _shopRoom.Renew(default!).ReturnsForAnyArgs(Task.FromResult<IReadOnlyList<string>>([]));
     }
 
     [Test]
@@ -828,7 +838,7 @@ public sealed class GameHubTests
         await home.Received(1).Furnish(Arg.Is<HomeView>(h => h.OwnerId == Tom.Id && h.Visitors == "Friends"));
         await home.Received(1).SendOut(
             Arg.Is<IReadOnlyList<Guid>>(ids => ids.SequenceEqual(new[] { Felix })),
-            "Tom changed who can visit their home, so you went back to Town Square.");
+            "Tom changed who can visit their home, so you had to leave.");
     }
 
     [Test]
@@ -1001,26 +1011,28 @@ public sealed class GameHubTests
     }
 
     [Test]
-    public async Task GoThroughDoor_OutOfAnotherPlayersHome_IntoAFullTownSquare_DoesntGoStraightBackIn()
+    public async Task GoThroughDoor_OutOfAnotherPlayersHome_IntoAFullTownSquare_LandsInTheNextRoomWithSpace()
     {
-        // The home may no longer let the cat in: it goes back through the checked way, after the renewal says it's lost.
+        // Not straight back into the home, which may no longer let the cat in: on along its way out, and told why.
         var felixHome = HomeOf(Felix);
         _homes.VisitAsync(Tom.Id, Felix, Arg.Any<CancellationToken>()).Returns("Felix");
         felixHome.Join(default!, default!, default).ReturnsForAnyArgs(HomeSnapshot(Felix));
         felixHome.LeaveThrough(Tom.Id, Connection, "out").Returns(new DoorTarget("town-square", null));
-        felixHome.Renew(default!).ReturnsForAnyArgs(Task.FromResult<IReadOnlyList<string>>([Connection]));
         var hub = Hub();
         await hub.EnterWorld("tabby");
         await hub.VisitHome(Felix);
         _room.Join(default!, default!, default).ThrowsAsyncForAnyArgs(new GameRuleException("Town Square is full."));
         RenewalsFindEveryCat();
 
-        var refused = Assert.ThrowsAsync<HubException>(() => hub.GoThroughDoor("out"));
+        var landed = await hub.GoThroughDoor("out");
 
-        Assert.That(refused!.Message, Is.EqualTo("Town Square is full."));
+        Assert.That(landed.RoomId, Is.EqualTo("cafe"));
+        Assert.That(landed.Notice, Is.EqualTo("Town Square is full. You went to Cat Café instead."));
         await felixHome.Received(1).Join(Arg.Any<PlayerCard>(), Connection, Arg.Any<string?>());
+        await _cafe.Received(1).Join(Arg.Is<PlayerCard>(c => c.PlayerId == Tom.Id), Connection, null);
         await _heartbeat.RenewAsync();
-        await felixHome.ReceivedWithAnyArgs(1).Renew(default!);
+        await _cafe.ReceivedWithAnyArgs(1).Renew(default!);
+        await felixHome.DidNotReceiveWithAnyArgs().Renew(default!);
     }
 
     [Test]
@@ -1040,7 +1052,7 @@ public sealed class GameHubTests
     }
 
     [Test]
-    public async Task GoToRoom_IntoAFullRoom_FromAHomeThatSentTheCatOut_DoesntGoBackIntoTheHome()
+    public async Task GoToRoom_SentOutOfAHome_IntoAFullTownSquare_LandsInTheCafe_AndSaysWhy()
     {
         var felixHome = HomeOf(Felix);
         _homes.VisitAsync(Tom.Id, Felix, Arg.Any<CancellationToken>()).Returns("Felix");
@@ -1048,15 +1060,50 @@ public sealed class GameHubTests
         var hub = Hub();
         await hub.EnterWorld("tabby");
         await hub.VisitHome(Felix);
-        // Felix closed his home and sent Tom out; Town Square is full.
+        // Felix closed his home and sent Tom out; Tom's tab goes to Town Square, which is full.
         _homes.VisitAsync(Tom.Id, Felix, Arg.Any<CancellationToken>())
             .ThrowsAsync(new DomainException("That home isn't open to visitors right now."));
         _room.Join(default!, default!, default).ThrowsAsyncForAnyArgs(new GameRuleException("Town Square is full."));
+        RenewalsFindEveryCat();
 
-        var refused = Assert.ThrowsAsync<HubException>(() => hub.GoToRoom("town-square"));
+        var landed = await hub.GoToRoom("town-square");
 
-        Assert.That(refused!.Message, Is.EqualTo("Town Square is full."));
+        Assert.That(landed.RoomId, Is.EqualTo("cafe"));
+        Assert.That(landed.Notice, Is.EqualTo("Town Square is full. You went to Cat Café instead."));
         await felixHome.Received(1).Join(Arg.Any<PlayerCard>(), Connection, null);
+        await _heartbeat.RenewAsync();
+        await _cafe.ReceivedWithAnyArgs(1).Renew(default!);
+    }
+
+    [Test]
+    public async Task GoToRoom_SentOutOfAHome_WithEveryRoomFull_GoesHome()
+    {
+        // Town Square full and the home that sent the cat out refusing it: never no room. Its own home always has room.
+        var felixHome = HomeOf(Felix);
+        var tomsHome = HomeOf(Tom.Id);
+        _homes.VisitAsync(Tom.Id, Felix, Arg.Any<CancellationToken>()).Returns("Felix");
+        felixHome.Join(default!, default!, default).ReturnsForAnyArgs(HomeSnapshot(Felix));
+        tomsHome.Join(default!, default!, default).ReturnsForAnyArgs(HomeSnapshot(Tom.Id));
+        tomsHome.Renew(default!).ReturnsForAnyArgs(Task.FromResult<IReadOnlyList<string>>([]));
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+        await hub.VisitHome(Felix);
+        _homes.VisitAsync(Tom.Id, Felix, Arg.Any<CancellationToken>())
+            .ThrowsAsync(new DomainException("That home isn't open to visitors right now."));
+        _room.Join(default!, default!, default).ThrowsAsyncForAnyArgs(new GameRuleException("Town Square is full."));
+        _cafe.Join(default!, default!, default).ThrowsAsyncForAnyArgs(new GameRuleException("Cat Café is full."));
+        _shopRoom.Join(default!, default!, default).ThrowsAsyncForAnyArgs(new GameRuleException("Cat Shop is full."));
+        RenewalsFindEveryCat();
+
+        var landed = await hub.GoToRoom("town-square");
+
+        Assert.That(landed.Home?.OwnerId, Is.EqualTo(Tom.Id));
+        Assert.That(landed.WorldId, Is.EqualTo("tabby"), "a home is visited from the world the cat is in");
+        Assert.That(landed.Notice, Is.EqualTo("Town Square is full. You went home instead."));
+        await felixHome.Received(1).Join(Arg.Any<PlayerCard>(), Connection, null);
+        await _heartbeat.RenewAsync();
+        await tomsHome.ReceivedWithAnyArgs(1).Renew(default!);
+        await felixHome.DidNotReceiveWithAnyArgs().Renew(default!);
     }
 
     [Test]
@@ -1108,7 +1155,7 @@ public sealed class GameHubTests
     }
 
     [Test]
-    public async Task GoToRoom_FullWhenTheRoomLeftCantAnswerEither_LeavesTheRenewalToWalkTheTabBackIn()
+    public async Task GoToRoom_FullWhenTheRoomLeftCantAnswerEither_GoesOnToTheNextRoom()
     {
         var hub = Hub();
         await hub.EnterWorld("tabby");
@@ -1117,17 +1164,21 @@ public sealed class GameHubTests
         _cafe.Join(default!, default!, default).ThrowsAsyncForAnyArgs(new TimeoutException());
         RenewalsFindEveryCat();
 
-        var refused = Assert.ThrowsAsync<HubException>(() => hub.GoToRoom("town-square"));
+        var landed = await hub.GoToRoom("town-square");
 
-        Assert.That(refused!.Message, Is.EqualTo("Town Square is full."), "the reason, not the failure after it");
+        Assert.That(landed.RoomId, Is.EqualTo("shop"));
+        Assert.That(landed.Notice, Is.EqualTo("Town Square is full. You went to Cat Shop instead."), "the reason, not the failure after it");
         await _heartbeat.RenewAsync();
-        await _cafe.ReceivedWithAnyArgs(1).Renew(default!);
+        await _shopRoom.ReceivedWithAnyArgs(1).Renew(default!);
     }
 
     [Test]
-    public async Task GoToRoom_FullFromAnotherPlayersHome_DoesntGoBackInto_ButLetsTheRenewalSendTheTabBack()
+    public async Task GoToRoom_WhenNowhereAnswers_LeavesTheRenewalToWalkTheTabBackIn()
     {
+        // Not even the cat's own home (its grain couldn't read it): the connection keeps the room it left, whose renewal
+        // finds the cat gone and sends RoomLost, and the browser asks again.
         var felixHome = HomeOf(Felix);
+        var tomsHome = HomeOf(Tom.Id);
         _homes.VisitAsync(Tom.Id, Felix, Arg.Any<CancellationToken>()).Returns("Felix");
         felixHome.Join(default!, default!, default).ReturnsForAnyArgs(HomeSnapshot(Felix));
         felixHome.Renew(default!).ReturnsForAnyArgs(Task.FromResult<IReadOnlyList<string>>([]));
@@ -1135,13 +1186,128 @@ public sealed class GameHubTests
         await hub.EnterWorld("tabby");
         await hub.VisitHome(Felix);
         _room.Join(default!, default!, default).ThrowsAsyncForAnyArgs(new GameRuleException("Town Square is full."));
+        _cafe.Join(default!, default!, default).ThrowsAsyncForAnyArgs(new GameRuleException("Cat Café is full."));
+        _shopRoom.Join(default!, default!, default).ThrowsAsyncForAnyArgs(new GameRuleException("Cat Shop is full."));
+        tomsHome.Join(default!, default!, default).ThrowsAsyncForAnyArgs(new TimeoutException());
         RenewalsFindEveryCat();
 
-        Assert.ThrowsAsync<HubException>(() => hub.GoToRoom("town-square"));
+        var refused = Assert.ThrowsAsync<HubException>(() => hub.GoToRoom("town-square"));
 
+        Assert.That(refused!.Message, Is.EqualTo("Town Square is full."));
         await felixHome.Received(1).Join(Arg.Any<PlayerCard>(), Connection, null);
+        await tomsHome.ReceivedWithAnyArgs(1).Join(default!, default!, default);
         await _heartbeat.RenewAsync();
         await felixHome.ReceivedWithAnyArgs(1).Renew(default!);
+    }
+
+    [Test]
+    public async Task EnterWorld_WhenARoomOnTheWayOutFailsForARealReason_LeavesItBestEffort_BeforeTryingTheNextPlace()
+    {
+        // A timeout doesn't say whether the grain's side of the join went through; best effort to take the cat back out
+        // of the café before the shop takes it, or the café would keep a ghost of it until its lease runs out.
+        _room.Join(default!, default!, default).ThrowsAsyncForAnyArgs(new GameRuleException("Town Square is full."));
+        _cafe.Join(default!, default!, default).ThrowsAsyncForAnyArgs(new TimeoutException());
+        RenewalsFindEveryCat();
+
+        var landed = await Hub().EnterWorld("tabby");
+
+        Assert.That(landed.RoomId, Is.EqualTo("shop"));
+        await _cafe.Received(1).Leave(Tom.Id, Connection);
+    }
+
+    [Test]
+    public async Task EnterWorld_WhenOrdinaryRefusalsOnTheWayOut_LogsThemQuietly_NotAsWarnings()
+    {
+        // Town Square and the café are both ordinarily full: expected, so neither is a Warning, which is for the real
+        // failures (grain timeouts and the like) that this would otherwise drown out.
+        var recorder = new RecordingLogger();
+        _room.Join(default!, default!, default).ThrowsAsyncForAnyArgs(new GameRuleException("Town Square is full."));
+        _cafe.Join(default!, default!, default).ThrowsAsyncForAnyArgs(new GameRuleException("Cat Café is full."));
+        RenewalsFindEveryCat();
+
+        await Hub(logger: recorder).EnterWorld("tabby");
+
+        Assert.That(recorder.Levels, Has.Some.EqualTo(LogLevel.Debug));
+        Assert.That(recorder.Levels, Has.None.EqualTo(LogLevel.Warning));
+    }
+
+    [Test]
+    public async Task EnterWorld_WhenNoPlaceAnswersWithinTheWayOutTimeLimit_FallsBackAsThoughEveryPlaceHadRefused()
+    {
+        // The grains are unreachable: without a limit on the whole loop, each of the café, the shop and home would wait
+        // out its own ~30 s grain timeout in turn, keeping the tab on the loading screen for minutes.
+        var time = new FakeTimeProvider();
+        _room.Join(default!, default!, default).ThrowsAsyncForAnyArgs(new GameRuleException("Town Square is full."));
+        var neverAnswers = new TaskCompletionSource<RoomSnapshot>();
+        _cafe.Join(default!, default!, default).ReturnsForAnyArgs(neverAnswers.Task);
+        _shopRoom.Join(default!, default!, default).ReturnsForAnyArgs(neverAnswers.Task);
+        var tomsHome = HomeOf(Tom.Id);
+        tomsHome.Join(default!, default!, default).ReturnsForAnyArgs(neverAnswers.Task);
+        var hub = Hub(time);
+
+        var entering = hub.EnterWorld("tabby");
+        time.Advance(TimeSpan.FromSeconds(10) + TimeSpan.FromMilliseconds(1));
+        var refused = Assert.ThrowsAsync<HubException>(async () => await entering);
+
+        Assert.That(refused!.Message, Is.EqualTo("Town Square is full."));
+    }
+
+    [Test]
+    public async Task EnterWorld_WhenTownSquareCannotAnswer_LandsInTheCafe_OutOfTownSquaresGroup()
+    {
+        // Its group joined before the join that failed: left again, or the tab would hear Town Square from the café.
+        _room.Join(default!, default!, default).ThrowsAsyncForAnyArgs(new TimeoutException());
+        var hub = Hub();
+
+        var landed = await hub.EnterWorld("tabby");
+
+        Assert.That(landed.RoomId, Is.EqualTo("cafe"));
+        Assert.That(landed.Notice, Is.EqualTo("That room couldn't be opened just now. You went to Cat Café instead."));
+        await hub.Groups.Received(1).RemoveFromGroupAsync(Connection, "tabby/town-square");
+        await hub.Groups.DidNotReceive().RemoveFromGroupAsync(Connection, "tabby/cafe");
+    }
+
+    [Test]
+    public async Task EnterWorld_WhenTownSquareIsFull_LandsInTheCafe_AndSaysWhy()
+    {
+        _room.Join(default!, default!, default).ThrowsAsyncForAnyArgs(new GameRuleException("Town Square is full."));
+        RenewalsFindEveryCat();
+
+        var landed = await Hub().EnterWorld("tabby");
+
+        Assert.That(landed.RoomId, Is.EqualTo("cafe"));
+        Assert.That(landed.Notice, Is.EqualTo("Town Square is full. You went to Cat Café instead."));
+        await _heartbeat.RenewAsync();
+        await _cafe.ReceivedWithAnyArgs(1).Renew(default!);
+        await _world.ReceivedWithAnyArgs(1).Renew(default!);
+    }
+
+    [Test]
+    public async Task VisitHome_FromAnotherHome_ClosedToThePlayerWhileTheyCameIn_LandsInTownSquare()
+    {
+        // Back out of Garfield's home, but not back into Felix's (which may not let the cat in either): Town Square.
+        var garfield = Guid.NewGuid();
+        var felixHome = HomeOf(Felix);
+        var garfieldHome = HomeOf(garfield);
+        _homes.VisitAsync(Tom.Id, Felix, Arg.Any<CancellationToken>()).Returns("Felix");
+        _homes.VisitAsync(Tom.Id, garfield, Arg.Any<CancellationToken>()).Returns(
+            Task.FromResult("Garfield"),
+            Task.FromException<string>(new DomainException("That home isn't open to visitors right now.")));
+        felixHome.Join(default!, default!, default).ReturnsForAnyArgs(HomeSnapshot(Felix));
+        garfieldHome.Join(default!, default!, default).ReturnsForAnyArgs(HomeSnapshot(garfield));
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+        await hub.VisitHome(Felix);
+        RenewalsFindEveryCat();
+
+        var landed = await hub.VisitHome(garfield);
+
+        Assert.That(landed.RoomId, Is.EqualTo("town-square"));
+        Assert.That(landed.Notice, Is.EqualTo("That home isn't open to visitors right now. You went to Town Square instead."));
+        await garfieldHome.Received(1).Leave(Tom.Id, Connection);
+        await felixHome.Received(1).Join(Arg.Any<PlayerCard>(), Connection, null);
+        await _heartbeat.RenewAsync();
+        await _room.ReceivedWithAnyArgs(1).Renew(default!);
     }
 
     [Test]
@@ -1158,6 +1324,27 @@ public sealed class GameHubTests
 
         await felixHome.Received(1).Leave(Tom.Id, Connection);
         await _room.Received(2).Join(Arg.Is<PlayerCard>(c => c.PlayerId == Tom.Id), Connection, null);
+    }
+
+    [Test]
+    public async Task VisitHome_WhenTheSecondCheckFailsForANonRuleReason_AndLandsElsewhere_SaysTheCheckFailed()
+    {
+        // Town Square is also full, so BackOut can't go back where Tom came from and lands in the café instead: the
+        // notice must say the check failed, not the generic "couldn't be opened", since the home did open.
+        var felixHome = HomeOf(Felix);
+        _homes.VisitAsync(Tom.Id, Felix, Arg.Any<CancellationToken>()).Returns(
+            Task.FromResult("Felix"), Task.FromException<string>(new TimeoutException()));
+        felixHome.Join(default!, default!, default).ReturnsForAnyArgs(HomeSnapshot(Felix));
+        var hub = Hub();
+        await hub.EnterWorld("tabby");
+        _room.Join(default!, default!, default).ThrowsAsyncForAnyArgs(new GameRuleException("Town Square is full."));
+        RenewalsFindEveryCat();
+
+        var landed = await hub.VisitHome(Felix);
+
+        Assert.That(landed.RoomId, Is.EqualTo("cafe"));
+        Assert.That(landed.Notice, Is.EqualTo("Couldn't check that you may visit. You went to Cat Café instead."));
+        await felixHome.Received(1).Leave(Tom.Id, Connection);
     }
 
     [Test]
@@ -1231,6 +1418,9 @@ public sealed class GameHubTests
 
     private static HomePlan Plan(Guid owner, string name, HomeVisitors visitors = HomeVisitors.Friends) =>
         new(owner, name, visitors, []);
+
+    private static RoomSnapshot SnapshotOf(string roomId, string name) =>
+        new("tabby", roomId, name, 12, 9, [], [], [], null, [], []);
 
     private static RoomSnapshot HomeSnapshot(Guid owner) =>
         new(RoomKey.Homes, "home", "A home", 12, 9, [], [], [], null, [], [], new HomeView(owner, "Owner", "Friends", []));
@@ -1628,7 +1818,7 @@ public sealed class GameHubTests
         Assert.That(await hub.GetWarnings(), Is.EqualTo(new[] { new WarningView(id, "Be nice.") }));
     }
 
-    private GameHub Hub()
+    private GameHub Hub(TimeProvider? time = null, ILogger<GameHub>? logger = null)
     {
         var context = Substitute.For<HubCallerContext>();
         context.ConnectionId.Returns(Connection);
@@ -1640,11 +1830,26 @@ public sealed class GameHubTests
             _grains, _players, _friends, _shop, _homes, _moderation, _effects,
             new StandingCache(_services.GetRequiredService<IServiceScopeFactory>(), TimeProvider.System), _networks, _addresses,
             _mutes, _reports,
-            _heartbeat, metrics, NullLogger<GameHub>.Instance)
+            _heartbeat, time ?? TimeProvider.System, metrics, logger ?? NullLogger<GameHub>.Instance)
         {
             Context = context,
             Groups = Substitute.For<IGroupManager>(),
             Clients = _clients = Substitute.For<IHubCallerClients<IGameClient>>(),
         };
+    }
+
+    // Records the level of everything logged, so a test can tell an ordinary refusal (Debug) from a real failure
+    // (Warning) without a logging test package.
+    private sealed class RecordingLogger : ILogger<GameHub>
+    {
+        public List<LogLevel> Levels { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+            Levels.Add(logLevel);
     }
 }
