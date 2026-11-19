@@ -40,6 +40,9 @@ public sealed class RoomState(RoomDefinition room)
 
     public IReadOnlyCollection<ChatLine> RecentChat => _chat;
 
+    /// <summary>The sessions (tabs) controlling the cats here: the tabs to tell when the room is lost.</summary>
+    public IReadOnlyList<string> Sessions => [.. _leases.Values.Select(lease => lease.Session)];
+
     public bool IsFull => _cats.Count >= Room.Capacity;
 
     /// <summary>

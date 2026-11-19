@@ -70,14 +70,48 @@ internal sealed class RoomGrain(
             new GrainTimerCreationOptions { DueTime = SessionLease.RenewEvery, Period = SessionLease.RenewEvery });
     }
 
-    public override Task OnDeactivateAsync(DeactivationReason reason, CancellationToken cancellationToken)
+    public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken cancellationToken)
     {
         if (_counted)
         {
             metrics.RoomDeactivated();
         }
 
-        return Task.CompletedTask;
+        // Going with cats in it (only the last cat leaving deactivates it otherwise): its pod is stopping (a rolling
+        // update), or Orleans replaces this activation (one an upgraded pod's call can't use, say). The room starts over
+        // empty at its next call; its tabs, on whichever pods, walk back in now, not at their next renewal (up to
+        // SessionLease.RenewEvery from now).
+        if (_state is { Cats.Count: > 0 })
+        {
+            await TellLost(_state.Sessions, broadcaster, cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// Tells each tab its room is lost, all at once, giving up when <paramref name="cancellationToken"/> is (the
+    /// deactivation's time is up); a tab that isn't told finds out at its next renewal.
+    /// </summary>
+    internal static async Task TellLost(
+        IEnumerable<string> sessions, IRoomBroadcaster broadcaster, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.WhenAll(sessions.Select(async session =>
+            {
+                try
+                {
+                    await broadcaster.RoomLost(session);
+                }
+                catch (Exception e) when (e is not OperationCanceledException)
+                {
+                    // Its renewal tells it instead.
+                }
+            })).WaitAsync(cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Out of time: the renewals tell the rest.
+        }
     }
 
     public async Task<RoomSnapshot> Join(PlayerCard player, string session, string? throughDoor)

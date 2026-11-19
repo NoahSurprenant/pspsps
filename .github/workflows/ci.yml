@@ -304,6 +304,68 @@ jobs:
           path: e2e/playwright-report
           retention-days: 7
 
+  cluster-e2e:
+    name: Two pods end-to-end (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Two server pods from the shipped image, clustered through Redis as plain containers (e2e/cluster/pods.sh): players
+    # on different pods share a room, a ban on one pod closes connections on the other, and a pod is replaced under them.
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker build -t pspsps:e2e .
+      - name: Start PostgreSQL, Redis and two server pods
+        run: |
+          e2e/cluster/pods.sh up > pods.env
+          cookie="$(sed -n 's/^E2E_ADMIN_COOKIE=pspsps=//p' pods.env)"
+          echo "::add-mask::$cookie"
+          cat pods.env >> "$GITHUB_ENV"
+          rm pods.env
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Install the end-to-end tests
+        working-directory: e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npm run typecheck
+      - name: Two pods
+        working-directory: e2e
+        run: npm run test:cluster
+      - name: Server logs and membership
+        if: failure()
+        run: |
+          e2e/cluster/pods.sh members || true
+          e2e/cluster/pods.sh logs
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report-cluster
+          path: e2e/playwright-report-cluster
+          retention-days: 7
+
+  kubernetes:
+    name: Cluster mode in Kubernetes (kind)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # The chart with cluster.enabled in a throwaway kind cluster, whose network plugin enforces NetworkPolicies:
+    # tests/chart/kind-test.sh says what it checks.
+    steps:
+      - uses: actions/checkout@v7
+      - uses: azure/setup-helm@v5
+      - run: docker build -t pspsps:kind .
+      - uses: helm/kind-action@v1
+        with:
+          cluster_name: pspsps
+      - run: kind load docker-image pspsps:kind --name pspsps
+      - run: tests/chart/kind-test.sh pspsps kind
+      - name: What the cluster looked like
+        if: failure()
+        run: |
+          kubectl -n pspsps get pods,events -o wide || true
+          kubectl -n pspsps logs -l app.kubernetes.io/component=server --tail=300 --prefix || true
+          kubectl -n pspsps logs -l app.kubernetes.io/component=server --tail=100 --prefix --previous || true
+
   # On a PR, one comment with the screenshot contact sheets, which each run updates in place.
   screenshots:
     name: Screenshots comment

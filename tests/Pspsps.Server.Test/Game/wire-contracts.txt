@@ -1,0 +1,114 @@
+# What pods say to each other, as every version so far had it (Game/WireContractTests.cs checks today's code against it;
+# docs/architecture.md, "Changing what pods say to each other"). Lines are only ever added: a grain interface's new
+# version gets its own lines next to the old version's, and a removed member's Id keeps its line, so it isn't reused.
+#
+# grain <interface> <[Version]>: <method>
+# type <[GenerateSerializer] type> <Id>: <member type> <member name>
+
+grain IPlayerSessionGrain 1: Task Arrived(String connectionId, String roomKey)
+grain IPlayerSessionGrain 1: Task Release(String connectionId)
+grain IPlayerSessionGrain 1: Task<Boolean> IsCurrent(String connectionId)
+grain IPlayerSessionGrain 1: Task<PlayerPlace> Locate()
+grain IPlayerSessionGrain 1: Task<String> Claim(String connectionId)
+
+grain IRoomGrain 1: Task Cast(Guid playerId)
+grain IRoomGrain 1: Task Dress(OutfitView outfit)
+grain IRoomGrain 1: Task Emote(Guid playerId, String emote)
+grain IRoomGrain 1: Task Furnish(HomeView home)
+grain IRoomGrain 1: Task Leave(Guid playerId, String session)
+grain IRoomGrain 1: Task Move(Guid playerId, Double x, Double z)
+grain IRoomGrain 1: Task Say(Guid playerId, String text)
+grain IRoomGrain 1: Task SendOut(IReadOnlyList<Guid> playerIds, String message)
+grain IRoomGrain 1: Task<Boolean> Has(Guid playerId, String session)
+grain IRoomGrain 1: Task<DoorTarget> LeaveThrough(Guid playerId, String session, String doorId)
+grain IRoomGrain 1: Task<IReadOnlyList<ChatView>> RecentChat()
+grain IRoomGrain 1: Task<IReadOnlyList<Guid>> CatsHere()
+grain IRoomGrain 1: Task<IReadOnlyList<String>> Renew(IReadOnlyList<PlayerSession> sessions)
+grain IRoomGrain 1: Task<ReelView> Reel(Guid playerId)
+grain IRoomGrain 1: Task<RoomSnapshot> Join(PlayerCard player, String session, String throughDoor)
+
+grain IWorldGrain 1: Task Leave(Guid playerId, String session)
+grain IWorldGrain 1: Task<Boolean> TryEnter(Guid playerId, String session)
+grain IWorldGrain 1: Task<IReadOnlyList<String>> Renew(IReadOnlyList<PlayerSession> sessions)
+grain IWorldGrain 1: Task<Int32> GetPopulation()
+
+type CatView 0: Guid PlayerId
+type CatView 1: String DisplayName
+type CatView 2: String FurColor
+type CatView 3: Double X
+type CatView 4: Double Z
+type CatView 5: String Pose
+type CatView 6: String Hat
+type CatView 7: String Collar
+type CatchView 0: Guid PlayerId
+type CatchView 1: String FishId
+type CatchView 2: String FishName
+type CatchView 3: Int32 Coins
+type ChatView 0: Guid PlayerId
+type ChatView 1: String Text
+type ChatView 2: DateTimeOffset At
+type DoorTarget 0: String RoomId
+type DoorTarget 1: String DoorId
+type DoorView 0: String Id
+type DoorView 1: Double X
+type DoorView 2: Double Z
+type DoorView 3: Double Radius
+type DoorView 4: String ToRoomId
+type DoorView 5: String ToRoomName
+type EmoteView 0: Guid PlayerId
+type EmoteView 1: String Emote
+type EmoteView 2: DateTimeOffset At
+type FurnitureView 0: Guid Id
+type FurnitureView 1: String ItemId
+type FurnitureView 2: String Name
+type FurnitureView 3: Double X
+type FurnitureView 4: Double Z
+type FurnitureView 5: Double Radius
+type FurnitureView 6: Int32 QuarterTurns
+type HomeView 0: Guid OwnerId
+type HomeView 1: String OwnerName
+type HomeView 2: String Visitors
+type HomeView 3: IReadOnlyList<FurnitureView> Furniture
+type HomeView 4: Int32 Version
+type OutfitView 0: Guid PlayerId
+type OutfitView 1: String FurColor
+type OutfitView 2: String Hat
+type OutfitView 3: String Collar
+type OutfitView 4: Int32 Version
+type PlayerCard 0: Guid PlayerId
+type PlayerCard 1: String DisplayName
+type PlayerCard 2: String FurColor
+type PlayerCard 3: String Hat
+type PlayerCard 4: String Collar
+type PlayerCard 5: Int32 OutfitVersion
+type PlayerPlace 0: String WorldId
+type PlayerPlace 1: String RoomId
+type PlayerSession 0: Guid PlayerId
+type PlayerSession 1: String Session
+type PondView 0: Double X
+type PondView 1: Double Z
+type PondView 2: Double Radius
+type PropView 0: String Kind
+type PropView 1: Double X
+type PropView 2: Double Z
+type PropView 3: Double Radius
+type PropView 4: Double Facing
+type ReelView 0: String Outcome
+type ReelView 1: String FishId
+type ReelView 2: String FishName
+type ReelView 3: Int32 Coins
+type ReelView 4: Int32? TotalCoins
+type RoomLink 0: String Id
+type RoomLink 1: String Name
+type RoomSnapshot 0: String WorldId
+type RoomSnapshot 1: String RoomId
+type RoomSnapshot 2: String RoomName
+type RoomSnapshot 3: Double Width
+type RoomSnapshot 4: Double Depth
+type RoomSnapshot 5: IReadOnlyList<CatView> Cats
+type RoomSnapshot 6: IReadOnlyList<ChatView> Chat
+type RoomSnapshot 7: IReadOnlyList<RoomLink> Rooms
+type RoomSnapshot 8: PondView Pond
+type RoomSnapshot 9: IReadOnlyList<DoorView> Doors
+type RoomSnapshot 10: IReadOnlyList<PropView> Props
+type RoomSnapshot 11: HomeView Home

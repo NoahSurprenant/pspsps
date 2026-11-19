@@ -32,9 +32,11 @@ try
     var database = builder.Configuration.GetConnectionString("Pspsps")
         ?? throw new InvalidOperationException("Set ConnectionStrings:Pspsps to the PostgreSQL database.");
 
-    // Redis joins the pods into one game: Orleans' membership table and the SignalR backplane. Without it the server
-    // is a single local silo, which is all development and the tests need.
+    // Redis joins the pods into one game: Orleans' membership table, the SignalR backplane and the moderation signal.
+    // Without it the server is a single local silo, which is all development and the tests need. Cluster:Mode
+    // picks how the silos find each other (OrleansSetup: Kubernetes in a pod, plain Redis elsewhere).
     var redis = builder.Configuration.GetConnectionString("Redis");
+    var clustering = OrleansSetup.ModeFrom(builder.Configuration);
 
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(database);
@@ -65,25 +67,10 @@ try
     builder.Services.AddSingleton<SessionHeartbeat>();
     builder.Services.AddHostedService(services => services.GetRequiredService<SessionHeartbeat>());
 
-    builder.UseOrleans(silo =>
-    {
-        // A hub call's trace follows it into the grains it calls, on whichever pod they live.
-        silo.AddActivityPropagation();
-        if (string.IsNullOrEmpty(redis))
-        {
-            silo.UseLocalhostClustering();
-            return;
-        }
+    builder.UseOrleans(silo => OrleansSetup.Configure(silo, clustering, builder.Configuration));
 
-        silo.UseRedisClustering(redis);
-        // In Kubernetes: silo name and address from the pod, IDs from its orleans/* labels, dead pods' silos removed.
-        if (!string.IsNullOrEmpty(builder.Configuration["POD_NAME"]))
-        {
-            silo.UseKubernetesHosting();
-        }
-    });
-
-    builder.Services.AddAppHealthChecks(builder.Configuration);
+    // Ready once the database answers and this pod's silo is active in the cluster.
+    builder.Services.AddAppHealthChecks(builder.Configuration).AddSiloHealthCheck();
     // Who may set the client address and scheme (ForwardedHeaders:*): nobody but loopback unless configured.
     (await builder.Services.ConfigureAppForwardedHeadersAsync(builder.Configuration)).LogTo(Log.Logger);
 
