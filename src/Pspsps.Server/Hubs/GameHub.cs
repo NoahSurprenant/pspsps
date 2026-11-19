@@ -183,7 +183,7 @@ public sealed partial class GameHub(
 
             throw refused;
         }
-        catch (Exception e)
+        catch (Exception)
         {
             // Couldn't be checked: not let in, rather than in a home the browser doesn't know it is in. The home did
             // open (the check is what failed), so BackOut is told that, rather than the generic "couldn't be opened".
