@@ -430,6 +430,7 @@ node_modules/
 client/dist/
 src/Pspsps.Server/wwwroot/
 e2e/playwright-report/
+e2e/playwright-report-cluster/
 e2e/test-results/
 e2e/screenshots/
 e2e/lighthouse/

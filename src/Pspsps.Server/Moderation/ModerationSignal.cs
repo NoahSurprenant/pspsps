@@ -53,7 +53,7 @@ public sealed class ModerationOnThisPod(PlayerConnections connections, StandingC
         }
 
         ITimer? timer = null;
-        timer = time.CreateTimer(_ =>
+        timer = time.CreateTimer(state =>
         {
             foreach (var connection in open)
             {

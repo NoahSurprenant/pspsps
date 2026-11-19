@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "test": "playwright test",
+    "test:cluster": "playwright test -c playwright.cluster.config.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

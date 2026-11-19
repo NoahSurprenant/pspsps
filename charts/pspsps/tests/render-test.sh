@@ -183,6 +183,68 @@ admins=(--set "moderation.adminPlayerIds[0]=0196d5a8-6b1e-7c3a-9f00-1234567890ab
 [[ "$(env_value "$(server "${admins[@]}")" Moderation__AdminPlayerIds__1)" == 0196d5a8-6b1e-7c3a-9f00-0000000000cd ]] \
   || fail "Moderation__AdminPlayerIds__1 doesn't follow moderation.adminPlayerIds[1]"
 
+# Cluster mode. One pod by default: replaced all at once (two single silos would each think they own every room), no
+# disruption budget, no Redis, no API server access.
+cluster=(--set cluster.enabled=true --set cluster.kubeApi.cidr=192.0.2.10/32)
+single=$(helm template pspsps "$chart")
+grep -qx '    type: Recreate' <<< "$(server)" || fail "one pod isn't replaced with Recreate"
+for kind in PodDisruptionBudget Role RoleBinding; do
+  [[ -z "$(document "$single" "$kind")" ]] || fail "a $kind renders with cluster.enabled off"
+done
+if grep -qE 'component: redis|preStop:|topologySpreadConstraints|Orleans__Clustering' <<< "$single"; then
+  fail "cluster-mode settings render with cluster.enabled off"
+fi
+grep -qx '      automountServiceAccountToken: false' <<< "$(server)" || fail "one pod mounts the service account token"
+
+# Several pods: one new pod at a time and never fewer than asked for, a budget of one pod down, Kubernetes hosting on
+# Redis, and a stopping pod waits out of the Service before shutting down, within its grace period.
+clustered=$(helm template pspsps "$chart" "${cluster[@]}")
+deployment=$(server "${cluster[@]}")
+grep -qx '  replicas: 2' <<< "$deployment" || fail "cluster mode doesn't run cluster.replicas (2) pods"
+grep -qx '  replicas: 3' <<< "$(server "${cluster[@]}" --set cluster.replicas=3)" || fail "cluster.replicas=3 isn't 3 pods"
+grep -A4 -x '  strategy:' <<< "$deployment" | grep -qx '    type: RollingUpdate' || fail "cluster mode isn't a rolling update"
+grep -qx '      maxUnavailable: 0' <<< "$deployment" || fail "a rolling update can take a pod away before its replacement is up"
+grep -qx '      maxSurge: 1' <<< "$deployment" || fail "a rolling update doesn't add one pod at a time"
+pdb=$(document "$clustered" PodDisruptionBudget)
+[[ -n "$pdb" ]] || fail "no PodDisruptionBudget in cluster mode"
+grep -qx '  maxUnavailable: 1' <<< "$pdb" || fail "the PodDisruptionBudget doesn't allow exactly one pod down"
+grep -qx '      app.kubernetes.io/component: server' <<< "$pdb" || fail "the PodDisruptionBudget doesn't select the server"
+[[ "$(env_value "$deployment" Orleans__Clustering)" == Kubernetes ]] || fail "Orleans__Clustering isn't Kubernetes"
+[[ "$(env_value "$deployment" ConnectionStrings__Redis)" == pspsps-redis:6379 ]] || fail "the server isn't pointed at Redis"
+grep -qx '                command: \["sleep", "5"\]' <<< "$deployment" || fail "no 5 s preStop wait in cluster mode"
+grace=$(sed -n 's/^ *terminationGracePeriodSeconds: *//p' <<< "$deployment")
+shutdown=$(env_value "$deployment" DOTNET_SHUTDOWNTIMEOUTSECONDS)
+(( grace > shutdown + 10 )) || fail "terminationGracePeriodSeconds ($grace) doesn't cover a 10 s preStop and the ${shutdown} s shutdown"
+grep -qx '          whenUnsatisfiable: ScheduleAnyway' <<< "$deployment" || fail "the pods aren't spread over the nodes"
+if grep -q topologySpreadConstraints <<< "$(server "${cluster[@]}" --set cluster.topologySpread=false)"; then
+  fail "cluster.topologySpread=false still spreads the pods"
+fi
+grep -qx '      automountServiceAccountToken: true' <<< "$deployment" || fail "cluster mode can't read the pods (no token)"
+grep -A1 -E '^ +- ipBlock:$' <<< "$(document "$clustered" NetworkPolicy)" | grep -qx '            cidr: 192.0.2.10/32' \
+  || fail "the server's NetworkPolicy doesn't open cluster.kubeApi.cidr"
+for bad in cluster.replicas=1 cluster.replicas=0 cluster.preStopSeconds=11 cluster.preStopSeconds=-1; do
+  if server "${cluster[@]}" --set "$bad" > /dev/null 2>&1; then fail "rendered with cluster mode and $bad"; fi
+done
+if helm template pspsps "$chart" --set cluster.enabled=true > /dev/null 2>&1; then
+  fail "cluster mode renders without cluster.kubeApi.cidr"
+fi
+
+# Redis keeps Orleans' membership table on its volume: append-only, on a claim, one pod replaced all at once.
+redis=$(helm template pspsps "$chart" "${cluster[@]}" --show-only templates/redis.yaml)
+grep -q '"--appendonly", "yes"' <<< "$redis" || fail "Redis doesn't write an append-only file"
+grep -qx '            claimName: pspsps-redis' <<< "$redis" || fail "Redis's data isn't on its claim"
+grep -qx '    type: Recreate' <<< "$(document "$redis" Deployment)" || fail "two Redis pods could share the claim"
+grep -qx '  storageClassName: fast' <<< "$(helm template pspsps "$chart" "${cluster[@]}" \
+  --set redis.persistence.storageClass=fast --show-only templates/redis.yaml)" \
+  || fail "redis.persistence.storageClass isn't used"
+
+# Sticky sessions at Traefik: off by default (WebSockets need none), a cookie when asked for.
+route=(--set ingressRoute.enabled=true --set ingressRoute.host=pspsps.example)
+if grep -q sticky <<< "$(helm template pspsps "$chart" "${route[@]}")"; then fail "the IngressRoute is sticky by default"; fi
+sticky=$(helm template pspsps "$chart" "${route[@]}" --set ingressRoute.sticky=true --show-only templates/ingressroute.yaml)
+grep -A2 -x '          sticky:' <<< "$sticky" | grep -qx '              name: pspsps-pod' \
+  || fail "ingressRoute.sticky=true doesn't add the pspsps-pod cookie"
+
 if (( failures > 0 )); then
   exit 1
 fi

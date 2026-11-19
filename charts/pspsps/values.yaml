@@ -2,9 +2,17 @@
 # cluster.replicas pods (Orleans silos joined through Redis, SignalR's backplane on the same Redis).
 cluster:
   enabled: false
+  # At least 2. A rolling update adds one new pod before stopping an old one, and a PodDisruptionBudget keeps all but
+  # one up through a node drain.
   replicas: 2
+  # Spread the pods over the nodes where it can (a preference, not a rule).
+  topologySpread: true
+  # How long a stopping pod waits, out of the Service already, before it starts shutting down (0 to 10).
+  preStopSeconds: 5
   # Orleans' Kubernetes hosting reads the pods through the API server; the NetworkPolicy lets the server reach it.
-  # The API server's address as the pods see it (an ipBlock: Services aren't matched by NetworkPolicies).
+  # The API server's address as the pods see it (an ipBlock: Services aren't matched by NetworkPolicies): the address
+  # behind the kubernetes Service, `kubectl get endpointslices -l kubernetes.io/service-name=kubernetes`, and its port
+  # (6443 on most clusters). docs/cluster.md.
   kubeApi:
     cidr: ""
     port: 6443
@@ -104,6 +112,9 @@ ingressRoute:
   host: ""
   entryPoints: [websecure]
   middlewares: []
+  # A cookie that keeps a browser on one pod. Not needed while browsers connect with WebSockets (they do, by default);
+  # only for the fallback to SignalR's negotiation (docs/cluster.md).
+  sticky: false
   annotations: {}
 
 postgres:
