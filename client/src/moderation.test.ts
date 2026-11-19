@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  Notices, bannedLines, canLift, doneMessage, inForce, mutedNote, mutedToast, requestFor, sayWhy, standingLines, untilText,
+  Notices, bannedLines, bannedNetworks, canLift, doneMessage, inForce, mutedNote, mutedToast, networkLengths, networkLine,
+  requestFor, sayWhy, standingLines, untilText,
 } from "./moderation";
 
 const utc = { locale: "en-GB", timeZone: "UTC" };
@@ -91,5 +92,49 @@ describe("a warning", () => {
     // Closed, so seen: fetched again before the server has heard, it stays closed.
     notices.show({ id: "w1", text: "First" });
     expect(notices.current).toBeUndefined();
+  });
+});
+
+describe("a cat's networks, on an admin's view of its card", () => {
+  const network = {
+    key: "a".repeat(64), label: "aaaaaaaa", players: 1, lastSeen: "2026-11-19T10:00:00Z", ban: null, bannedWithIt: false,
+  };
+
+  it("says how many cats were on each this week, and its ban: never the address", () => {
+    expect(networkLine(network, utc)).toBe("Network aaaaaaaa · 1 cat this week");
+    expect(networkLine({ ...network, players: 3, ban: { reason: "Spam", until: "2026-11-20T12:00:00Z" } }, utc))
+      .toBe("Network aaaaaaaa · 3 cats this week · banned until 20 Nov 2026, 12:00");
+  });
+
+  it("offers a day or a week, never for good", () => {
+    expect(networkLengths.map((length) => length.value)).toEqual(["24h", "7d"]);
+  });
+
+  it("has something to lift while a network banned with it is, even with the cat free; not one banned with another", () => {
+    const banned = { ...network, ban: { reason: "Spam", until: "2026-11-20T12:00:00Z" }, bannedWithIt: true };
+    const anothers = { ...banned, bannedWithIt: false };
+    expect(canLift({ isAdmin: false, ban: null, mute: null, networks: [network] })).toBe(false);
+    expect(canLift({ isAdmin: false, ban: null, mute: null, networks: [network, banned] })).toBe(true);
+    expect(canLift({ isAdmin: false, ban: null, mute: null, networks: [anothers] })).toBe(false);
+    expect(bannedNetworks({ isAdmin: false, ban: null, mute: null, networks: [banned, banned, network, anothers] })).toBe(2);
+  });
+
+  it("bans networks alone for a cat banned already, without banning it again", () => {
+    expect(requestFor("ban", "", undefined, { networksOnly: true })).toEqual({ action: "ban", reason: "", networksOnly: true });
+    expect(doneMessage({ action: "ban", reason: "", networksOnly: true, networks: ["k"], networkLength: "24h" }, "Felix"))
+      .toBe("Felix's network is banned for 24 hours.");
+    expect(doneMessage({ action: "ban", reason: "", networksOnly: true, networks: ["k", "l"], networkLength: "7d" }, "Felix"))
+      .toBe("2 of Felix's networks are banned for 7 days.");
+  });
+
+  it("says what was banned and lifted", () => {
+    expect(doneMessage({ action: "ban", reason: "Spam", length: "permanent", networks: ["k"], networkLength: "7d" }, "Felix"))
+      .toBe("Felix is banned for good, and their network for 7 days.");
+    expect(doneMessage({ action: "ban", reason: "Spam", length: "24h", networks: ["k", "l"], networkLength: "24h" }, "Felix"))
+      .toBe("Felix is banned for 24 hours, and 2 of their networks for 24 hours.");
+    expect(doneMessage({ action: "lift", reason: "", liftCat: true, liftNetworks: true }, "Felix"))
+      .toBe("Felix can play and chat again, and so can their networks.");
+    expect(doneMessage({ action: "lift", reason: "", liftCat: false, liftNetworks: true }, "Felix"))
+      .toBe("Felix's networks can play again.");
   });
 });

@@ -22,6 +22,12 @@ public interface IApplicationDbContext
     /// <summary>The audit trail of what admins did.</summary>
     DbSet<ModerationEntry> ModerationEntries { get; }
 
+    /// <summary>The networks (keyed hashes, never addresses) each player played from in the last 7 days.</summary>
+    DbSet<PlayerAddress> PlayerAddresses { get; }
+
+    /// <summary>Banned networks, by keyed hash.</summary>
+    DbSet<AddressBan> AddressBans { get; }
+
     DbSet<Mute> Mutes { get; }
 
     DbSet<Report> Reports { get; }
@@ -45,6 +51,12 @@ public interface IApplicationDbContext
 
     /// <summary>Stops tracking the player's moderation and its new audit lines, so a refused change isn't saved.</summary>
     void Forget(PlayerModeration moderation);
+
+    /// <summary>Stops tracking the network's ban and its new audit lines, so a refused change isn't saved.</summary>
+    void Forget(AddressBan ban);
+
+    /// <summary>Stops tracking the player's network, so a refused save of it isn't tried again.</summary>
+    void Forget(PlayerAddress address);
 
     /// <summary>Stops tracking the mute, so its unsaved change (refused by the database) isn't saved by the next save.</summary>
     void Forget(Mute mute);

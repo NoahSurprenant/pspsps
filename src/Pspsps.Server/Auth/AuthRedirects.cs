@@ -17,4 +17,7 @@ public static class AuthRedirects
 
     public const string LinkFailed = "/?link=failed";
     public const string SignInFailed = "/?signin=failed";
+
+    /// <summary>The network the player signs in from is banned: the page asks why (/auth/ban) and shows it.</summary>
+    public const string SignInBanned = "/?signin=banned";
 }

@@ -21,6 +21,7 @@ public static class DependencyInjection
         services.AddScoped<IShopService, ShopService>();
         services.AddScoped<IHomeService, HomeService>();
         services.AddScoped<IModerationService, ModerationService>();
+        services.AddScoped<IAddressBanService, AddressBanService>();
         services.AddScoped<IMuteService, MuteService>();
         services.AddScoped<IReportService, ReportService>();
         return services;

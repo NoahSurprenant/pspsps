@@ -47,6 +47,8 @@ public sealed class GameHubTests
     private IMuteService _mutes = null!;
     private IReportService _reports = null!;
     private IModerationService _moderation = null!;
+    private IAddressBanService _networks = null!;
+    private ClientAddresses _addresses = null!;
     private IModerationEffects _effects = null!;
     private IPlayerSessionGrain _session = null!;
     private IRoomGrain _cafe = null!;
@@ -85,6 +87,10 @@ public sealed class GameHubTests
         _moderation = Substitute.For<IModerationService>();
         _moderation.StandingAsync(default, default).ReturnsForAnyArgs(Standing.None);
         _effects = Substitute.For<IModerationEffects>();
+        _networks = Substitute.For<IAddressBanService>();
+        _networks.RecentOfAsync(default, default, default)
+            .ReturnsForAnyArgs(Task.FromResult<IReadOnlyList<RecentAddress>>([]));
+        _addresses = ClientAddresses.Off;
         _players.FindAsync(Tom.Id, Arg.Any<CancellationToken>()).Returns(Tom);
         _heartbeat = new SessionHeartbeat(
             _grains,
@@ -1700,6 +1706,63 @@ public sealed class GameHubTests
     }
 
     [Test]
+    public async Task BanNetworks_BansThem_TellsTheirTabs_AndTheCardShowsThem()
+    {
+        _addresses = ClientAddresses.WithKey(new string('k', ClientAddresses.MinKeyLength));
+        var key = new string('a', 64);
+        var ban = new Sanction("Spam", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(24), Tom.Id);
+        _moderation.IsAdmin(Tom.Id).Returns(true);
+        _networks.BanAsync(Tom.Id, Felix, Arg.Any<IReadOnlyCollection<string>>(), TimeSpan.FromHours(24), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IReadOnlyList<BannedAddress>>([new BannedAddress(key, "aaaaaaaa", ban)]));
+        _networks.RecentOfAsync(Tom.Id, Felix, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IReadOnlyList<RecentAddress>>([new RecentAddress(key, "aaaaaaaa", 3, ban.Since, ban, BannedWithIt: true)]));
+        _friends.GetAsync(Tom.Id, Felix, Arg.Any<CancellationToken>())
+            .Returns(new PlayerRelation(Felix, "Felix", FurColor.Black, FriendState.None));
+        var hub = Hub();
+
+        var card = await hub.BanNetworks(Felix, [key], "24h");
+
+        await _networks.Received(1).BanAsync(
+            Tom.Id, Felix, Arg.Is<IReadOnlyCollection<string>>(keys => keys.SequenceEqual(new[] { key })), TimeSpan.FromHours(24),
+            Arg.Any<CancellationToken>());
+        await _effects.Received(1).NetworksBannedAsync(Arg.Is<IReadOnlyList<BannedAddress>>(b => b.Single().AddressHash == key));
+        Assert.That(card.Moderation?.Networks,
+            Is.EqualTo(new[] { new NetworkView(key, "aaaaaaaa", 3, ban.Since, new SanctionView("Spam", ban.Until), BannedWithIt: true) }));
+    }
+
+    [Test]
+    public async Task BanNetworks_ForGood_OrWithNetworkBansOff_IsRefused()
+    {
+        _moderation.IsAdmin(Tom.Id).Returns(true);
+        var key = new string('a', 64);
+
+        var off = Assert.ThrowsAsync<HubException>(() => Hub().BanNetworks(Felix, [key], "24h"));
+        Assert.That(off!.Message, Does.Contain("off"));
+
+        _addresses = ClientAddresses.WithKey(new string('k', ClientAddresses.MinKeyLength));
+        var forGood = Assert.ThrowsAsync<HubException>(() => Hub().BanNetworks(Felix, [key], "permanent"));
+        Assert.That(forGood!.Message, Does.Contain("a day or a week"));
+        await _networks.DidNotReceiveWithAnyArgs().BanAsync(default, default, default!, default, default);
+        await _effects.DidNotReceiveWithAnyArgs().NetworksBannedAsync(default!);
+    }
+
+    [Test]
+    public async Task LiftNetworkBans_LiftsTheCatsNetworks_AndThisPodLetsThemIn()
+    {
+        _addresses = ClientAddresses.WithKey(new string('k', ClientAddresses.MinKeyLength));
+        var key = new string('b', 64);
+        _moderation.IsAdmin(Tom.Id).Returns(true);
+        _networks.LiftOfPlayerAsync(Tom.Id, Felix, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IReadOnlyList<string>>([key]));
+        _friends.GetAsync(Tom.Id, Felix, Arg.Any<CancellationToken>())
+            .Returns(new PlayerRelation(Felix, "Felix", FurColor.Black, FriendState.None));
+
+        await Hub().LiftNetworkBans(Felix);
+
+        _effects.Received(1).NetworksLifted(Arg.Is<IReadOnlyList<string>>(lifted => lifted.Single() == key));
+    }
+
+    [Test]
     public async Task GetPlayerCard_ShowsTheCatsStanding_OnlyToAnAdmin()
     {
         _friends.GetAsync(Tom.Id, Felix, Arg.Any<CancellationToken>())
@@ -1765,7 +1828,8 @@ public sealed class GameHubTests
         var metrics = new GameMetrics(_services.GetRequiredService<IMeterFactory>());
         return new GameHub(
             _grains, _players, _friends, _shop, _homes, _moderation, _effects,
-            new StandingCache(_services.GetRequiredService<IServiceScopeFactory>(), TimeProvider.System), _mutes, _reports,
+            new StandingCache(_services.GetRequiredService<IServiceScopeFactory>(), TimeProvider.System), _networks, _addresses,
+            _mutes, _reports,
             _heartbeat, time ?? TimeProvider.System, metrics, logger ?? NullLogger<GameHub>.Instance)
         {
             Context = context,

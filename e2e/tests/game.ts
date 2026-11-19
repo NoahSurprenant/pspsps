@@ -82,8 +82,11 @@ export function roomBarButtons(page: Page): Promise<string[]> {
 }
 
 /** A second player, in their own browser context (their own cookie). */
-export async function newPlayer(browser: Browser): Promise<{ page: Page; errors: string[]; close(): Promise<void> }> {
-  const context = await browser.newContext();
+export async function newPlayer(
+  browser: Browser, from?: string,
+): Promise<{ page: Page; errors: string[]; close(): Promise<void> }> {
+  // From the address <from>, if given (forwarded: see fakeNetwork).
+  const context = await browser.newContext(from ? { extraHTTPHeaders: { "X-Forwarded-For": from } } : {});
   const page = await context.newPage();
   return { page, errors: watchErrors(page), close: () => context.close() };
 }
@@ -188,19 +191,35 @@ export async function clickCat(page: Page, playerId: string): Promise<void> {
  * Another player without a browser: a new guest on the game's hub, from Node. For setting up a screen (a friend
  * elsewhere, a request waiting) without drawing a room for them. Close it after.
  */
-export async function hubGuest(baseUrl: string): Promise<{ id: string; name: string; cookie: string; hub: HubConnection }> {
-  const response = await fetch(new URL("/auth/guest", baseUrl), { method: "POST" });
+/**
+ * A made-up address (an IPv6 /64 of the documentation range, new each time) for a player to come from: CI's server sees
+ * one address, its own, for every browser, and trusts a forwarded one from there (loopback, as the framework does by
+ * default), as it would from its proxy. A network ban on CI's own address would lock the whole run out; on one of these,
+ * nobody else.
+ */
+export function fakeNetwork(): string {
+  const part = () => Math.floor(Math.random() * 0x10000).toString(16);
+  return `2001:db8:${part()}:${part()}::1`;
+}
+
+export async function hubGuest(
+  baseUrl: string, from?: string,
+): Promise<{ id: string; name: string; cookie: string; hub: HubConnection }> {
+  const forwarded: Record<string, string> = from ? { "X-Forwarded-For": from } : {};
+  const response = await fetch(new URL("/auth/guest", baseUrl), { method: "POST", headers: forwarded });
   expect(response.ok).toBe(true);
   const cookie = response.headers.getSetCookie().find((c) => c.startsWith("pspsps="))?.split(";")[0];
   if (!cookie) throw new Error("no game cookie for the guest");
   const { id, displayName } = (await response.json()) as { id: string; displayName: string };
-  return { id, name: displayName, cookie, hub: await hubWith(baseUrl, cookie) };
+  return { id, name: displayName, cookie, hub: await hubWith(baseUrl, cookie, from) };
 }
 
 /** A hub connection with the game cookie <cookie> ("pspsps=..."): a tab of that player, from Node. Stop it after. */
-export async function hubWith(baseUrl: string, cookie: string): Promise<HubConnection> {
+export async function hubWith(baseUrl: string, cookie: string, from?: string): Promise<HubConnection> {
   const hub = new HubConnectionBuilder()
-    .withUrl(new URL("/hubs/game", baseUrl).toString(), { headers: { Cookie: cookie } })
+    .withUrl(new URL("/hubs/game", baseUrl).toString(), {
+      headers: { Cookie: cookie, ...(from ? { "X-Forwarded-For": from } : {}) },
+    })
     .configureLogging(LogLevel.Warning)
     .build();
   await hub.start();
@@ -343,6 +362,25 @@ export function adminCookie(): { name: string; value: string } {
   }
   const at = cookie.indexOf("=");
   return { name: cookie.slice(0, at), value: cookie.slice(at + 1) };
+}
+
+/**
+ * Bans <playerId> for a day, and every network its card shows, as the admin, from Node (the admin's own hub connection):
+ * returns the networks' labels.
+ */
+export async function banWithNetworks(baseUrl: string, playerId: string, reason: string): Promise<string[]> {
+  const { name, value } = adminCookie();
+  const hub = await hubWith(baseUrl, `${name}=${value}`);
+  try {
+    type Card = { moderation: { networks: { key: string; label: string }[] | null } | null };
+    const card = await hub.invoke<Card>("Moderate", playerId, "ban", reason, "24h");
+    const networks = card.moderation?.networks ?? [];
+    expect(networks.length, "the cat's networks on its card").toBeGreaterThan(0);
+    await hub.invoke("BanNetworks", playerId, networks.map((n) => n.key), "24h");
+    return networks.map((n) => n.label);
+  } finally {
+    await hub.stop();
+  }
 }
 
 /** Signs <context>'s pages in as the game's admin (adminCookie). */

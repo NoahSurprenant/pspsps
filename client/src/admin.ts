@@ -19,10 +19,13 @@ export interface SanctionedPlayer {
   displayName: string;
   ban: AdminSanction | null;
   mute: AdminSanction | null;
+  /** How many networks are banned with them now: Lift offers to lift those too. */
+  networkBans: number;
 }
 
 /** What an admin did (Contracts.cs, ModerationLogView). */
-export type ModerationKind = "Warned" | "Muted" | "Banned" | "MuteLifted" | "BanLifted";
+export type ModerationKind =
+  | "Warned" | "Muted" | "Banned" | "MuteLifted" | "BanLifted" | "AddressBanned" | "AddressBanLifted";
 
 export interface ModerationLogLine {
   playerId: string;
@@ -33,6 +36,24 @@ export interface ModerationLogLine {
   at: string;
   reason: string | null;
   until: string | null;
+  /** For a network's ban or lift: the network's label (the first 8 hex digits of its keyed hash), never the address. */
+  address?: string | null;
+}
+
+/**
+ * A network banned now (Contracts.cs, NetworkBanView): its key (to lift it by) and label, the cat it was banned with, how
+ * many players were on it this week, why, since and until when, and who banned it.
+ */
+export interface NetworkBan {
+  key: string;
+  label: string;
+  playerId: string;
+  playerName: string;
+  players: number;
+  reason: string;
+  since: string;
+  until: string;
+  byName: string;
 }
 
 /** A line of a report's chat (Contracts.cs, ReportLineView): who said it (their name then), what, when. */
@@ -65,6 +86,8 @@ export interface AdminOverview {
   reports: OpenReport[];
   sanctioned: SanctionedPlayer[];
   recent: ModerationLogLine[];
+  /** The networks banned now, newest first. */
+  networkBans: NetworkBan[];
 }
 
 /** A moment, short: "18 Nov 2026, 15:04" in the admin's own time. */
@@ -83,6 +106,22 @@ export function liftLabel(player: SanctionedPlayer): string {
   return `Lift ${player.displayName}'s ${what}`;
 }
 
+/** A network ban in a line: "Felix's network 1a2b3c4d · 3 cats this week · until 20 Nov 2026, 12:00 by Ann: Spam". */
+export function networkBanLine(ban: NetworkBan, format: TimeFormat = {}): string {
+  const cats = ban.players === 1 ? "1 cat" : `${ban.players} cats`;
+  return `${ban.playerName}'s network ${ban.label} · ${cats} this week · ${untilText(ban.until, format)} by ${ban.byName}: ${ban.reason}`;
+}
+
+/** What Lift offers for the networks banned with the player (checked: lifted too), or nothing when there are none. */
+export function networkLiftText(player: SanctionedPlayer): string | undefined {
+  if (player.networkBans <= 0) {
+    return undefined;
+  }
+  return player.networkBans === 1
+    ? `Also lift the ban on ${player.displayName}'s network`
+    : `Also lift the bans on ${player.displayName}'s ${player.networkBans} networks`;
+}
+
 /** A line of the audit trail: who did what to whom, until when, and why. */
 export function logLine(line: ModerationLogLine, format: TimeFormat = {}): string {
   const until = untilText(line.until, format);
@@ -92,6 +131,8 @@ export function logLine(line: ModerationLogLine, format: TimeFormat = {}): strin
     Banned: `${line.byName} banned ${line.playerName} ${until}`,
     MuteLifted: `${line.byName} lifted ${line.playerName}'s mute`,
     BanLifted: `${line.byName} lifted ${line.playerName}'s ban`,
+    AddressBanned: `${line.byName} banned ${line.playerName}'s network ${line.address ?? ""} ${until}`,
+    AddressBanLifted: `${line.byName} lifted the ban on ${line.playerName}'s network ${line.address ?? ""}`,
   };
   return `${when(line.at, format)} · ${done[line.kind]}${line.reason ? `: ${line.reason}` : ""}`;
 }

@@ -4,6 +4,7 @@ using Pspsps.Application.Abstractions;
 using Pspsps.Domain;
 using Pspsps.Domain.Moderation;
 using Pspsps.Domain.Safety;
+using Attempt = Pspsps.Application.Moderation.ModerationSaves.Attempt;
 
 namespace Pspsps.Application.Moderation;
 
@@ -11,9 +12,6 @@ internal sealed class ModerationService(
     IApplicationDbContext db, IAdmins admins, [FromKeyedServices(ModerationClock.Key)] TimeProvider time)
     : IModerationService
 {
-    /// <summary>How many times a change is decided again when another landed on the same player meanwhile.</summary>
-    internal const int Attempts = 5;
-
     /// <summary>How many lines of the audit trail the admin page shows.</summary>
     internal const int RecentLines = 50;
 
@@ -44,13 +42,15 @@ internal sealed class ModerationService(
             throw new DomainException(NoSuchCat);
         }
 
-        // Never null: made when there is none.
-        return (await ChangeAsync(playerId, create: true, moderation =>
+        return await SaveAsync(async attempt =>
         {
+            // Never null: made when there is none.
+            var moderation = (await ReadAsync(playerId, create: true, attempt, cancellationToken))!;
             var now = time.GetUtcNow();
             Apply(moderation, moderator, request, now);
+            await FollowNetworksAsync(moderation, moderator, request, now, attempt, cancellationToken);
             return Standing.Of(moderation, now);
-        }, cancellationToken))!;
+        }, cancellationToken);
     }
 
     public async Task<IReadOnlyList<PendingWarning>> WarningsAsync(Guid playerId, CancellationToken cancellationToken)
@@ -104,11 +104,25 @@ internal sealed class ModerationService(
             .OrderBy(r => r.FiledAt)
             .Take(OpenReports)
             .ToListAsync(cancellationToken);
+        var addressBans = await db.AddressBans.AsNoTracking()
+            .Where(b => b.LiftedAt == null && b.BannedUntil > now)
+            .OrderByDescending(b => b.BannedAt)
+            .Take(SanctionedShown)
+            .ToListAsync(cancellationToken);
+        var sanctionedIds = sanctioned.Select(m => m.PlayerId).ToList();
+        var networkBans = await db.AddressBans.AsNoTracking()
+            .Where(b => sanctionedIds.Contains(b.PlayerId) && b.LiftedAt == null && b.BannedUntil > now)
+            .GroupBy(b => b.PlayerId)
+            .Select(g => new { PlayerId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(g => g.PlayerId, g => g.Count, cancellationToken);
+        var onNetworks = await AddressBanService.PlayersOnAsync(
+            db, [.. addressBans.Select(b => b.AddressHash)], now, cancellationToken);
 
         var ids = reports.Select(r => r.ReporterId)
             .Concat(sanctioned.Select(m => m.PlayerId))
             .Concat(sanctioned.SelectMany(m => new[] { m.BannedBy, m.MutedBy }).OfType<Guid>())
             .Concat(recent.SelectMany(e => new[] { e.PlayerId, e.ByPlayerId }))
+            .Concat(addressBans.SelectMany(b => new[] { b.PlayerId, b.BannedBy }))
             .Distinct()
             .ToList();
         var names = await db.Players.AsNoTracking()
@@ -129,11 +143,18 @@ internal sealed class ModerationService(
                     .Select(s => new SanctionedPlayer(
                         s.Moderation.PlayerId, NameOf(s.Moderation.PlayerId),
                         s.Ban, s.Ban is null ? null : NameOf(s.Ban.By),
-                        s.Mute, s.Mute is null ? null : NameOf(s.Mute.By))),
+                        s.Mute, s.Mute is null ? null : NameOf(s.Mute.By),
+                        networkBans.GetValueOrDefault(s.Moderation.PlayerId))),
             ],
             [
                 .. recent.Select(e => new ModerationLogLine(
-                    e.PlayerId, NameOf(e.PlayerId), e.Kind, e.ByPlayerId, NameOf(e.ByPlayerId), e.At, e.Reason, e.Until)),
+                    e.PlayerId, NameOf(e.PlayerId), e.Kind, e.ByPlayerId, NameOf(e.ByPlayerId), e.At, e.Reason, e.Until,
+                    e.Address)),
+            ],
+            [
+                .. addressBans.Select(b => new AddressBanLine(
+                    b.AddressHash, b.Label, b.PlayerId, NameOf(b.PlayerId), onNetworks.GetValueOrDefault(b.AddressHash),
+                    b.BanAt(now)!, NameOf(b.BannedBy))),
             ]);
     }
 
@@ -163,6 +184,7 @@ internal sealed class ModerationService(
 
             var moderation = await ReadAsync(report.ReportedId, create: true, attempt, cancellationToken);
             Apply(moderation!, moderator, request, now);
+            await FollowNetworksAsync(moderation!, moderator, request, now, attempt, cancellationToken);
             report.CloseWith(moderator, done, now);
             // One save: the report closes with what was done, or neither happens.
             return new ReportDecided(report.ReportedId, request.Action, Standing.Of(moderation, now));
@@ -200,6 +222,27 @@ internal sealed class ModerationService(
         }
     }
 
+    // A cat banned again: the networks banned with it end by its new ban's end (AddressBan.FollowCat), in the same save.
+    private async Task FollowNetworksAsync(
+        PlayerModeration moderation, Moderator moderator, ModerationRequest request, DateTimeOffset now, Attempt attempt,
+        CancellationToken cancellationToken)
+    {
+        if (request.Action != ModerationAction.Ban)
+        {
+            return;
+        }
+
+        var bans = await db.AddressBans
+            .Where(b => b.PlayerId == moderation.PlayerId && b.LiftedAt == null && b.BannedUntil > now)
+            .ToListAsync(cancellationToken);
+        foreach (var ban in bans)
+        {
+            attempt.Forget.Add(() => db.Forget(ban));
+            ban.FollowCat(moderator, moderation, now);
+            attempt.BeforeSave.Add(() => db.ModerationEntries.AddRange(ban.Entries));
+        }
+    }
+
     // Reads the player's moderation, applies the change, saves (SaveAsync). Null, and nothing saved, when there is none and
     // <create> is false.
     private Task<T?> ChangeAsync<T>(
@@ -233,46 +276,6 @@ internal sealed class ModerationService(
         return moderation;
     }
 
-    // One try at a change: what to do just before its save (add the new audit lines), and how to forget what it read if the
-    // save is refused.
-    private sealed class Attempt
-    {
-        public List<Action> BeforeSave { get; } = [];
-
-        public List<Action> Forget { get; } = [];
-    }
-
-    // Decides a change (<decide>: reads what it needs, tracked, and changes it by the Domain's rules), then saves it all in
-    // one go. Version (a player's moderation) and Status (a report) are concurrency tokens: when another change landed
-    // between the read and the save (two admins at once, a warning seen as another is given, a report closed meanwhile),
-    // the save is refused and the change decided again on what is there now, which may refuse it. Two firsts at once
-    // collide on a key, and are decided again too. A rule broken (a DomainException) saves nothing.
-    private async Task<T> SaveAsync<T>(Func<Attempt, Task<T>> decide, CancellationToken cancellationToken)
-    {
-        for (var tries = 1; ; tries++)
-        {
-            var attempt = new Attempt();
-            try
-            {
-                var result = await decide(attempt);
-                attempt.BeforeSave.ForEach(step => step());
-
-                await db.SaveChangesAsync(cancellationToken);
-                return result;
-            }
-            catch (DomainException)
-            {
-                attempt.Forget.ForEach(step => step());
-                throw;
-            }
-            catch (DbUpdateException saving) when (saving is DbUpdateConcurrencyException || db.IsUniqueViolation(saving))
-            {
-                attempt.Forget.ForEach(step => step());
-                if (tries == Attempts)
-                {
-                    throw new DomainException("That changed just now. Try again.");
-                }
-            }
-        }
-    }
+    private Task<T> SaveAsync<T>(Func<Attempt, Task<T>> decide, CancellationToken cancellationToken) =>
+        ModerationSaves.SaveAsync(db, decide, cancellationToken);
 }

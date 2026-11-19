@@ -128,6 +128,9 @@ internal sealed class PlayerService(IApplicationDbContext db, TimeProvider time,
         return PlayerProfile.From(player);
     }
 
+    public Task<Guid?> FindByLoginAsync(LoginProvider provider, string providerKey, CancellationToken cancellationToken) =>
+        OwnerIdAsync(provider, providerKey, cancellationToken);
+
     public async Task<PlayerProfile?> FindAsync(Guid playerId, CancellationToken cancellationToken)
     {
         return await db.Players.Where(p => p.Id == playerId).Select(Profile).FirstOrDefaultAsync(cancellationToken);

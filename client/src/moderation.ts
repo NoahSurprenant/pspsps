@@ -13,6 +13,23 @@ export interface CardModeration {
   isAdmin: boolean;
   ban: Sanction | null;
   mute: Sanction | null;
+  /** The networks it played from lately (none seen, or network bans off: null). */
+  networks?: Network[] | null;
+}
+
+/**
+ * A network a cat played from lately (Contracts.cs, NetworkView): its key (a keyed hash: what the admin bans it by) and
+ * label (the hash's first 8 hex digits: never the address), how many players were on it in the last 7 days, when this
+ * cat last was, and its ban in force.
+ */
+export interface Network {
+  key: string;
+  label: string;
+  players: number;
+  lastSeen: string;
+  ban: Sanction | null;
+  /** Its ban is this cat's (banned with it, lifted with it), not another cat's on the same network. */
+  bannedWithIt: boolean;
 }
 
 /** What an admin can do to a player, as the hub's Moderate takes it. */
@@ -23,6 +40,15 @@ export interface ModerationRequest {
   action: ModerationAction;
   reason: string;
   length?: string;
+  /** With a ban: the networks (keys) to ban with the cat, and for how long (networkLengths). */
+  networks?: string[];
+  networkLength?: string;
+  /** With a ban: ban only the networks, for a cat banned already (its ban stays as it is). */
+  networksOnly?: boolean;
+  /** With a lift: whether the cat has a ban or mute to lift (false: only its networks' bans). */
+  liftCat?: boolean;
+  /** With a lift: lift the bans on the networks banned with the cat too. */
+  liftNetworks?: boolean;
 }
 
 /** How long a mute or ban lasts, as offered (ModerationRequest.MuteLengths and BanLengths on the server). */
@@ -41,6 +67,12 @@ export const banLengths: readonly LengthChoice[] = [
   { value: "24h", label: "24 hours" },
   { value: "7d", label: "7 days" },
   { value: "permanent", label: "For good" },
+];
+
+/** How long a network's ban lasts (ModerationRequest.NetworkLengths): never for good, since a network can be shared. */
+export const networkLengths: readonly LengthChoice[] = [
+  { value: "24h", label: "24 hours" },
+  { value: "7d", label: "7 days" },
 ];
 
 /** The longest reason the server keeps (PlayerModeration.MaxReasonLength). */
@@ -99,17 +131,38 @@ export function standingLines(moderation: CardModeration, format: TimeFormat = {
   return lines.length > 0 ? lines : ["Not banned or muted."];
 }
 
-/** Whether there is anything to lift. */
+/** Whether there is anything to lift: the cat's ban or mute, or a ban on one of its networks. */
 export function canLift(moderation: CardModeration): boolean {
-  return moderation.ban !== null || moderation.mute !== null;
+  return moderation.ban !== null || moderation.mute !== null || bannedNetworks(moderation) > 0;
+}
+
+/** How many of the cat's networks are banned now with it (lifted with it: not another cat's network ban). */
+export function bannedNetworks(moderation: CardModeration): number {
+  return (moderation.networks ?? []).filter((network) => network.ban !== null && network.bannedWithIt).length;
+}
+
+/**
+ * A network on an admin's view of a card: "Network 1a2b3c4d · 3 cats this week · banned until 20 Nov 2026, 12:00". How many
+ * cats share it says whether a ban would catch others (a school, a phone network).
+ */
+export function networkLine(network: Network, format: TimeFormat = {}): string {
+  const cats = network.players === 1 ? "1 cat" : `${network.players} cats`;
+  const banned = network.ban ? ` · banned ${untilText(network.ban.until, format)}` : "";
+  return `Network ${network.label} · ${cats} this week${banned}`;
 }
 
 /**
  * The request a card's button makes, or why not: every action but lifting says why. The reason is trimmed, as the
  * server keeps it.
  */
-export function requestFor(action: ModerationAction, reason: string, length?: string): ModerationRequest | string {
+export function requestFor(
+  action: ModerationAction, reason: string, length?: string, options: { networksOnly?: boolean } = {},
+): ModerationRequest | string {
   const why = reason.trim();
+  // Networks alone, for a cat banned already: they take its ban's reason.
+  if (action === "ban" && options.networksOnly) {
+    return { action, reason: why, networksOnly: true };
+  }
   if (action !== "lift" && why.length === 0) {
     return sayWhy;
   }
@@ -124,10 +177,28 @@ export function doneMessage(request: ModerationRequest, name: string): string {
       return `${name} was warned.`;
     case "mute":
       return `${name} is muted for ${length ?? "a while"}.`;
-    case "ban":
-      return request.length === "permanent" ? `${name} is banned for good.` : `${name} is banned for ${length ?? "a while"}.`;
+    case "ban": {
+      if (request.networksOnly) {
+        const count = request.networks?.length ?? 0;
+        const networkLength = networkLengths.find((choice) => choice.value === request.networkLength)?.label.toLowerCase();
+        const which = count === 1 ? `${name}'s network is` : `${count} of ${name}'s networks are`;
+        return `${which} banned for ${networkLength ?? "a while"}.`;
+      }
+      const banned = request.length === "permanent" ? `${name} is banned for good` : `${name} is banned for ${length ?? "a while"}`;
+      const count = request.networks?.length ?? 0;
+      if (count === 0) {
+        return `${banned}.`;
+      }
+      const networkLength = networkLengths.find((choice) => choice.value === request.networkLength)?.label.toLowerCase();
+      return `${banned}, and ${count === 1 ? "their network" : `${count} of their networks`} for ${networkLength ?? "a while"}.`;
+    }
     case "lift":
-      return `${name} can play and chat again.`;
+      if (request.liftCat === false) {
+        return `${name}'s networks can play again.`;
+      }
+      return request.liftNetworks
+        ? `${name} can play and chat again, and so can their networks.`
+        : `${name} can play and chat again.`;
   }
 }
 

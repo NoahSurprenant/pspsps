@@ -16,14 +16,26 @@ public interface IModerationEffects
     /// anyway the next time they connect or speak.
     /// </summary>
     Task AppliedAsync(Guid playerId, ModerationAction action, Standing standing);
+
+    /// <summary>
+    /// The networks <paramref name="banned"/> were banned: every tab on one (but an admin's) is told why and until when, as
+    /// a banned player's are; every pod closes the connections it holds on them two seconds later, and their cats are
+    /// taken out of their rooms. Never throws.
+    /// </summary>
+    Task NetworksBannedAsync(IReadOnlyList<BannedAddress> banned);
+
+    /// <summary>The networks' bans were lifted: this pod lets them in at once (other pods within seconds).</summary>
+    void NetworksLifted(IReadOnlyList<string> addressHashes);
 }
 
 internal sealed partial class ModerationEffects(
     IHubContext<GameHub, IGameClient> hub,
     IModerationSignal signal,
+    PlayerConnections connections,
     StandingCache standings,
     IGrainFactory grains,
-    ILogger<ModerationEffects> logger) : IModerationEffects
+    ILogger<ModerationEffects> logger,
+    AddressBanCache? networks = null) : IModerationEffects
 {
     public async Task AppliedAsync(Guid playerId, ModerationAction action, Standing standing)
     {
@@ -62,6 +74,44 @@ internal sealed partial class ModerationEffects(
         }
     }
 
+    public async Task NetworksBannedAsync(IReadOnlyList<BannedAddress> banned)
+    {
+        ArgumentNullException.ThrowIfNull(banned);
+        foreach (var network in banned)
+        {
+            networks?.Know(network.AddressHash, network.Ban);
+            try
+            {
+                // To the SignalR group of the network, which the backplane carries to every pod's tabs on it.
+                await hub.Clients.Group(AddressGuard.GroupOf(network.AddressHash)).Banned(SanctionView.From(network.Ban));
+                // Every pod closes the connections it holds on the network two seconds later (ModerationOnThisPod,
+                // through the same cross-pod signal as a player's ban), and reads the ban again rather than trusting
+                // what it cached.
+                await signal.SendNetworkAsync(network.AddressHash, close: true);
+                // Only the players this pod itself holds a connection for: a tab on another pod is sent out of its room
+                // when that pod notices the ban (ModerationHubFilter, once the signal or AddressBanCache.KeepFor catches up).
+                foreach (var playerId in connections.OnNetwork(network.AddressHash).Select(open => open.PlayerId).Distinct())
+                {
+                    await SendOutOfRoomAsync(playerId, network.Ban);
+                }
+            }
+            catch (Exception e) when (e is not OperationCanceledException)
+            {
+                // The network's label only (the first digits of its hash), never the address.
+                LogNetworkNotTold(logger, e, network.Label);
+            }
+        }
+    }
+
+    public void NetworksLifted(IReadOnlyList<string> addressHashes)
+    {
+        ArgumentNullException.ThrowIfNull(addressHashes);
+        foreach (var hash in addressHashes)
+        {
+            networks?.Know(hash, null);
+        }
+    }
+
     // Out of whatever room the cat is in, wherever its tab's connection is: a tab on another pod that ignores the ban
     // doesn't leave a cat standing there.
     private async Task SendOutOfRoomAsync(Guid playerId, Sanction ban)
@@ -71,6 +121,9 @@ internal sealed partial class ModerationEffects(
             await grains.GetGrain<IRoomGrain>(RoomKey.For(place.WorldId, place.RoomId)).SendOut([playerId], ban.SaysBanned());
         }
     }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't tell the tabs on network {Network} of its ban; they are refused at their next call")]
+    private static partial void LogNetworkNotTold(ILogger logger, Exception exception, string network);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't tell player {PlayerId} of the moderation ({Action}); it shows when they next connect or speak")]
     private static partial void LogNotTold(ILogger logger, Exception exception, Guid playerId, ModerationAction action);
