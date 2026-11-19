@@ -88,8 +88,11 @@ is missing"), and the cluster has to start over. Redis keeps it in an append-onl
 
 - **Grains** (worlds, rooms, players' sessions) exist once in the cluster, on whichever pod Orleans placed them. Their
   timers (fishing bites, lease checks) run with them. A pod's grains move when it stops; a room's state is in memory, so
-  a room that moves starts empty and its cats come back with their next lease renewal (architecture.md, "Worlds, rooms
-  and actors").
+  a room that moves starts empty. A room whose pod is stopping tells its tabs, on every pod, that it is lost
+  (`RoomLost`), and they walk back in at once (in CI's rolling update the room worked both ways again about 5 s after
+  the old pod was stopped); a room whose pod dies outright is found lost at its tabs' next lease renewal, within 30 s
+  (architecture.md, "Worlds, rooms and actors"). What a room only kept in memory goes with it: recent chat, a line in
+  the pond, emote poses.
 - **Connections** stay on the pod they opened on. Everything sent to a tab goes through SignalR's connection, user
   (player) or group (room) addresses, which the backplane delivers on whichever pod holds the connection.
 - **A ban** reaches every pod: the pod that decides it publishes a signal on Redis (`pspsps:moderation`); each pod drops
