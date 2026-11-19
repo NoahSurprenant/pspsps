@@ -171,15 +171,17 @@ function sanctioned(player: SanctionedPlayer): HTMLElement {
   const networks = el("input", { id: `lift-networks-${player.playerId}` });
   networks.type = "checkbox";
   networks.checked = true;
-  const networksLabel = el("label", { text: offer ?? "" });
-  networksLabel.htmlFor = networks.id;
   lift.addEventListener("click", () => void liftFor(player, lift, offer !== undefined && networks.checked));
   return el("li", { className: "player" },
     el("h3", { text: player.displayName }),
     ...(player.ban ? [el("p", { text: sanctionLine("Banned", player.ban) })] : []),
     ...(player.mute ? [el("p", { text: sanctionLine("Muted", player.mute) })] : []),
     el("p", { className: "id" }, el("span", { text: "Player ID " }), el("code", { text: player.playerId })),
-    ...(offer ? [el("p", { className: "check" }, networks, networksLabel)] : []),
+    // The whole row is the checkbox (admin.css .check), a single label: big enough to tap, and its font at least
+    // 16px so iOS doesn't zoom in on it.
+    ...(offer
+      ? [el("label", { className: "check" }, networks, el("span", { className: "mark" }), el("span", { text: offer }))]
+      : []),
     lift,
   );
 }

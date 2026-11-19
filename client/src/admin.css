@@ -194,18 +194,44 @@ button.quiet {
   background: white;
 }
 
-/* "Also lift the bans on their networks", by Lift: the box and its words, big enough to tap. */
+/* "Also lift the bans on their networks", by Lift: the whole row is the checkbox, big enough to tap. */
 .check {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.5rem;
   min-height: 2.75rem;
+  cursor: pointer;
 }
 
 .check input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  /* Unseen, but iOS still zooms into a small one when it's tapped. */
+  font-size: 16px;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.check .mark {
   flex: none;
   width: 1.5rem;
   height: 1.5rem;
-  margin: 0;
-  accent-color: var(--accent);
+  box-sizing: border-box;
+  border: 2px solid var(--ink);
+  border-radius: 0.3rem;
+  background: white;
+}
+
+.check:has(input:checked) .mark {
+  background: var(--accent);
+  box-shadow: inset 0 0 0 3px white;
+}
+
+.check:has(input:focus-visible) {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
 }
