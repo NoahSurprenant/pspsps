@@ -12,7 +12,8 @@
     "@babylonjs/core": "^9.37.0",
     "@babylonjs/gui": "^9.37.0",
     "@babylonjs/loaders": "^9.37.0",
-    "@microsoft/signalr": "^11.0.0"
+    "@microsoft/signalr": "^11.0.0",
+    "web-vitals": "^6.2.3"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

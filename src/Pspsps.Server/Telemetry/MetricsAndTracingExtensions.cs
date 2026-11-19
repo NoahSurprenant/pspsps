@@ -19,6 +19,8 @@ public static class MetricsAndTracingExtensions
         "Microsoft.Orleans",
         // pspsps.*: players in worlds, active rooms, chat, hub calls.
         GameMetrics.MeterName,
+        // pspsps.browser.*: the browsers' Web Vitals, frame rate and long tasks.
+        Browser.BrowserMetrics.MeterName,
     ];
 
     /// <summary>
@@ -53,7 +55,9 @@ public static class MetricsAndTracingExtensions
             {
                 tracing
                     .SetSampler(new ParentBasedSampler(new BackgroundClientSpanSampler(RootSampleRatio(configuration))))
-                    .AddAspNetCoreInstrumentation(options => options.Filter = context => !healthPaths.IsHealthPath(context.Request.Path))
+                    // Not the health probes, nor the browsers' telemetry batches (every few seconds a tab).
+                    .AddAspNetCoreInstrumentation(options => options.Filter = context =>
+                        !healthPaths.IsHealthPath(context.Request.Path) && !Browser.ClientTelemetry.IsTelemetryPath(context.Request.Path))
                     // Discord and Google sign-in, and the Kubernetes API (cluster mode).
                     .AddHttpClientInstrumentation()
                     .AddNpgsql()

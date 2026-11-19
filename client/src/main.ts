@@ -1,3 +1,5 @@
+import { appLog, startTelemetry, telemetry } from "./telemetry";
+import { FpsSampler, watchBabylonLog, watchWebGlContext } from "./telemetry/performance";
 import { DoorWalks, doorAt } from "./doors";
 import { addressNote, linkUrl, loginUrl } from "./link";
 import { GameConnection, fetchMe, fetchProviders, messageOf, playAsGuest, signOut } from "./net";
@@ -22,6 +24,9 @@ import type {
   DoorView, HomeView, HomeVisitors, MutedView, OutfitView, Player, PlayerCard, PropView, RoomSnapshot, Shop,
 } from "./types";
 
+// First, so the errors of everything after are reported (when telemetry is on: docs/telemetry.md).
+startTelemetry();
+
 const overlay = new Overlay(required<HTMLElement>("#ui"));
 overlay.onFriends = () => void openFriends();
 // The 3D scene, made on the way into the first room: Babylon (most of the page's script) loads only then, so the
@@ -30,8 +35,23 @@ let scene: RoomScene | undefined;
 
 // A scene that failed to load (a dropped connection, a deploy that replaced the chunks) is tried again on the next room.
 const stage = lazily(async (): Promise<RoomScene> => {
-  const [{ Engine }, { RoomScene }] = await Promise.all([import("@babylonjs/core/Engines/engine"), import("./scene")]);
+  try {
+    return await makeStage();
+  } catch (error) {
+    appLog.error("The 3D scene didn't load", error);
+    throw error;
+  }
+});
+
+async function makeStage(): Promise<RoomScene> {
+  const [{ Engine }, { RoomScene }, { Logger }] = await Promise.all([
+    import("@babylonjs/core/Engines/engine"), import("./scene"), import("@babylonjs/core/Misc/logger"),
+  ]);
   const canvas = required<HTMLCanvasElement>("#game");
+  if (telemetry.enabled) {
+    watchBabylonLog(Logger, appLog);
+    watchWebGlContext(canvas, appLog);
+  }
   // Babylon makes the canvas a Tab stop (tabindex 1), again whenever the pointer moves over it; the room is played
   // with the pointer and the buttons, so it isn't a stop at all.
   const engine = new Engine(canvas, true, { stencil: true, canvasTabIndex: -1 });
@@ -44,6 +64,11 @@ const stage = lazily(async (): Promise<RoomScene> => {
     throw error;
   }
   window.addEventListener("resize", () => engine.resize());
+  if (telemetry.enabled) {
+    // The frame rate while a room shows, a median every few seconds.
+    const fps = new FpsSampler((value) => telemetry.vital("FPS", value), () => room !== undefined);
+    engine.onEndFrameObservable.add(() => fps.frame(performance.now()));
+  }
   made.onFloorClicked((x, z) => {
     if (!room) {
       return;
@@ -77,7 +102,7 @@ const stage = lazily(async (): Promise<RoomScene> => {
   made.onStandClicked(() => void readCatalogue());
   scene = made;
   return made;
-});
+}
 
 let room: Room | undefined;
 // The room the page showed last, for walking back in after a room lost while it shows none.
@@ -648,7 +673,7 @@ async function loadMutes(): Promise<void> {
   try {
     applyMutes(await connection.getMutes());
   } catch (error) {
-    console.warn("The muted players couldn't be read", error);
+    appLog.warn("The muted players couldn't be read", error);
   }
 }
 

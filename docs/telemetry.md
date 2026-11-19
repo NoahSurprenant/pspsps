@@ -47,6 +47,79 @@ The ASP.NET Core, HTTP client, runtime, process, Npgsql, EF Core, health check a
 | `pspsps.fish.caught` | Fish caught at a pond, by `world` and `fish` (`boot`, `minnow`, `goldfish`, `trout`, `catfish`, `koi`) |
 | `pspsps.hub.call.duration` | Hub method calls, by `method` and `outcome` (`ok`, `refused`, `error`) |
 
+## From the browser
+
+Off unless `ClientTelemetry:Enabled` (the chart's `telemetry.browser`). The players' browsers then send their errors,
+spans, connection log lines and performance numbers to `POST /api/client-telemetry`, which forwards the spans and logs
+to the collector as OTLP/JSON over HTTP (`ClientTelemetry:OtlpEndpoint`, the collector's OTLP/HTTP base, e.g.
+`http://otel-collector:4318`) and records the numbers as metrics. No OpenTelemetry SDK in the browser: a small batcher
+(`client/src/telemetry/`). The server side is `src/Pspsps.Server/Telemetry/Browser/`.
+
+| Setting | Meaning |
+| --- | --- |
+| `ClientTelemetry:Enabled` | On. Off (the default): the endpoint answers 404, which turns the browser's telemetry off for the page |
+| `ClientTelemetry:OtlpEndpoint` | The collector's OTLP/HTTP base; required when on (checked at startup) |
+| `ClientTelemetry:PermitsPerMinute` | Batches a minute per player (or per client address, signed out), per pod; default 60. A tab sends one every 5 s at most. The client address is the proxy's unless `ForwardedHeaders` is set (Behind a proxy, below): then every signed-out visitor shares one window |
+
+### On or off, without a request
+
+When it is on, the server marks the game's page with a `Server-Timing: pspsps-telemetry;desc="<ratio>"` header (any
+HTML response, and any answer to a page load). The browser reads it from the navigation's timing
+(`performance.getEntriesByType("navigation")[0].serverTiming`), so knowing costs no request. Without the mark the browser
+records and sends nothing, and adds no trace headers. It is also off whenever `navigator.webdriver` is set (the e2e tests,
+other automation) and under Lighthouse (`Chrome-Lighthouse` in the user agent), and for the rest of the page once the
+endpoint answers 404.
+
+### What the browser sends
+
+- **Errors**: uncaught errors and unhandled rejections; calls to the server that got no answer (not the browser's doing:
+  a page going away, hidden or offline doesn't count) or a 5xx; the 3D scene's chunks or the cat model failing to load;
+  Babylon's own errors and warnings; WebGL context lost (a warning) and restored (info). At most 10 error reports a page,
+  each once; the app's own log lines at most 50 of each level, each once.
+- **The hub connection**: up, dropped and reconnecting (warning), back, closed (info; a warning when it closed with an
+  error), taken over by another tab ("Joined from another tab"), and its calls: refused by the game (info, without the
+  server's message, which may name a player), cut off with the connection (warning), failed (error).
+- **Spans**: a client span for each call to the server over HTTP, and one for each hub call (`GameHub/<method>`).
+- **Numbers** (metrics, over the whole game, with no label a browser sets): `pspsps.browser.lcp`, `.inp`, `.fcp`, `.ttfb`
+  (seconds) and `.cls` (web-vitals, loaded only when on); `pspsps.browser.fps`, the median frame rate over ten seconds
+  while a room shows; `pspsps.browser.long_task.duration`, long tasks where the browser reports them (at most 30 a page).
+
+The admin page (`/admin`) sends only its uncaught errors: not its calls (their paths carry player and report IDs) nor
+its Web Vitals (a few admins' page loads would mix with the players').
+
+Spans and logs go under the game's resource (its `service.name` and environment) with `service.component=browser`, the
+browser's own build as `service.version` (the commit the client was built from, `SOURCE_REVISION`), and
+`user_agent.original`; never the pod's `service.instance.id`. Every span and line has `session.id`, a random ID for the
+page load, to read one page's together.
+
+Never sent: chat, display names, emails, tokens, player IDs. Hub calls' arguments are never recorded. URLs go as path and
+query with sensitive query values `REDACTED` (names matching
+`token|code|secret|passw|pwd|key|auth|session|sig|credential|cookie|email|user|state|nonce|otp|ticket|hash|jwt`, and
+`id`, SignalR's connection token), in messages and stacks too; the server redacts them again, keeps at most 32
+attributes of at most 1000 characters each, named like OpenTelemetry's, and none named `service.*`.
+
+The endpoint is anonymous but takes batches from the game's own pages only (`Sec-Fetch-Site`, else `Origin`), at most
+256 KiB, and refuses (400) anything the browser couldn't have sent: more than 100 spans, 100 logs or 20 numbers,
+malformed IDs, times outside 2001-2255; the browser keeps its batches under 200 KB. Batches are queued (at most 1000) for a background forwarder, which posts up to
+20 at a time (each under its own resource) in one request a signal, with a 5 s timeout, and warns of failures at most
+once a minute; the endpoint is left out of the server's traces, request log and HTTP metrics.
+
+### Hub calls, traced from the browser
+
+The browser puts each hub call's trace context in the call itself: SignalR's hub protocol has headers on every
+invocation message (the JavaScript client sets none of its own), and ASP.NET Core SignalR continues a `traceparent`
+found there in its hub method span (`Microsoft.AspNetCore.SignalR.Server`), through the grains it calls. The client
+wraps SignalR's JSON protocol (`TracingHubProtocol`) to add the header to the one invocation being written:
+`HubConnection.invoke` writes its message synchronously, so the header set around the call goes on that call and no
+other. Nothing changes on the server, the hub's arguments stay as they are, and a call made without telemetry carries
+no header and is traced as before.
+
+The browser samples hub calls itself, at the share in the page's mark (the server's `OTEL_TRACES_SAMPLER_ARG`): a call it
+keeps says `01`, one it doesn't `00`, and the server's parent-based sampler follows that, so a hub call is traced whole
+(browser and server) or not at all, as often as before. The browser's HTTP calls to the server are sampled the same way. Like any
+`traceparent` a client sends, a browser can ask for its calls to be traced; the rate limit and sampling at the share keep
+that to what an ordinary tab does.
+
 ## Health
 
 | Path | Runs | Used by |

@@ -44,3 +44,20 @@ seccompProfile:
 {{- define "pspsps.imageRef" -}}
 {{ .repository }}:{{ .tag }}
 {{- end -}}
+
+{{- /*
+The collector's OTLP/HTTP base for the browsers' telemetry: telemetry.browserOtlpEndpoint, else telemetry.endpoint as it
+is (http/protobuf) or with its gRPC port 4317 made 4318.
+*/ -}}
+{{- define "pspsps.browserOtlpEndpoint" -}}
+{{- $t := .Values.telemetry -}}
+{{- if $t.browserOtlpEndpoint -}}
+{{ $t.browserOtlpEndpoint }}
+{{- else if eq $t.protocol "http/protobuf" -}}
+{{ $t.endpoint }}
+{{- else if regexMatch ":4317/?$" $t.endpoint -}}
+{{ regexReplaceAll ":4317(/?)$" $t.endpoint ":4318${1}" }}
+{{- else -}}
+{{ fail "telemetry.browser with a gRPC endpoint not on port 4317: set telemetry.browserOtlpEndpoint to the collector's OTLP/HTTP address" }}
+{{- end -}}
+{{- end -}}

@@ -271,6 +271,16 @@ returns to `?link=failed` or `?signin=failed` instead of an error page, and logs
 The cookie is encrypted with ASP.NET Core Data Protection, whose keys are kept in PostgreSQL so every pod can read
 every cookie.
 
+## Telemetry
+
+The server exports its logs, metrics and traces over OTLP. The players' browsers can send theirs too, when the server
+turns it on: their errors, the hub connection's life, a span for each HTTP and hub call, Web Vitals and the frame rate
+in a room. They post batches to the server (`/api/client-telemetry`), which forwards them to the collector; nothing in
+the browser talks to the collector. A hub call's trace context goes in its SignalR invocation headers, so the server's
+hub span (and the grain calls under it) continues the browser's trace. The browser learns whether to send from a
+`Server-Timing` mark on the page, without a request, and never sends under automation. Details in
+[telemetry.md](telemetry.md).
+
 ## Database changes
 
 Change the model in the Domain and its mapping in `Infrastructure/Persistence/Configurations`, then add a migration:

@@ -58,6 +58,8 @@ jobs:
           --set ingressRoute.enabled=true --set ingressRoute.host=pspsps.example
           --set ingress.enabled=true --set ingress.host=pspsps.example > /dev/null
       - run: helm lint charts/pspsps --set backup.enabled=true
+      # Browser telemetry on, to the server's collector.
+      - run: helm lint charts/pspsps --set telemetry.endpoint=http://otel-collector:4317 --set telemetry.browser=true
       - run: >-
           helm template pspsps charts/pspsps --set backup.enabled=true --set backup.persistence.existingClaim=dumps
           --set backup.timeZone=Etc/UTC > /dev/null
@@ -114,6 +116,7 @@ jobs:
               -e ChatFilter__Lists__0__Action=Mask -e ChatFilter__Lists__0__Words__0=darn \
               -e ChatFilter__Lists__0__Words__1=heck \
               -e ChatFilter__Lists__1__Action=Refuse -e ChatFilter__Lists__1__Words__0=woof \
+              -e ClientTelemetry__Enabled=true -e ClientTelemetry__OtlpEndpoint=http://localhost:4318 \
               "$@" pspsps:e2e
             timeout 120 bash -c 'until curl -fs http://localhost:8080/health/ready > /dev/null; do sleep 2; done'
           }

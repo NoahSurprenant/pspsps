@@ -36,6 +36,13 @@ telemetry:
   environment: prod
   # Share of root spans kept (every hub call is a root); calls inside a kept trace are always kept.
   sampleRatio: "0.1"
+  # The players' browsers too: their errors, HTTP and hub call spans (which the server's spans continue), connection
+  # log lines and performance numbers, posted to the server and forwarded to the collector as OTLP/JSON over HTTP.
+  # Needs endpoint. docs/telemetry.md, "From the browser".
+  browser: false
+  # The collector's OTLP/HTTP base for the browsers' telemetry. Empty: endpoint, with port 4317 made 4318 when the
+  # protocol is grpc (the same collector's HTTP port, which networkPolicy.telemetryTo opens too).
+  browserOtlpEndpoint: ""
 
 # Who may set the client address and scheme through X-Forwarded-* (or the header named below): the proxy in front,
 # as CIDRs. Empty: nobody, so the app sees the proxy as the client and http as the scheme.

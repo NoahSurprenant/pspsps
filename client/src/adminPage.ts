@@ -4,6 +4,12 @@ import {
   type AdminOverview, type OpenReport, type SanctionedPlayer,
 } from "./admin";
 import { maxReasonLength } from "./moderation";
+import { startTelemetry } from "./telemetry/core";
+
+// Its uncaught errors go to the browser's telemetry, when on. Not its calls' spans or failures: their paths carry player
+// and report IDs (/api/admin/players/<id>/...), which telemetry never sends, and a refusal says so on the page. Nor its
+// Web Vitals: a few admins' page loads would mix with the players'.
+startTelemetry({ performance: false });
 
 // The admin page (/admin): the open reports, oldest first, each with its chat and what to do about it; who is banned or
 // muted now, each with Lift; and what admins did lately. Plain HTML, read from

@@ -4,7 +4,9 @@ WORKDIR /client
 COPY client/package.json client/package-lock.json ./
 RUN npm ci
 COPY client/ ./
-RUN npm run build
+# The commit, for service.version on the browser's telemetry (passed by the publish workflow; empty locally).
+ARG SOURCE_REVISION=""
+RUN SOURCE_REVISION=$SOURCE_REVISION npm run build
 
 # The server.
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS server

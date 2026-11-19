@@ -27,6 +27,7 @@ import { cameraPitch, cameraRadius, fieldOfView } from "./view";
 import { animationFor, Cat, facing, loadCatModel, MeowClip, type CatAnimation, type Outfit } from "./cat";
 import { hasDoorway } from "./doors";
 import { lazily } from "./lazy";
+import { appLog } from "./telemetry";
 import { lookOf } from "./looks";
 import {
   floorPixelsPerMetre, powerOfTwo, streetTile, textureSize, wallPixelsPerMetre, type Brush, type Floorplan,
@@ -192,7 +193,7 @@ export class RoomScene {
         // The room still works without its cats drawn: their names and bubbles show. A room already left doesn't
         // matter (reading into a scene that's gone fails).
         if (!scene.isDisposed) {
-          console.error("The cat model didn't load", error);
+          appLog.error("The cat model didn't load", error);
         }
         return undefined;
       });

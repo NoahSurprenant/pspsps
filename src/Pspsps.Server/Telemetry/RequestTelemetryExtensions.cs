@@ -62,12 +62,15 @@ public static class RequestTelemetryExtensions
         options.EnrichDiagnosticContext = EnrichDiagnosticContext;
     }
 
-    /// <summary>Errors for 5xx and exceptions, Verbose (dropped) for health probes, Information otherwise.</summary>
+    /// <summary>
+    /// Errors for 5xx and exceptions, Verbose (dropped) for health probes and the browsers' telemetry batches (every few
+    /// seconds a tab), Information otherwise.
+    /// </summary>
     public static LogEventLevel GetLevel(HttpContext context, double elapsedMilliseconds, Exception? exception)
     {
         if (exception is not null || context.Response.StatusCode >= StatusCodes.Status500InternalServerError)
             return LogEventLevel.Error;
-        if (HealthCheckExtensions.IsHealthPath(context))
+        if (HealthCheckExtensions.IsHealthPath(context) || Browser.ClientTelemetry.IsTelemetryPath(context.Request.Path))
             return LogEventLevel.Verbose;
         return LogEventLevel.Information;
     }
