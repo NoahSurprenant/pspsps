@@ -205,6 +205,44 @@ public sealed class HomesTests
     }
 
     [Test]
+    public async Task ACatSentOut_IntoAFullTownSquare_LandsInTheNextRoomWithSpace_AndWithEveryRoomFull_GoesHome()
+    {
+        var (tom, tomHub) = await Game.ConnectGuestAsync();
+        var (felix, felixHub) = await Game.ConnectGuestAsync();
+        await using var _ = tomHub;
+        await using var __ = felixHub;
+        await tomHub.InvokeAsync<RoomSnapshot>("EnterWorld", "siamese");
+        await tomHub.InvokeAsync<HomeView>("LetIntoHome", "Anyone");
+        await felixHub.InvokeAsync<RoomSnapshot>("EnterWorld", "tabby");
+        await felixHub.InvokeAsync<RoomSnapshot>("VisitHome", tom.Id);
+        var felixOut = SentOut(felixHub, tom.Id);
+        await using var crowd = new Crowd(Game.Services.GetRequiredService<IGrainFactory>());
+
+        // Tom closes his home with Felix in it while Tabby's Town Square is full: Felix's tab goes to Town Square, which
+        // refuses him, and Tom's home won't have him back. He lands in the café, and is told why.
+        await crowd.FillAsync(RoomKey.For("tabby", "town-square"), RoomCatalog.Default.Capacity);
+        await tomHub.InvokeAsync<HomeView>("LetIntoHome", "Nobody");
+        await felixOut.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        var landed = await felixHub.InvokeAsync<RoomSnapshot>("GoToRoom", "town-square");
+
+        Assert.That((landed.WorldId, landed.RoomId), Is.EqualTo(("tabby", "cafe")));
+        Assert.That(landed.Notice, Is.EqualTo("Town Square is full. You went to Cat Café instead."));
+        Assert.That(landed.Cats.Select(c => c.PlayerId), Does.Contain(felix.Id));
+
+        // Every room of the world full, his own home too: coming back into the world, he still gets into his home, which
+        // always has room for him.
+        await felixHub.InvokeAsync<RoomSnapshot>("EnterWorld", "calico");
+        await crowd.FillAsync(RoomKey.For("tabby", "cafe"), RoomCatalog.Find("cafe")!.Capacity);
+        await crowd.FillAsync(RoomKey.For("tabby", RoomCatalog.ShopId), RoomCatalog.Find(RoomCatalog.ShopId)!.Capacity);
+        await crowd.FillAsync(RoomKey.ForHome(felix.Id), Home.Layout.Capacity);
+        var home = await felixHub.InvokeAsync<RoomSnapshot>("EnterWorld", "tabby");
+
+        Assert.That((home.WorldId, home.Home?.OwnerId), Is.EqualTo(("tabby", (Guid?)felix.Id)));
+        Assert.That(home.Notice, Is.EqualTo("Town Square is full. You went home instead."));
+        Assert.That(home.Cats.Select(c => c.PlayerId), Does.Contain(felix.Id));
+    }
+
+    [Test]
     public async Task AVisitor_SeesTheOwnersChanges_AndLeavesByTheDoor_ToTheirTownSquare()
     {
         var (tom, tomHub) = await Game.ConnectGuestAsync();
@@ -322,6 +360,32 @@ public sealed class HomesTests
             }
         });
         return sent;
+    }
+
+    // Cats with no player behind them, put straight into rooms to fill them; taken out again when disposed, so the shared
+    // server's rooms are as they were for the next test.
+    private sealed class Crowd(IGrainFactory grains) : IAsyncDisposable
+    {
+        private readonly List<(IRoomGrain Room, Guid Cat)> _cats = [];
+
+        public async Task FillAsync(string roomKey, int capacity)
+        {
+            var room = grains.GetGrain<IRoomGrain>(roomKey);
+            for (var here = (await room.CatsHere()).Count; here < capacity; here++)
+            {
+                var cat = Guid.NewGuid();
+                await room.Join(new PlayerCard(cat, "Crowd", "Grey"), $"crowd-{cat}", null);
+                _cats.Add((room, cat));
+            }
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            foreach (var (room, cat) in _cats)
+            {
+                await room.Leave(cat, $"crowd-{cat}");
+            }
+        }
     }
 
     private static async Task<Guid> NewPlayerAsync() =>

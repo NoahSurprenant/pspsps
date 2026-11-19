@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { comeBack, walkBackIn } from "./rejoin";
+import { comeBack, landingNotice, saysSentOutAgain, walkBackIn } from "./rejoin";
 
 describe("walkBackIn", () => {
   function recorder(arrivesIn: string | undefined) {
@@ -79,5 +79,34 @@ describe("comeBack", () => {
     );
 
     expect(calls).toEqual(["enter tabby", "goTo cafe"]);
+  });
+});
+
+describe("landingNotice", () => {
+  it("says why the cat is where it landed, when it isn't where it was going", () => {
+    expect(landingNotice({ notice: "Town Square is full. You went to Cat Café instead." }))
+      .toBe("Town Square is full. You went to Cat Café instead.");
+  });
+
+  it("says nothing for a room the cat was going to, or from an older server", () => {
+    expect(landingNotice({ notice: null })).toBeUndefined();
+    expect(landingNotice({})).toBeUndefined();
+  });
+});
+
+describe("saysSentOutAgain", () => {
+  const home = { ownerId: "me", ownerName: "Me", visitors: "Friends" as const, furniture: [], version: 0 };
+
+  it("says it again in Town Square, where the message said the cat went", () => {
+    expect(saysSentOutAgain({ home: null, notice: null })).toBe(true);
+  });
+
+  it("doesn't when the cat landed somewhere else, and was told where and why", () => {
+    expect(saysSentOutAgain({ home: null, notice: "Town Square is full. You went to Cat Café instead." })).toBe(false);
+    expect(saysSentOutAgain({ home, notice: "Town Square is full. You went home instead." })).toBe(false);
+  });
+
+  it("doesn't when no room shows (the walk failed, and said why)", () => {
+    expect(saysSentOutAgain(undefined)).toBe(false);
   });
 });

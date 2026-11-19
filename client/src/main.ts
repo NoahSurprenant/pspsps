@@ -5,7 +5,7 @@ import { addressNote, linkUrl, loginUrl } from "./link";
 import { GameConnection, fetchMe, fetchProviders, messageOf, playAsGuest, signOut } from "./net";
 import { lazily } from "./lazy";
 import { loadRoom, PendingEvents } from "./pending";
-import { comeBack } from "./rejoin";
+import { comeBack, landingNotice, saysSentOutAgain } from "./rejoin";
 import { catchBubble, FishingState, gotAwayMessage, paid, pondEdge, reelMessage, type Fishing } from "./fishing";
 import { Room } from "./room";
 import type { CatAnimation } from "./cat";
@@ -497,8 +497,9 @@ function leaveHomeIfSentOut(): void {
   if (room?.snapshot.home?.ownerId === out.ownerId) {
     pick(async () => {
       await goTo("town-square");
-      // Said again once out; a walk that failed has said why instead.
-      if (room && !room.snapshot.home) {
+      // Said again once out in Town Square; a cat that landed elsewhere was told where and why, and a walk that failed
+      // has said why instead.
+      if (saysSentOutAgain(room?.snapshot)) {
         overlay.toast(out.message);
       }
     });
@@ -543,8 +544,13 @@ async function enter(worldId: string): Promise<void> {
   await load(() => connection.enterWorld(worldId));
 }
 
+/**
+ * Goes to a room of the world. Refused, the server keeps the cat in the room it was in (the one showing: after walking
+ * back into a world, the room it landed in), or lands it in the next place on its way out, which shows instead.
+ */
 async function goTo(roomId: string): Promise<void> {
-  await load(() => connection.goToRoom(roomId));
+  const stay = room;
+  await load(() => connection.goToRoom(roomId), stay);
 }
 
 /**
@@ -559,10 +565,15 @@ async function load(request: () => Promise<RoomSnapshot>, stay?: Room): Promise<
   try {
     // The 3D scene before the room (the first room loads it): had it failed after, the server would have the cat in a
     // room the page can't show.
-    await loadRoom(loading, async () => {
+    const shown = await loadRoom(loading, async () => {
       const view = await stage();
       return show(await request(), view);
     }, stay);
+    // Not where it was going (that room was full): where it landed instead, and why.
+    const notice = landingNotice(shown.snapshot);
+    if (notice) {
+      overlay.toast(notice);
+    }
   } catch (error) {
     // Still in `stay` if the server kept the cat there (a door that refused it, a Go to that couldn't); in no room
     // otherwise.

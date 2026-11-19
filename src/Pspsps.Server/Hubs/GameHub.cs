@@ -98,7 +98,21 @@ public sealed partial class GameHub(
         }
 
         metrics.EnteredWorld(world.Id);
-        return await JoinRoom(world.Id, RoomKey.For(world.Id, RoomCatalog.Default.Id), throughDoor: null);
+        var townSquare = RoomKey.For(world.Id, RoomCatalog.Default.Id);
+        try
+        {
+            return await JoinRoom(world.Id, townSquare, throughDoor: null);
+        }
+        catch (Exception e) when (e is not OperationCanceledException && !heartbeat.IsClosed(Context.ConnectionId))
+        {
+            // Town Square is full (or couldn't answer): the next place in the world with room, not no room.
+            if (await GoSomewhere(new ConnectionPlace(PlayerId, world.Id, null), townSquare, e) is { } landed)
+            {
+                return landed;
+            }
+
+            throw;
+        }
     }
 
     public async Task<RoomSnapshot> GoToRoom(string roomId)
@@ -140,7 +154,8 @@ public sealed partial class GameHub(
         }
 
         var snapshot = await MoveInto(place, key);
-        if (ownerId == PlayerId)
+        // Home, or not let in and landed somewhere else on the way out (the snapshot says why): nothing to check again.
+        if (ownerId == PlayerId || snapshot.Home?.OwnerId != ownerId)
         {
             return snapshot;
         }
@@ -153,57 +168,84 @@ public sealed partial class GameHub(
         }
         catch (DomainException e)
         {
-            await BackOut(place, key);
-            throw new HubException(e.Message);
+            var refused = new HubException(e.Message);
+            if (await BackOut(place, key, refused) is { } landed)
+            {
+                return landed;
+            }
+
+            throw refused;
         }
-        catch
+        catch (Exception e)
         {
             // Couldn't be checked: not let in, rather than in a home the browser doesn't know it is in.
-            await BackOut(place, key);
+            if (await BackOut(place, key, e) is { } landed)
+            {
+                return landed;
+            }
+
             throw;
         }
 
         return snapshot;
     }
 
-    // Takes the cat out of the home <key> it may not stay in, back into the room it came from (if any).
-    private async Task BackOut(ConnectionPlace from, string key)
+    // Takes the cat out of the home <key> it may not stay in (<reason>): back into the room it came from (null: the browser
+    // still shows it), or somewhere else on its way out (that place's snapshot, saying why).
+    private async Task<RoomSnapshot?> BackOut(ConnectionPlace from, string key, Exception reason)
     {
         var now = Here;
         if (now?.RoomKey != key || !MoveTo(now with { RoomKey = null }))
         {
-            return;
+            return null;
         }
 
         await LeaveRoom(key);
-        await GoBackInto(from);
+        return await GoSomewhere(from, key, reason);
     }
 
-    // Back into the room <from> the cat just left (its spawn point), when a move on failed. Never straight back into
-    // another player's home, which may not let it in any more, and never left in no room: when it can't go back, the
-    // connection keeps the room it left as its place, whose next renewal finds the cat gone and sends RoomLost, and the
-    // browser walks back in by the way it always does (a home through its own checks, or to Town Square).
-    private async Task GoBackInto(ConnectionPlace from, string? throughDoor = null)
+    // Somewhere to be, for a cat coming from <from> that the room <refused> didn't take (<reason>): the first place on its
+    // way out that takes it (the Domain's WayOut: back into the room it left, unless that's another player's home, which
+    // may no longer let it in; then the world's rooms; then its own home, which always has room for its owner). Null when
+    // that is the room it left (by the door <throughDoor> it went out of): the browser still shows it, and says why the
+    // cat stayed. Otherwise the snapshot of where it landed, saying why it is there. Never in no room: when nothing
+    // answers, the connection keeps the room it left as its place, whose next renewal finds the cat gone and sends
+    // RoomLost, and the browser comes back in by the way it always does.
+    private async Task<RoomSnapshot?> GoSomewhere(
+        ConnectionPlace from, string refused, Exception reason, string? throughDoor = null)
     {
-        if (from.RoomKey is not { } was || heartbeat.IsClosed(Context.ConnectionId))
+        if (heartbeat.IsClosed(Context.ConnectionId))
         {
-            return;
+            return null;
         }
 
-        try
+        var cameFrom = from.RoomKey is { } was ? RoomKey.WhereaboutsOf(was) : null;
+        foreach (var place in WayOut.For(PlayerId, cameFrom, RoomKey.WhereaboutsOf(refused)))
         {
-            if (RoomKey.HomeOwner(was) is not { } owner || owner == PlayerId)
+            var key = RoomKey.For(from.WorldId, place);
+            var back = place == cameFrom;
+            try
             {
-                await JoinRoom(from.WorldId, was, throughDoor);
-                return;
+                var snapshot = await JoinRoom(from.WorldId, key, back ? throughDoor : null);
+                return back ? null : snapshot with { Notice = Landed(reason, snapshot) };
             }
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            LogNotBackIn(logger, e, PlayerId, was);
+            catch (Exception e) when (e is not OperationCanceledException && !heartbeat.IsClosed(Context.ConnectionId))
+            {
+                LogNotLandedIn(logger, e, PlayerId, key);
+            }
         }
 
         MoveTo(from);
+        return null;
+    }
+
+    // What a cat that landed in <landed> is told: why it isn't where it was going (a rule's own words; any other failure,
+    // plainly), and where it went instead.
+    private string Landed(Exception reason, RoomSnapshot landed)
+    {
+        var why = reason is HubException or GameRuleException ? reason.Message : "That room couldn't be opened just now.";
+        var where = landed.Home?.OwnerId == PlayerId ? "home" : $"to {landed.RoomName}";
+        return $"{why} You went {where} instead.";
     }
 
     /// <summary>Puts out a piece of the player's furniture in their home, at (x, z) or, with no spot, wherever it fits.</summary>
@@ -220,7 +262,8 @@ public sealed partial class GameHub(
 
     /// <summary>
     /// Changes who may visit the player's home ("Friends", "Anyone" or "Nobody"). Cats in it who no longer may (the home's
-    /// rule) are sent out, back to their own world's Town Square, and told why.
+    /// rule) are sent out, and told why: their tab takes them to Town Square in their own world (or, when it is full, the
+    /// next place on their way out: WayOut).
     /// </summary>
     public async Task<HomeView> LetIntoHome(string visitors)
     {
@@ -257,9 +300,13 @@ public sealed partial class GameHub(
         }
         catch (Exception e) when (e is not OperationCanceledException && !heartbeat.IsClosed(Context.ConnectionId))
         {
-            // The room is full, its owner doesn't let the cat in, or it couldn't be opened: back into the room it left, or
-            // (see GoBackInto) left for the renewal to walk the tab back in; and told why.
-            await GoBackInto(place);
+            // The room is full, its owner doesn't let the cat in, or it couldn't be opened: back into the room it left, and
+            // told why; or, when it can't go back, into the next place on its way out (GoSomewhere).
+            if (await GoSomewhere(place, key, e) is { } landed)
+            {
+                return landed;
+            }
+
             throw;
         }
     }
@@ -374,16 +421,22 @@ public sealed partial class GameHub(
             throw;
         }
 
+        // A home's door leads to a room of the world the cat came from.
+        var next = RoomKey.For(place.WorldId, target.RoomId);
         try
         {
-            // A home's door leads to a room of the world the cat came from.
-            return await JoinRoom(place.WorldId, RoomKey.For(place.WorldId, target.RoomId), target.DoorId);
+            return await JoinRoom(place.WorldId, next, target.DoorId);
         }
         catch (Exception e) when (e is not OperationCanceledException && !heartbeat.IsClosed(Context.ConnectionId))
         {
             // The room past the door is full (or couldn't answer): the cat comes back in by the door it went through, and
-            // is told why; but not straight back into another player's home, which may not let it in any more (GoBackInto).
-            await GoBackInto(place, doorId);
+            // is told why; but not straight back into another player's home, which may not let it in any more: then into
+            // the next place on its way out (GoSomewhere).
+            if (await GoSomewhere(place, next, e, doorId) is { } landed)
+            {
+                return landed;
+            }
+
             throw;
         }
     }
@@ -981,8 +1034,8 @@ public sealed partial class GameHub(
     [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't show the room {RoomKey} what player {PlayerId} put on; it shows on their next arrival")]
     private static partial void LogDressNotShown(ILogger logger, Exception exception, Guid playerId, string roomKey);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Player {PlayerId} couldn't go back into {RoomKey}; the next renewal walks them back in")]
-    private static partial void LogNotBackIn(ILogger logger, Exception exception, Guid playerId, string roomKey);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Player {PlayerId} couldn't go into {RoomKey} on their way out; trying the next place")]
+    private static partial void LogNotLandedIn(ILogger logger, Exception exception, Guid playerId, string roomKey);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't send an ex-friend out of the home of player {PlayerId}; they stay until they leave")]
     private static partial void LogSendOutFailed(ILogger logger, Exception exception, Guid playerId);

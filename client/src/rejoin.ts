@@ -1,3 +1,5 @@
+import type { RoomSnapshot } from "./types";
+
 /** Where a tab was: a world and one of its rooms. */
 export interface Whereabouts {
   worldId: string;
@@ -36,4 +38,18 @@ export async function comeBack(
     return;
   }
   await walkBackIn(where, enter, goTo);
+}
+
+/** What a room that has just shown says: why the cat is there, when it isn't where it was going (the server's notice). */
+export function landingNotice(shown: Pick<RoomSnapshot, "notice">): string | undefined {
+  return shown.notice ?? undefined;
+}
+
+/**
+ * Whether the tab says again why its cat was sent out of a home, once out: only when it went where the message said (Town
+ * Square). A cat that landed somewhere else (Town Square full) has been told where and why instead; one that went home
+ * needs no repeat; and a walk that failed has said why.
+ */
+export function saysSentOutAgain(shown: Pick<RoomSnapshot, "home" | "notice"> | undefined): boolean {
+  return shown !== undefined && !shown.home && !shown.notice;
 }
