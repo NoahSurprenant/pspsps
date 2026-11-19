@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using Pspsps.Application.Moderation;
@@ -76,6 +77,35 @@ public sealed class ModerationSignalTests
         var tab = Tab("felix-tab", Felix);
 
         await new LocalModerationSignal(_pod).SendAsync(Felix, close: true);
+        _time.Advance(ModerationOnThisPod.CloseAfter);
+
+        tab.Received(1).Abort();
+    }
+
+    [Test]
+    public async Task ARedisSignal_AppliesLocally_WithoutWaitingForItsOwnMessageBack()
+    {
+        // No Redis to connect to: the publish fails, and the banning pod must still close its own connections right
+        // away, rather than only if its own pub/sub message happens to come back to it.
+        var tab = Tab("felix-tab", Felix);
+        var signal = new RedisModerationSignal("localhost:0", _pod, NullLogger<RedisModerationSignal>.Instance);
+
+        await signal.SendAsync(Felix, close: true);
+        _time.Advance(ModerationOnThisPod.CloseAfter);
+
+        tab.Received(1).Abort();
+    }
+
+    [Test]
+    public async Task ARedisSignal_IgnoresItsOwnMessageComingBack_SoItIsntAppliedTwice()
+    {
+        var tab = Tab("felix-tab", Felix);
+        var signal = new RedisModerationSignal("localhost:0", _pod, NullLogger<RedisModerationSignal>.Instance);
+
+        await signal.SendAsync(Felix, close: true);
+        // What would come back over the subscription had Redis been reachable: ignored, since this pod already applied
+        // it when it sent it. Applying it again would start a second close timer.
+        signal.Receive(new ModerationMessage(signal.SelfId, Felix, Close: true).Format());
         _time.Advance(ModerationOnThisPod.CloseAfter);
 
         tab.Received(1).Abort();

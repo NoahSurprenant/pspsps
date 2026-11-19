@@ -72,6 +72,8 @@ public static class OrleansSetup
     public static void ConfigureVersioning(GrainVersioningOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
+        // Already GrainVersioningOptions' own defaults: set here on purpose, so an Orleans upgrade that ever changes
+        // its default doesn't quietly change how a rolling update of this server mixes grain interface versions.
         options.DefaultCompatibilityStrategy = nameof(BackwardCompatible);
         options.DefaultVersionSelectorStrategy = nameof(AllCompatibleVersions);
     }

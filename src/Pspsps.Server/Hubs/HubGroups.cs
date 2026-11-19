@@ -19,14 +19,25 @@ internal static class HubGroups
     public static async Task<bool> RemoveAsync(
         IHubContext<GameHub, IGameClient> hub, string connectionId, string group, TimeProvider time)
     {
+        var removing = hub.Groups.RemoveFromGroupAsync(connectionId, group);
         try
         {
-            await hub.Groups.RemoveFromGroupAsync(connectionId, group).WaitAsync(Wait, time);
+            await removing.WaitAsync(Wait, time);
             return true;
         }
         catch (TimeoutException)
         {
+            // WaitAsync gives up on removing, not removing itself: it keeps running (SignalR's backplane ack can take
+            // up to 30 seconds), and nothing else here ever awaits it. Observed so a later fault doesn't surface as an
+            // unobserved task exception; harmless either way, as above.
+            Observe(removing);
             return false;
         }
     }
+
+    private static void Observe(Task task) => task.ContinueWith(
+        static t => _ = t.Exception,
+        CancellationToken.None,
+        TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+        TaskScheduler.Default);
 }

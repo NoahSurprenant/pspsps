@@ -117,9 +117,13 @@ internal sealed partial class RedisModerationSignal(
 {
     public static readonly RedisChannel Channel = RedisChannel.Literal("pspsps:moderation");
 
-    // Which pod sent a message: its own come back to it, and are applied as decided here.
+    // Which pod sent a message: applied here already, right after SendAsync publishes it, so its own coming back
+    // through the subscription (Receive) is ignored instead of applied a second time.
     private readonly string _self = Guid.NewGuid().ToString("N");
     private ConnectionMultiplexer? _redis;
+
+    /// <summary>This pod's sender id, for tests: what a message this pod sent carries, so a test can address one back to it.</summary>
+    internal string SelfId => _self;
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
@@ -144,8 +148,13 @@ internal sealed partial class RedisModerationSignal(
         catch (Exception e) when (e is not OperationCanceledException)
         {
             LogNotSent(logger, e, playerId);
-            pod.Apply(playerId, close, decidedHere: true);
         }
+
+        // Applied here regardless of whether the publish reached Redis, not waited for the pod's own message to come
+        // back through its subscription (Receive ignores it: see _self above). Waiting on that round trip was the only
+        // way a banning pod closed a banned player's own connections it holds, so a slow or unreachable Redis delayed
+        // or dropped that close.
+        pod.Apply(playerId, close, decidedHere: true);
     }
 
     public async ValueTask DisposeAsync()
@@ -156,7 +165,11 @@ internal sealed partial class RedisModerationSignal(
         }
     }
 
-    private void Receive(RedisValue value)
+    /// <summary>
+    /// A message off the subscription: applied here, unless this pod sent it (<see cref="SendAsync"/> already applied
+    /// it, right after publishing, without waiting for this).
+    /// </summary>
+    internal void Receive(RedisValue value)
     {
         if (ModerationMessage.Parse(value) is not { } message)
         {
@@ -164,7 +177,12 @@ internal sealed partial class RedisModerationSignal(
             return;
         }
 
-        pod.Apply(message.PlayerId, message.Close, decidedHere: message.Sender == _self);
+        if (message.Sender == _self)
+        {
+            return;
+        }
+
+        pod.Apply(message.PlayerId, message.Close, decidedHere: false);
     }
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't tell the other pods that player {PlayerId}'s standing changed; they read it again within the standing cache's time")]
