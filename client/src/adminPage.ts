@@ -1,7 +1,7 @@
 import { el } from "./dom";
 import {
-  decidedMessage, decisionChoices, decisionRequest, liftLabel, logLine, reportFacts, reportHeading, sanctionLine, when,
-  type AdminOverview, type OpenReport, type SanctionedPlayer,
+  decidedMessage, decisionChoices, decisionRequest, liftLabel, logLine, networkBanLine, reportFacts, reportHeading,
+  sanctionLine, when, type AdminOverview, type NetworkBan, type OpenReport, type SanctionedPlayer,
 } from "./admin";
 import { maxReasonLength } from "./moderation";
 import { startTelemetry } from "./telemetry/core";
@@ -61,13 +61,19 @@ function show(overview: AdminOverview): void {
       overview.sanctioned.length === 0
         ? el("p", { text: "Nobody is banned or muted." })
         : el("ul", { className: "list" }, ...overview.sanctioned.map(sanctioned))),
+    // Shown only with some: most servers never ban a network.
+    ...(overview.networkBans.length === 0 ? [] : [section("networks", "Banned networks",
+      el("p", { className: "quiet", text: "By a label from a keyed hash: the server never keeps addresses." }),
+      el("ul", { className: "list" }, ...overview.networkBans.map(networkBan)))]),
     section("recent", "What admins did lately",
       overview.recent.length === 0
         ? el("p", { text: "Nothing yet." })
         : el("ol", { className: "list log" }, ...overview.recent.map((line) => el("li", { text: logLine(line) })))),
   );
   // Back where it was; or, when that went (a report decided, a ban lifted), at the top of its list.
-  const list = /^(act|dismiss|reason|decision)-/.test(active) ? "reports-title" : "sanctioned-title";
+  const list = /^(act|dismiss|reason|decision)-/.test(active)
+    ? "reports-title"
+    : active.startsWith("lift-network-") && document.getElementById("networks-title") ? "networks-title" : "sanctioned-title";
   (document.getElementById(active) ?? (active ? document.getElementById(list) : null))?.focus();
 }
 
@@ -168,6 +174,26 @@ function sanctioned(player: SanctionedPlayer): HTMLElement {
     el("p", { className: "id" }, el("span", { text: "Player ID " }), el("code", { text: player.playerId })),
     lift,
   );
+}
+
+function networkBan(ban: NetworkBan): HTMLElement {
+  const lift = el("button", { text: "Lift", id: `lift-network-${ban.label}` });
+  lift.type = "button";
+  lift.setAttribute("aria-label", `Lift the ban on ${ban.playerName}'s network ${ban.label}`);
+  lift.addEventListener("click", () => void liftNetwork(ban, lift));
+  return el("li", { className: "player" }, el("p", { text: networkBanLine(ban) }), lift);
+}
+
+async function liftNetwork(ban: NetworkBan, button: HTMLButtonElement): Promise<void> {
+  button.disabled = true;
+  try {
+    await post(`/api/admin/networks/${encodeURIComponent(ban.key)}/lift`, {});
+    say(`${ban.playerName}'s network ${ban.label} can play again.`);
+  } catch (error) {
+    say(error instanceof Error ? error.message : String(error));
+    button.disabled = false;
+  }
+  await load();
 }
 
 async function liftFor(player: SanctionedPlayer, button: HTMLButtonElement): Promise<void> {

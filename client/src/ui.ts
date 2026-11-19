@@ -5,7 +5,8 @@ import { canGoTo, friendButtons, friendStatus, sections, whereIs, type FriendAct
 import { coatOf } from "./fur";
 import { visitorChoices, type FurnitureLeft } from "./home";
 import {
-  banLengths, bannedLines, canLift, maxReasonLength, mutedNote, muteLengths, requestFor, standingLines,
+  banLengths, bannedLines, bannedNetworks, canLift, maxReasonLength, mutedNote, muteLengths, networkLengths, networkLine,
+  requestFor, standingLines,
   type CardModeration, type LengthChoice, type ModerationAction, type ModerationRequest, type Sanction,
 } from "./moderation";
 import {
@@ -911,12 +912,29 @@ function moderateSection(
   const label = el("label", { text: "Why (they're shown this)" });
   label.htmlFor = reason.id;
 
+  const networks = networkChoices(moderation, before);
+  const liftNetworks = el("input", { id: "lift-networks" });
+  liftNetworks.type = "checkbox";
+  liftNetworks.checked = before?.querySelector<HTMLInputElement>("#lift-networks")?.checked ?? true;
+  const liftCat = moderation.ban !== null || moderation.mute !== null;
+
   const act = (action: ModerationAction, length?: string) => {
     const request = requestFor(action, reason.value, length);
     if (typeof request === "string") {
       say(request);
       reason.focus();
       return;
+    }
+    if (action === "ban" && networks) {
+      const checked = networks.boxes.filter((box) => box.checked).map((box) => box.value);
+      if (checked.length > 0) {
+        request.networks = checked;
+        request.networkLength = networks.length.value;
+      }
+    }
+    if (action === "lift") {
+      request.liftCat = liftCat;
+      request.liftNetworks = bannedNetworks(moderation) > 0 && (!liftCat || liftNetworks.checked);
     }
     moderate(request);
   };
@@ -950,10 +968,52 @@ function moderateSection(
     el("div", { className: "moderate-row" }, labelled("Warn", () => act("warn"))),
     lengthRow("mute", "Mute", muteLengths),
     lengthRow("ban", "Ban", banLengths),
+    ...(networks ? [networks.part] : []),
     ...(canLift(moderation) ? [el("div", { className: "moderate-row" }, labelled("Lift", () => act("lift"), "primary"))] : []),
+    // Lifting the cat's ban offers to lift its networks' too (only theirs to lift: no choice).
+    ...(liftCat && bannedNetworks(moderation) > 0 ? [choice(liftNetworks, "Also lift its networks' bans")] : []),
   );
   return section;
 }
+
+/**
+ * The networks the cat played from lately, on an admin's Moderate: each a box to check, with how many cats were on it this
+ * week (a shared one catches others too) and its ban; the checked ones are banned with the cat, for a day or a week. None
+ * seen (or network bans off): nothing.
+ */
+function networkChoices(
+  moderation: CardModeration, before?: HTMLDetailsElement,
+): { part: HTMLElement; boxes: HTMLInputElement[]; length: HTMLSelectElement } | undefined {
+  const networks = moderation.networks ?? [];
+  if (networks.length === 0) {
+    return undefined;
+  }
+  const rows: HTMLElement[] = [];
+  const boxes = networks.map((network) => {
+    const box = el("input", { id: `network-${network.label}` });
+    box.type = "checkbox";
+    box.value = network.key;
+    box.checked = before?.querySelector<HTMLInputElement>(`#${box.id}`)?.checked ?? false;
+    rows.push(choice(box, networkLine(network)));
+    return box;
+  });
+  const length = el("select", { id: "network-length" });
+  for (const { value, label } of networkLengths) {
+    const option = el("option", { text: label });
+    option.value = value;
+    length.append(option);
+  }
+  length.value = before?.querySelector<HTMLSelectElement>("#network-length")?.value ?? length.value;
+  const lengthLabel = el("label", { text: "Checked ones for" });
+  lengthLabel.htmlFor = length.id;
+  const part = el("fieldset", { className: "networks" },
+    el("legend", { text: "Its networks this week (checked: banned with it)" }),
+    ...rows,
+    el("div", { className: "moderate-row" }, lengthLabel, length),
+  );
+  return { part, boxes, length };
+}
+
 
 function sameDialog(a: OpenDialog, b: OpenDialog): boolean {
   if (a.kind === "card" || a.kind === "report") {

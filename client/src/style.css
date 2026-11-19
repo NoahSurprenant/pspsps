@@ -841,6 +841,27 @@ button:disabled {
   flex: 1;
 }
 
+/* The cat's networks this week, to ban with it: a row each, as the report's reasons. */
+.moderate .networks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  border: none;
+  min-width: 0;
+}
+
+.moderate .networks legend {
+  margin-bottom: 0.4rem;
+  padding: 0;
+  font-weight: bold;
+}
+
+.moderate .choice span {
+  overflow-wrap: anywhere;
+}
+
 button.danger {
   background: #f3b3ad;
 }

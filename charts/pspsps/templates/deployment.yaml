@@ -133,6 +133,10 @@ spec:
             - name: Moderation__AdminPlayerIds__{{ $i }}
               value: {{ $id | quote }}
             {{- end }}
+            {{- if ne (toString .Values.moderation.addressBans.enabled) "" }}
+            - name: Moderation__AddressBans__Enabled
+              value: {{ .Values.moderation.addressBans.enabled | toString | quote }}
+            {{- end }}
             {{- with .Values.forwardedHeaders.forwardedForHeaderName }}
             - name: ForwardedHeaders__ForwardedForHeaderName
               value: {{ . | quote }}

@@ -66,12 +66,39 @@ export async function fetchProviders(): Promise<string[]> {
   }
 }
 
+/** A guest or sign-in refused because the network the player is on is banned: the ban, to show as a banned cat's. */
+export class NetworkBannedError extends Error {
+  readonly ban: Sanction;
+
+  constructor(ban: Sanction) {
+    super("This network is banned.");
+    this.ban = ban;
+  }
+}
+
 export async function playAsGuest(): Promise<Player> {
   const response = await serverFetch("/auth/guest", { method: "POST" });
+  if (response.status === 403) {
+    // The network is banned (Contracts.cs, BannedView): said as a banned cat's is.
+    const refused = (await response.json().catch(() => null)) as { ban?: Sanction } | null;
+    if (refused?.ban) {
+      throw new NetworkBannedError(refused.ban);
+    }
+  }
   if (!response.ok) {
     throw new Error("Couldn't make a guest cat. Try again.");
   }
   return (await response.json()) as Player;
+}
+
+/** The ban on the network the page is on (asked after a sign-in was refused for it), or null. */
+export async function fetchNetworkBan(): Promise<Sanction | null> {
+  try {
+    const response = await serverFetch("/auth/ban");
+    return response.status === 200 ? ((await response.json()) as Sanction) : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function signOut(): Promise<void> {
@@ -292,6 +319,16 @@ export class GameConnection {
   moderate(playerId: string, request: ModerationRequest): Promise<PlayerCard> {
     return this.call<PlayerCard>(
       "Moderate", playerId, request.action, request.reason || null, request.length ?? null);
+  }
+
+  /** An admin bans networks (their keys) the cat, banned, played from lately, for "24h" or "7d"; its card after. */
+  banNetworks(playerId: string, networks: string[], length: string): Promise<PlayerCard> {
+    return this.call<PlayerCard>("BanNetworks", playerId, networks, length);
+  }
+
+  /** An admin lifts the bans on the networks banned with the cat; its card after. */
+  liftNetworkBans(playerId: string): Promise<PlayerCard> {
+    return this.call<PlayerCard>("LiftNetworkBans", playerId);
   }
 
   /** The warnings admins left this player that they haven't seen yet, oldest first. */

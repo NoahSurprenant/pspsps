@@ -20,6 +20,9 @@ public interface IPlayerService
 
     Task<PlayerProfile?> FindAsync(Guid playerId, CancellationToken cancellationToken);
 
+    /// <summary>The ID of the player behind an external login, if it has one yet (none is made).</summary>
+    Task<Guid?> FindByLoginAsync(LoginProvider provider, string providerKey, CancellationToken cancellationToken);
+
     /// <summary>Pays the player <paramref name="coins"/> (a catch, a game's prize); the player as saved after.</summary>
     Task<PlayerProfile> EarnCoinsAsync(Guid playerId, int coins, CancellationToken cancellationToken);
 }

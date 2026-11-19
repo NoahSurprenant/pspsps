@@ -2,7 +2,7 @@ import { PNG } from "pngjs";
 import {
   animation, catEyes, cats, clickCat, emotes, enterWorld, expect, fishFor, goHome, goThroughDoor, hubGuest, newPlayer,
   pixelsNear, pondBlue, roomBarButtons, tapFloor, test, watchErrors, expectRoom, openCatalogue, partyHatPink, portrait, focusByTab,
-  enterWorldSignedIn, signInAsAdmin,
+  enterWorldSignedIn, signInAsAdmin, fakeNetwork,
 } from "./game";
 
 test("the sign-in page loads without errors", async ({ page }) => {
@@ -837,6 +837,50 @@ test("an admin mutes and warns a cat from its card, bans another, whose tab is s
   } finally {
     await felix.close();
     await garfield.close();
+  }
+});
+
+// On a made-up network (fakeNetwork): CI's own address is every browser's, and banning it would lock the run out. The
+// refusals at the hub and at sign-in are tested in the integration tests (NetworkBanTests).
+test("an admin bans a cat with its network from its card: a new guest there is shown why, until the admin lifts both", async ({ page: admin, context, browser, baseURL }) => {
+  await signInAsAdmin(context, baseURL!);
+  const network = fakeNetwork();
+  const felix = await hubGuest(baseURL!, network);
+  const newcomer = await newPlayer(browser, network);
+  try {
+    await felix.hub.invoke("EnterWorld", "calico");
+    await felix.hub.invoke("Move", 6, 1);
+    await enterWorldSignedIn(admin, "Calico");
+    await clickCat(admin, felix.id);
+    const card = admin.getByRole("dialog", { name: felix.name });
+    await card.getByText("Moderate", { exact: true }).click();
+
+    // The network Felix played from, by its label, and how many cats were on it: checked, it is banned with him.
+    await card.getByRole("checkbox", { name: /^Network [0-9a-f]{8} · 1 cat this week$/ }).check();
+    await card.getByLabel("Checked ones for").selectOption("7d");
+    await card.getByLabel("Why (they're shown this)").fill("Came back to spam");
+    await card.getByLabel(`Ban ${felix.name} for`).selectOption("24h");
+    await card.getByRole("button", { name: `Ban ${felix.name}`, exact: true }).click();
+    await expect(admin.getByText(`${felix.name} is banned for 24 hours, and their network for 7 days.`)).toBeVisible();
+    // Never past Felix's own ban: a day, not a week.
+    await expect(card.getByText(/^Network [0-9a-f]{8} · 1 cat this week · banned until /)).toBeVisible();
+
+    // Someone new on that network gets no cat: shown why and until when, as a banned cat is.
+    await newcomer.page.goto("/");
+    await newcomer.page.getByRole("button", { name: "Play as a guest" }).click();
+    await expect(newcomer.page.getByText(/^Your cat is banned until /)).toBeVisible();
+    await expect(newcomer.page.getByText("Why: Came back to spam")).toBeVisible();
+
+    // Lift, with its networks' bans (offered, checked).
+    await expect(card.getByRole("checkbox", { name: "Also lift its networks' bans" })).toBeChecked();
+    await card.getByRole("button", { name: `Lift ${felix.name}`, exact: true }).click();
+    await expect(admin.getByText(`${felix.name} can play and chat again, and so can their networks.`)).toBeVisible();
+    await newcomer.page.reload();
+    await newcomer.page.getByRole("button", { name: "Play as a guest" }).click();
+    await expect(newcomer.page.getByRole("button", { name: /^Calico · / })).toBeVisible();
+  } finally {
+    await felix.hub.stop();
+    await newcomer.close();
   }
 });
 

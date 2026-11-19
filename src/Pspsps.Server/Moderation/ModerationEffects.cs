@@ -17,6 +17,15 @@ public interface IModerationEffects
     /// time they connect or speak.
     /// </summary>
     Task AppliedAsync(Guid playerId, ModerationAction action, Standing standing);
+
+    /// <summary>
+    /// The networks <paramref name="banned"/> were banned: every tab on one (but an admin's) is told why and until when, as
+    /// a banned player's are; this pod's are closed shortly, and their cats taken out of their rooms. Never throws.
+    /// </summary>
+    Task NetworksBannedAsync(IReadOnlyList<BannedAddress> banned);
+
+    /// <summary>The networks' bans were lifted: this pod lets them in at once (other pods within seconds).</summary>
+    void NetworksLifted(IReadOnlyList<string> addressHashes);
 }
 
 internal sealed partial class ModerationEffects(
@@ -25,7 +34,8 @@ internal sealed partial class ModerationEffects(
     StandingCache standings,
     IGrainFactory grains,
     TimeProvider time,
-    ILogger<ModerationEffects> logger) : IModerationEffects
+    ILogger<ModerationEffects> logger,
+    AddressBanCache? networks = null) : IModerationEffects
 {
     /// <summary>How long a banned player's tab has to hear why before its connection is closed.</summary>
     public static readonly TimeSpan CloseAfter = TimeSpan.FromSeconds(2);
@@ -68,10 +78,45 @@ internal sealed partial class ModerationEffects(
         }
     }
 
-    // Closes the player's connections on this pod after CloseAfter, once their tabs have had time to hear why.
-    private void CloseLater(Guid playerId)
+    public async Task NetworksBannedAsync(IReadOnlyList<BannedAddress> banned)
     {
-        var open = connections.Of(playerId);
+        ArgumentNullException.ThrowIfNull(banned);
+        foreach (var network in banned)
+        {
+            networks?.Know(network.AddressHash, network.Ban);
+            var here = connections.OnNetwork(network.AddressHash);
+            try
+            {
+                // This pod's tabs on it are closed shortly; another pod's are told too, and refused from then on.
+                CloseLater([.. here.Select(open => open.Connection)]);
+                await hub.Clients.Group(AddressGuard.GroupOf(network.AddressHash)).Banned(SanctionView.From(network.Ban));
+                foreach (var playerId in here.Select(open => open.PlayerId).Distinct())
+                {
+                    await SendOutOfRoomAsync(playerId, network.Ban);
+                }
+            }
+            catch (Exception e) when (e is not OperationCanceledException)
+            {
+                // The network's label only (the first digits of its hash), never the address.
+                LogNetworkNotTold(logger, e, network.Label);
+            }
+        }
+    }
+
+    public void NetworksLifted(IReadOnlyList<string> addressHashes)
+    {
+        ArgumentNullException.ThrowIfNull(addressHashes);
+        foreach (var hash in addressHashes)
+        {
+            networks?.Know(hash, null);
+        }
+    }
+
+    // Closes the player's connections on this pod after CloseAfter, once their tabs have had time to hear why.
+    private void CloseLater(Guid playerId) => CloseLater(connections.Of(playerId));
+
+    private void CloseLater(IReadOnlyList<HubCallerContext> open)
+    {
         if (open.Count == 0)
         {
             return;
@@ -102,6 +147,9 @@ internal sealed partial class ModerationEffects(
             await grains.GetGrain<IRoomGrain>(RoomKey.For(place.WorldId, place.RoomId)).SendOut([playerId], ban.SaysBanned());
         }
     }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't tell the tabs on network {Network} of its ban; they are refused at their next call")]
+    private static partial void LogNetworkNotTold(ILogger logger, Exception exception, string network);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Couldn't tell player {PlayerId} of the moderation ({Action}); it shows when they next connect or speak")]
     private static partial void LogNotTold(ILogger logger, Exception exception, Guid playerId, ModerationAction action);

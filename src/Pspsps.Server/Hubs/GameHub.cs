@@ -35,6 +35,8 @@ public sealed partial class GameHub(
     IModerationService moderation,
     IModerationEffects moderationEffects,
     StandingCache standings,
+    IAddressBanService networks,
+    ClientAddresses addresses,
     IMuteService mutes,
     IReportService reports,
     SessionHeartbeat heartbeat,
@@ -495,6 +497,32 @@ public sealed partial class GameHub(
         return await GetPlayerCard(playerId);
     }
 
+    /// <summary>
+    /// An admin bans networks the cat, banned now, played from lately (<paramref name="networkKeys"/>: their keys on its
+    /// card), for <paramref name="length"/> ("24h" or "7d"), with the cat's ban's reason (the rules:
+    /// <see cref="Domain.Moderation.AddressBan"/>). Every tab on them but an admin's is told at once, and new guests and
+    /// sign-ins from them are refused; the card as it is after.
+    /// </summary>
+    public async Task<PlayerCardView> BanNetworks(Guid playerId, string[] networkKeys, string length)
+    {
+        EnsureNetworkBans();
+        var span = await PlayersRule(() => Task.FromResult(ModerationRequest.NetworkLength(length)));
+        // Not the connection's token: a change saved must be told, even if the admin's tab closes meanwhile.
+        var banned = await PlayersRule(
+            () => networks.BanAsync(PlayerId, playerId, networkKeys ?? [], span, CancellationToken.None));
+        await moderationEffects.NetworksBannedAsync(banned);
+        return await GetPlayerCard(playerId);
+    }
+
+    /// <summary>An admin lifts the bans in force on the networks banned with the cat (none: nothing changes); the card after.</summary>
+    public async Task<PlayerCardView> LiftNetworkBans(Guid playerId)
+    {
+        EnsureNetworkBans();
+        var lifted = await PlayersRule(() => networks.LiftOfPlayerAsync(PlayerId, playerId, CancellationToken.None));
+        moderationEffects.NetworksLifted(lifted);
+        return await GetPlayerCard(playerId);
+    }
+
     /// <summary>The warnings admins left this player that they haven't seen yet, oldest first.</summary>
     public async Task<IReadOnlyList<WarningView>> GetWarnings() =>
         [.. (await moderation.WarningsAsync(PlayerId, Context.ConnectionAborted)).Select(w => new WarningView(w.Id, w.Text))];
@@ -834,13 +862,27 @@ public sealed partial class GameHub(
         if (moderation.IsAdmin(PlayerId))
         {
             var now = await moderation.StandingAsync(relation.PlayerId, Context.ConnectionAborted);
+            // The networks it played from lately, with how many players each: not for another admin (not moderated).
+            var seenOn = addresses.Enabled && !moderation.IsAdmin(relation.PlayerId)
+                ? CardModerationView.NetworksOf(
+                    await networks.RecentOfAsync(PlayerId, relation.PlayerId, Context.ConnectionAborted))
+                : null;
             standing = new CardModerationView(
-                moderation.IsAdmin(relation.PlayerId), SanctionView.From(now.Ban), SanctionView.From(now.Mute));
+                moderation.IsAdmin(relation.PlayerId), SanctionView.From(now.Ban), SanctionView.From(now.Mute), seenOn);
         }
 
         return new(relation.PlayerId, relation.DisplayName, relation.FurColor.ToString(), relation.State.ToString(),
             ShopCatalog.Find(relation.Hat)?.Name, ShopCatalog.Find(relation.Collar)?.Name, open.Contains(relation.PlayerId),
             relation.Hat, relation.Collar, standing);
+    }
+
+    // Network bans are off without the server's key: nothing to ban networks with.
+    private void EnsureNetworkBans()
+    {
+        if (!addresses.Enabled)
+        {
+            throw new HubException("Network bans are off on this server.");
+        }
     }
 
     // A use case's call: a rule it breaks (a DomainException) is the player's message.

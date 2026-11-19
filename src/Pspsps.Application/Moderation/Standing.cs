@@ -19,11 +19,15 @@ public sealed record SanctionedPlayer(
 /// <summary>One line of the audit trail, with names: who did what to whom, when, why, until when.</summary>
 public sealed record ModerationLogLine(
     Guid PlayerId, string PlayerName, ModerationKind Kind, Guid ByPlayerId, string ByName, DateTimeOffset At,
-    string? Reason, DateTimeOffset? Until);
+    string? Reason, DateTimeOffset? Until, string? Address = null);
 
-/// <summary>What the admin page shows: the open reports (oldest first), who is banned or muted now, and what admins did lately.</summary>
+/// <summary>
+/// What the admin page shows: the open reports (oldest first), who is banned or muted now, what admins did lately, and the
+/// networks banned now.
+/// </summary>
 public sealed record ModerationOverview(
-    IReadOnlyList<OpenReport> Reports, IReadOnlyList<SanctionedPlayer> Sanctioned, IReadOnlyList<ModerationLogLine> Recent);
+    IReadOnlyList<OpenReport> Reports, IReadOnlyList<SanctionedPlayer> Sanctioned, IReadOnlyList<ModerationLogLine> Recent,
+    IReadOnlyList<AddressBanLine> AddressBans);
 
 /// <summary>A warning the player hasn't seen yet: its audit line's ID (to say it was seen), and its words.</summary>
 public sealed record PendingWarning(Guid Id, string Text, DateTimeOffset At);

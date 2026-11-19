@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  decidedMessage, decisionChoices, decisionRequest, liftLabel, logLine, reportFacts, reportHeading, sanctionLine,
-  type OpenReport, type SanctionedPlayer,
+  decidedMessage, decisionChoices, decisionRequest, liftLabel, logLine, networkBanLine, reportFacts, reportHeading,
+  sanctionLine, type OpenReport, type SanctionedPlayer,
 } from "./admin";
 import { sayWhy } from "./moderation";
 
@@ -32,6 +32,17 @@ describe("the admin page", () => {
       .toBe("18 Nov 2026, 14:00 · Ann muted Felix until 18 Nov 2026, 15:00: Rude");
     expect(logLine({ ...line, kind: "Warned", reason: "Be nice" }, utc)).toBe("18 Nov 2026, 14:00 · Ann warned Felix: Be nice");
     expect(logLine({ ...line, kind: "BanLifted", reason: null }, utc)).toBe("18 Nov 2026, 14:00 · Ann lifted Felix's ban");
+    expect(logLine({ ...line, kind: "AddressBanned", reason: "Spam", until: "2026-11-19T14:00:00Z", address: "1a2b3c4d" }, utc))
+      .toBe("18 Nov 2026, 14:00 · Ann banned Felix's network 1a2b3c4d until 19 Nov 2026, 14:00: Spam");
+    expect(logLine({ ...line, kind: "AddressBanLifted", reason: null, address: "1a2b3c4d" }, utc))
+      .toBe("18 Nov 2026, 14:00 · Ann lifted the ban on Felix's network 1a2b3c4d");
+  });
+
+  it("lists a banned network by its label and how many cats were on it, never its address", () => {
+    expect(networkBanLine({
+      key: "1a2b3c4d".padEnd(64, "0"), label: "1a2b3c4d", playerId: "f", playerName: "Felix", players: 3, reason: "Spam",
+      since: "2026-11-18T14:00:00Z", until: "2026-11-19T14:00:00Z", byName: "Ann",
+    }, utc)).toBe("Felix's network 1a2b3c4d · 3 cats this week · until 19 Nov 2026, 14:00 by Ann: Spam");
   });
 });
 

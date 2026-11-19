@@ -182,6 +182,12 @@ admins=(--set "moderation.adminPlayerIds[0]=0196d5a8-6b1e-7c3a-9f00-1234567890ab
   || fail "Moderation__AdminPlayerIds__0 doesn't follow moderation.adminPlayerIds[0]"
 [[ "$(env_value "$(server "${admins[@]}")" Moderation__AdminPlayerIds__1)" == 0196d5a8-6b1e-7c3a-9f00-0000000000cd ]] \
   || fail "Moderation__AdminPlayerIds__1 doesn't follow moderation.adminPlayerIds[1]"
+# Network bans: on exactly when the Secret has the key unless moderation.addressBans.enabled says (the server decides).
+if grep -q "Moderation__AddressBans__Enabled" <<< "$(server)"; then fail "addressBans.enabled renders when unset"; fi
+for enabled in true false; do
+  [[ "$(env_value "$(server --set "moderation.addressBans.enabled=$enabled")" Moderation__AddressBans__Enabled)" == "$enabled" ]] \
+    || fail "Moderation__AddressBans__Enabled doesn't follow moderation.addressBans.enabled=$enabled"
+done
 
 if (( failures > 0 )); then
   exit 1

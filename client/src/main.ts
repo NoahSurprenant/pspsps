@@ -2,7 +2,9 @@ import { appLog, startTelemetry, telemetry } from "./telemetry";
 import { FpsSampler, watchBabylonLog, watchWebGlContext } from "./telemetry/performance";
 import { DoorWalks, doorAt } from "./doors";
 import { addressNote, linkUrl, loginUrl } from "./link";
-import { GameConnection, fetchMe, fetchProviders, messageOf, playAsGuest, signOut } from "./net";
+import {
+  GameConnection, NetworkBannedError, fetchMe, fetchNetworkBan, fetchProviders, messageOf, playAsGuest, signOut,
+} from "./net";
 import { lazily } from "./lazy";
 import { loadRoom, PendingEvents } from "./pending";
 import { comeBack } from "./rejoin";
@@ -618,6 +620,15 @@ async function start(): Promise<void> {
     return;
   }
 
+  // A sign-in refused because the network is banned: why and until when, as for a banned cat.
+  if (!player && new URLSearchParams(search).get("signin") === "banned") {
+    const ban = await fetchNetworkBan();
+    if (ban) {
+      overlay.showBanned(ban);
+      return;
+    }
+  }
+
   if (player) {
     await pickWorld(player, undefined, note);
     return;
@@ -627,7 +638,13 @@ async function start(): Promise<void> {
   overlay.showSignIn(
     providers,
     (provider) => window.location.assign(loginUrl(provider)),
-    () => void playAsGuest().then((guest) => pickWorld(guest, providers)).catch((error: unknown) => overlay.toast(messageOf(error))),
+    () => void playAsGuest().then((guest) => pickWorld(guest, providers)).catch((error: unknown) => {
+      if (error instanceof NetworkBannedError) {
+        overlay.showBanned(error.ban);
+      } else {
+        overlay.toast(messageOf(error));
+      }
+    }),
     note,
   );
 }
@@ -807,7 +824,18 @@ async function changeFriendship(action: FriendAction, playerId: string): Promise
 /** An admin's action on another cat, from its card: the card as it is after, and what was done; or why not. */
 async function moderate(playerId: string, name: string, request: ModerationRequest): Promise<void> {
   try {
-    const card = await connection.moderate(playerId, request);
+    // The cat's own action first (unless a lift finds only its networks banned), then its networks'.
+    let card = request.action === "lift" && request.liftCat === false
+      ? undefined
+      : await connection.moderate(playerId, request);
+    if (request.action === "ban" && request.networks?.length) {
+      card = await connection.banNetworks(playerId, request.networks, request.networkLength ?? "24h");
+    } else if (request.action === "lift" && request.liftNetworks) {
+      card = await connection.liftNetworkBans(playerId);
+    }
+    if (!card) {
+      return;
+    }
     const open = overlay.openDialogFor;
     if (open?.kind === "card" && open.playerId === playerId) {
       showCard(card);

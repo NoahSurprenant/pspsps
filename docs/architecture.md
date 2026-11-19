@@ -232,7 +232,45 @@ into why and until when. A warning is shown (at once when the tabs are told `War
 until the player closes it, which tells the server they saw it (`SawWarning`): two warnings meanwhile both show, one
 after the other. When the database can't answer, the last read holds and a player never read plays.
 
-A banned guest who clears their cookies gets a new guest cat: stopping that is out of scope.
+### Network bans
+
+A banned guest who clears their cookies would get a new guest cat. So the server remembers the networks each player
+plays from (`PlayerAddress`: player, network, last seen), on guest sign-up, Discord or Google sign-in and every hub
+connection, for 7 days after it last saw them (`PlayerAddress.KeepFor`; saved at most once an hour per network), and
+forgets older ones every hour on every pod (`AddressPruning`, which runs with network bans off too). A network is never
+an address: it is a keyed hash, HMAC-SHA256 with the server's secret `Moderation:AddressKey` (the chart's Secret,
+`Moderation__AddressKey`, at least 32 characters) of an IPv4 address, or of an IPv6 address's /64 (a household or phone
+gets a whole /64 and picks new addresses in it at will) (`ClientAddresses`). The address is the one ASP.NET Core
+resolved, `HttpContext.Connection.RemoteIpAddress` after `UseForwardedHeaders`, which applies a forwarded header only
+from the proxies configured as trusted (`forwardedHeaders` in the chart): a header a browser sets itself is ignored.
+Network bans are on exactly when the key is set, unless `Moderation:AddressBans:Enabled` (the chart's
+`moderation.addressBans.enabled`) says otherwise; asked for with no key, the server refuses to start. What is kept, and
+for how long: [privacy.md](privacy.md).
+
+An admin banning a cat sees, under Moderate on its card, the networks it played from this week by label (the first 8 hex
+digits of the hash), each with how many players were on it this week (more than one: a school, a phone network, a
+household), and checks the ones to ban with it, for a day or a week. A network's ban (`AddressBan`, an aggregate of its
+own, keyed by the hash) is the Domain's rules: only an admin, never their own nor another admin's network, only a
+network the cat was on in the last 7 days, only while the cat is banned, with that ban's reason, for a day or a week and
+never past the cat's ban (never for good: a network can be shared); a new one takes the place of the last, and it ends
+at its time or when an admin lifts it. Each ban and lift is a line of the cat's audit trail, with the network's label.
+Lifting the cat's ban from its card offers to lift its networks' bans too (checked by default); `/admin` lists the
+networks banned now (label, the cat, how many players, until when, why) with Lift. Ended and lifted bans are forgotten
+with the old networks.
+
+From a banned network, a new guest is refused (403, with the same "banned until ... Why: ..." as a banned cat, and the
+browser shows the banned screen), a Discord or Google sign-in makes no cat and is sent back to `/?signin=banned` (the
+page asks `/auth/ban` why, and shows it), `/api/me` says the player is banned, and the hub refuses the connection at the
+door (the `not-banned` policy) and every call on one opened before (`ModerationHubFilter`, with the network the
+connection opened from). Tabs already open there are told at once (`Banned`, to the SignalR group of the network, which
+every connection but an admin's joins as it opens), this pod closes its own two seconds later and takes their cats out
+of their rooms, and another pod's tab that ignores it is refused and closed at its next call. Whether a network is
+banned is read at most once every 5 seconds per network on each pod (`AddressBanCache`, as `StandingCache` for players;
+a change made on the pod is known at once). Admins (the configured list) are never refused by a network's ban, so the
+owner can't lock themself out.
+
+The end-to-end tests' server sees one address for every browser, so a network ban there would lock the whole run out:
+the refusals are tested through the hosted server in the integration tests, each request from an address of its own.
 
 ## Layers (Clean Architecture)
 
@@ -242,11 +280,12 @@ enforces this.
 - **Domain** (`src/Pspsps.Domain`): the game's rules, no frameworks. Aggregates in the DDD sense: `Player` owns its
   logins, coins, fur and what it has from the shop. A private constructor for EF Core, named static factories
   (`CreateGuest`, `CreateWithLogin`), private setters, collections exposed read-only, and methods that refuse invalid
-  changes with a `DomainException`. `Friendship`, `Home`, `Mute`, `Report` and `PlayerModeration` are other aggregates
-  (above). Also the in-memory world and room rules (`WorldPopulation`, `RoomState`, `SessionLease`) and the world and
-  room catalogues.
+  changes with a `DomainException`. `Friendship`, `Home`, `Mute`, `Report`, `PlayerModeration` and `AddressBan` are
+  other aggregates (above). Also the in-memory world and room rules (`WorldPopulation`, `RoomState`, `SessionLease`)
+  and the world and room catalogues.
 - **Application** (`src/Pspsps.Application`): use cases (`PlayerService`, `FriendService`, `ShopService`, `MuteService`,
-  `ReportService`, `HomeService`, `ModerationService`) and the ports they need (`IApplicationDbContext`, `IAdmins`).
+  `ReportService`, `HomeService`, `ModerationService`, `AddressBanService`) and the ports they need
+  (`IApplicationDbContext`, `IAdmins`).
 - **Infrastructure** (`src/Pspsps.Infrastructure`): EF Core on PostgreSQL (snake_case names), the migrations, and the
   Data Protection key ring in the database.
 - **Server** (`src/Pspsps.Server`): the host. Sign-in endpoints, the SignalR hub, and the Orleans grains. The hub and

@@ -8,4 +8,10 @@ public enum ModerationKind
     Banned,
     MuteLifted,
     BanLifted,
+
+    /// <summary>A network the player played from was banned with them (<see cref="AddressBan"/>).</summary>
+    AddressBanned,
+
+    /// <summary>A network's ban was lifted.</summary>
+    AddressBanLifted,
 }

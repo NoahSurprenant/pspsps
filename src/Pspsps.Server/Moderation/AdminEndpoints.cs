@@ -25,6 +25,11 @@ public static class AdminEndpoints
         services.Configure<ModerationOptions>(configuration.GetSection(ModerationOptions.SectionName));
         services.AddSingleton<IAdmins, ConfiguredAdmins>();
         services.AddSingleton<StandingCache>();
+        // Network bans (Moderation:AddressKey, Moderation:AddressBans:Enabled): refuses to start when asked for with no key.
+        services.AddSingleton(ClientAddresses.FromConfiguration(configuration));
+        services.AddSingleton<AddressBanCache>();
+        services.AddSingleton<AddressGuard>();
+        services.AddHostedService<AddressPruning>();
         services.AddSingleton<PlayerConnections>();
         services.AddSingleton<ModerationHubFilter>();
         services.AddSingleton<IModerationEffects, ModerationEffects>();
@@ -113,7 +118,32 @@ public static class AdminEndpoints
         });
 
         MapReportDecisions(admin);
+        MapAddressLifts(admin);
     }
+
+    // Lifting a network's ban, from the admin page only (as above).
+    private static void MapAddressLifts(RouteGroupBuilder admin) =>
+        admin.MapPost("/networks/{addressHash}/lift", async (
+            string addressHash, HttpRequest request, ClaimsPrincipal user, IModerationService moderation,
+            IAddressBanService networks, IModerationEffects effects) =>
+        {
+            if (!SameOriginRequest.IsFromThisSite(request) || user.GetPlayerId() is not { } adminId
+                || !moderation.IsAdmin(adminId))
+            {
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            try
+            {
+                await networks.LiftAsync(adminId, addressHash, CancellationToken.None);
+                effects.NetworksLifted([addressHash]);
+                return Results.NoContent();
+            }
+            catch (DomainException e)
+            {
+                return Results.BadRequest(new { message = e.Message });
+            }
+        });
 
     // The decisions on reports, from the admin page only (as above).
     private static void MapReportDecisions(RouteGroupBuilder admin) =>
@@ -169,15 +199,29 @@ public static class AdminEndpoints
 /// <summary>The hub's rule that a banned player can't connect.</summary>
 public sealed class NotBannedRequirement : IAuthorizationRequirement;
 
-/// <summary>Allows a hub connection unless its player is banned now (<see cref="StandingCache"/>).</summary>
-internal sealed class NotBannedHandler(StandingCache standings) : AuthorizationHandler<NotBannedRequirement>
+/// <summary>
+/// Allows a hub connection unless its player is banned now (<see cref="StandingCache"/>), or the network it comes from is
+/// (<see cref="AddressGuard"/>; never for an admin).
+/// </summary>
+internal sealed class NotBannedHandler(StandingCache standings, AddressGuard networks)
+    : AuthorizationHandler<NotBannedRequirement>
 {
     protected override async Task HandleRequirementAsync(
         AuthorizationHandlerContext context, NotBannedRequirement requirement)
     {
-        if (context.User.GetPlayerId() is { } playerId && await standings.BanOfAsync(playerId, CancellationToken.None) is null)
+        if (context.User.GetPlayerId() is not { } playerId
+            || await standings.BanOfAsync(playerId, CancellationToken.None) is not null)
         {
-            context.Succeed(requirement);
+            return;
         }
+
+        // The hub's endpoints are authorized with the request as the resource.
+        if (context.Resource is HttpContext http
+            && await networks.BanOfAsync(http, playerId, CancellationToken.None) is not null)
+        {
+            return;
+        }
+
+        context.Succeed(requirement);
     }
 }

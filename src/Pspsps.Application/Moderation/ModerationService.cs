@@ -104,11 +104,19 @@ internal sealed class ModerationService(
             .OrderBy(r => r.FiledAt)
             .Take(OpenReports)
             .ToListAsync(cancellationToken);
+        var addressBans = await db.AddressBans.AsNoTracking()
+            .Where(b => b.LiftedAt == null && b.BannedUntil > now)
+            .OrderByDescending(b => b.BannedAt)
+            .Take(SanctionedShown)
+            .ToListAsync(cancellationToken);
+        var onNetworks = await AddressBanService.PlayersOnAsync(
+            db, [.. addressBans.Select(b => b.AddressHash)], now, cancellationToken);
 
         var ids = reports.Select(r => r.ReporterId)
             .Concat(sanctioned.Select(m => m.PlayerId))
             .Concat(sanctioned.SelectMany(m => new[] { m.BannedBy, m.MutedBy }).OfType<Guid>())
             .Concat(recent.SelectMany(e => new[] { e.PlayerId, e.ByPlayerId }))
+            .Concat(addressBans.SelectMany(b => new[] { b.PlayerId, b.BannedBy }))
             .Distinct()
             .ToList();
         var names = await db.Players.AsNoTracking()
@@ -133,7 +141,13 @@ internal sealed class ModerationService(
             ],
             [
                 .. recent.Select(e => new ModerationLogLine(
-                    e.PlayerId, NameOf(e.PlayerId), e.Kind, e.ByPlayerId, NameOf(e.ByPlayerId), e.At, e.Reason, e.Until)),
+                    e.PlayerId, NameOf(e.PlayerId), e.Kind, e.ByPlayerId, NameOf(e.ByPlayerId), e.At, e.Reason, e.Until,
+                    e.Address)),
+            ],
+            [
+                .. addressBans.Select(b => new AddressBanLine(
+                    b.AddressHash, b.Label, b.PlayerId, NameOf(b.PlayerId), onNetworks.GetValueOrDefault(b.AddressHash),
+                    b.BanAt(now)!, NameOf(b.BannedBy))),
             ]);
     }
 

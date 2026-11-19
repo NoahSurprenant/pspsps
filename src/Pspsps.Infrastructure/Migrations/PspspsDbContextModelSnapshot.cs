@@ -109,11 +109,71 @@ namespace Pspsps.Infrastructure.Migrations
                     b.ToTable("homes", (string)null);
                 });
 
+            modelBuilder.Entity("Pspsps.Domain.Moderation.AddressBan", b =>
+                {
+                    b.Property<string>("AddressHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .HasColumnName("address_hash")
+                        .IsFixedLength();
+
+                    b.Property<DateTimeOffset>("BannedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("banned_at");
+
+                    b.Property<Guid>("BannedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("banned_by");
+
+                    b.Property<DateTimeOffset>("BannedUntil")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("banned_until");
+
+                    b.Property<DateTimeOffset?>("LiftedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("lifted_at");
+
+                    b.Property<Guid?>("LiftedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("lifted_by");
+
+                    b.Property<Guid>("PlayerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("player_id");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("reason");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("AddressHash")
+                        .HasName("pk_address_bans");
+
+                    b.HasIndex("BannedUntil")
+                        .HasDatabaseName("ix_address_bans_banned_until");
+
+                    b.HasIndex("PlayerId")
+                        .HasDatabaseName("ix_address_bans_player_id");
+
+                    b.ToTable("address_bans", (string)null);
+                });
+
             modelBuilder.Entity("Pspsps.Domain.Moderation.ModerationEntry", b =>
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid")
                         .HasColumnName("id");
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasColumnName("address");
 
                     b.Property<DateTimeOffset>("At")
                         .HasColumnType("timestamp with time zone")
@@ -152,6 +212,34 @@ namespace Pspsps.Infrastructure.Migrations
                         .HasDatabaseName("ix_moderation_entries_player_id_at");
 
                     b.ToTable("moderation_entries", (string)null);
+                });
+
+            modelBuilder.Entity("Pspsps.Domain.Moderation.PlayerAddress", b =>
+                {
+                    b.Property<Guid>("PlayerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("player_id");
+
+                    b.Property<string>("AddressHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .HasColumnName("address_hash")
+                        .IsFixedLength();
+
+                    b.Property<DateTimeOffset>("LastSeen")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_seen");
+
+                    b.HasKey("PlayerId", "AddressHash")
+                        .HasName("pk_player_addresses");
+
+                    b.HasIndex("LastSeen")
+                        .HasDatabaseName("ix_player_addresses_last_seen");
+
+                    b.HasIndex("AddressHash", "LastSeen")
+                        .HasDatabaseName("ix_player_addresses_address_hash_last_seen");
+
+                    b.ToTable("player_addresses", (string)null);
                 });
 
             modelBuilder.Entity("Pspsps.Domain.Moderation.PlayerModeration", b =>
@@ -456,6 +544,16 @@ namespace Pspsps.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_moderation_entries_player_moderation_player_id");
+                });
+
+            modelBuilder.Entity("Pspsps.Domain.Moderation.PlayerAddress", b =>
+                {
+                    b.HasOne("Pspsps.Domain.Players.Player", null)
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_player_addresses_players_player_id");
                 });
 
             modelBuilder.Entity("Pspsps.Domain.Moderation.PlayerModeration", b =>

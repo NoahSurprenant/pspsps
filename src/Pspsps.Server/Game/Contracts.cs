@@ -313,9 +313,42 @@ public sealed record SanctionView(string Reason, DateTimeOffset? Until)
 
 /// <summary>
 /// The moderation part of a player card, for an admin only: whether the cat is an admin too (admins aren't moderated),
-/// and the ban and mute it is under now.
+/// the ban and mute it is under now, and the networks it played from lately (null: none seen, or network bans off).
 /// </summary>
-public sealed record CardModerationView(bool IsAdmin, SanctionView? Ban, SanctionView? Mute);
+public sealed record CardModerationView(
+    bool IsAdmin, SanctionView? Ban, SanctionView? Mute, IReadOnlyList<NetworkView>? Networks = null)
+{
+    /// <summary>The networks as an admin sees them; null for none.</summary>
+    public static IReadOnlyList<NetworkView>? NetworksOf(IReadOnlyList<RecentAddress> recent)
+    {
+        ArgumentNullException.ThrowIfNull(recent);
+        return recent.Count == 0 ? null : [.. recent.Select(NetworkView.From)];
+    }
+}
+
+/// <summary>
+/// A network a cat played from lately, for an admin: Key (its keyed hash, which the admin bans it by) and Label (the hash's
+/// first 8 hex digits: never the address), how many players were on it in the last 7 days (more than one: a shared
+/// network, a school or a phone network maybe), when this cat last was, and its ban in force.
+/// </summary>
+public sealed record NetworkView(string Key, string Label, int Players, DateTimeOffset LastSeen, SanctionView? Ban)
+{
+    public static NetworkView From(RecentAddress address)
+    {
+        ArgumentNullException.ThrowIfNull(address);
+        return new(address.AddressHash, address.Label, address.Players, address.LastSeen, SanctionView.From(address.Ban));
+    }
+}
+
+/// <summary>A sign-up refused because the network is banned: what the player is told, and the ban (why, until when).</summary>
+public sealed record BannedView(string Message, SanctionView Ban)
+{
+    public static BannedView From(Sanction ban)
+    {
+        ArgumentNullException.ThrowIfNull(ban);
+        return new(ban.SaysBanned(), SanctionView.From(ban));
+    }
+}
 
 /// <summary>
 /// The signed-in player (/api/me): who they are, whether they are an admin, and the ban and mute they're under now (the
@@ -351,26 +384,45 @@ public sealed record SanctionedPlayerView(Guid PlayerId, string DisplayName, Adm
 }
 
 /// <summary>
-/// A line of the audit trail on the admin page. Kind: "Warned", "Muted", "Banned", "MuteLifted" or "BanLifted".
+/// A line of the audit trail on the admin page. Kind: "Warned", "Muted", "Banned", "MuteLifted", "BanLifted",
+/// "AddressBanned" or "AddressBanLifted" (those two with Address, the network's label: never the address).
 /// </summary>
 public sealed record ModerationLogView(
     Guid PlayerId, string PlayerName, string Kind, Guid ById, string ByName, DateTimeOffset At, string? Reason,
-    DateTimeOffset? Until)
+    DateTimeOffset? Until, string? Address = null)
 {
     public static ModerationLogView From(ModerationLogLine line)
     {
         ArgumentNullException.ThrowIfNull(line);
         return new(line.PlayerId, line.PlayerName, line.Kind.ToString(), line.ByPlayerId, line.ByName, line.At, line.Reason,
-            line.Until);
+            line.Until, line.Address);
     }
 }
 
 /// <summary>
-/// The admin page: the open reports (oldest first), who is banned or muted now, and what admins did lately (newest
-/// first).
+/// A network banned now, on the admin page: Key (its keyed hash, to lift it by), Label (the hash's first 8 hex digits:
+/// never the address), the banned cat it was banned with, how many players were on it in the last 7 days, why, since and
+/// until when, and which admin banned it.
+/// </summary>
+public sealed record NetworkBanView(
+    string Key, string Label, Guid PlayerId, string PlayerName, int Players, string Reason, DateTimeOffset Since,
+    DateTimeOffset Until, string ByName)
+{
+    public static NetworkBanView From(AddressBanLine line)
+    {
+        ArgumentNullException.ThrowIfNull(line);
+        return new(line.AddressHash, line.Label, line.PlayerId, line.PlayerName, line.Players, line.Ban.Reason,
+            line.Ban.Since, line.Ban.Until ?? line.Ban.Since, line.ByName);
+    }
+}
+
+/// <summary>
+/// The admin page: the open reports (oldest first), who is banned or muted now, what admins did lately (newest first),
+/// and the networks banned now (newest first).
 /// </summary>
 public sealed record AdminOverviewView(
-    IReadOnlyList<OpenReportView> Reports, IReadOnlyList<SanctionedPlayerView> Sanctioned, IReadOnlyList<ModerationLogView> Recent)
+    IReadOnlyList<OpenReportView> Reports, IReadOnlyList<SanctionedPlayerView> Sanctioned, IReadOnlyList<ModerationLogView> Recent,
+    IReadOnlyList<NetworkBanView> NetworkBans)
 {
     public static AdminOverviewView From(ModerationOverview overview)
     {
@@ -378,7 +430,8 @@ public sealed record AdminOverviewView(
         return new(
             [.. overview.Reports.Select(OpenReportView.From)],
             [.. overview.Sanctioned.Select(SanctionedPlayerView.From)],
-            [.. overview.Recent.Select(ModerationLogView.From)]);
+            [.. overview.Recent.Select(ModerationLogView.From)],
+            [.. overview.AddressBans.Select(NetworkBanView.From)]);
     }
 }
 
