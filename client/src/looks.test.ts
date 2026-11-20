@@ -8,7 +8,8 @@ const plans = {
   home: { width: 12, depth: 9, pond: null, doors: [] },
   shop: { width: 13, depth: 9, pond: null, doors: [] },
   garden: { width: 18, depth: 12, pond: null, doors: [] },
-  riverside: { width: 20, depth: 14, pond: { x: -3, z: -2, radius: 2.4 }, doors: [] },
+  "pear-orchard": { width: 18, depth: 19, pond: null, doors: [] },
+  riverside: { width: 24, depth: 14, pond: { x: -3, z: -2, radius: 2.4 }, doors: [] },
 } satisfies Record<string, Floorplan>;
 
 describe("lookOf", () => {

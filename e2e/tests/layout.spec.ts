@@ -90,12 +90,17 @@ const CHECKS: Record<Screen["name"], Checks> = {
   garden: {
     parts: [".room-bar", ".emote-bar", ".chat-bar"],
     shows: (page) => drawn(page, [["the paths", pathTan, 4]]),
-    reachable: (page) => doorsReachable(page, ["town-square", "riverside"]),
+    reachable: (page) => doorsReachable(page, ["town-square", "pear-orchard"]),
+  },
+  "pear-orchard": {
+    parts: [".room-bar", ".emote-bar", ".chat-bar"],
+    shows: (page) => drawn(page, [["the paths", pathTan, 4]]),
+    reachable: (page) => doorsReachable(page, ["garden", "riverside"]),
   },
   riverside: {
     parts: [".room-bar", ".emote-bar", ".chat-bar", ".fishing"],
     shows: (page) => drawn(page, [["the pond", pondBlue, 20], ["the paths", pathTan, 4]]),
-    reachable: (page) => doorsReachable(page, ["garden", "town-square"]),
+    reachable: (page) => doorsReachable(page, ["pear-orchard", "town-square"]),
   },
 };
 
@@ -121,8 +126,8 @@ async function mapLabelsFit(page: Page): Promise<string[]> {
       }
       for (const other of buttons.slice(index + 1)) {
         const b = other.getBoundingClientRect();
-        if (box.left < b.right && b.left < box.right && box.top < b.bottom && b.top < box.bottom) {
-          problems.push(`${name} overlaps ${other.textContent?.trim()}`);
+        if (box.left < b.right + 4 && b.left < box.right + 4 && box.top < b.bottom + 4 && b.top < box.bottom + 4) {
+          problems.push(`${name} needs 4px clearance from ${other.textContent?.trim()}`);
         }
       }
     }

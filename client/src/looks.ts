@@ -63,6 +63,14 @@ const looks: Record<string, RoomLook> = {
     paintWall: paintGardenWall,
     backdrop: gardenBackdrop,
   },
+  "pear-orchard": {
+    sky: "#e1edf2",
+    floorColour: paints.grass,
+    wallColour: "#91ad72",
+    ground: { colour: "#a9c587" },
+    paintFloor: paintRiversideFloor,
+    backdrop: orchardBackdrop,
+  },
   riverside: {
     sky: "#c1e2ef",
     floorColour: paints.grass,
@@ -103,6 +111,21 @@ function gardenBackdrop(plan: Floorplan): Part[] {
       shape: "ball", diameter: 0.7, at: [x, i % 2 ? 5.3 : 6, back - 1.15], colour: i % 2 ? "#f6d28e" : "#e8a5ad",
     })),
   ];
+}
+
+function orchardBackdrop(plan: Floorplan): Part[] {
+  const trees: Part[] = [];
+  for (const x of [-12, -8, -4, 0, 12]) {
+    const z = plan.depth / 2 + 3;
+    trees.push(
+      { shape: "cylinder", diameter: 0.55, height: 3, at: [x, 1.5, z], colour: palette.wood },
+      { shape: "ball", diameter: 3.8, height: 3.2, at: [x, 3.2, z], colour: "#84ab69" },
+    );
+    for (const dx of [-0.8, 0.6]) {
+      trees.push({ shape: "ball", diameter: 0.38, height: 0.5, at: [x + dx, 3 + dx / 2, z - 1.6], colour: "#e8c960" });
+    }
+  }
+  return trees;
 }
 
 function riversideBackdrop(plan: Floorplan): Part[] {

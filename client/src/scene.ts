@@ -26,7 +26,7 @@ import { TextBlock } from "@babylonjs/gui/2D/controls/textBlock";
 import { cameraFocus, cameraPitch, cameraRadius, fieldOfView, roomPitch, startingZoom, zoomRadius } from "./view";
 import { sceneryTarget } from "./walking";
 import { animationFor, Cat, facing, loadCatModel, MeowClip, type CatAnimation, type Outfit } from "./cat";
-import { hasDoorway, pathEdge } from "./doors";
+import { hasDoorway, openLandscape, pathEdge } from "./doors";
 import { lazily } from "./lazy";
 import { appLog } from "./telemetry";
 import { lookOf } from "./looks";
@@ -279,11 +279,11 @@ export class RoomScene {
       shape: "box", width: room.width, height: wallHeight, depth: 0.3, at: [0, wallHeight / 2, room.depth / 2 + 0.15],
       colour: look.wallColour,
     };
-    if (look.paintWall) {
+    if (look.paintWall && !openLandscape(room.roomId)) {
       const front = CreatePlane("back-wall-front", { width: room.width, height: wallHeight }, this.scene);
       front.position.set(0, wallHeight / 2, room.depth / 2 - 0.01);
       // Painted round the doorways in it (the doors by the wall: the ones drawDoor draws a doorway for).
-      const doorways = room.doors.filter((door) => hasDoorway(door, room.depth));
+      const doorways = room.doors.filter((door) => hasDoorway(door, room.depth, room.roomId));
       front.material = painted(this.scene, "back-wall-front",
         `${room.roomId}/wall/${room.width}/${JSON.stringify(doorways)}`, textureSize(room.width, wallHeight, wallPixelsPerMetre),
         (brush, scale) => look.paintWall?.(brush, room.width, wallHeight, scale, doorways));
@@ -291,9 +291,9 @@ export class RoomScene {
     }
     // The wall and the props: one mesh, drawn in one go. Cats walk through props; a tap on one walks the cat beside it
     // (a tap on the wall does nothing). The backdrop is another, which a tap never tests: it does nothing there.
-    this.wall = wall;
+    this.wall = openLandscape(room.roomId) ? undefined : wall;
     this.props = room.props ?? [];
-    this.decor = buildParts(this.scene, "decor", [wall, ...this.props.flatMap(propParts)]);
+    this.decor = buildParts(this.scene, "decor", [...(this.wall ? [this.wall] : []), ...this.props.flatMap(propParts)]);
     const backdrop = buildParts(this.scene, "backdrop", look.backdrop(plan, wallHeight));
     if (backdrop) {
       backdrop.isPickable = false;
@@ -630,9 +630,9 @@ export class RoomScene {
    * Draws a room exit as a doorway and mat by the back wall or an outdoor path and sign at the edge.
    * Returns the meshes that a click can use to take the exit.
    */
-  private drawDoor(door: DoorView, room: Pick<RoomSnapshot, "width" | "depth">): AbstractMesh[] {
+  private drawDoor(door: DoorView, room: Pick<RoomSnapshot, "roomId" | "width" | "depth">): AbstractMesh[] {
     const name = `door-${door.id}`;
-    if (!hasDoorway(door, room.depth)) {
+    if (!hasDoorway(door, room.depth, room.roomId)) {
       return this.drawPath(door, room);
     }
     const matWidth = door.radius * 2;

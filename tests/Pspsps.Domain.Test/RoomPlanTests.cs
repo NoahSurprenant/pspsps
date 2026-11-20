@@ -4,6 +4,34 @@ namespace Pspsps.Domain.Test;
 
 public sealed class RoomPlanTests
 {
+    [TestCase(19, 2.51)] // A one-centimetre lateral error at a threshold.
+    [TestCase(19.02, 2.5)] // A one-centimetre gap after walking around the block.
+    public void ALoopMustCloseFromBothDirections(double depth, double offset)
+    {
+        var orchard = RoomCatalog.Find("pear-orchard")! with { Depth = depth };
+        orchard = orchard.WithDoors(
+            ("garden", RoomEdge.North, 5.8, "garden", "pear-orchard"),
+            ("riverside", RoomEdge.East, offset, "riverside", "pear-orchard"));
+        Assert.That(() => Replan(orchard), Throws.InvalidOperationException.With.Message.Contains("does not close"));
+    }
+
+    [Test]
+    public void ABuildingCannotExtendIntoItsNeighbour()
+    {
+        var cafe = RoomCatalog.Find("cafe")! with { Width = 18 };
+        Assert.That(() => Replan(cafe), Throws.InvalidOperationException.With.Message.Contains("overlaps"));
+    }
+
+    [Test]
+    public void ARotatedInteriorMustFaceItsOutsideDoor()
+    {
+        var cafe = RoomCatalog.Find("cafe")! with { MapRotated = false };
+        Assert.That(() => Replan(cafe), Throws.InvalidOperationException.With.Message.Contains("Mismatched thresholds"));
+    }
+
+    private static IReadOnlyList<RoomDefinition> Replan(RoomDefinition replacement) =>
+        RoomPlan.Join([.. RoomCatalog.All.Select(room => room.Id == replacement.Id ? replacement : room)]);
+
     [Test]
     public void ResizingTheFloor_DragsItsDoorWithTheEdge()
     {
@@ -28,8 +56,8 @@ public sealed class RoomPlanTests
             var a = rooms[i];
             foreach (var b in rooms.Skip(i + 1))
             {
-                var overlapX = Math.Abs(a.MapCentre.X - b.MapCentre.X) < (a.Width + b.Width) / 2;
-                var overlapZ = Math.Abs(a.MapCentre.Z - b.MapCentre.Z) < (a.Depth + b.Depth) / 2;
+                var overlapX = 1e-6 + Math.Abs(a.MapCentre.X - b.MapCentre.X) < (a.Width + b.Width) / 2;
+                var overlapZ = 1e-6 + Math.Abs(a.MapCentre.Z - b.MapCentre.Z) < (a.Depth + b.Depth) / 2;
                 Assert.That(overlapX && overlapZ, Is.False, $"{a.Id} overlaps {b.Id} on the map.");
             }
         }
@@ -45,6 +73,8 @@ public sealed class RoomPlanTests
             {
                 var target = rooms[door.ToRoom];
                 var exit = room.MapExit(door);
+                var back = target.GetDoor(door.ToDoor!);
+                Assert.That(target.MapExit(back).DistanceTo(exit), Is.LessThan(1e-6), $"{room.Id}/{door.Id} leaves a gap.");
                 var direction = room.MapRotated ? -1 : 1;
                 var clearance = door.Edge switch
                 {
@@ -54,7 +84,7 @@ public sealed class RoomPlanTests
                     RoomEdge.West => direction * (exit.X - target.MapCentre.X) - target.Width / 2,
                     _ => throw new InvalidOperationException($"No edge on {room.Id}/{door.Id}."),
                 };
-                Assert.That(clearance, Is.GreaterThan(0), $"{room.Id}/{door.Id} must face {target.Id}.");
+                Assert.That(clearance, Is.EqualTo(0).Within(1e-6), $"{room.Id}/{door.Id} must face {target.Id}.");
             }
         }
     }

@@ -298,6 +298,14 @@ jobs:
           archive: false
           retention-days: 30
           overwrite: true
+      - name: Upload the Pear Orchard screenshots
+        if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+        uses: actions/upload-artifact@v7
+        with:
+          path: e2e/screenshots/pear-orchard.png
+          archive: false
+          retention-days: 30
+          overwrite: true
       - name: Upload the Riverside Trail screenshots
         if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
         uses: actions/upload-artifact@v7

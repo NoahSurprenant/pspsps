@@ -49,7 +49,11 @@ function drawPlan(map: HTMLElement, plan: WorldMapView, place: (room: RoomLink) 
     const path = el("span", { className: "map-route" });
     path.setAttribute("aria-hidden", "true");
     position(path, fromX, fromZ);
-    path.style.width = percent(Math.hypot(dx, dy), width);
+    if (Math.hypot(dx, dy) < 0.000001) {
+      path.classList.add("map-threshold");
+    } else {
+      path.style.width = percent(Math.hypot(dx, dy), width);
+    }
     path.style.transform = `translateY(-50%) rotate(${Math.atan2(dy, dx)}rad)`;
     map.append(path);
   }
@@ -65,7 +69,7 @@ function drawPlan(map: HTMLElement, plan: WorldMapView, place: (room: RoomLink) 
     footprint.style.height = percent(room.depth, depth);
     const button = place(room);
     position(button, room.x, room.z);
-    button.style.width = percent(room.width, width);
+    button.style.width = `calc(${percent(room.width, width)} - 8px)`;
     map.append(footprint, button);
   }
 }

@@ -204,6 +204,13 @@ button:disabled {
   background: #edd9ac;
 }
 
+.map-route.map-threshold {
+  z-index: 1;
+  width: 0.42rem;
+  margin-left: -0.21rem;
+  background: #735741;
+}
+
 .map-footprint {
   box-sizing: border-box;
   transform: translate(-50%, -50%);
@@ -242,6 +249,7 @@ button:disabled {
   min-width: 2.75rem;
 }
 
+.map-with-plan .map-place[data-place="pear-orchard"],
 .map-with-plan .map-place[data-place="garden"],
 .map-with-plan .map-place[data-place="riverside"] {
   min-width: 4.35rem;
