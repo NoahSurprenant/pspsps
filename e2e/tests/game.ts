@@ -51,9 +51,18 @@ export async function doorMat(page: Page, roomId: string): Promise<{ x: number; 
   if (!door) return `no door to ${roomId}`;
   const canvas = await page.locator("#game").boundingBox();
   if (!canvas) return "no canvas";
-  const mat = await page.evaluate(({ x, z }) => window.pspsps?.screenPoint(x, z), door);
-  if (!mat) return `the door to ${roomId} isn't drawn`;
-  const point = { x: canvas.x + mat.x, y: canvas.y + mat.y };
+  // A cat arrives beside the door it came through, drawn over the mat, and a click on a cat opens its card instead of
+  // walking: so the mat is clicked where no cat is drawn over it, at its middle or toward either side.
+  const spots = await page.evaluate(({ x, z, radius, edge }) => {
+    const along = edge === "north" || edge === "south" ? { x: radius * 0.8, z: 0 } : { x: 0, z: radius * 0.8 };
+    const mat = (dx: number, dz: number) => window.pspsps?.screenPoint(x + dx, z + dz);
+    const cats = [...(window.pspsps?.room()?.cats.keys() ?? [])].map((id) => window.pspsps?.catOnScreen(id)).filter((p) => p !== undefined);
+    return [mat(0, 0), mat(along.x, along.z), mat(-along.x, -along.z)].filter((p) => p !== undefined)
+      .map((p) => ({ ...p, clear: cats.every((cat) => Math.hypot(cat.x - p.x, cat.y - p.y) > 60) }));
+  }, door);
+  const chosen = spots.find((spot) => spot.clear) ?? spots[0];
+  if (!chosen) return `the door to ${roomId} isn't drawn`;
+  const point = { x: canvas.x + chosen.x, y: canvas.y + chosen.y };
   const on = await page.evaluate(({ x, y }) => {
     const top = document.elementFromPoint(x, y);
     return top?.id === "game" ? undefined : top ? `${top.tagName.toLowerCase()}.${top.className}` : "nothing";
