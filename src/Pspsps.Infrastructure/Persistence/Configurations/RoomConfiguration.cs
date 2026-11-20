@@ -18,6 +18,7 @@ internal sealed class RoomVersionConfiguration : IEntityTypeConfiguration<RoomVe
         builder.Property(v => v.Layout).HasColumnType("jsonb")
             .HasConversion(RoomJson.Converter<RoomLayout>(), RoomJson.Comparer<RoomLayout>());
         builder.HasIndex(v => new { v.RoomId, v.Number }).IsUnique();
+        builder.HasIndex(v => v.GoLiveAt).HasFilter("go_live_at is not null").HasDatabaseName("ix_room_versions_go_live_at");
         // A room has at most one published version, whichever pods publish at once.
         builder.HasIndex(v => v.RoomId).IsUnique().HasFilter("state = 'Published'").HasDatabaseName("ux_room_versions_published");
         builder.HasOne<Player>().WithMany().HasForeignKey(v => v.CreatedBy).OnDelete(DeleteBehavior.SetNull);

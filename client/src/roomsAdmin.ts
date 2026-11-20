@@ -45,9 +45,22 @@ export function optionsText(options: LookOptions): string {
 }
 
 /** The query that publishes a room together with others: new rooms need the rooms whose doors lead to them. */
-export function publishQuery(together: string): string {
+export function publishQuery(together: string, goLiveAt?: string): string {
   const ids = together.split(/[\s,]+/).filter((id) => id.length > 0);
-  return ids.length === 0 ? "" : `?${ids.map((id) => `with=${encodeURIComponent(id)}`).join("&")}`;
+  const parts = [...ids.map((id) => `with=${encodeURIComponent(id)}`), ...(goLiveAt ? [`at=${encodeURIComponent(goLiveAt)}`] : [])];
+  return parts.length === 0 ? "" : `?${parts.join("&")}`;
+}
+
+/** The time a date-time field holds (the admin's local time) as the instant the server is told; null when it is empty or not a time. */
+export function goLiveInstant(local: string): string | null {
+  const time = local === "" ? Number.NaN : new Date(local).getTime();
+  return Number.isNaN(time) ? null : new Date(time).toISOString();
+}
+
+/** Some of the drafts waiting, published together: the first is the room the request is for, the rest ride along. */
+export function draftSetUrl(ids: string[], goLiveAt?: string): { roomId: string; query: string } | null {
+  const [roomId, ...rest] = ids;
+  return roomId === undefined ? null : { roomId, query: publishQuery(rest.join(","), goLiveAt) };
 }
 
 /** The query that saves over the draft as it was opened, so a draft someone else saved meanwhile is refused; none for a new draft. */
@@ -68,7 +81,7 @@ export function newLookTemplate(): unknown {
   return { sky: "#cfe8ff", floorColour: "#c8b79a", wallColour: "#e6dccb", floor: { painter: "planks", colour: "#b08a5a" }, wall: { painter: "panelled" }, backdrop: { parts: [] } };
 }
 
-export interface RoomSummary { roomId: string; name: string; published: number | null; draft: number | null }
+export interface RoomSummary { roomId: string; name: string; published: number | null; draft: number | null; goLiveAt?: string | null }
 export interface VersionSummary { number: number; state: string; createdAt: string; publishedAt: string | null }
 export interface RoomDetail {
   roomId: string;
@@ -77,12 +90,20 @@ export interface RoomDetail {
   draft: unknown | null;
   overlays: { id: string }[];
   draftRevision?: number | null;
+  goLiveAt?: string | null;
+}
+
+/** When a draft goes live by itself, as the admin reads it; empty for a draft that waits to be published by hand. */
+export function goLiveText(goLiveAt: string | null | undefined): string {
+  return goLiveAt ? `goes live ${new Date(goLiveAt).toLocaleString()}` : "";
 }
 
 /** One line for a room in the list: its name, the version players have and whether a draft waits. */
 export function roomLine(room: RoomSummary): string {
   const live = room.published === null ? "not published" : `version ${room.published} live`;
-  return room.draft === null ? `${room.name} (${live})` : `${room.name} (${live}, draft ${room.draft})`;
+  if (room.draft === null) return `${room.name} (${live})`;
+  const when = goLiveText(room.goLiveAt);
+  return `${room.name} (${live}, draft ${room.draft}${when === "" ? "" : `, ${when}`})`;
 }
 
 /** The layout or overlay as text for editing; null when it isn't valid JSON. */
@@ -183,6 +204,7 @@ function windowPicker(overlay: HTMLTextAreaElement): { element: HTMLElement; loa
 export function roomsSection(say: (message: string) => void): HTMLElement {
   const list = el("ul", { className: "list" });
   const editor = el("div", {});
+  const waiting = el("div", {});
   const history = el("ul", { className: "list" });
   const loadHistory = async (): Promise<void> => {
     const lines = (await (await fetch("/api/admin/rooms/audit?limit=50")).json()) as AuditLine[];
@@ -190,7 +212,7 @@ export function roomsSection(say: (message: string) => void): HTMLElement {
   };
   const body = el("section", {}, el("h2", { text: "Rooms" }),
     el("p", { className: "quiet", text: "A room is what its published version says. Saving makes a draft; publishing checks every room together first." }),
-    list, editor, el("h3", { text: "What admins changed" }), button("Show the latest changes", () => void run(loadHistory)), history);
+    list, waiting, editor, el("h3", { text: "What admins changed" }), button("Show the latest changes", () => void run(loadHistory)), history);
 
   const run = async (action: () => Promise<void>): Promise<void> => {
     try {
@@ -209,9 +231,40 @@ export function roomsSection(say: (message: string) => void): HTMLElement {
     add.placeholder = "new-room-id";
     add.style.minHeight = "44px";
     add.style.fontSize = "16px";
+    showWaiting(rooms.filter((room) => room.draft !== null));
     list.replaceChildren(
       ...rooms.map((room) => el("li", {}, button(roomLine(room), () => void run(() => open(room.roomId))))),
       el("li", {}, add, button("New room", () => { if (add.value) void run(() => open(add.value, true)); })));
+  }
+
+  function showWaiting(drafts: RoomSummary[]): void {
+    if (drafts.length === 0) { waiting.replaceChildren(); return; }
+    const boxes = drafts.map((room) => {
+      const box = el("input");
+      box.type = "checkbox";
+      box.setAttribute("aria-label", `Publish ${room.roomId}`);
+      return { room, box };
+    });
+    const at = el("input");
+    at.type = "datetime-local";
+    at.setAttribute("aria-label", "Go live at (your time)");
+    const ticked = (): string[] => boxes.filter(({ box }) => box.checked).map(({ room }) => room.roomId);
+    const publish = (later: boolean): void => void run(async () => {
+      const when = later ? goLiveInstant(at.value) : undefined;
+      if (later && when === null) { say("Pick the time to go live at."); return; }
+      const set = draftSetUrl(ticked(), when ?? undefined);
+      if (set === null) { say("Tick the drafts to publish."); return; }
+      await send("POST", `${base(set.roomId)}/publish${set.query}`);
+      say(later ? `${ticked().join(", ")} will go live at ${at.value}.` : `${ticked().join(", ")} published together.`);
+      await loadList();
+    });
+    waiting.replaceChildren(
+      el("h3", { text: "Drafts waiting" }),
+      el("p", { className: "quiet", text: "Tick some drafts to publish just those together (they are checked as a set), now or at a time." }),
+      ...boxes.map(({ room, box }) => el("label", {}, box, el("span", { text: ` ${roomLine(room)} ` }))),
+      button("Publish ticked", () => publish(false)),
+      at,
+      button("Publish ticked at that time", () => publish(true)));
   }
 
   async function open(roomId: string, isNew = false): Promise<void> {
@@ -228,6 +281,26 @@ export function roomsSection(say: (message: string) => void): HTMLElement {
     together.setAttribute("aria-label", "Publish together with these rooms");
     together.placeholder = "publish with: room-a, room-b";
     const picture = el("div", {});
+    const goLive = el("input");
+    goLive.type = "datetime-local";
+    goLive.setAttribute("aria-label", "Go live at (your time)");
+    const scheduleControls = (): HTMLElement[] => [
+      goLive,
+      button("Publish at that time", () => void run(async () => {
+        const when = goLiveInstant(goLive.value);
+        if (when === null) { say("Pick the time to go live at."); return; }
+        await send("POST", `${base(roomId)}/publish${publishQuery(together.value, when)}`);
+        say(`${roomId} will go live at ${goLive.value}.`);
+        await refresh();
+      })),
+      ...(detail?.goLiveAt
+        ? [el("span", { className: "quiet", text: ` ${goLiveText(detail.goLiveAt)} ` }), button("Take off the schedule", () => void run(async () => {
+          await send("DELETE", `${base(roomId)}/schedule`);
+          say("It will wait to be published by hand.");
+          await refresh();
+        }))]
+        : []),
+    ];
     const stage = el("canvas", {});
     stage.width = 640;
     stage.height = 400;
@@ -305,6 +378,7 @@ export function roomsSection(say: (message: string) => void): HTMLElement {
           await refresh();
         })),
         together,
+        ...scheduleControls(),
         button("Discard draft", () => void run(async () => {
           await send("DELETE", `${base(roomId)}/draft`);
           say("The draft is gone.");

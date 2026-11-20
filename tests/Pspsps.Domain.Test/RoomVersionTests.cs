@@ -81,6 +81,38 @@ public sealed class RoomVersionTests
     }
 
     [Test]
+    public void ADraft_ScheduledForLater_IsTakenOffByEditingItOrPublishingIt()
+    {
+        var admin = Guid.NewGuid();
+        var draft = RoomVersion.Draft("garden", 2, Layout, admin, Now);
+
+        draft.Schedule(Now.AddDays(1), admin, Now);
+        Assert.That((draft.GoLiveAt, draft.ScheduledBy), Is.EqualTo((Now.AddDays(1), (Guid?)admin)));
+
+        draft.Edit(Layout with { Name = "Changed" });
+        Assert.That((draft.GoLiveAt, draft.ScheduledBy), Is.EqualTo(((DateTimeOffset?)null, (Guid?)null)), "an edit takes it off");
+
+        draft.Schedule(Now.AddDays(1), admin, Now);
+        draft.Publish(Now.AddDays(1));
+        Assert.That(draft.GoLiveAt, Is.Null, "published, so nothing is waiting");
+    }
+
+    [Test]
+    public void OnlyADraft_CanBeScheduled_AndOnlyForALaterTime()
+    {
+        var admin = Guid.NewGuid();
+        var draft = RoomVersion.Draft("garden", 2, Layout, admin, Now);
+        var published = RoomVersion.Published("garden", Layout, Now);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(() => draft.Schedule(Now, admin, Now), Throws.TypeOf<DomainException>());
+            Assert.That(() => draft.Schedule(Now.AddMinutes(-1), admin, Now), Throws.TypeOf<DomainException>());
+            Assert.That(() => published.Schedule(Now.AddDays(1), admin, Now), Throws.TypeOf<DomainException>());
+        });
+    }
+
+    [Test]
     public void AVersion_NeedsARoomAndANumberFromOne()
     {
         Assert.Multiple(() =>

@@ -4,6 +4,9 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Time.Testing;
+using Pspsps.Application.Abstractions;
 using Pspsps.Application.Rooms;
 using Pspsps.Domain.Rooms;
 using Pspsps.Infrastructure.Persistence;
@@ -345,5 +348,55 @@ public sealed class RoomEditorHttpTests
             db.WildlifeRecipes.RemoveRange(db.WildlifeRecipes.Where(w => w.Id == "recipe-moth"));
             await db.SaveChangesAsync();
         }
+    }
+
+    [Test]
+
+    public async Task ADraftScheduledForLater_GoesLiveWhenItsTimeComes_AndNotBefore()
+    {
+        using var admin = await AdminClientAsync();
+        using var opened = await SendAsync(admin, HttpMethod.Get, "rooms/cafe");
+        var detail = await JsonOfAsync(opened);
+        var liveNumber = detail["versions"]!.AsArray().First(v => v!["state"]!.GetValue<string>() == "Published")!["number"]!.GetValue<int>();
+        var layout = detail["published"]!.DeepClone();
+        layout["name"] = "Cafe, scheduled";
+        using var saved = await SendAsync(admin, HttpMethod.Put, "rooms/cafe/draft", layout);
+        var at = DateTimeOffset.UtcNow.AddHours(1);
+        var when = Uri.EscapeDataString(at.ToString("O", System.Globalization.CultureInfo.InvariantCulture));
+
+        using var inThePast = await SendAsync(admin, HttpMethod.Post, $"rooms/cafe/publish?at={Uri.EscapeDataString(DateTimeOffset.UtcNow.AddMinutes(-5).ToString("O", System.Globalization.CultureInfo.InvariantCulture))}");
+        using var scheduled = await SendAsync(admin, HttpMethod.Post, $"rooms/cafe/publish?at={when}");
+        using var afterScheduling = await SendAsync(admin, HttpMethod.Get, "rooms/cafe");
+        var goLiveAt = (await JsonOfAsync(afterScheduling))["goLiveAt"];
+        using var taken = await SendAsync(admin, HttpMethod.Delete, "rooms/cafe/schedule");
+        using var notScheduled = await SendAsync(admin, HttpMethod.Delete, "rooms/cafe/schedule");
+        using var again = await SendAsync(admin, HttpMethod.Post, $"rooms/cafe/publish?at={when}");
+
+        await using var scope = Game.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        var library = scope.ServiceProvider.GetRequiredService<IRoomLibrary>();
+        var early = await new RoomEditor(db, library, TimeProvider.System).PublishDueAsync(CancellationToken.None);
+        var late = await new RoomEditor(db, library, new FakeTimeProvider(at.AddMinutes(1))).PublishDueAsync(CancellationToken.None);
+        using var live = await SendAsync(admin, HttpMethod.Get, "rooms/cafe");
+        var published = (await JsonOfAsync(live))["published"]!["name"]!.GetValue<string>();
+        using var audit = await SendAsync(admin, HttpMethod.Get, "rooms/audit?limit=50");
+        var actions = (await JsonOfAsync(audit)).AsArray().Where(line => line!["target"]!.GetValue<string>() == "cafe").Select(line => line!["action"]!.GetValue<string>()).ToList();
+        using var back = await SendAsync(admin, HttpMethod.Post, $"rooms/cafe/rollback/{liveNumber}");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(saved.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(inThePast.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+            Assert.That(scheduled.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+            Assert.That(goLiveAt, Is.Not.Null);
+            Assert.That(taken.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+            Assert.That(notScheduled.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+            Assert.That(again.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+            Assert.That(early, Is.Zero, "not before its time");
+            Assert.That(late, Is.EqualTo(1));
+            Assert.That(published, Is.EqualTo("Cafe, scheduled"));
+            Assert.That(actions, Does.Contain("publish-scheduled").And.Contain("schedule-removed").And.Contain("published"));
+            Assert.That(back.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+        });
     }
 }

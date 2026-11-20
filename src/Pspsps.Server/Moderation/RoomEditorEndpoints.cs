@@ -34,10 +34,25 @@ public static class RoomEditorEndpoints
                 return Results.NoContent();
             }));
 
-        rooms.MapPost("/{roomId}/publish", (string roomId, [Microsoft.AspNetCore.Mvc.FromQuery(Name = "with")] string[]? together, HttpRequest request, ClaimsPrincipal user, IModerationService moderation, IRoomEditor editor) =>
+        rooms.MapPost("/{roomId}/publish", (string roomId, [Microsoft.AspNetCore.Mvc.FromQuery(Name = "with")] string[]? together, DateTimeOffset? at, HttpRequest request, ClaimsPrincipal user, IModerationService moderation, IRoomEditor editor) =>
             Change(request, user, moderation, async adminId =>
             {
-                await editor.PublishAsync(roomId, together ?? [], adminId, CancellationToken.None);
+                if (at is null)
+                {
+                    await editor.PublishAsync(roomId, together ?? [], adminId, CancellationToken.None);
+                }
+                else
+                {
+                    await editor.ScheduleAsync(roomId, together ?? [], at.Value, adminId, CancellationToken.None);
+                }
+
+                return Results.NoContent();
+            }));
+
+        rooms.MapDelete("/{roomId}/schedule", (string roomId, HttpRequest request, ClaimsPrincipal user, IModerationService moderation, IRoomEditor editor) =>
+            Change(request, user, moderation, async adminId =>
+            {
+                await editor.UnscheduleAsync(roomId, adminId, CancellationToken.None);
                 return Results.NoContent();
             }));
 

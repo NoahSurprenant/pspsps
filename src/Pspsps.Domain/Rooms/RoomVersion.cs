@@ -45,6 +45,12 @@ public sealed class RoomVersion
 
     public DateTimeOffset? PublishedAt { get; private set; }
 
+    /// <summary>When a draft is to go live by itself; null for one that waits to be published by hand. Saving the draft again takes it off.</summary>
+    public DateTimeOffset? GoLiveAt { get; private set; }
+
+    /// <summary>The admin who scheduled it, who the publishing is put down to.</summary>
+    public Guid? ScheduledBy { get; private set; }
+
     public static RoomVersion Draft(string roomId, int number, RoomLayout layout, Guid? createdBy, DateTimeOffset now)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(roomId);
@@ -85,6 +91,30 @@ public sealed class RoomVersion
 
         Layout = layout;
         Revision++;
+        GoLiveAt = null;
+        ScheduledBy = null;
+    }
+
+    public void Schedule(DateTimeOffset at, Guid adminId, DateTimeOffset now)
+    {
+        if (State != RoomVersionState.Draft)
+        {
+            throw new DomainException("Only a draft can be scheduled.");
+        }
+
+        if (at <= now)
+        {
+            throw new DomainException("A draft goes live in the future: pick a later time, or publish it now.");
+        }
+
+        GoLiveAt = at;
+        ScheduledBy = adminId;
+    }
+
+    public void Unschedule()
+    {
+        GoLiveAt = null;
+        ScheduledBy = null;
     }
 
     public void Publish(DateTimeOffset now)
@@ -96,6 +126,7 @@ public sealed class RoomVersion
 
         State = RoomVersionState.Published;
         PublishedAt = now;
+        Unschedule();
     }
 
     public void Archive()
