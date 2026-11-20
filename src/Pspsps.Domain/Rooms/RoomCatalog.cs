@@ -71,17 +71,17 @@ public static class RoomCatalog
             Doors =
             [
                 new Door("town-square", new Position(8, 1.8), Radius: 0.8, ToRoom: "town-square", ToDoor: "garden"),
-                new Door("riverside", new Position(-5.8, -5), Radius: 0.8, ToRoom: "riverside", ToDoor: "garden"),
+                new Door("riverside", new Position(5.8, -5), Radius: 0.8, ToRoom: "riverside", ToDoor: "garden"),
             ],
             Props =
             [
                 new Prop(PropKinds.Tree, new Position(-7.6, 2), Radius: 1.3),
                 new Prop(PropKinds.Tree, new Position(6.9, 4.4), Radius: 1.3),
                 new Prop(PropKinds.FlowerBed, new Position(-6.8, -0.4), Radius: 1.1),
-                new Prop(PropKinds.FlowerBed, new Position(4.1, -2.5), Radius: 1.1),
+                new Prop(PropKinds.FlowerBed, new Position(0.3, -3), Radius: 1.1),
                 new Prop(PropKinds.FlowerBed, new Position(0, 3.5), Radius: 0.9),
                 new Prop(PropKinds.Bench, new Position(-7.7, -2.5), Radius: 1, Facing: Math.PI / 2),
-                new Prop(PropKinds.Bench, new Position(4.1, -4.8), Radius: 1),
+                new Prop(PropKinds.Bench, new Position(-3.6, -4.8), Radius: 1),
                 new Prop(PropKinds.Lamp, new Position(1.2, -4.8), Radius: 0.35),
             ],
         },
