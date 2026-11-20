@@ -23,10 +23,10 @@ import "@babylonjs/core/Culling/ray";
 import { AdvancedDynamicTexture } from "@babylonjs/gui/2D/advancedDynamicTexture";
 import { Rectangle } from "@babylonjs/gui/2D/controls/rectangle";
 import { TextBlock } from "@babylonjs/gui/2D/controls/textBlock";
-import { cameraPitch, cameraRadius, fieldOfView, roomPitch } from "./view";
+import { cameraFocus, cameraPitch, cameraRadius, fieldOfView, roomPitch, startingZoom, zoomRadius } from "./view";
 import { sceneryTarget } from "./walking";
 import { animationFor, Cat, facing, loadCatModel, MeowClip, type CatAnimation, type Outfit } from "./cat";
-import { hasDoorway } from "./doors";
+import { hasDoorway, pathEdge } from "./doors";
 import { lazily } from "./lazy";
 import { appLog } from "./telemetry";
 import { lookOf } from "./looks";
@@ -46,6 +46,8 @@ const sky = Color4.FromHexString("#bfe3f2ff");
 const anchorHeight = 1.4;
 /** A door's mat: its own red, which nothing else in a room is (the layout test looks for it). */
 export const doorMatColour = "#c8553d";
+/** The terracotta paving on outdoor paths, which the room layout tests look for. */
+export const pathColour = "#d9a468";
 /** The ring round the furniture selected while decorating: the buttons' orange. */
 const selectionColour = "#f0a04b";
 /** How close (in metres) a cat drawn walking somewhere counts as there. */
@@ -110,6 +112,9 @@ export class RoomScene {
   editing = false;
   // What a tap does, given everything along its ray (multiPick): set for the room showing.
   private tap: (picks: readonly PickingInfo[], outside?: () => { x: number; z: number } | undefined) => void = () => {};
+  private pickScreen: (x: number, y: number) => void = () => {};
+  private changeZoom: (factor: number) => void = () => {};
+  private zoom: number | undefined;
   /**
    * The player's own cat: a tap on it opens the player's own card, but only when nothing else a tap goes to is along its
    * ray (another cat, a door, the pond): a tap on a door just behind it still goes through the door.
@@ -123,6 +128,7 @@ export class RoomScene {
   constructor(
     private readonly engine: AbstractEngine,
     private readonly loadModel: (scene: Scene) => Promise<AssetContainer> = catModelFor,
+    private readonly touch = false,
   ) {
     this.scene = new Scene(this.engine);
     this.scene.clearColor = sky;
@@ -135,6 +141,16 @@ export class RoomScene {
   renderFrame(): void {
     if (this.scene.activeCamera) {
       this.scene.render();
+    }
+  }
+
+  tapScreen(x: number, y: number): void {
+    this.pickScreen(x, y);
+  }
+
+  zoomBy(factor: number): void {
+    if (factor !== 1) {
+      this.changeZoom(factor);
     }
   }
 
@@ -199,14 +215,31 @@ export class RoomScene {
         return undefined;
       });
 
-    // A fixed, angled camera: the player never steers it, like a painted backdrop.
+    // Keep the viewing direction steady while zooming and following the cat.
     const camera = new ArcRotateCamera("camera", -Math.PI / 2, cameraPitch, 1, Vector3.Zero(), this.scene);
     camera.fov = fieldOfView;
-    // Back far enough for the screen's shape, now and whenever it changes (a phone turned on its side).
+    let aspect = this.engine.getAspectRatio(camera);
+    let fitted = cameraRadius(aspect, room.width, room.depth);
+    const aim = () => {
+      if (camera.radius === fitted) {
+        return;
+      }
+      const cat = this.playerId === undefined ? undefined : this.positionOf(this.playerId);
+      const focus = cameraFocus(room, cat, aspect, camera.radius, fitted);
+      camera.target.set(focus.x, 0, focus.z);
+    };
     const fit = () => {
-      const aspect = this.engine.getAspectRatio(camera);
+      aspect = this.engine.getAspectRatio(camera);
+      fitted = cameraRadius(aspect, room.width, room.depth);
       camera.beta = roomPitch(aspect);
-      camera.radius = cameraRadius(aspect, room.width, room.depth);
+      camera.radius = zoomRadius(fitted, this.zoom ?? startingZoom(aspect, this.touch));
+      camera.target.setAll(0);
+      aim();
+    };
+    this.changeZoom = (factor) => {
+      // Start from the actual camera, so coming out of the closest view responds to the first gesture.
+      this.zoom = Math.max(1, Math.min(fitted / 9, (fitted / camera.radius) * factor));
+      fit();
     };
     fit();
     this.engine.onResizeObservable.add(fit);
@@ -283,7 +316,7 @@ export class RoomScene {
     // The doors, each a mat on the floor (and, by the back wall, a doorway in it) that walks the cat through when clicked.
     const doors = new Map<AbstractMesh, DoorView>();
     for (const door of room.doors) {
-      for (const part of this.drawDoor(door, room.depth)) {
+      for (const part of this.drawDoor(door, room)) {
         doors.set(part, door);
       }
     }
@@ -338,21 +371,29 @@ export class RoomScene {
         }
       }
     };
-    this.scene.onPointerDown = (_, pick) => {
-      const { pointerX, pointerY } = this.scene;
-      this.tap(this.scene.multiPick(pointerX, pointerY) ?? [], () => {
+    this.pickScreen = (x, y) => {
+      this.tap(this.scene.multiPick(x, y) ?? [], () => {
         const cat = this.playerId === undefined ? undefined : this.positionOf(this.playerId);
         if (cat) {
-          const ray = pick?.ray ?? this.scene.createPickingRay(pointerX, pointerY, Matrix.Identity(), camera);
+          const ray = this.scene.createPickingRay(x, y, Matrix.Identity(), camera);
           return sceneryTarget(cat, ray, room);
         }
       });
     };
-    this.scene.onBeforeRenderObservable.add(() => this.step(this.engine.getDeltaTime() / 1000));
+    this.scene.onPointerDown = (event) => {
+      if (event.pointerType !== "touch" && event.button === 0) {
+        this.tapScreen(this.scene.pointerX, this.scene.pointerY);
+      }
+    };
+    this.scene.onBeforeRenderObservable.add(() => {
+      this.step(this.engine.getDeltaTime() / 1000);
+      aim();
+    });
 
     for (const cat of room.cats) {
       this.place(cat);
     }
+    aim();
   }
 
   place(cat: CatView): void {
@@ -586,12 +627,14 @@ export class RoomScene {
   }
 
   /**
-   * Draws a door, flat and outlined like the rest of the room: a mat on the floor over its spot, with a dark edge as the
-   * pond has (not renderOutline, which painted over flat floor things), and, when it is by the back wall, a doorway in
-   * the wall behind it with the name of the room it leads to over it. Returns the parts a click goes through.
+   * Draws a room exit as a doorway and mat by the back wall or an outdoor path and sign at the edge.
+   * Returns the meshes that a click can use to take the exit.
    */
-  private drawDoor(door: DoorView, depth: number): AbstractMesh[] {
+  private drawDoor(door: DoorView, room: Pick<RoomSnapshot, "width" | "depth">): AbstractMesh[] {
     const name = `door-${door.id}`;
+    if (!hasDoorway(door, room.depth)) {
+      return this.drawPath(door, room);
+    }
     const matWidth = door.radius * 2;
     const matDepth = door.radius * 1.4;
     const edge = CreateBox(`${name}-mat-edge`, { width: matWidth + 0.16, depth: matDepth + 0.16, height: 0.02 }, this.scene);
@@ -602,11 +645,7 @@ export class RoomScene {
     mat.position.set(door.x, 0.03, door.z);
     mat.material = flat(this.scene, `${name}-mat`, doorMatColour);
 
-    // Only a door near the back wall has a doorway in it; one further out is just its mat.
-    const wall = depth / 2;
-    if (!hasDoorway(door, depth)) {
-      return [mat];
-    }
+    const wall = room.depth / 2;
     // Clear of the wall's own outline, which is drawn a little in front of it.
     const frame = CreateBox(`${name}-frame`, { width: 1.9, height: 2.7, depth: 0.04 }, this.scene);
     frame.position.set(door.x, 1.35, wall - 0.08);
@@ -615,12 +654,41 @@ export class RoomScene {
     panel.position.set(door.x, 1.25, wall - 0.11);
     panel.material = flat(this.scene, `${name}-panel`, "#8a5a3c");
 
-    const anchor = CreateBox(`${name}-anchor`, { size: 0.01 }, this.scene);
     // Within the doorway so the sign stays below the room bar on short screens.
-    anchor.position.set(door.x, 2.15, wall - 0.16);
+    this.labelDoor(name, door.toRoomName, door.x, 2.15, wall - 0.16);
+    return [mat, frame, panel];
+  }
+
+  private drawPath(door: DoorView, room: Pick<RoomSnapshot, "width" | "depth">): AbstractMesh[] {
+    const name = `path-${door.id}`;
+    const edge = pathEdge(door, room);
+    const [dx, dz] = [edge.x - door.x, edge.z - door.z];
+    const path = CreateBox(name, {
+      width: dx === 0 ? 1.7 : Math.abs(dx) + 1.35,
+      depth: dz === 0 ? 1.7 : Math.abs(dz) + 1.35,
+      height: 0.03,
+    }, this.scene);
+    path.position.set(door.x + dx / 2, 0.025, door.z + dz / 2);
+    path.material = flat(this.scene, name, pathColour);
+
+    // A low signpost alongside the path, leaving the way through open.
+    const [x, z] = dx === 0 ? [door.x + 1.25, door.z] : [door.x, door.z + 1.25];
+    const post = CreateBox(`${name}-post`, { width: 0.17, height: 1.45, depth: 0.17 }, this.scene);
+    post.position.set(x, 0.725, z);
+    post.material = flat(this.scene, `${name}-post`, "#79543b");
+    const board = CreateBox(`${name}-board`, { width: 1.75, height: 0.46, depth: 0.12 }, this.scene);
+    board.position.set(x, 1.44, z);
+    board.material = flat(this.scene, `${name}-board`, "#e8cf9f");
+    this.labelDoor(name, door.toRoomName, x, 1.76, z);
+    return [path, post, board];
+  }
+
+  private labelDoor(name: string, title: string, x: number, y: number, z: number): void {
+    const anchor = CreateBox(`${name}-anchor`, { size: 0.01 }, this.scene);
+    anchor.position.set(x, y, z);
     anchor.isVisible = false;
     anchor.isPickable = false;
-    const label = new TextBlock(`${name}-label`, door.toRoomName);
+    const label = new TextBlock(`${name}-label`, title);
     label.color = ink;
     label.fontSize = 14;
     label.fontWeight = "bold";
@@ -628,7 +696,6 @@ export class RoomScene {
     label.outlineWidth = 3;
     this.gui?.addControl(label);
     label.linkWithMesh(anchor);
-    return [mat, frame, panel];
   }
 
   private step(seconds: number): void {

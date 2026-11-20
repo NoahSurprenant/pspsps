@@ -61,6 +61,23 @@ grain IRoomGrain 3: Task<IReadOnlyList<String>> Renew(IReadOnlyList<PlayerSessio
 grain IRoomGrain 3: Task<ReelView> Reel(Guid playerId)
 grain IRoomGrain 3: Task<RoomSnapshot> Join(PlayerCard player, String session, String throughDoor)
 
+grain IRoomGrain 4: Task Cast(Guid playerId)
+grain IRoomGrain 4: Task Dress(OutfitView outfit)
+grain IRoomGrain 4: Task Emote(Guid playerId, String emote)
+grain IRoomGrain 4: Task Furnish(HomeView home)
+grain IRoomGrain 4: Task Leave(Guid playerId, String session)
+grain IRoomGrain 4: Task Move(Guid playerId, Double x, Double z)
+grain IRoomGrain 4: Task Rename(Guid playerId, String displayName)
+grain IRoomGrain 4: Task Say(Guid playerId, String text)
+grain IRoomGrain 4: Task SendOut(IReadOnlyList<Guid> playerIds, String message)
+grain IRoomGrain 4: Task<Boolean> Has(Guid playerId, String session)
+grain IRoomGrain 4: Task<DoorTarget> LeaveThrough(Guid playerId, String session, String doorId)
+grain IRoomGrain 4: Task<IReadOnlyList<ChatView>> RecentChat()
+grain IRoomGrain 4: Task<IReadOnlyList<Guid>> CatsHere()
+grain IRoomGrain 4: Task<IReadOnlyList<String>> Renew(IReadOnlyList<PlayerSession> sessions)
+grain IRoomGrain 4: Task<ReelView> Reel(Guid playerId)
+grain IRoomGrain 4: Task<RoomSnapshot> Join(PlayerCard player, String session, String throughDoor)
+
 grain IWorldGrain 1: Task Leave(Guid playerId, String session)
 grain IWorldGrain 1: Task<Boolean> TryEnter(Guid playerId, String session)
 grain IWorldGrain 1: Task<IReadOnlyList<String>> Renew(IReadOnlyList<PlayerSession> sessions)
@@ -89,6 +106,7 @@ type DoorView 2: Double Z
 type DoorView 3: Double Radius
 type DoorView 4: String ToRoomId
 type DoorView 5: String ToRoomName
+type DoorView 6: String Edge
 type EmoteView 0: Guid PlayerId
 type EmoteView 1: String Emote
 type EmoteView 2: DateTimeOffset At
@@ -109,6 +127,16 @@ type OutfitView 1: String FurColor
 type OutfitView 2: String Hat
 type OutfitView 3: String Collar
 type OutfitView 4: Int32 Version
+type MapRoomView 0: String Id
+type MapRoomView 1: String Name
+type MapRoomView 2: Double X
+type MapRoomView 3: Double Z
+type MapRoomView 4: Double Width
+type MapRoomView 5: Double Depth
+type MapRouteView 0: Double FromX
+type MapRouteView 1: Double FromZ
+type MapRouteView 2: Double ToX
+type MapRouteView 3: Double ToZ
 type PlayerCard 0: Guid PlayerId
 type PlayerCard 1: String DisplayName
 type PlayerCard 2: String FurColor
@@ -149,3 +177,6 @@ type RoomSnapshot 9: IReadOnlyList<DoorView> Doors
 type RoomSnapshot 10: IReadOnlyList<PropView> Props
 type RoomSnapshot 11: HomeView Home
 type RoomSnapshot 12: String Notice
+type RoomSnapshot 13: WorldMapView WorldMap
+type WorldMapView 0: IReadOnlyList<MapRoomView> Rooms
+type WorldMapView 1: IReadOnlyList<MapRouteView> Routes

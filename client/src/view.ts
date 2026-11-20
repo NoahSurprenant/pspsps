@@ -21,3 +21,30 @@ export function cameraRadius(aspect: number, roomWidth: number, roomDepth: numbe
 export function roomPitch(aspect: number): number {
   return cameraPitch - Math.min(0.22, Math.max(0, 0.8 - aspect));
 }
+
+/** Portrait touch screens start closer. The whole room is still one pinch away. */
+export function startingZoom(aspect: number, touch: boolean): number {
+  return touch && aspect < 0.8 ? 1.4 : 1;
+}
+
+/** Keep the floor in front of the camera at the closest view, even in a deep room. */
+export function zoomRadius(fitted: number, zoom: number): number {
+  return Math.min(fitted, Math.max(9, fitted / zoom));
+}
+
+/** Aim at the cat until moving the camera farther would show more space outside the room. */
+export function cameraFocus(
+  room: { width: number; depth: number },
+  cat: { x: number; z: number } | undefined,
+  aspect: number,
+  radius: number,
+  fitted: number,
+): { x: number; z: number } {
+  if (!cat || radius >= fitted) {
+    return { x: 0, z: 0 };
+  }
+  const halfView = radius * Math.tan(fieldOfView / 2);
+  const limitX = Math.max(0, room.width / 2 - halfView * aspect);
+  const limitZ = Math.max(0, room.depth / 2 - halfView / Math.cos(roomPitch(aspect)));
+  return { x: Math.max(-limitX, Math.min(cat.x, limitX)), z: Math.max(-limitZ, Math.min(cat.z, limitZ)) };
+}

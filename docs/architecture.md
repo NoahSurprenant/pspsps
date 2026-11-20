@@ -60,10 +60,14 @@ A move goes like this:
 Rooms are joined by doors, in the room catalogue (`RoomCatalog`): a door (`Door`) is a round spot on a room's floor
 that leads to a door of another room. The browser walks the cat onto it, then calls `GoThroughDoor`; the room's grain
 lets the cat out only if it stands on that door (`RoomState.LeaveThrough`), and the next room puts it just inside
-the matching door (`Door.Arrival`), off it, so it doesn't walk straight back out. Town Square, Garden Courtyard, Riverside
-Trail and Cat Café form a loop, and the Cat Shop opens onto the square. Each door has a keyboard button that shows on
+the matching door (`Door.Arrival`), off it, so it doesn't walk straight back out. Open paths link Town Square to the
+garden to its west and the riverside to its south, with a path between them. The café and shop open onto Town Square.
+Each entrance has a keyboard button that shows on
 focus, as do the player's own cat and the shop catalogue. The world map uses the public destinations from the current
 room's snapshot and calls `GoToRoom` to travel to a destination's spawn point, just as the browser does after a reconnect.
+The map takes each footprint's centre, width and depth from the room catalogue. Exits are placed one metre inside a
+specified floor edge and the map draws routes between those edges. Public footprints may not overlap, and each exit
+must face the footprint it leads to. The café and shop are turned on the map so their back doors face Town Square.
 
 A room's props (`Prop`: benches, trees, café tables) are in the catalogue too, and go to the browser with the room;
 they are decoration, which cats walk through. `PropPlacement` keeps them out of the way: on the floor, off the doors,
@@ -78,6 +82,8 @@ ray, not the nearest: another cat (its card), a door, the pond, the player's own
 stand, a prop (the cat walks beside it), the floor. So a door just behind the player's own cat still takes the tap.
 A tap past the playable floor walks towards it as far as the room's edge. A ring briefly marks the destination.
 Holding WASD walks in screen directions, including diagonally, through the same server movement as a tap.
+The camera starts closer on a portrait touch screen. Wheel and pinch zoom stay within the room's zoom limits.
+At closer zoom the aim follows the player's cat within the bounds of the floor.
 
 Chat goes the same way, through the room's chat filter (`ChatFilter`, a rule of `RoomState.Say`): word lists that
 either star a word out or refuse the whole line, seeing through accents, look-alike letters, digits for letters,

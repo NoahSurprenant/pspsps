@@ -1,7 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
-import { catalogueStand, doorMat, doorMatRed, pixelsNear, pondBlue, watchErrors } from "./game";
+import { catalogueStand, doorMat, doorMatRed, pathTan, pinchRoom, pixelsNear, pondBlue, watchErrors } from "./game";
 import { contextFor, SCREENS, type Screen, type Size } from "./screens";
 
 // Every screen at every size: every control and line of text can be reached (on screen, or in a panel that scrolls),
@@ -53,13 +53,13 @@ const CHECKS: Record<Screen["name"], Checks> = {
   "admin-card": { parts: [".sheet"] },
   // The admin page: its own page, which scrolls inside its column.
   "admin-page": { parts: [".admin"] },
-  "world-map": { parts: [".sheet"] },
+  "world-map": { parts: [".sheet"], shows: mapLabelsFit },
   "town-square": {
     parts: [".room-bar", ".emote-bar", ".chat-bar", ".fishing"],
     // The pond and the doors' mats, drawn: from further off (a narrow screen backs the camera away) the floor's outline
     // once hid the pond, and props must never cover them.
-    shows: (page) => drawn(page, [["the pond", pondBlue, 20], ["the doors' mats", doorMatRed, 4]]),
-    reachable: (page) => doorsReachable(page, ["cafe", "shop", "garden"]),
+    shows: (page) => drawn(page, [["the pond", pondBlue, 20], ["the doors' mats", doorMatRed, 4], ["the paths", pathTan, 4]]),
+    reachable: (page) => doorsReachable(page, ["cafe", "shop", "garden", "riverside"]),
   },
   // A home: its owner's controls (Decorate, who can visit) in the dock, and its door out to Town Square clickable.
   home: {
@@ -85,23 +85,49 @@ const CHECKS: Record<Screen["name"], Checks> = {
     parts: [".room-bar", ".emote-bar", ".chat-bar"],
     // The door back to the square's mat, among the café's tables and chairs, drawn and clickable.
     shows: (page) => drawn(page, [["the door's mat", doorMatRed, 2]]),
-    reachable: (page) => doorsReachable(page, ["town-square", "riverside"]),
+    reachable: (page) => doorsReachable(page, ["town-square"]),
   },
   garden: {
     parts: [".room-bar", ".emote-bar", ".chat-bar"],
-    shows: (page) => drawn(page, [["the doors' mats", doorMatRed, 4]]),
+    shows: (page) => drawn(page, [["the paths", pathTan, 4]]),
     reachable: (page) => doorsReachable(page, ["town-square", "riverside"]),
   },
   riverside: {
     parts: [".room-bar", ".emote-bar", ".chat-bar", ".fishing"],
-    shows: (page) => drawn(page, [["the pond", pondBlue, 20], ["the doors' mats", doorMatRed, 4]]),
-    reachable: (page) => doorsReachable(page, ["garden", "cafe"]),
+    shows: (page) => drawn(page, [["the pond", pondBlue, 20], ["the paths", pathTan, 4]]),
+    reachable: (page) => doorsReachable(page, ["garden", "town-square"]),
   },
 };
 
 async function doorsReachable(page: Page, destinations: string[]): Promise<string[]> {
   const mats = await Promise.all(destinations.map((destination) => doorMat(page, destination)));
   return mats.filter((mat): mat is string => typeof mat === "string");
+}
+
+async function mapLabelsFit(page: Page): Promise<string[]> {
+  return page.locator(".world-map").evaluate((map) => {
+    const problems: string[] = [];
+    const bounds = map.getBoundingClientRect();
+    const buttons = [...map.querySelectorAll<HTMLButtonElement>(".map-place")];
+    for (const [index, button] of buttons.entries()) {
+      const name = button.textContent?.trim();
+      const box = button.getBoundingClientRect();
+      const label = button.querySelector("span:last-child");
+      if (box.left < bounds.left || box.right > bounds.right || box.top < bounds.top || box.bottom > bounds.bottom) {
+        problems.push(`${name} extends past the map`);
+      }
+      if (label && label.scrollWidth > label.clientWidth + 1) {
+        problems.push(`${name} overflows its button`);
+      }
+      for (const other of buttons.slice(index + 1)) {
+        const b = other.getBoundingClientRect();
+        if (box.left < b.right && b.left < box.right && box.top < b.bottom && b.top < box.bottom) {
+          problems.push(`${name} overlaps ${other.textContent?.trim()}`);
+        }
+      }
+    }
+    return problems;
+  });
 }
 
 /**
@@ -136,6 +162,10 @@ for (const screen of SCREENS) {
         const page = await context.newPage();
         const errors = watchErrors(page);
         close = (await screen.open(page)) ?? undefined;
+        // Check and capture every exit in the whole-room view. The portrait zoom has its own gesture test.
+        if (checks.reachable && size.phone && size.width < size.height) {
+          await pinchRoom(page, "out");
+        }
         const missing = checks.shows ? await checks.shows(page) : [];
 
         const dir = join("screenshots", screen.name);

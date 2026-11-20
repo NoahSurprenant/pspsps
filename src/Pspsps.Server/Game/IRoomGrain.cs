@@ -7,7 +7,7 @@ namespace Pspsps.Server.Game;
 /// Versioned: a change to it is add-only and bumps the version (docs/architecture.md, "Changing what pods say to each
 /// other"), which Pspsps.Server.Test's WireContractTests check against wire-contracts.txt.
 /// </remarks>
-[Version(3)] // The expanded room catalogue needs a silo that knows both sides of the new doors.
+[Version(4)] // Use a silo that knows the new outdoor routes on both sides.
 public interface IRoomGrain : IGrainWithStringKey
 {
     /// <summary>

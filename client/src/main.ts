@@ -10,6 +10,7 @@ import { loadRoom, PendingEvents } from "./pending";
 import { comeBack, saysSentOutAgain, stayAfterRefusal } from "./rejoin";
 import { catchBubble, FishingState, gotAwayMessage, paid, pondEdge, reelMessage, type Fishing } from "./fishing";
 import { Room } from "./room";
+import { roomGestures } from "./roomGestures";
 import type { CatAnimation } from "./cat";
 import type { RoomScene } from "./scene";
 import { Overlay, type CatPicture, type DecorateActions, type Note } from "./ui";
@@ -63,13 +64,14 @@ async function makeStage(): Promise<RoomScene> {
   const engine = new Engine(canvas, true, { stencil: true, canvasTabIndex: -1 });
   let made: RoomScene;
   try {
-    made = new RoomScene(engine);
+    made = new RoomScene(engine, undefined, matchMedia("(pointer: coarse)").matches);
   } catch (error) {
     // Nothing left behind for the next try: it makes its own engine.
     engine.dispose();
     throw error;
   }
   window.addEventListener("resize", () => engine.resize());
+  roomGestures(canvas, (x, y) => made.tapScreen(x, y), (factor) => made.zoomBy(factor));
   if (telemetry.enabled) {
     // The frame rate while a room shows, a median every few seconds.
     const fps = new FpsSampler((value) => telemetry.vital("FPS", value), () => room !== undefined);
@@ -430,10 +432,7 @@ async function fish(): Promise<void> {
 }
 
 function markWalk(x: number, z: number): void {
-  const point = scene?.screenPoint(x, z);
-  if (point) {
-    overlay.markWalk(point.x, point.y);
-  }
+  overlay.markWalk(() => scene?.screenPoint(x, z));
 }
 
 async function moveCat(x: number, z: number): Promise<void> {

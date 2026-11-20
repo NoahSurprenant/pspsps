@@ -1,4 +1,5 @@
 import { el } from "./dom";
+import { hasDoorway } from "./doors";
 import { emoteBar, emoteForKey, isTyping } from "./emotes";
 import type { Fishing } from "./fishing";
 import { canGoTo, friendButtons, friendStatus, sections, whereIs, type FriendAction, type Here } from "./friends";
@@ -218,7 +219,7 @@ export class Overlay {
       ),
       // The cat, the doors and the catalogue are drawn on the canvas, which the keyboard can't reach: a button for each,
       // unseen until it has focus.
-      keyboardLinks(room.doors, throughDoor, keys),
+      keyboardLinks(room, throughDoor, keys),
       el("div", { className: "dock" },
         el("div", { className: "toast", id: "toast" }),
         ...(fishing ? [el("div", { className: "fishing", id: "fishing" })] : []),
@@ -729,13 +730,20 @@ export class Overlay {
   }
 
   /** A brief ring where a click or tap sent the cat, in pixels from the canvas's top left. */
-  markWalk(x: number, y: number): void {
+  markWalk(point: () => { x: number; y: number } | undefined): void {
     this.root.querySelector(".walk-marker")?.remove();
     const marker = el("div", { className: "walk-marker" });
     marker.setAttribute("aria-hidden", "true");
-    marker.style.left = `${x}px`;
-    marker.style.top = `${y}px`;
     this.root.append(marker);
+    const follow = () => {
+      const position = point();
+      if (marker.isConnected && position) {
+        marker.style.left = `${position.x}px`;
+        marker.style.top = `${position.y}px`;
+        requestAnimationFrame(follow);
+      }
+    };
+    follow();
     window.setTimeout(() => marker.remove(), 580);
   }
 
@@ -809,11 +817,14 @@ function homeTools(home: HomeControls): HTMLElement {
  * The room's buttons for the keyboard, unseen until one has focus: the player's own cat (its card), the catalogue (in
  * the shop), and a button through each door. The cat, the stand and the doors themselves are drawn on the canvas.
  */
-function keyboardLinks(doors: DoorView[], throughDoor: (door: DoorView) => void, keys: RoomKeys): HTMLElement {
+function keyboardLinks(room: RoomSnapshot, throughDoor: (door: DoorView) => void, keys: RoomKeys): HTMLElement {
   const nav = el("nav", { className: "doors" },
-    ...doors.map((door) => button(`Through the door to ${door.toRoomName}`, () => throughDoor(door))),
+    ...room.doors.map((door) => {
+      const action = hasDoorway(door, room.depth) ? "Through the door to" : "Follow the path to";
+      return button(`${action} ${door.toRoomName}`, () => throughDoor(door));
+    }),
   );
-  nav.setAttribute("aria-label", "Doors");
+  nav.setAttribute("aria-label", "Room exits");
   return el("div", { className: "keyboard-links" },
     button("Your cat", keys.yourCat),
     ...(keys.catalogue ? [button("Open the catalogue", keys.catalogue)] : []),

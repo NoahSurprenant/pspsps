@@ -1,8 +1,9 @@
 import { PNG } from "pngjs";
+import type { Page } from "@playwright/test";
 import {
   animation, catEyes, cats, clickCat, emotes, enterWorld, expect, fishFor, goHome, goThroughDoor, hubGuest, newPlayer,
   pixelsNear, pondBlue, roomBarButtons, tapFloor, test, watchErrors, expectRoom, openCatalogue, partyHatPink, portrait, focusByTab,
-  enterWorldSignedIn, signInAsAdmin, fakeNetwork,
+  enterWorldSignedIn, signInAsAdmin, fakeNetwork, pinchRoom,
 } from "./game";
 
 test("the sign-in page loads without errors", async ({ page }) => {
@@ -11,6 +12,47 @@ test("the sign-in page loads without errors", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "pspsps" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Play as a guest" })).toBeVisible();
 });
+
+test("scroll zoom follows a walking cat and returns to the whole room", async ({ page }) => {
+  const me = await enterWorld(page, "Tabby");
+  const before = await floorSpan(page);
+  await page.mouse.move(640, 400);
+  await page.mouse.wheel(0, -140);
+  await expect.poll(() => floorSpan(page)).toBeGreaterThan(before * 1.4);
+  const centre = () => page.evaluate(() => window.pspsps?.screenPoint(0, 0)?.x ?? 0);
+  const originalCentre = await centre();
+
+  await tapFloor(page, 5, 2);
+  await expect.poll(async () => (await cats(page))[me]?.x).toBeGreaterThan(4.8);
+  await expect.poll(centre).toBeLessThan(originalCentre - 40);
+
+  await page.mouse.wheel(0, 300);
+  await expect.poll(() => floorSpan(page)).toBeCloseTo(before);
+  await expect.poll(centre).toBeCloseTo(originalCentre);
+});
+
+test("a portrait phone starts closer and pinches without moving the cat", async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  try {
+    const page = await context.newPage();
+    const me = await enterWorld(page, "Siamese");
+    const close = await floorSpan(page);
+    await pinchRoom(page, "out");
+    await expect.poll(() => floorSpan(page)).toBeLessThan(close * 0.82);
+    await pinchRoom(page, "in");
+    await expect.poll(() => floorSpan(page)).toBeGreaterThan(close * 1.3);
+    expect((await cats(page))[me]).toMatchObject({ x: 0, z: 4 });
+    await expect(page.locator(".walk-marker")).toHaveCount(0);
+  } finally {
+    await context.close();
+  }
+});
+
+function floorSpan(page: Page): Promise<number> {
+  return page.evaluate(() => Math.abs(
+    (window.pspsps?.screenPoint(2, 0)?.x ?? 0) - (window.pspsps?.screenPoint(-2, 0)?.x ?? 0),
+  ));
+}
 
 test("clicking beyond the square walks to its edge and marks the destination", async ({ page }) => {
   const me = await enterWorld(page, "Tabby");
@@ -535,6 +577,7 @@ test("a cat walks the garden loop and travels to a room's spawn from the world m
   await goThroughDoor(page, "garden", "Garden Courtyard");
   await goThroughDoor(page, "riverside", "Riverside Trail");
   await expect(page.getByRole("button", { name: "Fish" })).toBeVisible();
+  await goThroughDoor(page, "town-square", "Town Square");
   await goThroughDoor(page, "cafe", "Cat Café");
   await goThroughDoor(page, "town-square", "Town Square");
 
@@ -542,6 +585,11 @@ test("a cat walks the garden loop and travels to a room's spawn from the world m
   await openMap.click();
   const map = page.getByRole("dialog", { name: "World map" });
   await expect(map.getByRole("button", { name: "Town Square, you are here" })).toHaveAttribute("aria-current", "location");
+  await expect(map.locator(".map-route")).toHaveCount(5);
+  const square = await map.locator('.map-footprint[data-room="town-square"]').boundingBox();
+  const cafe = await map.locator('.map-footprint[data-room="cafe"]').boundingBox();
+  if (!square || !cafe) throw new Error("the map is missing a room footprint");
+  expect(square.width / cafe.width).toBeCloseTo(24 / 14);
   await page.keyboard.press("Escape");
   await expect(map).toBeHidden();
   await expect(openMap).toBeFocused();

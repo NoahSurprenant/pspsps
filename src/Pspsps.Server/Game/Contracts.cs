@@ -104,7 +104,8 @@ public sealed record RoomSnapshot(
     [property: Id(9)] IReadOnlyList<DoorView> Doors,
     [property: Id(10)] IReadOnlyList<PropView> Props,
     [property: Id(11)] HomeView? Home = null,
-    [property: Id(12)] string? Notice = null);
+    [property: Id(12)] string? Notice = null,
+    [property: Id(13)] WorldMapView? WorldMap = null);
 
 /// <summary>
 /// A player's home, as the browser draws it and its owner decorates it: whose it is, who may visit ("Friends", "Anyone"
@@ -189,13 +190,14 @@ public sealed record DoorView(
     [property: Id(2)] double Z,
     [property: Id(3)] double Radius,
     [property: Id(4)] string ToRoomId,
-    [property: Id(5)] string ToRoomName)
+    [property: Id(5)] string ToRoomName,
+    [property: Id(6)] string? Edge = null)
 {
     public static DoorView From(Door door)
     {
         ArgumentNullException.ThrowIfNull(door);
         var to = RoomCatalog.Find(door.ToRoom) ?? throw new InvalidOperationException($"No room '{door.ToRoom}'.");
-        return new DoorView(door.Id, door.Spot.X, door.Spot.Z, door.Radius, to.Id, to.Name);
+        return new DoorView(door.Id, door.Spot.X, door.Spot.Z, door.Radius, to.Id, to.Name, door.Edge?.ToString().ToLowerInvariant());
     }
 }
 

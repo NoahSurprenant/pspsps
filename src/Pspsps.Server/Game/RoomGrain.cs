@@ -42,6 +42,7 @@ internal sealed class RoomGrain(
 
     // How long after the bite window closes the getaway timer fires, so it never beats a reel at the window's edge.
     private static readonly TimeSpan GetAwayGrace = TimeSpan.FromMilliseconds(50);
+    private static readonly WorldMapView WorldMap = WorldMapView.FromCatalogue();
 
     public override async Task OnActivateAsync(CancellationToken cancellationToken)
     {
@@ -143,7 +144,8 @@ internal sealed class RoomGrain(
             _state.Room.Pond is { } pond ? new PondView(pond.Center.X, pond.Center.Z, pond.Radius) : null,
             _doors,
             _props,
-            _home);
+            _home,
+            WorldMap: _home is null ? WorldMap : null);
     }
 
     public async Task Leave(Guid playerId, string session)
