@@ -1,4 +1,5 @@
 import { el } from "./dom";
+import { calendar, fieldsOf, monthNames, summary, windowOf, windowProblem, type WindowFields, type WindowJson } from "./overlayWindow";
 import { type CanvasDoor, type CanvasLayout, isLayout, newRoomTemplate, roomCanvas } from "./roomCanvas";
 
 export interface LookOptions {
@@ -113,6 +114,53 @@ function textArea(rows: number, label: string): HTMLTextAreaElement {
 }
 
 /**
+ * When an overlay is on, picked with dates instead of typed: two date boxes, a yearly box, what it says in words, and a
+ * strip of the year showing the days it is on. It writes the window into the overlay's JSON, which keeps the rest.
+ */
+function windowPicker(overlay: HTMLTextAreaElement): { element: HTMLElement; load: () => void } {
+  const start = el("input");
+  const end = el("input");
+  start.type = "date";
+  end.type = "date";
+  start.setAttribute("aria-label", "Overlay starts");
+  end.setAttribute("aria-label", "Overlay ends (this day is off)");
+  const yearly = el("input");
+  yearly.type = "checkbox";
+  yearly.setAttribute("aria-label", "Repeats every year");
+  const words = el("p", { className: "quiet" });
+  const strip = el("div", {});
+  const fields = (): WindowFields => ({ start: start.value, end: end.value, yearly: yearly.checked });
+
+  const show = (): void => {
+    const now = fields();
+    const problem = windowProblem(now);
+    words.textContent = problem ?? summary(now);
+    strip.replaceChildren(...(problem === null ? calendar(now, Number(now.start.slice(0, 4)) || new Date().getUTCFullYear()).map((days, month) =>
+      el("span", { text: `${monthNames[month] ?? ""} ${days.map((on) => (on ? "#" : ".")).join("")}`, className: "quiet" })) : []));
+    strip.style.fontFamily = "monospace";
+    strip.style.display = "grid";
+  };
+  const write = (): void => {
+    show();
+    const parsed = parseJson(overlay.value) as Record<string, unknown> | null;
+    if (parsed === null || windowProblem(fields()) !== null) return;
+    overlay.value = JSON.stringify({ ...parsed, window: windowOf(fields()) }, null, 2);
+  };
+  const load = (): void => {
+    const window = (parseJson(overlay.value) as { window?: WindowJson } | null)?.window;
+    if (window) {
+      const now = fieldsOf(window);
+      start.value = now.start;
+      end.value = now.end;
+      yearly.checked = now.yearly;
+    }
+    show();
+  };
+  for (const input of [start, end, yearly]) input.addEventListener("change", write);
+  return { element: el("div", {}, el("label", { text: "From " }, start), el("label", { text: " until " }, end), el("label", { text: " every year " }, yearly), words, strip), load };
+}
+
+/**
  * The rooms section of the admin page: every room with its versions; a room's layout as JSON to edit (this is also the
  * import and export), saved as a draft, checked and published, or an old version rolled back to; and its overlays.
  */
@@ -157,6 +205,7 @@ export function roomsSection(say: (message: string) => void): HTMLElement {
     const layout = textArea(24, `${roomId} layout as JSON`);
     layout.value = JSON.stringify(detail?.draft ?? detail?.published ?? newRoomTemplate(roomId), null, 2);
     const overlay = textArea(10, "Overlay as JSON");
+    const picker = windowPicker(overlay);
     const refresh = async (): Promise<void> => { await loadList(); await open(roomId); };
 
     const together = el("input");
@@ -241,12 +290,13 @@ export function roomsSection(say: (message: string) => void): HTMLElement {
       el("h3", { text: "Seasonal overlays" }),
       el("ul", { className: "list" }, ...(detail?.overlays ?? []).map((existing) =>
         el("li", { text: `${existing.id} ` },
-          button("Edit", () => { overlay.value = JSON.stringify(existing, null, 2); }),
+          button("Edit", () => { overlay.value = JSON.stringify(existing, null, 2); picker.load(); }),
           button("Delete", () => void run(async () => {
             await send("DELETE", `${base(roomId)}/overlays/${encodeURIComponent(existing.id)}`);
             say(`${existing.id} is gone.`);
             await refresh();
           }))))),
+      picker.element,
       overlay,
       button("Save overlay", () => void run(async () => {
         const parsed = parseJson(overlay.value) as { id?: string } | null;
