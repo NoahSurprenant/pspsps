@@ -39,3 +39,13 @@ const doorwayReach = 2;
 export function hasDoorway(door: Pick<DoorView, "z">, depth: number): boolean {
   return depth / 2 - door.z <= doorwayReach;
 }
+
+/** The edge an outdoor path exits through, continuing straight past its walkable entrance. */
+export function pathEdge(
+  door: Pick<DoorView, "x" | "z">, room: { width: number; depth: number },
+): { x: number; z: number } {
+  const [halfWidth, halfDepth] = [room.width / 2, room.depth / 2];
+  return halfWidth - Math.abs(door.x) < halfDepth - Math.abs(door.z)
+    ? { x: Math.sign(door.x) * halfWidth, z: door.z }
+    : { x: door.x, z: Math.sign(door.z) * halfDepth };
+}

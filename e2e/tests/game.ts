@@ -66,14 +66,41 @@ export async function doorMat(page: Page, roomId: string): Promise<{ x: number; 
  * drawn, as a player would; resolves in there.
  */
 export async function goThroughDoor(page: Page, roomId: string, roomName: string): Promise<void> {
-  const mat = await doorMat(page, roomId);
+  const touch = await page.evaluate(() => matchMedia("(pointer: coarse)").matches);
+  let mat = await doorMat(page, roomId);
+  if (typeof mat === "string" && touch) {
+    await pinchRoom(page, "out");
+    mat = await doorMat(page, roomId);
+  }
   if (typeof mat === "string") throw new Error(mat);
-  if (await page.evaluate(() => matchMedia("(pointer: coarse)").matches)) {
+  if (touch) {
     await page.touchscreen.tap(mat.x, mat.y);
   } else {
     await page.mouse.click(mat.x, mat.y);
   }
   await expectRoom(page, roomName);
+}
+
+/** Pinches on the game canvas using touch input in Chromium. */
+export async function pinchRoom(page: Page, zoom: "in" | "out"): Promise<void> {
+  const bounds = await page.locator("#game").boundingBox();
+  if (!bounds) throw new Error("no canvas to pinch");
+  const x = bounds.x + bounds.width / 2;
+  const y = bounds.y + bounds.height / 2;
+  const points = (fraction: number) => [
+    { id: 1, x: x - fraction * bounds.width, y },
+    { id: 2, x: x + fraction * bounds.width, y },
+  ];
+  const session = await page.context().newCDPSession(page);
+  try {
+    const spread = points(0.26);
+    const together = points(0.055);
+    await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: zoom === "out" ? spread : together });
+    await session.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: zoom === "out" ? together : spread });
+    await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  } finally {
+    await session.detach();
+  }
 }
 
 /** The buttons in the room bar, by name. */
@@ -155,6 +182,7 @@ export const catEyes: [number, number, number] = [0xff, 0xc8, 0x5a];
 
 /** A door's mat (#c8553d, client/src/scene.ts). */
 export const doorMatRed: [number, number, number] = [0xc8, 0x55, 0x3d];
+export const pathTan: [number, number, number] = [0xd9, 0xa4, 0x68];
 
 /** How many pixels (every <step>th; by default a sample) are within a small distance of <rgb>. */
 export function pixelsNear(png: Buffer, rgb: [number, number, number], step = 7): number {

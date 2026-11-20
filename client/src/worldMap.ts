@@ -1,8 +1,8 @@
 import { el } from "./dom";
 import type { RoomSnapshot } from "./types";
 
-// Cells follow the walking routes through town: shop — square — garden, with the café and trail south of them.
-const places = ["shop", "town-square", "garden", "cafe", "riverside"];
+// Reading order on the map: shops to the north, garden to the west, trail to the south.
+const places = ["shop", "cafe", "garden", "town-square", "riverside"];
 
 export function drawMap(room: RoomSnapshot, travel: (roomId: string) => void): HTMLElement {
   const map = el("div", { className: "world-map" });
