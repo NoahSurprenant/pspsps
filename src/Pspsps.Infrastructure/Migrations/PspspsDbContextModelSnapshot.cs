@@ -356,6 +356,117 @@ namespace Pspsps.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Pspsps.Domain.Rooms.RoomOverlayEntry", b =>
+                {
+                    b.Property<string>("RoomId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("room_id");
+
+                    b.Property<string>("Id")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Adds")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("adds");
+
+                    b.Property<DateTimeOffset>("Ends")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ends");
+
+                    b.Property<string>("Look")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("look");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Removes")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("removes");
+
+                    b.Property<DateTimeOffset>("Starts")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("starts");
+
+                    b.Property<bool>("Yearly")
+                        .HasColumnType("boolean")
+                        .HasColumnName("yearly");
+
+                    b.HasKey("RoomId", "Id")
+                        .HasName("pk_room_overlays");
+
+                    b.ToTable("room_overlays", (string)null);
+                });
+
+            modelBuilder.Entity("Pspsps.Domain.Rooms.RoomVersion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Layout")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("layout");
+
+                    b.Property<int>("Number")
+                        .HasColumnType("integer")
+                        .HasColumnName("number");
+
+                    b.Property<DateTimeOffset?>("PublishedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("published_at");
+
+                    b.Property<string>("RoomId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("room_id");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("state");
+
+                    b.HasKey("Id")
+                        .HasName("pk_room_versions");
+
+                    b.HasIndex("CreatedBy")
+                        .HasDatabaseName("ix_room_versions_created_by");
+
+                    b.HasIndex("RoomId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_room_versions_published")
+                        .HasFilter("state = 'Published'");
+
+                    b.HasIndex("RoomId", "Number")
+                        .IsUnique()
+                        .HasDatabaseName("ix_room_versions_room_id_number");
+
+                    b.ToTable("room_versions", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_room_versions_number", "number >= 1");
+                        });
+                });
+
             modelBuilder.Entity("Pspsps.Domain.Safety.Mute", b =>
                 {
                     b.Property<Guid>("MuterId")
@@ -637,6 +748,15 @@ namespace Pspsps.Infrastructure.Migrations
                     b.Navigation("Items");
 
                     b.Navigation("Logins");
+                });
+
+            modelBuilder.Entity("Pspsps.Domain.Rooms.RoomVersion", b =>
+                {
+                    b.HasOne("Pspsps.Domain.Players.Player", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_room_versions_players_created_by");
                 });
 
             modelBuilder.Entity("Pspsps.Domain.Safety.Mute", b =>

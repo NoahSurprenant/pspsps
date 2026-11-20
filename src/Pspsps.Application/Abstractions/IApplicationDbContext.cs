@@ -3,6 +3,7 @@ using Pspsps.Domain.Friends;
 using Pspsps.Domain.Homes;
 using Pspsps.Domain.Moderation;
 using Pspsps.Domain.Players;
+using Pspsps.Domain.Rooms;
 using Pspsps.Domain.Safety;
 
 namespace Pspsps.Application.Abstractions;
@@ -31,6 +32,12 @@ public interface IApplicationDbContext
     DbSet<Mute> Mutes { get; }
 
     DbSet<Report> Reports { get; }
+
+    /// <summary>Every version of every room: a room is what its published version says.</summary>
+    DbSet<RoomVersion> RoomVersions { get; }
+
+    /// <summary>The seasonal and event changes to rooms.</summary>
+    DbSet<RoomOverlayEntry> RoomOverlays { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 

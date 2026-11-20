@@ -104,6 +104,10 @@ try
 
         // EF Core takes a database lock while migrating, so pods starting together don't race.
         await db.Database.MigrateAsync();
+        if (await Pspsps.Application.Rooms.RoomSeeder.SeedAsync(db, time, CancellationToken.None))
+        {
+            Log.Information("Seeded the starting rooms");
+        }
     }
 
     // Forwarded headers first: everything after sees the real client address and scheme.

@@ -6,6 +6,7 @@ using Pspsps.Domain.Friends;
 using Pspsps.Domain.Homes;
 using Pspsps.Domain.Moderation;
 using Pspsps.Domain.Players;
+using Pspsps.Domain.Rooms;
 using Pspsps.Domain.Safety;
 
 namespace Pspsps.Infrastructure.Persistence;
@@ -30,6 +31,10 @@ public sealed class PspspsDbContext(DbContextOptions<PspspsDbContext> options)
     public DbSet<Mute> Mutes => Set<Mute>();
 
     public DbSet<Report> Reports => Set<Report>();
+
+    public DbSet<RoomVersion> RoomVersions => Set<RoomVersion>();
+
+    public DbSet<RoomOverlayEntry> RoomOverlays => Set<RoomOverlayEntry>();
 
     /// <summary>The ASP.NET Core key ring, shared by every server pod so a sign-in cookie works on all of them.</summary>
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();

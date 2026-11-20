@@ -1,0 +1,94 @@
+using Microsoft.EntityFrameworkCore;
+using Pspsps.Application.Rooms;
+using Pspsps.Domain.Rooms;
+using Pspsps.Infrastructure.Persistence;
+
+namespace Pspsps.Integration.Test;
+
+/// <summary>Rooms as content in PostgreSQL: the starting rooms seeded, layouts and overlays kept as they were written.</summary>
+public sealed class RoomContentTests
+{
+    private static PspspsDbContext Db() => new(new DbContextOptionsBuilder<PspspsDbContext>()
+        .UseNpgsql(PostgresFixture.ConnectionString)
+        .UseSnakeCaseNamingConvention()
+        .Options);
+
+    [Test]
+    public async Task TheServer_SeedsTheStartingRooms_AsPublishedVersions_WhichComeBackAsTheyWentIn()
+    {
+        await using var db = Db();
+
+        var published = await db.RoomVersions.Where(v => v.State == RoomVersionState.Published).ToListAsync();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(published.Select(v => v.RoomId), Is.EquivalentTo(RoomCatalog.All.Select(room => room.Id)));
+            foreach (var room in RoomCatalog.All)
+            {
+                var layout = published.Single(v => v.RoomId == room.Id).Layout;
+                Assert.That(layout.ToDefinition(room.Id).Props, Is.EqualTo(room.Props), room.Id);
+                Assert.That(layout.Doors, Is.EqualTo(RoomLayout.Of(room).Doors), room.Id);
+                Assert.That(layout.Pond, Is.EqualTo(room.Pond), room.Id);
+                Assert.That(layout.Exterior, Is.EqualTo(room.Exterior), room.Id);
+            }
+        });
+    }
+
+    [Test]
+    public async Task SeedingAgain_ChangesNothing()
+    {
+        await using var db = Db();
+        var before = await db.RoomVersions.CountAsync();
+
+        var seeded = await RoomSeeder.SeedAsync(db, TimeProvider.System, CancellationToken.None);
+
+        Assert.That((seeded, await db.RoomVersions.CountAsync()), Is.EqualTo((false, before)));
+    }
+
+    [Test]
+    public async Task ARoom_CannotHaveTwoPublishedVersions_EvenWhenTwoPodsPublishAtOnce()
+    {
+        await using var db = Db();
+        var layout = RoomLayout.Of(RoomCatalog.Find("garden")!);
+        db.RoomVersions.Add(RoomVersion.Draft("garden", 90, layout, null, DateTimeOffset.UtcNow));
+        var rival = RoomVersion.Draft("garden", 91, layout, null, DateTimeOffset.UtcNow);
+        rival.Publish(DateTimeOffset.UtcNow);
+        db.RoomVersions.Add(rival);
+
+        var refused = Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
+
+        Assert.That(db.IsUniqueViolation(refused!), Is.True);
+    }
+
+    [Test]
+    public async Task AnOverlay_IsKeptWithItsWindowItsPropsAndItsLook()
+    {
+        var lamp = new Prop(PropKinds.Lamp, new Position(-10.5, 0), 0.35, Facing: 0.5);
+        var overlay = new RoomOverlay("winter-test", "town-square", "Winter",
+            new OverlayWindow(new DateTimeOffset(2026, 12, 1, 0, 0, 0, TimeSpan.Zero), new DateTimeOffset(2027, 1, 6, 0, 0, 0, TimeSpan.Zero), Yearly: true))
+        {
+            Adds = [lamp],
+            Removes = [RoomCatalog.Find("town-square")!.Props[0]],
+            Look = "winter",
+        };
+        await using (var write = Db())
+        {
+            write.RoomOverlays.Add(RoomOverlayEntry.Of(overlay));
+            await write.SaveChangesAsync();
+        }
+
+        await using var read = Db();
+        var back = (await read.RoomOverlays.SingleAsync(o => o.Id == "winter-test")).ToOverlay();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(back.Window, Is.EqualTo(overlay.Window));
+            Assert.That(back.Adds, Is.EqualTo(overlay.Adds));
+            Assert.That(back.Removes, Is.EqualTo(overlay.Removes));
+            Assert.That((back.Name, back.Look, back.RoomId), Is.EqualTo(("Winter", "winter", "town-square")));
+        });
+
+        read.RoomOverlays.RemoveRange(read.RoomOverlays.Where(o => o.Id == "winter-test"));
+        await read.SaveChangesAsync();
+    }
+}
