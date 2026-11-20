@@ -89,6 +89,34 @@ public static class RoomEditorEndpoints
                 return Results.NoContent();
             }));
 
+        looks.MapPut("/painters/{name}", (string name, PainterRecipeBody body, HttpRequest request, ClaimsPrincipal user, IModerationService moderation, IRoomEditor editor) =>
+            Change(request, user, moderation, async adminId =>
+            {
+                await editor.SavePainterAsync(name, body.Surface, body.Steps ?? [], adminId, CancellationToken.None);
+                return Results.NoContent();
+            }));
+
+        looks.MapDelete("/painters/{name}", (string name, HttpRequest request, ClaimsPrincipal user, IModerationService moderation, IRoomEditor editor) =>
+            Change(request, user, moderation, async adminId =>
+            {
+                await editor.DeletePainterAsync(name, adminId, CancellationToken.None);
+                return Results.NoContent();
+            }));
+
+        looks.MapPut("/wildlife/{name}", (string name, WildlifeRecipeBody body, HttpRequest request, ClaimsPrincipal user, IModerationService moderation, IRoomEditor editor) =>
+            Change(request, user, moderation, async adminId =>
+            {
+                await editor.SaveWildlifeAsync(name, body.Parts ?? [], body.Motion!, adminId, CancellationToken.None);
+                return Results.NoContent();
+            }));
+
+        looks.MapDelete("/wildlife/{name}", (string name, HttpRequest request, ClaimsPrincipal user, IModerationService moderation, IRoomEditor editor) =>
+            Change(request, user, moderation, async adminId =>
+            {
+                await editor.DeleteWildlifeAsync(name, adminId, CancellationToken.None);
+                return Results.NoContent();
+            }));
+
         looks.MapDelete("/variants/{name}", (string name, HttpRequest request, ClaimsPrincipal user, IModerationService moderation, IRoomEditor editor) =>
             Change(request, user, moderation, async adminId =>
             {
@@ -96,6 +124,10 @@ public static class RoomEditorEndpoints
                 return Results.NoContent();
             }));
     }
+
+    private sealed record PainterRecipeBody(string Surface, IReadOnlyList<PaintStep>? Steps);
+
+    private sealed record WildlifeRecipeBody(IReadOnlyList<PropPart>? Parts, WildlifeMotion? Motion);
 
     private static async Task<IResult> Admin(ClaimsPrincipal user, IModerationService moderation, Func<Guid, Task<IResult>> act) =>
         user.GetPlayerId() is { } adminId && moderation.IsAdmin(adminId)

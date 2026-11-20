@@ -15,6 +15,21 @@ export interface LookOptions {
 export interface LooksData {
   rooms: { id: string; look: unknown }[];
   variants: { id: string; sky: string; wallColour: string }[];
+  painters?: { id: string; surface: string; steps: unknown[] }[];
+  wildlife?: { id: string; parts: unknown[]; motion: unknown }[];
+}
+
+/** The body a recipe is saved with (its name is in the address), from the entry the list shows. */
+export function recipeBody(kind: "painters" | "wildlife", entry: Record<string, unknown>): Record<string, unknown> {
+  return kind === "painters" ? { surface: entry.surface, steps: entry.steps } : { parts: entry.parts, motion: entry.motion };
+}
+
+export function newPainterTemplate(): unknown {
+  return { id: "stripes", surface: "floor", steps: [{ op: "fill", colour: "main" }, { op: "rect", colour: "accent", x: 0, y: 0, width: 0.5, height: 100, repeat: { dx: 1, dy: 0 } }] };
+}
+
+export function newWildlifeTemplate(): unknown {
+  return { id: "moth", parts: [{ shape: "ball", diameter: 0.2, height: 0.05, at: [0, 0, 0], colour: "#d9d2c3" }], motion: { kind: "wander", speed: 0.6, height: 1.2, reach: 3 } };
 }
 
 /** The names a room look may use, one line each, for the editor to show beside the JSON. */
@@ -245,6 +260,31 @@ export function roomsSection(say: (message: string) => void): HTMLElement {
     const variantText = textArea(4, "Look variants as JSON: name, sky, wallColour");
     variantText.value = JSON.stringify(looks?.variants ?? [], null, 2);
 
+    const recipeEditor = (kind: "painters" | "wildlife", title: string, existing: { id: string }[], template: unknown): HTMLElement[] => {
+      const text = textArea(10, `${title} as JSON`);
+      text.value = JSON.stringify(existing, null, 2);
+      return [
+        el("h3", { text: title }),
+        el("p", { className: "quiet", text: "Named recipes a look can use: a list of entries, each with an id. Starter: " + JSON.stringify(template) }),
+        text,
+        button(`Save ${title.toLowerCase()}`, () => void run(async () => {
+          const parsed = parseJson(text.value) as Record<string, unknown>[] | null;
+          if (!Array.isArray(parsed)) { say("Recipes are a JSON list."); return; }
+          for (const entry of parsed) {
+            await send("PUT", `/api/admin/looks/${kind}/${encodeURIComponent(String(entry.id))}`, recipeBody(kind, entry));
+          }
+          say(`The ${title.toLowerCase()} are saved.`);
+          await refresh();
+        })),
+        el("ul", { className: "list" }, ...existing.map((entry) => el("li", { text: `${entry.id} ` },
+          button("Delete", () => void run(async () => {
+            await send("DELETE", `/api/admin/looks/${kind}/${encodeURIComponent(entry.id)}`);
+            say(`${entry.id} is gone.`);
+            await refresh();
+          }))))),
+      ];
+    };
+
     editor.replaceChildren(
       el("h3", { text: `${roomId}${detail?.draft ? " (editing the draft)" : ""}` }),
       picture,
@@ -292,6 +332,8 @@ export function roomsSection(say: (message: string) => void): HTMLElement {
         say("The variants are saved.");
         await refresh();
       })),
+      ...recipeEditor("painters", "Painters", looks?.painters ?? [], newPainterTemplate()),
+      ...recipeEditor("wildlife", "Wildlife", looks?.wildlife ?? [], newWildlifeTemplate()),
       el("h3", { text: "Versions" }),
       el("ul", { className: "list" }, ...(detail?.versions ?? []).map((version) =>
         el("li", { text: `Version ${version.number}: ${version.state.toLowerCase()}, made ${version.createdAt} ` },

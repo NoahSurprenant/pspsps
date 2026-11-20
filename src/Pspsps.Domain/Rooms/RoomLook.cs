@@ -39,8 +39,9 @@ public sealed partial record RoomLook(
     public static readonly IReadOnlyList<string> WildlifeKinds = ["fish", "butterfly"];
 
     /// <summary>What is wrong with a look, one line each; empty when the browser can draw it.</summary>
-    public IReadOnlyList<string> Problems(string id)
+    public IReadOnlyList<string> Problems(string id, LookNames? names = null)
     {
+        names ??= LookNames.BuiltIn;
         var problems = new List<string>();
         void Colour(string what, string? value)
         {
@@ -62,7 +63,7 @@ public sealed partial record RoomLook(
             }
         }
 
-        foreach (var (what, paint, known) in new[] { ("floor", Floor, Floors), ("wall", Wall, Walls) })
+        foreach (var (what, paint, known) in new[] { ("floor", Floor, names.Floors), ("wall", Wall, names.Walls) })
         {
             if (paint is null)
             {
@@ -97,9 +98,9 @@ public sealed partial record RoomLook(
             }
         }
 
-        if (Wildlife is not null && !WildlifeKinds.Contains(Wildlife))
+        if (Wildlife is not null && !names.Wildlife.Contains(Wildlife))
         {
-            problems.Add($"{id}: '{Wildlife}' is not wildlife ({string.Join(", ", WildlifeKinds)}).");
+            problems.Add($"{id}: '{Wildlife}' is not wildlife ({string.Join(", ", names.Wildlife)}).");
         }
 
         return problems;
@@ -145,17 +146,17 @@ public sealed class RoomLookEntry
 
     public DateTimeOffset UpdatedAt { get; private set; }
 
-    public static RoomLookEntry Of(string id, RoomLook look, DateTimeOffset now)
+    public static RoomLookEntry Of(string id, RoomLook look, DateTimeOffset now, LookNames? names = null)
     {
         var entry = new RoomLookEntry { Id = id };
-        entry.Replace(look, now);
+        entry.Replace(look, now, names);
         return entry;
     }
 
-    public void Replace(RoomLook look, DateTimeOffset now)
+    public void Replace(RoomLook look, DateTimeOffset now, LookNames? names = null)
     {
         ArgumentNullException.ThrowIfNull(look);
-        var problems = look.Problems(Id);
+        var problems = look.Problems(Id, names);
         if (problems.Count > 0)
         {
             throw new DomainException(string.Join(" ", problems));

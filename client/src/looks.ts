@@ -9,6 +9,7 @@ import {
 } from "./paint";
 import { paintBrickWall, paintChecker, paintPanelledWall, paintPlanks, paintTiles, type PaintColours } from "./paintPlain";
 import { setOpenLandscapes } from "./doors";
+import { paintSteps, painterRecipe, setRecipes, type PainterRecipe, type WildlifeRecipe } from "./recipes";
 import { palette, type Part } from "./props";
 import type { DoorView } from "./types";
 
@@ -29,7 +30,7 @@ export interface RoomLook {
   /** Open countryside: no back wall, and a path through the north edge as well. */
   openLandscape: boolean;
   /** A creature that lives in the room, drawn by wildlife.ts. */
-  wildlife?: "fish" | "butterfly";
+  wildlife?: string;
   /** What stands behind the back wall (and round the room), in the room's own space. */
   backdrop(plan: Floorplan, wallHeight: number): Part[];
 }
@@ -50,6 +51,9 @@ export interface RoomLookData {
 export interface LooksData {
   rooms: { id: string; look: RoomLookData }[];
   variants: { id: string; sky: string; wallColour: string }[];
+  /** Painters and creatures the admins made as data; missing from an older server. */
+  painters?: PainterRecipe[];
+  wildlife?: WildlifeRecipe[];
 }
 
 /** Where Town Square's plaza is paved: round the spawn point (src/Pspsps.Domain/Rooms/RoomCatalog.cs), a little in front. */
@@ -103,8 +107,12 @@ const rooms = new Map<string, RoomLook>();
 const variants = new Map<string, { sky: string; wallColour: string }>();
 
 function lookFromData(data: RoomLookData): RoomLook {
-  const floor = data.floor && floorPainters[data.floor.painter];
-  const wall = data.wall && wallPainters[data.wall.painter];
+  const floorRecipe = data.floor && painterRecipe("floor", data.floor.painter);
+  const wallRecipe = data.wall && painterRecipe("wall", data.wall.painter);
+  const floor = data.floor && (floorPainters[data.floor.painter]
+    ?? (floorRecipe && ((brush, plan, scale, colours) => paintSteps(brush, floorRecipe.steps, plan.width, plan.depth, scale, colours))));
+  const wall = data.wall && (wallPainters[data.wall.painter]
+    ?? (wallRecipe && ((brush, width, height, scale, _doors, _map, colours) => paintSteps(brush, wallRecipe.steps, width, height, scale, colours))));
   const ground = data.ground?.painter ? groundPainters[data.ground.painter] : undefined;
   const generate = data.backdrop.generator ? backdropGenerators[data.backdrop.generator] : undefined;
   const floorColours = { colour: data.floor?.colour ?? data.floorColour, accent: data.floor?.accent };
@@ -118,7 +126,7 @@ function lookFromData(data: RoomLookData): RoomLook {
     floorNeedsProps: data.floor?.painter === "pear-orchard",
     paintWall: wall ? (brush, width, height, scale, doors, map) => wall(brush, width, height, scale, doors, map, wallColours) : undefined,
     openLandscape: data.openLandscape ?? false,
-    wildlife: data.wildlife === "fish" || data.wildlife === "butterfly" ? data.wildlife : undefined,
+    wildlife: data.wildlife || undefined,
     backdrop: (plan, wallHeight) => [...(generate ? generate(plan, wallHeight) : []), ...data.backdrop.parts],
   };
 }
@@ -126,6 +134,7 @@ function lookFromData(data: RoomLookData): RoomLook {
 export function setLooks(data: LooksData): void {
   rooms.clear();
   variants.clear();
+  setRecipes(data.painters ?? [], data.wildlife ?? []);
   for (const { id, look } of data.rooms) {
     rooms.set(id, lookFromData(look));
   }
