@@ -1,5 +1,6 @@
 using Orleans.Runtime;
 using Pspsps.Application.Homes;
+using Pspsps.Application.Rooms;
 using Pspsps.Domain;
 using Pspsps.Domain.Fishing;
 using Pspsps.Domain.Homes;
@@ -22,7 +23,8 @@ internal sealed class RoomGrain(
     [FromKeyedServices(TimeProviderNames.Grains)] TimeProvider time,
     Random random,
     GameMetrics metrics,
-    IServiceScopeFactory scopes) : Grain, IRoomGrain
+    IServiceScopeFactory scopes,
+    IRoomLibrary library) : Grain, IRoomGrain
 {
     private string _key = "";
     private RoomState _state = null!;
@@ -42,7 +44,7 @@ internal sealed class RoomGrain(
 
     // How long after the bite window closes the getaway timer fires, so it never beats a reel at the window's edge.
     private static readonly TimeSpan GetAwayGrace = TimeSpan.FromMilliseconds(50);
-    private static readonly WorldMapView WorldMap = WorldMapView.FromCatalogue();
+    private WorldMapView _worldMap = null!;
 
     public override async Task OnActivateAsync(CancellationToken cancellationToken)
     {
@@ -58,11 +60,12 @@ internal sealed class RoomGrain(
         else
         {
             var (_, roomId) = RoomKey.Parse(_key);
-            room = RoomCatalog.Find(roomId) ?? throw new InvalidOperationException($"No room '{roomId}'.");
+            room = library.Find(roomId) ?? throw new InvalidOperationException($"No room '{roomId}'.");
         }
 
+        _worldMap = WorldMapView.From(library.All);
         _state = new RoomState(room, _home?.OwnerId);
-        _doors = [.. room.Doors.Select(DoorView.From)];
+        _doors = [.. room.Doors.Select(door => DoorView.From(door, library))];
         // A home's furniture is its room's props (Home.PropOf, as every change to it after: HomeView.Props).
         _props = [.. room.Props.Select(PropView.From)];
         this.RegisterGrainTimer(
@@ -140,12 +143,12 @@ internal sealed class RoomGrain(
             [.. _state.Cats.Select(CatView.From)],
             [.. _state.RecentChat.Select(ChatView.From)],
             // A home is in no world: its door is the way out.
-            _home is null ? [.. RoomCatalog.All.Where(r => r.Id != _state.Room.Id).Select(r => new RoomLink(r.Id, r.Name))] : [],
+            _home is null ? [.. library.All.Where(r => r.Id != _state.Room.Id).Select(r => new RoomLink(r.Id, r.Name))] : [],
             _state.Room.Pond is { } pond ? new PondView(pond.Center.X, pond.Center.Z, pond.Radius) : null,
             _doors,
             _props,
             _home,
-            WorldMap: _home is null ? WorldMap : null);
+            WorldMap: _home is null ? _worldMap : null);
     }
 
     public async Task Leave(Guid playerId, string session)
@@ -361,6 +364,13 @@ internal sealed class RoomGrain(
     // Cats whose pod died without closing their connections: nothing renews their leases.
     private async Task RemoveExpired()
     {
+        if (_home is null && !(library.Find(RoomKey.Parse(_key).RoomId)?.SameAs(_state.Room) ?? false))
+        {
+            // Published again or an overlay changed: start over, and the tabs walk back in to the new room (OnDeactivateAsync).
+            DeactivateOnIdle();
+            return;
+        }
+
         var expired = _state.RemoveExpired(time.GetUtcNow());
         if (expired.Count > 0)
         {

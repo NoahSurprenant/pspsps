@@ -12,10 +12,10 @@ public static class WayOut
     /// The places to try, in order, for <paramref name="playerId"/>'s cat, which came from <paramref name="from"/> (null
     /// when it was in no room) and was just refused by <paramref name="refused"/> (null when it wasn't): back into the
     /// room it came from, unless that is another player's home (which may no longer let it in); then the world's rooms in
-    /// the catalogue's order (Town Square, the café, the shop); then its own home. The room that just refused it isn't
+    /// the library's order (Town Square first, then the rest by ID); then its own home. The room that just refused it isn't
     /// tried again, and no place twice.
     /// </summary>
-    public static IReadOnlyList<Whereabouts> For(Guid playerId, Whereabouts? from, Whereabouts? refused)
+    public static IReadOnlyList<Whereabouts> For(IEnumerable<RoomDefinition> rooms, Guid playerId, Whereabouts? from, Whereabouts? refused)
     {
         var places = new List<Whereabouts>();
         if (from is not null && (from.HomeOwner is null || from.HomeOwner == playerId))
@@ -23,7 +23,7 @@ public static class WayOut
             places.Add(from);
         }
 
-        places.AddRange(RoomCatalog.All.Select(room => Whereabouts.Room(room.Id)));
+        places.AddRange(rooms.Select(room => Whereabouts.Room(room.Id)));
         places.Add(Whereabouts.Home(playerId));
         return [.. places.Distinct().Where(place => place != refused)];
     }

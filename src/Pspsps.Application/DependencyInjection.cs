@@ -3,6 +3,7 @@ using Pspsps.Application.Friends;
 using Pspsps.Application.Homes;
 using Pspsps.Application.Moderation;
 using Pspsps.Application.Players;
+using Pspsps.Application.Rooms;
 using Pspsps.Application.Safety;
 using Pspsps.Application.Shop;
 
@@ -16,6 +17,7 @@ public static class DependencyInjection
         services.AddSingleton(Random.Shared);
         // Bans and mutes are timed by the system's clock, unless a test swaps this one for its own.
         services.AddKeyedSingleton(ModerationClock.Key, (provider, _) => provider.GetRequiredService<TimeProvider>());
+        services.AddSingleton<IRoomLibrary, RoomLibrary>();
         services.AddScoped<IPlayerService, PlayerService>();
         services.AddScoped<IFriendService, FriendService>();
         services.AddScoped<IShopService, ShopService>();

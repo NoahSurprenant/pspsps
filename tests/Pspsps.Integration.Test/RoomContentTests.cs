@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Pspsps.Application.Abstractions;
 using Pspsps.Application.Rooms;
 using Pspsps.Domain.Rooms;
 using Pspsps.Infrastructure.Persistence;
@@ -31,6 +33,25 @@ public sealed class RoomContentTests
                 Assert.That(layout.Pond, Is.EqualTo(room.Pond), room.Id);
                 Assert.That(layout.Exterior, Is.EqualTo(room.Exterior), room.Id);
             }
+        });
+    }
+
+    [Test]
+    public async Task TheLibrary_ReadsThePublishedRooms_AndTheirOverlaysOnceItsToldTo()
+    {
+        var services = new ServiceCollection();
+        services.AddScoped<IApplicationDbContext>(_ => Db());
+        await using var provider = services.BuildServiceProvider();
+        var library = new RoomLibrary(provider.GetRequiredService<IServiceScopeFactory>(), TimeProvider.System);
+
+        await library.RefreshAsync(CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(library.Start.Id, Is.EqualTo(RoomBook.StartingRoom));
+            Assert.That(library.All.Select(room => room.Id), Is.EquivalentTo(RoomCatalog.All.Select(room => room.Id)));
+            Assert.That(library.Find("garden")!.Props, Is.EqualTo(RoomCatalog.Find("garden")!.Props));
+            Assert.That(library.Find("attic"), Is.Null);
         });
     }
 

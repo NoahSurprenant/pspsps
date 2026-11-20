@@ -22,6 +22,14 @@ public sealed record RoomDefinition(
     /// <summary>For an interior, the building seen from the street has its own footprint and front entrance.</summary>
     public Storefront? Exterior { get; init; }
 
+    /// <summary>Whether this is the same room as <paramref name="other"/> to a cat in it: the same floor, doors, props and look.</summary>
+    public bool SameAs(RoomDefinition other)
+    {
+        ArgumentNullException.ThrowIfNull(other);
+        return Equals(this with { Doors = [], Props = [] }, other with { Doors = [], Props = [] })
+            && Doors.SequenceEqual(other.Doors) && Props.SequenceEqual(other.Props);
+    }
+
     public double MapWidth => Exterior?.Width ?? Width;
     public double MapDepth => Exterior?.Depth ?? Depth;
 

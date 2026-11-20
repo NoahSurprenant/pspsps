@@ -10,6 +10,7 @@ using NSubstitute.ExceptionExtensions;
 using Pspsps.Application.Friends;
 using Pspsps.Application.Homes;
 using Pspsps.Application.Moderation;
+using Pspsps.Application.Rooms;
 using Pspsps.Application.Players;
 using Pspsps.Application.Safety;
 using Pspsps.Application.Shop;
@@ -1279,6 +1280,9 @@ public sealed class GameHubTests
         var recorder = new RecordingLogger();
         _room.Join(default!, default!, default).ThrowsAsyncForAnyArgs(new GameRuleException("Town Square is full."));
         _cafe.Join(default!, default!, default).ThrowsAsyncForAnyArgs(new GameRuleException("Cat Café is full."));
+        var garden = Substitute.For<IRoomGrain>();
+        garden.Join(default!, default!, default).ReturnsForAnyArgs(SnapshotOf("garden", "Garden"));
+        _grains.GetGrain<IRoomGrain>("tabby/garden", null).Returns(garden);
         RenewalsFindEveryCat();
 
         await Hub(logger: recorder).EnterWorld("tabby");
@@ -1904,7 +1908,7 @@ public sealed class GameHubTests
         context.ConnectionAborted.Returns(CancellationToken.None);
         var metrics = new GameMetrics(_services.GetRequiredService<IMeterFactory>());
         return new GameHub(
-            _grains, _players, _friends, _shop, _homes, _moderation, _effects,
+            _grains, _players, _friends, _shop, FixedRoomLibrary.Starting(), _homes, _moderation, _effects,
             new StandingCache(_services.GetRequiredService<IServiceScopeFactory>(), TimeProvider.System), _networks, _addresses,
             _mutes, _reports,
             _heartbeat, time ?? TimeProvider.System, metrics, logger ?? NullLogger<GameHub>.Instance)

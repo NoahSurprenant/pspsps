@@ -71,6 +71,7 @@ try
     // Renews this pod's connections' leases with their rooms and worlds; a dead pod's cats leave when theirs run out.
     builder.Services.AddSingleton<SessionHeartbeat>();
     builder.Services.AddHostedService(services => services.GetRequiredService<SessionHeartbeat>());
+    builder.Services.AddHostedService<RoomLibraryRefresher>();
 
     builder.UseOrleans(silo => OrleansSetup.Configure(silo, clustering, builder.Configuration));
 
@@ -108,6 +109,7 @@ try
         {
             Log.Information("Seeded the starting rooms");
         }
+        await scope.ServiceProvider.GetRequiredService<Pspsps.Application.Rooms.IRoomLibrary>().RefreshAsync(CancellationToken.None);
     }
 
     // Forwarded headers first: everything after sees the real client address and scheme.
