@@ -493,6 +493,15 @@ function show(snapshot: RoomSnapshot, view: RoomScene): Room {
     {
       yourCat: () => void openOwnCard(),
       catalogue: catalogueStand(snapshot.props) ? () => void readCatalogue() : undefined,
+      travel: (roomId) => {
+        if (room !== shown || picking) {
+          return;
+        }
+        doorWalks.callOff();
+        fishing.drop();
+        overlay.closeDialog();
+        pick(() => goTo(roomId, shown));
+      },
     },
     snapshot.pond ? { fish: () => void fish(), reel: () => void reel(), state: () => fishing.state } : undefined,
     // In their own home, the owner decorates it and chooses who may visit.

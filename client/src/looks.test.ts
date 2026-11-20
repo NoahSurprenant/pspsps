@@ -7,6 +7,8 @@ const plans: Record<string, Floorplan> = {
   cafe: { width: 14, depth: 10, pond: null, doors: [] },
   home: { width: 12, depth: 9, pond: null, doors: [] },
   shop: { width: 13, depth: 9, pond: null, doors: [] },
+  garden: { width: 18, depth: 12, pond: null, doors: [] },
+  riverside: { width: 20, depth: 14, pond: { x: -3, z: -2, radius: 2.4 }, doors: [] },
 };
 
 describe("lookOf", () => {
@@ -43,6 +45,17 @@ describe("lookOf", () => {
 
     expect(look.paintFloor).toBeUndefined();
     expect(look.backdrop({ width: 14, depth: 10, pond: null, doors: [] }, 4)).toEqual([]);
+  });
+
+  it("gives the garden and the riverside distinct outdoor looks", () => {
+    const [garden, riverside] = [lookOf("garden"), lookOf("riverside")];
+
+    expect(garden.ground).toBeDefined();
+    expect(riverside.ground).toBeDefined();
+    expect(garden.paintFloor).toBeDefined();
+    expect(riverside.paintFloor).toBeDefined();
+    expect(garden.paintFloor).not.toBe(riverside.paintFloor);
+    expect(garden.backdrop(plans.garden!, 4)).not.toEqual(riverside.backdrop(plans.riverside!, 4));
   });
 
   // Hidden in the back wall, a part costs drawing and shows nothing.

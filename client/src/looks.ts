@@ -2,7 +2,8 @@
 // backdrop behind its back wall that the fixed camera sees over it.
 import {
   houses, paintCafeFloor, paintCafeWall, paintHomeFloor, paintHomeWall, paints, paintShopFloor, paintShopWall, paintStreet,
-  paintTownSquareFloor, paintTownSquareWall, type Brush, type Floorplan,
+  paintGardenFloor, paintGardenWall, paintRiversideFloor, paintRiversideWall, paintTownSquareFloor, paintTownSquareWall,
+  type Brush, type Floorplan,
 } from "./paint";
 import { ink, palette, type Part } from "./props";
 import type { DoorView } from "./types";
@@ -53,6 +54,24 @@ const looks: Record<string, RoomLook> = {
     paintWall: paintShopWall,
     backdrop: shopBackdrop,
   },
+  garden: {
+    sky: "#d1eaf3",
+    floorColour: paints.grass,
+    wallColour: "#f0ddba",
+    ground: { colour: "#b7cf98" },
+    paintFloor: paintGardenFloor,
+    paintWall: paintGardenWall,
+    backdrop: gardenBackdrop,
+  },
+  riverside: {
+    sky: "#c1e2ef",
+    floorColour: paints.grass,
+    wallColour: "#ac805b",
+    ground: { colour: "#acc98b" },
+    paintFloor: paintRiversideFloor,
+    paintWall: paintRiversideWall,
+    backdrop: riversideBackdrop,
+  },
   // Every player's home (src/Pspsps.Domain/Homes/Home.cs, Layout): one look, its furniture the owner's own.
   home: {
     sky: "#e9d8c8",
@@ -69,6 +88,36 @@ const plain: RoomLook = { sky: "#bfe3f2", floorColour: paints.grass, wallColour:
 
 export function lookOf(roomId: string): RoomLook {
   return looks[roomId] ?? plain;
+}
+
+function gardenBackdrop(plan: Floorplan): Part[] {
+  // Clipped hedges and flowering canopies behind the courtyard's stone wall.
+  const back = plan.depth / 2 + 3.2;
+  return [
+    { shape: "box", width: plan.width + 9, height: 4.15, depth: 1.6, at: [0, 2.08, back], colour: "#76a46b" },
+    ...[-9, -4.5, 0, 4.5, 9].map((x, i): Part => ({
+      shape: "ball", diameter: 5.6, height: i % 2 ? 3.8 : 4.8,
+      at: [x, 4.8, back + 0.8], colour: i % 2 ? "#a9c681" : "#93b578",
+    })),
+    ...[-8.4, -5.4, -0.5, 4.9, 8.1].map((x, i): Part => ({
+      shape: "ball", diameter: 0.7, at: [x, i % 2 ? 5.3 : 6, back - 1.15], colour: i % 2 ? "#f6d28e" : "#e8a5ad",
+    })),
+  ];
+}
+
+function riversideBackdrop(plan: Floorplan): Part[] {
+  const bank = plan.depth / 2 + 6;
+  return [
+    { shape: "box", width: 65, height: 0.25, depth: 9, at: [0, 0, bank + 4.5], colour: "#83bed4" },
+    ...[-20, 0, 20].map((x, i): Part => ({
+      shape: "ball", diameter: 28, height: 9 + i * 1.5,
+      at: [x, 0.5, bank + 24], colour: i % 2 ? "#8bb987" : "#a0c78c",
+    })),
+    ...[-12, -9.8, 9.8, 12.2].map((x, i): Part => ({
+      shape: "ball", diameter: 2.6, height: 5.1, at: [x, 3.2 + i % 2, bank + 0.2],
+      colour: i % 2 ? "#689e75" : "#82b080",
+    })),
+  ];
 }
 
 /**

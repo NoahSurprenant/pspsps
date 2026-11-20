@@ -114,6 +114,18 @@ export const houses: readonly { from: number; to: number; height: number; facade
 export function paintTownSquareFloor(brush: Brush, plan: Floorplan, scale: number, plaza: { x: number; z: number }): void {
   const at = (x: number, z: number) => floorPixel(plan, scale, x, z);
   const random = seeded(16);
+  paintGrass(brush, plan, scale, random);
+  for (const door of plan.doors) {
+    steppingStones(brush, at, plaza, door, 0);
+  }
+  if (plan.pond) {
+    steppingStones(brush, at, plaza, plan.pond, plan.pond.radius + 0.6);
+  }
+  paintPlaza(brush, at(plaza.x, plaza.z), scale);
+  paintPondBank(brush, plan, scale, random);
+}
+
+function paintGrass(brush: Brush, plan: Floorplan, scale: number, random: () => number): void {
   brush.fillStyle = paints.grass;
   brush.fillRect(0, 0, plan.width * scale, plan.depth * scale);
   // Tufts of grass, and a few lighter specks.
@@ -136,16 +148,10 @@ export function paintTownSquareFloor(brush: Brush, plan: Floorplan, scale: numbe
     brush.fill();
   }
 
-  // Stepping stones from the plaza to each door, and to the pond's sand.
-  for (const door of plan.doors) {
-    steppingStones(brush, at, plaza, door, 0);
-  }
-  if (plan.pond) {
-    steppingStones(brush, at, plaza, plan.pond, plan.pond.radius + 0.6);
-  }
+}
 
+function paintPlaza(brush: Brush, [cx, cy]: [number, number], scale: number): void {
   // The plaza: a paved oval, its pavers laid like bricks.
-  const [cx, cy] = at(plaza.x, plaza.z);
   const [rx, ry] = [5.5 * scale, 3 * scale];
   brush.save();
   brush.beginPath();
@@ -172,10 +178,12 @@ export function paintTownSquareFloor(brush: Brush, plan: Floorplan, scale: numbe
   brush.strokeStyle = paints.pavingEdge;
   brush.lineWidth = Math.max(2, scale * 0.08);
   brush.stroke();
+}
 
+function paintPondBank(brush: Brush, plan: Floorplan, scale: number, random: () => number): void {
   // Sand and pebbles round the pond (the pond's water and its dark edge are drawn over it, in the scene).
   if (plan.pond) {
-    const [px, py] = at(plan.pond.x, plan.pond.z);
+    const [px, py] = floorPixel(plan, scale, plan.pond.x, plan.pond.z);
     brush.beginPath();
     brush.arc(px, py, (plan.pond.radius + 0.6) * scale, 0, Math.PI * 2);
     brush.fillStyle = paints.sand;
@@ -188,6 +196,67 @@ export function paintTownSquareFloor(brush: Brush, plan: Floorplan, scale: numbe
       brush.arc(px + Math.cos(angle) * distance, py + Math.sin(angle) * distance, scale * (0.05 + random() * 0.05), 0, Math.PI * 2);
       brush.fill();
     }
+  }
+}
+
+export function paintGardenFloor(brush: Brush, plan: Floorplan, scale: number): void {
+  paintGrass(brush, plan, scale, seeded(32));
+  const at = (x: number, z: number) => floorPixel(plan, scale, x, z);
+  for (const door of plan.doors) {
+    steppingStones(brush, at, { x: 0, z: 0.5 }, door, 0);
+  }
+  paintPlaza(brush, at(0, -1.6), scale);
+}
+
+export function paintRiversideFloor(brush: Brush, plan: Floorplan, scale: number): void {
+  const random = seeded(69);
+  paintGrass(brush, plan, scale, random);
+  const at = (x: number, z: number) => floorPixel(plan, scale, x, z);
+  brush.lineWidth = 1.65 * scale;
+  brush.strokeStyle = paints.sand;
+  for (const door of plan.doors) {
+    const [x, y] = at(door.x, door.z);
+    const [bendX, bendY] = at(door.x * 0.75, -0.25);
+    const [meetX, meetY] = at(0, 1.4);
+    brush.beginPath();
+    brush.moveTo(x, y);
+    brush.quadraticCurveTo(bendX, bendY, meetX, meetY);
+    brush.stroke();
+  }
+  if (plan.pond) {
+    steppingStones(brush, at, { x: 0, z: 1.4 }, plan.pond, plan.pond.radius + 0.6);
+  }
+  paintPondBank(brush, plan, scale, random);
+}
+
+export function paintGardenWall(brush: Brush, width: number, height: number, scale: number): void {
+  brush.fillStyle = "#f0ddba";
+  brush.fillRect(0, 0, width * scale, height * scale);
+  brush.strokeStyle = "#ceb48d";
+  brush.lineWidth = Math.max(2, scale * 0.04);
+  for (let row = 0; row < height / 0.55; row++) {
+    const y = row * 0.55 * scale;
+    brush.beginPath();
+    brush.moveTo(0, y);
+    brush.lineTo(width * scale, y);
+    for (let x = (row % 2) * 0.75; x < width; x += 1.5) {
+      brush.moveTo(x * scale, y);
+      brush.lineTo(x * scale, Math.min(height * scale, y + 0.55 * scale));
+    }
+    brush.stroke();
+  }
+}
+
+export function paintRiversideWall(brush: Brush, width: number, height: number, scale: number): void {
+  brush.fillStyle = "#ac805b";
+  brush.fillRect(0, 0, width * scale, height * scale);
+  brush.fillStyle = "#97704f";
+  for (let x = 0; x < width; x += 0.65) {
+    brush.fillRect(x * scale, 0, 0.05 * scale, height * scale);
+  }
+  brush.fillStyle = "#d1ab7b";
+  for (const y of [0.12, 1.35, 2.6]) {
+    brush.fillRect(0, y * scale, width * scale, 0.15 * scale);
   }
 }
 

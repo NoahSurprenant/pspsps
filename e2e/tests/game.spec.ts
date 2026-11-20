@@ -485,7 +485,7 @@ test("the friends list keeps the focus where it was when a request arrives", asy
 test("a guest walks through the café door and comes in by the café's door back", async ({ page }) => {
   const me = await enterWorld(page, "Tabby");
   // Doors are the way around: the room bar has no buttons to other rooms.
-  expect(await roomBarButtons(page)).toEqual(["Friends", "Worlds"]);
+  expect(await roomBarButtons(page)).toEqual(["Friends", "World map", "Worlds"]);
 
   // Click the door's mat where it is drawn: the cat walks onto it, then through.
   await goThroughDoor(page, "cafe", "Cat Café");
@@ -498,7 +498,30 @@ test("a guest walks through the café door and comes in by the café's door back
   expect(fromDoor).toBeGreaterThan(back.radius);
   expect(fromDoor).toBeLessThan(back.radius + 1);
   expect(cat).not.toMatchObject({ x: 0, z: 3 });
-  expect(await roomBarButtons(page)).toEqual(["Friends", "Worlds"]);
+  expect(await roomBarButtons(page)).toEqual(["Friends", "World map", "Worlds"]);
+});
+
+test("a cat walks the garden loop and travels to a room's spawn from the world map", async ({ page }) => {
+  const me = await enterWorld(page, "Tabby");
+  await goThroughDoor(page, "garden", "Garden Courtyard");
+  await goThroughDoor(page, "riverside", "Riverside Trail");
+  await expect(page.getByRole("button", { name: "Fish" })).toBeVisible();
+  await goThroughDoor(page, "cafe", "Cat Café");
+  await goThroughDoor(page, "town-square", "Town Square");
+
+  const openMap = page.getByRole("button", { name: "World map" });
+  await openMap.click();
+  const map = page.getByRole("dialog", { name: "World map" });
+  await expect(map.getByRole("button", { name: "Town Square, you are here" })).toHaveAttribute("aria-current", "location");
+  await page.keyboard.press("Escape");
+  await expect(map).toBeHidden();
+  await expect(openMap).toBeFocused();
+
+  await openMap.click();
+  await map.getByRole("button", { name: "Riverside Trail" }).click();
+  await expectRoom(page, "Riverside Trail");
+  expect((await cats(page))[me]).toMatchObject({ x: 0, z: 3 });
+  await expect(map).toBeHidden();
 });
 
 // The doors are drawn on the canvas, which the keyboard can't reach: each also has a button, shown once it has focus.
@@ -531,7 +554,7 @@ test("a cat buys a party hat at the shop's catalogue, wears it from its own card
     await expectRoom(tom, "Town Square");
     await expect(tom.locator("#coins")).toHaveText(`🪙 ${coins}`);
     // No Shop button: the shop is a place.
-    expect(await roomBarButtons(tom)).toEqual(["Friends", "Worlds"]);
+    expect(await roomBarButtons(tom)).toEqual(["Friends", "World map", "Worlds"]);
     await enterWorld(felix.page, "Siamese");
     await expect.poll(async () => Object.keys(await cats(felix.page))).toContain(fisher.id);
 

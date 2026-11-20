@@ -60,10 +60,10 @@ A move goes like this:
 Rooms are joined by doors, in the room catalogue (`RoomCatalog`): a door (`Door`) is a round spot on a room's floor
 that leads to a door of another room. The browser walks the cat onto it, then calls `GoThroughDoor`; the room's grain
 lets the cat out only if it stands on that door (`RoomState.LeaveThrough`), and the next room puts it just inside
-the matching door (`Door.Arrival`), off it, so it doesn't walk straight back out. Doors are the only way round in
-the browser (for the keyboard, each door also has a button, shown once it has focus: so do the player's own cat and,
-in the shop, the catalogue). `GoToRoom` goes straight to a
-room's spawn point: the browser uses it to rejoin its room after a reconnect, and a map of the world will use it.
+the matching door (`Door.Arrival`), off it, so it doesn't walk straight back out. Town Square, Garden Courtyard, Riverside
+Trail and Cat Café form a loop, and the Cat Shop opens onto the square. Each door has a keyboard button that shows on
+focus, as do the player's own cat and the shop catalogue. The world map uses the public destinations from the current
+room's snapshot and calls `GoToRoom` to travel to a destination's spawn point, just as the browser does after a reconnect.
 
 A room's props (`Prop`: benches, trees, café tables) are in the catalogue too, and go to the browser with the room;
 they are decoration, which cats walk through. `PropPlacement` keeps them out of the way: on the floor, off the doors,
@@ -72,7 +72,7 @@ each kind in the room's flat, outlined style, all of a room's props in one mesh,
 in code on the way into a room (`client/src/looks.ts`): no image files. One prop is more than decoration: the shop's
 catalogue stand (Shop, below).
 
-The room bar is small, to leave the room in view: the coins, Friends and Worlds. The room's name is the page's title
+The room bar shows the coins, Friends, a map icon where there are at least three public rooms, and Worlds. The room's name is the page's title
 ("Cat Café · pspsps"), which the tab and screen readers say. A tap on the room goes to the first of these along its
 ray, not the nearest: another cat (its card), a door, the pond, the player's own cat (their own card), the catalogue
 stand, a prop (the cat walks beside it), the floor. So a door just behind the player's own cat still takes the tap.

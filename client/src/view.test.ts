@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { cameraPitch, cameraRadius, fieldOfView } from "./view";
+import { cameraPitch, cameraRadius, fieldOfView, roomPitch } from "./view";
 
 /** The view's width at the floor's front edge, which is nearer the camera than the room's middle, so seen widest. */
 const frontEdgeWidth = (radius: number, aspect: number, roomDepth: number) =>
-  2 * (radius - (roomDepth / 2) * Math.sin(cameraPitch)) * Math.tan(fieldOfView / 2) * aspect;
+  2 * (radius - (roomDepth / 2) * Math.sin(roomPitch(aspect))) * Math.tan(fieldOfView / 2) * aspect;
 
 describe("cameraRadius", () => {
   it("stands where it always has on a wide screen", () => {
@@ -22,5 +22,10 @@ describe("cameraRadius", () => {
     const aspect = 360 / 640;
 
     expect(frontEdgeWidth(cameraRadius(aspect, 14, 10), aspect, 10)).toBeGreaterThanOrEqual(14);
+  });
+
+  it("shows the floor from higher up in portrait and keeps its angle on wide screens", () => {
+    expect(roomPitch(390 / 844)).toBeLessThan(cameraPitch);
+    expect(roomPitch(844 / 390)).toBe(cameraPitch);
   });
 });

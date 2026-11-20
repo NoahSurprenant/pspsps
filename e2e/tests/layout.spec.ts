@@ -53,17 +53,13 @@ const CHECKS: Record<Screen["name"], Checks> = {
   "admin-card": { parts: [".sheet"] },
   // The admin page: its own page, which scrolls inside its column.
   "admin-page": { parts: [".admin"] },
+  "world-map": { parts: [".sheet"] },
   "town-square": {
     parts: [".room-bar", ".emote-bar", ".chat-bar", ".fishing"],
     // The pond and the doors' mats, drawn: from further off (a narrow screen backs the camera away) the floor's outline
     // once hid the pond, and props must never cover them.
     shows: (page) => drawn(page, [["the pond", pondBlue, 20], ["the doors' mats", doorMatRed, 4]]),
-    // The doors (the café's and the shop's) are the only ways out of the room: their mats must be clickable, not under
-    // the room bar or the dock.
-    reachable: async (page) => {
-      const mats = [await doorMat(page, "cafe"), await doorMat(page, "shop")];
-      return mats.filter((mat): mat is string => typeof mat === "string");
-    },
+    reachable: (page) => doorsReachable(page, ["cafe", "shop", "garden"]),
   },
   // A home: its owner's controls (Decorate, who can visit) in the dock, and its door out to Town Square clickable.
   home: {
@@ -89,12 +85,24 @@ const CHECKS: Record<Screen["name"], Checks> = {
     parts: [".room-bar", ".emote-bar", ".chat-bar"],
     // The door back to the square's mat, among the café's tables and chairs, drawn and clickable.
     shows: (page) => drawn(page, [["the door's mat", doorMatRed, 2]]),
-    reachable: async (page) => {
-      const mat = await doorMat(page, "town-square");
-      return typeof mat === "string" ? [mat] : [];
-    },
+    reachable: (page) => doorsReachable(page, ["town-square", "riverside"]),
+  },
+  garden: {
+    parts: [".room-bar", ".emote-bar", ".chat-bar"],
+    shows: (page) => drawn(page, [["the doors' mats", doorMatRed, 4]]),
+    reachable: (page) => doorsReachable(page, ["town-square", "riverside"]),
+  },
+  riverside: {
+    parts: [".room-bar", ".emote-bar", ".chat-bar", ".fishing"],
+    shows: (page) => drawn(page, [["the pond", pondBlue, 20], ["the doors' mats", doorMatRed, 4]]),
+    reachable: (page) => doorsReachable(page, ["garden", "cafe"]),
   },
 };
+
+async function doorsReachable(page: Page, destinations: string[]): Promise<string[]> {
+  const mats = await Promise.all(destinations.map((destination) => doorMat(page, destination)));
+  return mats.filter((mat): mat is string => typeof mat === "string");
+}
 
 /**
  * Which of <things> (what, its colour, the fewest sampled pixels of it) are not drawn on the canvas. Waited for, as

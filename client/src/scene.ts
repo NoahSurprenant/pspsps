@@ -23,7 +23,7 @@ import "@babylonjs/core/Culling/ray";
 import { AdvancedDynamicTexture } from "@babylonjs/gui/2D/advancedDynamicTexture";
 import { Rectangle } from "@babylonjs/gui/2D/controls/rectangle";
 import { TextBlock } from "@babylonjs/gui/2D/controls/textBlock";
-import { cameraPitch, cameraRadius, fieldOfView } from "./view";
+import { cameraPitch, cameraRadius, fieldOfView, roomPitch } from "./view";
 import { animationFor, Cat, facing, loadCatModel, MeowClip, type CatAnimation, type Outfit } from "./cat";
 import { hasDoorway } from "./doors";
 import { lazily } from "./lazy";
@@ -203,7 +203,9 @@ export class RoomScene {
     camera.fov = fieldOfView;
     // Back far enough for the screen's shape, now and whenever it changes (a phone turned on its side).
     const fit = () => {
-      camera.radius = cameraRadius(this.engine.getAspectRatio(camera), room.width, room.depth);
+      const aspect = this.engine.getAspectRatio(camera);
+      camera.beta = roomPitch(aspect);
+      camera.radius = cameraRadius(aspect, room.width, room.depth);
     };
     fit();
     this.engine.onResizeObservable.add(fit);
@@ -601,7 +603,8 @@ export class RoomScene {
     panel.material = flat(this.scene, `${name}-panel`, "#8a5a3c");
 
     const anchor = CreateBox(`${name}-anchor`, { size: 0.01 }, this.scene);
-    anchor.position.set(door.x, 3.1, wall - 0.11);
+    // Within the doorway so the sign stays below the room bar on short screens.
+    anchor.position.set(door.x, 2.15, wall - 0.16);
     anchor.isVisible = false;
     anchor.isPickable = false;
     const label = new TextBlock(`${name}-label`, door.toRoomName);

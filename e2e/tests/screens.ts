@@ -16,7 +16,7 @@ export interface Size {
 export interface Screen {
   name:
     | "sign-in" | "worlds" | "town-square" | "cafe" | "shop-room" | "player-card" | "own-card" | "own-card-rename" | "friends" | "catalogue"
-    | "home" | "decorating" | "report" | "admin-card" | "admin-page";
+    | "home" | "decorating" | "report" | "admin-card" | "admin-page" | "garden" | "riverside" | "world-map";
   /** Opens the screen in a fresh page; returns once it is ready, with what to close after (other players), if any. */
   open(page: Page): Promise<(() => Promise<void>) | void>;
 }
@@ -49,6 +49,29 @@ export const SCREENS: Screen[] = [
     open: async (page) => {
       await enterWorld(page, "Calico");
       await goThroughDoor(page, "cafe", "Cat Café");
+    },
+  },
+  {
+    name: "garden",
+    open: async (page) => {
+      await enterWorld(page, "Calico");
+      await goThroughDoor(page, "garden", "Garden Courtyard");
+    },
+  },
+  {
+    name: "riverside",
+    open: async (page) => {
+      await enterWorld(page, "Calico");
+      await goThroughDoor(page, "garden", "Garden Courtyard");
+      await goThroughDoor(page, "riverside", "Riverside Trail");
+    },
+  },
+  {
+    name: "world-map",
+    open: async (page) => {
+      await enterWorld(page, "Calico");
+      await page.getByRole("button", { name: "World map" }).click();
+      await expect(page.getByRole("dialog", { name: "World map" })).toBeVisible();
     },
   },
   {

@@ -223,6 +223,27 @@ jobs:
           path: e2e/screenshots/shop-room.png
           archive: false
           retention-days: 30
+      - name: Upload the Garden Courtyard screenshots
+        if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+        uses: actions/upload-artifact@v7
+        with:
+          path: e2e/screenshots/garden.png
+          archive: false
+          retention-days: 30
+      - name: Upload the Riverside Trail screenshots
+        if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+        uses: actions/upload-artifact@v7
+        with:
+          path: e2e/screenshots/riverside.png
+          archive: false
+          retention-days: 30
+      - name: Upload the world map screenshots
+        if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+        uses: actions/upload-artifact@v7
+        with:
+          path: e2e/screenshots/world-map.png
+          archive: false
+          retention-days: 30
       - name: Upload the player card screenshots
         id: sheet_player_card
         if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
