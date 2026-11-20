@@ -1,7 +1,7 @@
 // Each room's look: the sky (the colour round it), how its floor and back wall are painted, the ground round it, and the
 // backdrop behind its back wall that the fixed camera sees over it.
 import {
-  houses, paintCafeFloor, paintCafeWall, paintHomeFloor, paintHomeWall, paints, paintShopFloor, paintShopWall, paintStreet,
+  townHouses, paintCafeFloor, paintCafeWall, paintHomeFloor, paintHomeWall, paints, paintShopFloor, paintShopWall, paintStreet,
   paintGardenFloor, paintGardenWall, paintRiversideFloor, paintRiversideWall, paintTownSquareFloor, paintTownSquareWall,
   type Brush, type Floorplan,
 } from "./paint";
@@ -19,7 +19,7 @@ export interface RoomLook {
   ground?: { colour: string; paint?(brush: Brush, scale: number): void };
   paintFloor?(brush: Brush, plan: Floorplan, scale: number): void;
   /** Paints the back wall's front, round <doorways>: the doors with a doorway in the wall (doors.ts, hasDoorway). */
-  paintWall?(brush: Brush, width: number, height: number, scale: number, doorways: readonly DoorView[]): void;
+  paintWall?(brush: Brush, width: number, height: number, scale: number, doorways: readonly DoorView[], map?: Floorplan["worldMap"]): void;
   /** What stands behind the back wall (and round the room), in the room's own space. */
   backdrop(plan: Floorplan, wallHeight: number): Part[];
 }
@@ -151,8 +151,8 @@ function riversideBackdrop(plan: Floorplan): Part[] {
 function townBackdrop(plan: Floorplan, wallHeight: number): Part[] {
   const parts: Part[] = [];
   const front = plan.depth / 2 + 0.3;
-  const depth = 3.5;
-  for (const [i, house] of houses.entries()) {
+  for (const [i, house] of townHouses(plan.worldMap).entries()) {
+    const depth = house.depth ?? 3.5;
     const width = house.to - house.from - 0.1;
     const middle = (house.from + house.to) / 2;
     parts.push({ shape: "box", width, height: house.height, depth, at: [middle, house.height / 2, front + depth / 2], colour: house.facade });
@@ -178,7 +178,7 @@ function townBackdrop(plan: Floorplan, wallHeight: number): Part[] {
   }
   // Trees between the houses' roofs.
   for (const [x, height] of [[-21.5, 8.6], [-11, 7.8], [0, 8.4], [12, 7.8], [22, 8.4]] as const) {
-    parts.push({ shape: "ball", diameter: 3.4, height: 3, at: [x, height, front + depth + 1.5], colour: palette.leaf });
+    parts.push({ shape: "ball", diameter: 3.4, height: 3, at: [x, height, front + 11.5], colour: palette.leaf });
   }
   // Hills, far off.
   for (const [x, colour] of [[-30, palette.lightLeaf], [-8, palette.leaf], [16, palette.lightLeaf], [38, palette.leaf]] as const) {

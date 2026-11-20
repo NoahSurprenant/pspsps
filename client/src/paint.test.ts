@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   floorPixel, largestTexture, paintCafeFloor, paintCafeWall, paintHomeFloor, paintHomeWall, paints, paintShopFloor, paintShopWall, paintStreet, paintTownSquareFloor, paintTownSquareWall,
-  seeded, textureSize, type Brush, type Floorplan,
+  seeded, textureSize, townHouses, type Brush, type Floorplan,
 } from "./paint";
 import { palette, topOf } from "./props";
 import { lookOf } from "./looks";
@@ -82,6 +82,16 @@ describe("the painters", () => {
     const [x, y] = floorPixel(square, 10, -7, -3);
     const circles = calls.filter((c) => c.name === "arc" && c.args[0] === x && c.args[1] === y);
     expect(circles.map((c) => c.args[2])).toContain((2.5 + 0.6) * 10);
+  });
+
+  it("builds the café facade and roof over the full interior footprint relative to the square", () => {
+    const rooms = [
+      { id: "town-square", name: "Square", x: -4, z: 3, width: 24, depth: 16 },
+      { id: "cafe", name: "Café", x: 1, z: 17, width: 15, depth: 12 },
+    ];
+    const houses = townHouses({ rooms, routes: [] });
+    expect(houses.filter(house => house.from < 12.5 && house.to > -2.5))
+      .toEqual([expect.objectContaining({ from: -2.5, to: 12.5, depth: 12 })]);
   });
 
   // A shop window's awning reaches 0.95 m either side of its middle, and a door's awning 1.2 m either side of the door's,

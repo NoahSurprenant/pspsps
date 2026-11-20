@@ -248,7 +248,7 @@ export class RoomScene {
 
     const look = lookOf(room.roomId);
     this.scene.clearColor = Color4.FromHexString(`${look.sky}ff`);
-    const plan: Floorplan = { width: room.width, depth: room.depth, pond: room.pond, doors: room.doors };
+    const plan: Floorplan = { width: room.width, depth: room.depth, pond: room.pond, doors: room.doors, worldMap: room.worldMap };
     const floor = CreateGround("floor", { width: room.width, height: room.depth }, this.scene);
     floor.material = look.paintFloor
       ? painted(this.scene, "floor", `${room.roomId}/floor/${JSON.stringify(plan)}`, textureSize(room.width, room.depth, floorPixelsPerMetre),
@@ -285,8 +285,8 @@ export class RoomScene {
       // Painted round the doorways in it (the doors by the wall: the ones drawDoor draws a doorway for).
       const doorways = room.doors.filter((door) => hasDoorway(door, room.depth, room.roomId));
       front.material = painted(this.scene, "back-wall-front",
-        `${room.roomId}/wall/${room.width}/${JSON.stringify(doorways)}`, textureSize(room.width, wallHeight, wallPixelsPerMetre),
-        (brush, scale) => look.paintWall?.(brush, room.width, wallHeight, scale, doorways));
+        `${room.roomId}/wall/${room.width}/${JSON.stringify([doorways, room.worldMap])}`, textureSize(room.width, wallHeight, wallPixelsPerMetre),
+        (brush, scale) => look.paintWall?.(brush, room.width, wallHeight, scale, doorways, room.worldMap));
       front.isPickable = false;
     }
     // The wall and the props: one mesh, drawn in one go. Cats walk through props; a tap on one walks the cat beside it

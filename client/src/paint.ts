@@ -1,7 +1,7 @@
 // The rooms' painted surfaces (floors and back walls), drawn in code onto a canvas in the game's flat, illustrated style:
 // flat colours, the dark ink for edges. Nothing to download: each is painted on the way into its room.
 import { ink, palette } from "./props";
-import type { DoorView, PondView } from "./types";
+import type { DoorView, PondView, WorldMapView } from "./types";
 
 /** What a painter needs to know of the room: its size, and where its pond and doors are. */
 export interface Floorplan {
@@ -9,6 +9,7 @@ export interface Floorplan {
   depth: number;
   pond: PondView | null;
   doors: readonly DoorView[];
+  worldMap?: WorldMapView | null;
 }
 
 /** A canvas's 2D context: a real one in the browser; a stand-in that draws nothing in the unit tests. */
@@ -95,7 +96,7 @@ export const paints = {
  * the house (a backdrop for the fixed camera). <from> and <to> are along X, in metres; the ones past the square's ends
  * stand on the street beside it.
  */
-export const houses: readonly { from: number; to: number; height: number; facade: string; roof: string }[] = [
+const scenery: readonly { from: number; to: number; depth?: number; height: number; facade: string; roof: string }[] = [
   { from: -30, to: -24.5, height: 6.2, facade: "#cfe0c3", roof: "#6f7f99" },
   { from: -24.5, to: -19, height: 7.2, facade: "#f2c9a0", roof: "#8a6f8f" },
   { from: -19, to: -14, height: 5.8, facade: "#d9c7e8", roof: "#4f7f86" },
@@ -109,6 +110,25 @@ export const houses: readonly { from: number; to: number; height: number; facade
   { from: 19.5, to: 25, height: 6.2, facade: "#cfe0c3", roof: "#8a6f8f" },
   { from: 25, to: 30, height: 7.2, facade: "#f4d0d0", roof: "#4f7f86" },
 ];
+
+/** The shop and café occupy the same land seen from the square as they do on the map. */
+export function townHouses(map?: WorldMapView | null) {
+  const square = map?.rooms.find(room => room.id === "town-square");
+  if (!map || !square) return scenery;
+  const interiors = map.rooms.filter(room => room.id === "shop" || room.id === "cafe");
+  // Older snapshots placed the interiors at a distance from the square.
+  if (interiors.some(room => Math.abs(room.z - room.depth / 2 - square.z - square.depth / 2) > 0.000001)) return scenery;
+  const buildings = interiors.map(room => ({
+    from: room.x - square.x - room.width / 2,
+    to: room.x - square.x + room.width / 2,
+    depth: room.depth,
+    height: room.id === "shop" ? 6.2 : 6.8,
+    facade: room.id === "shop" ? "#f4d0d0" : "#f2c9a0",
+    roof: room.id === "shop" ? "#4f7f86" : "#8a6f8f",
+  }));
+  return [...scenery.filter(house => buildings.every(b => house.to <= b.from || house.from >= b.to)), ...buildings]
+    .sort((a, b) => a.from - b.from);
+}
 
 /** Town Square's floor: grass, a paved plaza round <plaza>, stepping stones from it to the doors and the pond, sand round the pond. */
 export function paintTownSquareFloor(brush: Brush, plan: Floorplan, scale: number, plaza: { x: number; z: number }): void {
@@ -295,7 +315,8 @@ const doorAwning = 2.4;
 const windowClearOfDoor = 0.95 + doorAwning / 2;
 
 /** The square's back wall: the ground floors of the houses behind it, shopfronts with striped awnings. */
-export function paintTownSquareWall(brush: Brush, width: number, height: number, scale: number, doors: readonly DoorView[]): void {
+export function paintTownSquareWall(brush: Brush, width: number, height: number, scale: number, doors: readonly DoorView[], map?: WorldMapView | null): void {
+  const houses = townHouses(map);
   const x = (metres: number) => (metres + width / 2) * scale;
   const y = (metres: number) => (height - metres) * scale;
   for (const house of houses) {

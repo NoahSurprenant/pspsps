@@ -114,6 +114,26 @@ async function mapLabelsFit(page: Page): Promise<string[]> {
     const problems: string[] = [];
     const bounds = map.getBoundingClientRect();
     const buttons = [...map.querySelectorAll<HTMLButtonElement>(".map-place")];
+    const rooms = window.pspsps?.room()?.snapshot.worldMap?.rooms;
+    if (!rooms?.length) return ["no public floor plan"];
+    const origin = rooms[0]!;
+    const footprint = (id: string) => map.querySelector(`.map-footprint[data-room="${id}"]`)?.getBoundingClientRect();
+    const anchor = footprint(origin.id);
+    if (!anchor) return ["missing starting footprint"];
+    const scale = anchor.width / origin.width;
+    for (const room of rooms) {
+      const box = footprint(room.id);
+      if (!box || !buttons.some(button => button.dataset.place === room.id)) {
+        problems.push(`missing floor or destination for ${room.id}`);
+        continue;
+      }
+      const dx = box.left + box.width / 2 - anchor.left - anchor.width / 2;
+      const dz = anchor.top + anchor.height / 2 - box.top - box.height / 2;
+      if (Math.abs(box.width - scale * room.width) > 1 || Math.abs(box.height - scale * room.depth) > 1 ||
+          Math.abs(dx - scale * (room.x - origin.x)) > 1 || Math.abs(dz - scale * (room.z - origin.z)) > 1) {
+        problems.push(`${room.id} differs from its world footprint by over one pixel`);
+      }
+    }
     for (const [index, button] of buttons.entries()) {
       const name = button.textContent?.trim();
       const box = button.getBoundingClientRect();

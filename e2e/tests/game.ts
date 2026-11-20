@@ -145,6 +145,7 @@ declare global {
           emotes: Map<string, { playerId: string; emote: string }>;
           snapshot: {
             worldId: string;
+            worldMap?: { rooms: { id: string; width: number; depth: number; x: number; z: number }[] };
             roomId: string;
             roomName: string;
             props: { kind: string; x: number; z: number; radius: number }[] | null;

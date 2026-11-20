@@ -13,13 +13,13 @@ public static class RoomCatalog
             // A plaza in front of a row of shops: trees and benches along the back and the sides, lamps, flower beds.
             Props =
             [
-                new Prop(PropKinds.Tree, new Position(-9.9, 6.5), Radius: 1.4),
+                new Prop(PropKinds.Tree, new Position(-10.5, 6.6), Radius: 1.4),
                 new Prop(PropKinds.Tree, new Position(10.2, 4.6), Radius: 1.4),
                 new Prop(PropKinds.Bench, new Position(-10.7, -6.7), Radius: 1, Facing: Math.PI),
                 new Prop(PropKinds.Bench, new Position(9.8, -1.2), Radius: 1, Facing: Math.PI / 2),
                 new Prop(PropKinds.Bench, new Position(0, -7), Radius: 1, Facing: Math.PI),
                 new Prop(PropKinds.Lamp, new Position(9.2, 7.4), Radius: 0.35),
-                new Prop(PropKinds.Lamp, new Position(-0.2, -0.5), Radius: 0.35),
+                new Prop(PropKinds.Lamp, new Position(-6.7, -7.5), Radius: 0.35),
                 new Prop(PropKinds.Lamp, new Position(9.8, -5.8), Radius: 0.35),
                 new Prop(PropKinds.FlowerBed, new Position(10.4, 1.6), Radius: 0.9),
                 new Prop(PropKinds.FlowerBed, new Position(-3.4, -6.7), Radius: 0.9),
