@@ -368,6 +368,34 @@ const windowClearOfDoor = 0.95 + doorAwning / 2;
 /** The square's back wall: the ground floors of the houses behind it, shopfronts with striped awnings. */
 export function paintTownSquareWall(brush: Brush, width: number, height: number, scale: number, doors: readonly DoorView[], map?: WorldMapView | null): void {
   const houses = townHouses(map);
+  // A painted hillside between storefronts. Paint the whole surface first so an alley of any width has a finish.
+  brush.fillStyle = "#bfdbcb";
+  brush.fillRect(0, 0, width * scale, height * scale);
+  brush.fillStyle = "#f3d9a3";
+  brush.beginPath();
+  brush.arc(width * 0.52 * scale, height * 0.37 * scale, 0.52 * scale, 0, 2 * Math.PI);
+  brush.fill();
+  for (let i = 0; i <= width / 3 + 1; i++) {
+    brush.fillStyle = i % 2 ? "#96b49a" : "#abc1a1";
+    brush.beginPath();
+    brush.ellipse(i * 3 * scale, height * scale, 3 * scale, (1.5 + i % 2 * 0.5) * scale, 0, 0, 2 * Math.PI);
+    brush.fill();
+  }
+  for (let i = 0; i < width; i++) {
+    const top = (0.4 + 0.2 * Math.sin(i * 0.8)) * scale;
+    brush.strokeStyle = palette.darkWood;
+    brush.lineWidth = 0.04 * scale;
+    brush.beginPath();
+    brush.moveTo(i * scale, top);
+    brush.lineTo((i + 1) * scale, (0.4 + 0.2 * Math.sin((i + 1) * 0.8)) * scale);
+    brush.stroke();
+    brush.fillStyle = i % 2 ? palette.rose : palette.mustard;
+    brush.beginPath();
+    brush.moveTo(i * scale, top);
+    brush.lineTo((i + 0.55) * scale, top);
+    brush.lineTo((i + 0.28) * scale, top + 0.42 * scale);
+    brush.fill();
+  }
   const x = (metres: number) => (metres + width / 2) * scale;
   const y = (metres: number) => (height - metres) * scale;
   for (const house of houses) {

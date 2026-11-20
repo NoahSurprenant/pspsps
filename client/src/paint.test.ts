@@ -94,6 +94,12 @@ describe("the painters", () => {
       .toEqual([expect.objectContaining({ from: -2.5, to: 12.5, depth: 12 })]);
   });
 
+  it("covers the full street wall before painting the individual shopfronts", () => {
+    const { brush, calls } = recordingBrush();
+    paintTownSquareWall(brush, 24, 4, 10, square.doors);
+    expect(calls.find(call => call.name === "fillRect")?.args).toEqual([0, 0, 240, 40]);
+  });
+
   // A shop window's awning reaches 0.95 m either side of its middle, and a door's awning 1.2 m either side of the door's,
   // at the same height: a window nearer a door than both together would run into it.
   it("paints no shop window into a door's awning", () => {
