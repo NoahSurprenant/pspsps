@@ -549,6 +549,10 @@ namespace Pspsps.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("created_by");
 
+                    b.Property<DateTimeOffset?>("GoLiveAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("go_live_at");
+
                     b.Property<string>("Layout")
                         .IsRequired()
                         .HasColumnType("jsonb")
@@ -575,6 +579,10 @@ namespace Pspsps.Infrastructure.Migrations
                         .HasColumnType("character varying(64)")
                         .HasColumnName("room_id");
 
+                    b.Property<Guid?>("ScheduledBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("scheduled_by");
+
                     b.Property<string>("State")
                         .IsRequired()
                         .HasMaxLength(16)
@@ -586,6 +594,10 @@ namespace Pspsps.Infrastructure.Migrations
 
                     b.HasIndex("CreatedBy")
                         .HasDatabaseName("ix_room_versions_created_by");
+
+                    b.HasIndex("GoLiveAt")
+                        .HasDatabaseName("ix_room_versions_go_live_at")
+                        .HasFilter("go_live_at is not null");
 
                     b.HasIndex("RoomId")
                         .IsUnique()

@@ -72,6 +72,7 @@ try
     builder.Services.AddSingleton<SessionHeartbeat>();
     builder.Services.AddHostedService(services => services.GetRequiredService<SessionHeartbeat>());
     builder.Services.AddHostedService<RoomLibraryRefresher>();
+    builder.Services.AddHostedService<ScheduledPublisher>();
 
     builder.UseOrleans(silo => OrleansSetup.Configure(silo, clustering, builder.Configuration));
 
