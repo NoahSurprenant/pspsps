@@ -86,15 +86,24 @@ jobs:
           PG_CONTAINER: postgres
           PGPASSWORD: backup
 
-  e2e:
-    name: End-to-end (Playwright)
+  e2e-shards:
+    name: Playwright (${{ matrix.name }})
     runs-on: ubuntu-latest
-    # The tests take about 23 minutes with every screen at every size (the admin screens among them), then Lighthouse
-    # and the contact sheets.
     timeout-minutes: 35
-    outputs:
-      # Empty unless all the contact sheets were uploaded, so a run without them leaves the PR's last links alone.
-      screenshots: ${{ steps.sheet_sign_in.outputs.artifact-url && steps.sheet_worlds.outputs.artifact-url && steps.sheet_town_square.outputs.artifact-url && steps.sheet_cafe.outputs.artifact-url && steps.sheet_shop_room.outputs.artifact-url && steps.sheet_player_card.outputs.artifact-url && steps.sheet_own_card.outputs.artifact-url && steps.sheet_own_card_rename.outputs.artifact-url && steps.sheet_friends.outputs.artifact-url && steps.sheet_catalogue.outputs.artifact-url && steps.sheet_home.outputs.artifact-url && steps.sheet_decorating.outputs.artifact-url && steps.sheet_report.outputs.artifact-url && steps.sheet_admin_card.outputs.artifact-url && steps.sheet_admin_page.outputs.artifact-url && steps.sheet_wardrobe.outputs.artifact-url && format('- [Sign-in]({0})\n- [World list]({1})\n- [Town Square]({2})\n- [Cat Café]({3})\n- [Cat Shop]({4})\n- [Player card]({5})\n- [Own card]({6})\n- [Own card, renaming]({7})\n- [Friends]({8})\n- [Catalogue]({9})\n- [Home]({10})\n- [Decorating]({11})\n- [Report]({12})\n- [Admin card]({13})\n- [Admin page]({14})\n- [Wardrobe]({15})', steps.sheet_sign_in.outputs.artifact-url, steps.sheet_worlds.outputs.artifact-url, steps.sheet_town_square.outputs.artifact-url, steps.sheet_cafe.outputs.artifact-url, steps.sheet_shop_room.outputs.artifact-url, steps.sheet_player_card.outputs.artifact-url, steps.sheet_own_card.outputs.artifact-url, steps.sheet_own_card_rename.outputs.artifact-url, steps.sheet_friends.outputs.artifact-url, steps.sheet_catalogue.outputs.artifact-url, steps.sheet_home.outputs.artifact-url, steps.sheet_decorating.outputs.artifact-url, steps.sheet_report.outputs.artifact-url, steps.sheet_admin_card.outputs.artifact-url, steps.sheet_admin_page.outputs.artifact-url, steps.sheet_wardrobe.outputs.artifact-url) || '' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: gameplay
+            suite: gameplay
+          - name: accessibility
+            suite: accessibility
+          - name: layout-1
+            suite: layout
+            shard: "1/2"
+          - name: layout-2
+            suite: layout
+            shard: "2/2"
     # The shipped image, run against PostgreSQL, driven by Chromium (software WebGL).
     services:
       postgres:
@@ -144,18 +153,26 @@ jobs:
           npm run typecheck
       - name: End-to-end tests
         working-directory: e2e
-        run: npm test
+        run: |
+          if [ -n "$E2E_SHARD" ]; then
+            npm test -- --shard="$E2E_SHARD"
+          else
+            npm test
+          fi
         env:
+          E2E_SUITE: ${{ matrix.suite }}
+          E2E_SHARD: ${{ matrix.shard }}
           E2E_BASE_URL: http://localhost:8080
       # Lighthouse on the sign-in screen and, signed in as a guest, the world list, with the phone and the desktop
       # settings (e2e/lighthouserc.cjs has the scores asked for). All four run; the step fails if any did.
       - name: Lighthouse
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && matrix.suite == 'accessibility' }}
         working-directory: e2e
         env:
           E2E_BASE_URL: http://localhost:8080
         run: |
-          export CHROME_PATH="$(node -e 'console.log(require("@playwright/test").chromium.executablePath())')"
+          CHROME_PATH="$(node -e 'console.log(require("@playwright/test").chromium.executablePath())')"
+          export CHROME_PATH
           cookie="$(curl -s -o /dev/null -D - -X POST http://localhost:8080/auth/guest | sed -n 's/^[Ss]et-[Cc]ookie: \(pspsps=[^;]*\).*/\1/p')"
           test -n "$cookie"
           failed=0
@@ -170,12 +187,62 @@ jobs:
           exit $failed
       # The reports, kept with the run rather than at public links: a signed-in run's settings carry the guest's cookie.
       - name: Upload the Lighthouse reports
-        if: ${{ !cancelled() && hashFiles('e2e/lighthouse/**') != '' }}
+        if: ${{ !cancelled() && matrix.suite == 'accessibility' && hashFiles('e2e/lighthouse/**') != '' }}
         uses: actions/upload-artifact@v7
         with:
           name: lighthouse
           path: e2e/lighthouse
           retention-days: 30
+          overwrite: true
+      - name: Upload the shard's screenshots
+        if: ${{ !cancelled() && hashFiles('e2e/screenshots/**/*.png') != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-screenshots-${{ matrix.name }}
+          path: e2e/screenshots/
+          compression-level: 0
+          retention-days: 7
+          overwrite: true
+      - name: Server log
+        if: failure()
+        run: docker logs pspsps
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report-${{ matrix.name }}
+          path: e2e/playwright-report
+          retention-days: 7
+          overwrite: true
+
+  e2e:
+    name: End-to-end (Playwright)
+    needs: e2e-shards
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      # Empty unless all the contact sheets were uploaded, so a run without them leaves the PR's last links alone.
+      screenshots: ${{ steps.screenshot_links.outputs.links }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: e2e-screenshots-*
+          path: e2e/screenshots
+          merge-multiple: true
+      - uses: actions/setup-node@v7
+        if: ${{ hashFiles('e2e/screenshots/*/*.png') != '' }}
+        with:
+          node-version: 24
+      - name: Install Chromium for the contact sheets
+        if: ${{ hashFiles('e2e/screenshots/*/*.png') != '' }}
+        working-directory: e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
       # Each screen's sizes side by side, even when a test failed (the pictures may show why), uploaded unzipped so
       # each opens in the browser; the screenshots job links them on the PR.
       - name: Make the screenshot contact sheets
@@ -184,45 +251,45 @@ jobs:
         working-directory: e2e
         run: node contact-sheets.mjs
       - name: Upload the sign-in screenshots
-        id: sheet_sign_in
         if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
         uses: actions/upload-artifact@v7
         with:
           path: e2e/screenshots/sign-in.png
           archive: false
           retention-days: 30
+          overwrite: true
       - name: Upload the world list screenshots
-        id: sheet_worlds
         if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
         uses: actions/upload-artifact@v7
         with:
           path: e2e/screenshots/worlds.png
           archive: false
           retention-days: 30
+          overwrite: true
       - name: Upload the Town Square screenshots
-        id: sheet_town_square
         if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
         uses: actions/upload-artifact@v7
         with:
           path: e2e/screenshots/town-square.png
           archive: false
           retention-days: 30
+          overwrite: true
       - name: Upload the Cat Café screenshots
-        id: sheet_cafe
         if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
         uses: actions/upload-artifact@v7
         with:
           path: e2e/screenshots/cafe.png
           archive: false
           retention-days: 30
+          overwrite: true
       - name: Upload the Cat Shop screenshots
-        id: sheet_shop_room
         if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
         uses: actions/upload-artifact@v7
         with:
           path: e2e/screenshots/shop-room.png
           archive: false
           retention-days: 30
+          overwrite: true
       - name: Upload the Garden Courtyard screenshots
         if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
         uses: actions/upload-artifact@v7
@@ -230,6 +297,7 @@ jobs:
           path: e2e/screenshots/garden.png
           archive: false
           retention-days: 30
+          overwrite: true
       - name: Upload the Riverside Trail screenshots
         if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
         uses: actions/upload-artifact@v7
@@ -237,6 +305,7 @@ jobs:
           path: e2e/screenshots/riverside.png
           archive: false
           retention-days: 30
+          overwrite: true
       - name: Upload the world map screenshots
         if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
         uses: actions/upload-artifact@v7
@@ -244,104 +313,145 @@ jobs:
           path: e2e/screenshots/world-map.png
           archive: false
           retention-days: 30
+          overwrite: true
       - name: Upload the player card screenshots
-        id: sheet_player_card
         if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
         uses: actions/upload-artifact@v7
         with:
           path: e2e/screenshots/player-card.png
           archive: false
           retention-days: 30
+          overwrite: true
       - name: Upload the own card screenshots
-        id: sheet_own_card
         if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
         uses: actions/upload-artifact@v7
         with:
           path: e2e/screenshots/own-card.png
           archive: false
           retention-days: 30
+          overwrite: true
       - name: Upload the own card renaming screenshots
-        id: sheet_own_card_rename
         if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
         uses: actions/upload-artifact@v7
         with:
           path: e2e/screenshots/own-card-rename.png
           archive: false
           retention-days: 30
+          overwrite: true
       - name: Upload the friends list screenshots
-        id: sheet_friends
         if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
         uses: actions/upload-artifact@v7
         with:
           path: e2e/screenshots/friends.png
           archive: false
           retention-days: 30
+          overwrite: true
       - name: Upload the catalogue screenshots
-        id: sheet_catalogue
         if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
         uses: actions/upload-artifact@v7
         with:
           path: e2e/screenshots/catalogue.png
           archive: false
           retention-days: 30
+          overwrite: true
       - name: Upload the home screenshots
-        id: sheet_home
         if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
         uses: actions/upload-artifact@v7
         with:
           path: e2e/screenshots/home.png
           archive: false
           retention-days: 30
+          overwrite: true
       - name: Upload the decorating screenshots
-        id: sheet_decorating
         if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
         uses: actions/upload-artifact@v7
         with:
           path: e2e/screenshots/decorating.png
           archive: false
           retention-days: 30
+          overwrite: true
       - name: Upload the report form screenshots
-        id: sheet_report
         if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
         uses: actions/upload-artifact@v7
         with:
           path: e2e/screenshots/report.png
           archive: false
           retention-days: 30
+          overwrite: true
       - name: Upload the admin card screenshots
-        id: sheet_admin_card
         if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
         uses: actions/upload-artifact@v7
         with:
           path: e2e/screenshots/admin-card.png
           archive: false
           retention-days: 30
+          overwrite: true
       - name: Upload the admin page screenshots
-        id: sheet_admin_page
         if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
         uses: actions/upload-artifact@v7
         with:
           path: e2e/screenshots/admin-page.png
           archive: false
           retention-days: 30
+          overwrite: true
       # Every hat and collar on several coats, as the player cards picture them (e2e/tests/wardrobe.spec.ts).
       - name: Upload the wardrobe contact sheet
-        id: sheet_wardrobe
         if: ${{ !cancelled() && hashFiles('e2e/screenshots/wardrobe.png') != '' }}
         uses: actions/upload-artifact@v7
         with:
           path: e2e/screenshots/wardrobe.png
           archive: false
           retention-days: 30
-      - name: Server log
-        if: failure()
-        run: docker logs pspsps
-      - uses: actions/upload-artifact@v7
-        if: failure()
-        with:
-          name: playwright-report
-          path: e2e/playwright-report
-          retention-days: 7
+          overwrite: true
+      - name: Verify screenshot uploads and collect links
+        id: screenshot_links
+        if: ${{ !cancelled() && (needs.e2e-shards.result == 'success' || hashFiles('e2e/screenshots/*.png') != '') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          shopt -s nullglob
+          sheets=(e2e/screenshots/*.png)
+          if (( ${#sheets[@]} == 0 )); then
+            echo "::error::No screenshot sheets were generated."
+            exit 1
+          fi
+
+          run="repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          artifacts="$(gh api "$run/artifacts" --paginate --jq '.artifacts[] | select(.expired == false) | [.name, .id] | @tsv')"
+          links=()
+          missing=()
+          for sheet in "${sheets[@]}"; do
+            name="${sheet##*/}"
+            id="$(awk -F '\t' -v name="$name" '$1 == name { print $2; exit }' <<< "$artifacts")"
+            if [[ -z "$id" ]]; then
+              missing+=("$name")
+              continue
+            fi
+
+            # Preserve display names for older filenames. New filenames automatically become titles.
+            case "$name" in
+              cafe.png) label='Cat Café' ;;
+              garden.png) label='Garden Courtyard' ;;
+              riverside.png) label='Riverside Trail' ;;
+              shop-room.png) label='Cat Shop' ;;
+              worlds.png) label='World list' ;;
+              *) label="$(sed -E 's/-/ /g; s/\b(.)/\U\1/g' <<< "${name%.png}")" ;;
+            esac
+            links+=("- [$label]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts/$id)")
+          done
+
+          if (( ${#missing[@]} > 0 )); then
+            printf '::error::Missing screenshot upload for %s\n' "${missing[@]}"
+            exit 1
+          fi
+          {
+            echo 'links<<SCREENSHOT_LINKS'
+            printf '%s\n' "${links[@]}"
+            echo 'SCREENSHOT_LINKS'
+          } >> "$GITHUB_OUTPUT"
+      - name: Require every browser shard to pass
+        if: ${{ needs.e2e-shards.result != 'success' }}
+        run: exit 1
 
   cluster-e2e:
     name: Two pods end-to-end (Playwright)
@@ -423,7 +533,7 @@ jobs:
           SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           marker="<!-- pspsps-screenshots -->"
-          body="$(printf '%s\n### Screenshots at every screen size (%s)\n\n%b\n' "$marker" "${SHA:0:7}" "$LINKS")"
+          body="$(printf '%s\n### Screenshots at every screen size (%s)\n\n%s\n' "$marker" "${SHA:0:7}" "$LINKS")"
           existing=$(gh api "repos/${{ github.repository }}/issues/$PR/comments" --paginate \
             -q ".[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$marker\"))) | .id" | head -1)
           if [ -n "$existing" ]; then
