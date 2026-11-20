@@ -9,6 +9,7 @@ import { lazily } from "./lazy";
 import { loadRoom, PendingEvents } from "./pending";
 import { comeBack, saysSentOutAgain, stayAfterRefusal } from "./rejoin";
 import { catchBubble, FishingState, gotAwayMessage, paid, pondEdge, reelMessage, type Fishing } from "./fishing";
+import { playPiano } from "./roomActivities";
 import { Room } from "./room";
 import { roomGestures } from "./roomGestures";
 import type { CatAnimation } from "./cat";
@@ -525,6 +526,38 @@ function show(snapshot: RoomSnapshot, view: RoomScene): Room {
   const home = snapshot.home;
   view.playerId = me?.id;
   view.show(snapshot);
+  const travel = (roomId: string) => {
+    if (room !== shown || picking) return;
+    doorWalks.callOff();
+    fishing.drop();
+    overlay.closeDialog();
+    pick(() => goTo(roomId, shown));
+  };
+  const activity = async (prop: PropView) => {
+    if (room !== shown || picking || !me) return;
+    walkKeys.stop();
+    doorWalks.callOff();
+    if (prop.kind === "map-board") return overlay.showMap(snapshot, travel);
+    if (prop.kind === "mirror") return openOwnCard();
+    if (prop.kind === "rod-rack") return fish();
+    if (prop.kind === "piano") {
+      overlay.toast("♪ A little café waltz ♪");
+      await playPiano();
+      return;
+    }
+    const spot = view.approach(prop, snapshot);
+    if (!spot) return;
+    fishing.drop();
+    const walk = doorWalks.start();
+    const id = me.id;
+    await connection.move(spot.x, spot.z);
+    if (await view.reached(id, spot.x, spot.z) && room === shown && doorWalks.isGoing(walk)) {
+      doorWalks.callOff();
+      overlay.toast(view.tend(prop));
+    }
+  };
+  const useActivity = (prop: PropView) => void activity(prop).catch((error: unknown) => overlay.toast(messageOf(error)));
+  view.onActivityClicked(useActivity);
   overlay.showRoom(
     snapshot,
     (text) => connection.say(text).catch((error: unknown) => overlay.toast(messageOf(error))),
@@ -540,15 +573,8 @@ function show(snapshot: RoomSnapshot, view: RoomScene): Room {
     {
       yourCat: () => void openOwnCard(),
       catalogue: catalogueStand(snapshot.props) ? () => void readCatalogue() : undefined,
-      travel: (roomId) => {
-        if (room !== shown || picking) {
-          return;
-        }
-        doorWalks.callOff();
-        fishing.drop();
-        overlay.closeDialog();
-        pick(() => goTo(roomId, shown));
-      },
+      activity: useActivity,
+      travel,
     },
     snapshot.pond ? { fish: () => void fish(), reel: () => void reel(), state: () => fishing.state } : undefined,
     // In their own home, the owner decorates it and chooses who may visit.

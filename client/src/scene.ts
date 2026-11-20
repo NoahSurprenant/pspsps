@@ -24,6 +24,7 @@ import { AdvancedDynamicTexture } from "@babylonjs/gui/2D/advancedDynamicTexture
 import { Rectangle } from "@babylonjs/gui/2D/controls/rectangle";
 import { TextBlock } from "@babylonjs/gui/2D/controls/textBlock";
 import { cameraFocus, cameraPitch, cameraRadius, fieldOfView, roomPitch, startingZoom, zoomRadius } from "./view";
+import { wildlife } from "./wildlife";
 import { sceneryTarget } from "./walking";
 import { animationFor, Cat, facing, loadCatModel, MeowClip, type CatAnimation, type Outfit } from "./cat";
 import { hasDoorway, openLandscape, pathEdge } from "./doors";
@@ -33,6 +34,7 @@ import { lookOf } from "./looks";
 import {
   floorPixelsPerMetre, powerOfTwo, streetTile, textureSize, wallPixelsPerMetre, type Brush, type Floorplan,
 } from "./paint";
+import { activityName, RoomActivities } from "./roomActivities";
 import { catalogueStandKind } from "./catalogue";
 import { Portraits } from "./portrait";
 import { besideProp, buildParts, ink, propAt, propParts, type Part } from "./props";
@@ -103,6 +105,8 @@ export class RoomScene {
   // piece of furniture selected while decorating.
   private wall: Part | undefined;
   private decor: Mesh | undefined;
+  private activities = new RoomActivities();
+  private activityClicked: (prop: PropView) => void = () => {};
   private props: PropView[] = [];
   private selection: Mesh | undefined;
   /**
@@ -174,6 +178,21 @@ export class RoomScene {
   /** A tap or click on the shop's catalogue stand (or the floor it stands on). */
   onStandClicked(handler: (stand: PropView) => void): void {
     this.standClicked = handler;
+  }
+
+  onActivityClicked(handler: (prop: PropView) => void): void {
+    this.activityClicked = handler;
+  }
+
+  approach(prop: PropView, room: RoomSnapshot): { x: number; z: number } | undefined {
+    return besideProp(this.props, room, prop.x, prop.z);
+  }
+
+  tend(prop: PropView): string {
+    const before = this.activities.stage(prop);
+    const message = this.activities.tend(prop, this.props.filter(p => p.kind === "pear-tree").length);
+    if (before !== this.activities.stage(prop)) this.drawDecor();
+    return message;
   }
 
   /** A tap while decorating: where on the floor, under the furniture or the floor tapped. */
@@ -248,7 +267,7 @@ export class RoomScene {
 
     const look = lookOf(room.roomId);
     this.scene.clearColor = Color4.FromHexString(`${look.sky}ff`);
-    const plan: Floorplan = { width: room.width, depth: room.depth, pond: room.pond, doors: room.doors, worldMap: room.worldMap };
+    const plan: Floorplan = { width: room.width, depth: room.depth, pond: room.pond, doors: room.doors, props: room.roomId === "pear-orchard" ? room.props : undefined, worldMap: room.worldMap };
     const floor = CreateGround("floor", { width: room.width, height: room.depth }, this.scene);
     floor.material = look.paintFloor
       ? painted(this.scene, "floor", `${room.roomId}/floor/${JSON.stringify(plan)}`, textureSize(room.width, room.depth, floorPixelsPerMetre),
@@ -292,8 +311,10 @@ export class RoomScene {
     // The wall and the props: one mesh, drawn in one go. Cats walk through props; a tap on one walks the cat beside it
     // (a tap on the wall does nothing). The backdrop is another, which a tap never tests: it does nothing there.
     this.wall = openLandscape(room.roomId) ? undefined : wall;
+    this.activities = new RoomActivities();
     this.props = room.props ?? [];
-    this.decor = buildParts(this.scene, "decor", [...(this.wall ? [this.wall] : []), ...this.props.flatMap(propParts)]);
+    this.decor = undefined;
+    this.drawDecor();
     const backdrop = buildParts(this.scene, "backdrop", look.backdrop(plan, wallHeight));
     if (backdrop) {
       backdrop.isPickable = false;
@@ -347,9 +368,9 @@ export class RoomScene {
       const onProps = hits.filter((pick) => decor && pick.pickedMesh === decor && pick.pickedPoint);
       const ground = hits.find((pick) => pick.pickedMesh === floor)?.pickedPoint;
       // The stand, tapped, or the floor it stands on (it is small, to tap on a phone).
-      const stand = [...onProps.map((pick) => pick.pickedPoint), ground]
+      const pickedProp = [...onProps.map((pick) => pick.pickedPoint), ground]
         .map((point) => (point ? propAt(this.props, point.x, point.z) : undefined))
-        .find((prop) => prop?.kind === catalogueStandKind);
+        .find((prop) => prop && (prop.kind === catalogueStandKind || activityName(prop)));
       const beside = onProps
         .map((pick) => besideProp(this.props, room, pick.pickedPoint?.x ?? 0, pick.pickedPoint?.z ?? 0)).find((spot) => spot);
       if (catId !== undefined) {
@@ -360,8 +381,10 @@ export class RoomScene {
         this.pondClicked();
       } else if (ownCat !== undefined) {
         this.catClicked(ownCat);
-      } else if (stand) {
-        this.standClicked(stand);
+      } else if (pickedProp?.kind === catalogueStandKind) {
+        this.standClicked(pickedProp);
+      } else if (pickedProp) {
+        this.activityClicked(pickedProp);
       } else if (beside) {
         this.floorClicked(beside.x, beside.z);
       } else {
@@ -385,8 +408,11 @@ export class RoomScene {
         this.tapScreen(this.scene.pointerX, this.scene.pointerY);
       }
     };
+    const animateWildlife = wildlife(this.scene, room);
     this.scene.onBeforeRenderObservable.add(() => {
-      this.step(this.engine.getDeltaTime() / 1000);
+      const seconds = this.engine.getDeltaTime() / 1000;
+      this.step(seconds);
+      animateWildlife?.(seconds);
       aim();
     });
 
@@ -470,9 +496,14 @@ export class RoomScene {
     if (!this.wall) {
       return;
     }
-    this.decor?.dispose(false, true);
     this.props = props;
-    this.decor = buildParts(this.scene, "decor", [this.wall, ...props.flatMap(propParts)]);
+    this.drawDecor();
+  }
+
+  private drawDecor(): void {
+    this.decor?.dispose(false, true);
+    const parts = this.props.flatMap(prop => propParts(prop, this.activities.stage(prop)));
+    this.decor = buildParts(this.scene, "decor", [...(this.wall ? [this.wall] : []), ...parts]);
   }
 
   /** Rings the piece of furniture selected while decorating, on the floor round it; none, no ring. */

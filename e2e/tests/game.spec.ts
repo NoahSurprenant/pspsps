@@ -6,6 +6,52 @@ import {
   enterWorldSignedIn, signInAsAdmin, fakeNetwork, pinchRoom,
 } from "./game";
 
+test("read the square map, grow daisies, and pick and pack a pear", async ({ page }) => {
+  await enterWorld(page, "Tabby");
+  const board = await page.evaluate(() => window.pspsps?.room()?.snapshot.props?.find(prop => prop.kind === "map-board"));
+  if (!board) throw new Error("no town map board");
+  await tapFloor(page, board.x, board.z);
+  const map = page.getByRole("dialog", { name: "World map" });
+  await map.getByRole("button", { name: "Garden Courtyard" }).click();
+  await expectRoom(page, "Garden Courtyard");
+  const use = async (name: string) => {
+    const button = page.getByRole("button", { name, exact: true });
+    await button.focus();
+    await page.keyboard.press("Enter");
+  };
+  await use("Water the seedlings");
+  await expect(page.locator("#toast")).toHaveText("The first daisy opened.");
+  await goThroughDoor(page, "pear-orchard", "Pear Orchard");
+  await use("Pick a pear from tree 1");
+  await expect(page.locator("#toast")).toContainText("One ripe pear");
+  await use("Pack the pears");
+  await expect(page.locator("#toast")).toHaveText("Pears packed: 1 of 3.");
+});
+
+test("play the café piano, try the shop mirror and cast from the river rod rack", async ({ page }) => {
+  await enterWorld(page, "Tabby");
+  const travel = async (name: string) => {
+    await page.getByRole("button", { name: "World map" }).click();
+    await page.getByRole("dialog", { name: "World map" }).getByRole("button", { name }).click();
+    await expectRoom(page, name);
+  };
+  const use = async (kind: string) => {
+    const prop = await page.evaluate(wanted => window.pspsps?.room()?.snapshot.props?.find(p => p.kind === wanted), kind);
+    if (!prop) throw new Error(`missing ${kind}`);
+    await tapFloor(page, prop.x, prop.z);
+  };
+  await travel("Cat Café");
+  await use("piano");
+  await expect(page.locator("#toast")).toContainText("café waltz");
+  await travel("Cat Shop");
+  await use("mirror");
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await travel("Riverside Trail");
+  await use("rod-rack");
+  await expect.poll(() => page.evaluate(() => window.pspsps?.fishing())).toMatch(/waiting|bite/);
+});
+
 test("the sign-in page loads without errors", async ({ page }) => {
   await page.goto("/");
 
@@ -588,7 +634,7 @@ test("a cat walks the garden loop and travels to a room's spawn from the world m
     const dz = entrance.edge === "north" ? -offset : entrance.edge === "south" ? offset : 0;
     expect(cat.x).toBeCloseTo(entrance.x + dx, 6);
     expect(cat.z).toBeCloseTo(entrance.z + dz, 6);
-    if (id === "riverside") await expect(page.getByRole("button", { name: "Fish" })).toBeVisible();
+    if (id === "riverside") await expect(page.getByRole("button", { name: "🎣 Fish", exact: true })).toBeVisible();
     previous = id;
   }
   await goThroughDoor(page, "cafe", "Cat Café");

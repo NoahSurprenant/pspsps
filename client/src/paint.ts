@@ -1,7 +1,7 @@
 // The rooms' painted surfaces (floors and back walls), drawn in code onto a canvas in the game's flat, illustrated style:
 // flat colours, the dark ink for edges. Nothing to download: each is painted on the way into its room.
 import { ink, palette } from "./props";
-import type { DoorView, PondView, WorldMapView } from "./types";
+import type { DoorView, PondView, PropView, WorldMapView } from "./types";
 
 /** What a painter needs to know of the room: its size, and where its pond and doors are. */
 export interface Floorplan {
@@ -9,6 +9,7 @@ export interface Floorplan {
   depth: number;
   pond: PondView | null;
   doors: readonly DoorView[];
+  props?: readonly PropView[] | null;
   worldMap?: WorldMapView | null;
 }
 
@@ -228,6 +229,31 @@ export function paintGardenFloor(brush: Brush, plan: Floorplan, scale: number): 
   paintPlaza(brush, at(0, -1.6), scale);
 }
 
+export function paintOrchardFloor(brush: Brush, plan: Floorplan, scale: number): void {
+  paintGrass(brush, plan, scale, seeded(51));
+  const at = (x: number, z: number) => floorPixel(plan, scale, x, z);
+  const props = plan.props ?? [];
+  const crate = props.find(prop => prop.kind === "packing-crate");
+  if (!crate) return;
+  // The barrow leaves two wheel tracks between the packing station and each gate.
+  for (const door of plan.doors) {
+    for (const offset of [-0.32, 0.32]) {
+      brush.strokeStyle = "#c8b988";
+      brush.lineWidth = 0.19 * scale;
+      brush.beginPath();
+      brush.moveTo(...at(crate.x + offset, crate.z));
+      brush.quadraticCurveTo(...at(crate.x + offset, door.z), ...at(door.x + offset, door.z));
+      brush.stroke();
+    }
+  }
+  for (const tree of props.filter(prop => prop.kind === "pear-tree")) {
+    brush.fillStyle = "#b6a277";
+    brush.beginPath();
+    brush.arc(...at(tree.x, tree.z), 1.2 * scale, 0, 2 * Math.PI);
+    brush.fill();
+  }
+}
+
 export function paintRiversideFloor(brush: Brush, plan: Floorplan, scale: number): void {
   const random = seeded(69);
   paintGrass(brush, plan, scale, random);
@@ -264,6 +290,31 @@ export function paintGardenWall(brush: Brush, width: number, height: number, sca
       brush.lineTo(x * scale, Math.min(height * scale, y + 0.55 * scale));
     }
     brush.stroke();
+  }
+  // Fan trellises on the stonework, trained roses climbing each spoke.
+  for (const centre of [width * 0.2, width * 0.55, width * 0.85]) {
+    for (const spread of [-1.15, -0.55, 0, 0.55, 1.15]) {
+      brush.strokeStyle = "#907156";
+      brush.lineWidth = scale * 0.1;
+      brush.beginPath();
+      brush.moveTo(centre * scale, height * scale);
+      brush.lineTo((centre + spread) * scale, height * 0.17 * scale);
+      brush.stroke();
+      for (let n = 1; n <= 5; n++) {
+        const x = centre + spread * n / 6;
+        const y = height * (1 - n * 0.83 / 6);
+        brush.fillStyle = n % 2 ? "#799953" : "#608053";
+        brush.beginPath();
+        brush.ellipse(x * scale, y * scale, 0.19 * scale, 0.08 * scale, n % 2 ? -0.6 : 0.6, 0, Math.PI * 2);
+        brush.fill();
+        if (n % 3 === 0 || n === 5) {
+          brush.fillStyle = "#d5828d";
+          brush.beginPath();
+          brush.arc((x + 0.09) * scale, (y - 0.1) * scale, 0.115 * scale, 0, Math.PI * 2);
+          brush.fill();
+        }
+      }
+    }
   }
 }
 
@@ -317,6 +368,34 @@ const windowClearOfDoor = 0.95 + doorAwning / 2;
 /** The square's back wall: the ground floors of the houses behind it, shopfronts with striped awnings. */
 export function paintTownSquareWall(brush: Brush, width: number, height: number, scale: number, doors: readonly DoorView[], map?: WorldMapView | null): void {
   const houses = townHouses(map);
+  // A painted hillside between storefronts. Paint the whole surface first so an alley of any width has a finish.
+  brush.fillStyle = "#bfdbcb";
+  brush.fillRect(0, 0, width * scale, height * scale);
+  brush.fillStyle = "#f3d9a3";
+  brush.beginPath();
+  brush.arc(width * 0.52 * scale, height * 0.37 * scale, 0.52 * scale, 0, 2 * Math.PI);
+  brush.fill();
+  for (let i = 0; i <= width / 3 + 1; i++) {
+    brush.fillStyle = i % 2 ? "#96b49a" : "#abc1a1";
+    brush.beginPath();
+    brush.ellipse(i * 3 * scale, height * scale, 3 * scale, (1.5 + i % 2 * 0.5) * scale, 0, 0, 2 * Math.PI);
+    brush.fill();
+  }
+  for (let i = 0; i < width; i++) {
+    const top = (0.4 + 0.2 * Math.sin(i * 0.8)) * scale;
+    brush.strokeStyle = palette.darkWood;
+    brush.lineWidth = 0.04 * scale;
+    brush.beginPath();
+    brush.moveTo(i * scale, top);
+    brush.lineTo((i + 1) * scale, (0.4 + 0.2 * Math.sin((i + 1) * 0.8)) * scale);
+    brush.stroke();
+    brush.fillStyle = i % 2 ? palette.rose : palette.mustard;
+    brush.beginPath();
+    brush.moveTo(i * scale, top);
+    brush.lineTo((i + 0.55) * scale, top);
+    brush.lineTo((i + 0.28) * scale, top + 0.42 * scale);
+    brush.fill();
+  }
   const x = (metres: number) => (metres + width / 2) * scale;
   const y = (metres: number) => (height - metres) * scale;
   for (const house of houses) {

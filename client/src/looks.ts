@@ -2,7 +2,7 @@
 // backdrop behind its back wall that the fixed camera sees over it.
 import {
   townHouses, paintCafeFloor, paintCafeWall, paintHomeFloor, paintHomeWall, paints, paintShopFloor, paintShopWall, paintStreet,
-  paintGardenFloor, paintGardenWall, paintRiversideFloor, paintRiversideWall, paintTownSquareFloor, paintTownSquareWall,
+  paintGardenFloor, paintGardenWall, paintOrchardFloor, paintRiversideFloor, paintRiversideWall, paintTownSquareFloor, paintTownSquareWall,
   type Brush, type Floorplan,
 } from "./paint";
 import { ink, palette, type Part } from "./props";
@@ -68,7 +68,7 @@ const looks: Record<string, RoomLook> = {
     floorColour: paints.grass,
     wallColour: "#91ad72",
     ground: { colour: "#a9c587" },
-    paintFloor: paintRiversideFloor,
+    paintFloor: paintOrchardFloor,
     backdrop: orchardBackdrop,
   },
   riverside: {
@@ -129,17 +129,36 @@ function orchardBackdrop(plan: Floorplan): Part[] {
 }
 
 function riversideBackdrop(plan: Floorplan): Part[] {
-  const bank = plan.depth / 2 + 6;
+  const bank = plan.depth / 2 + 3;
+  // A plank jetty and a red rowboat on its mooring, just off the trail.
+  const jetty: Part[] = [];
+  for (let i = 0; i < 12; i++) {
+    jetty.push({ shape: "box", width: 1.6, height: 0.14, depth: 0.34, at: [-3, 0.35, bank - 1.4 + i * 0.35], colour: i % 2 ? "#c79e76" : "#c29570" });
+  }
+  for (const x of [-3.68, -2.32]) {
+    for (const z of [bank - 1.25, bank + 2.35]) {
+      jetty.push({ shape: "cylinder", diameter: 0.2, height: 1.1, at: [x, 0.55, z], colour: palette.darkWood });
+    }
+  }
   return [
     { shape: "box", width: 65, height: 0.25, depth: 9, at: [0, 0, bank + 4.5], colour: "#83bed4" },
+    ...jetty,
+    { shape: "box", width: 1.28, height: 0.25, depth: 2.6, at: [-1, 0.24, bank + 1.5], colour: "#88593e" },
+    ...[-1, 1].flatMap((side): Part[] => [
+      { shape: "box", width: 0.16, height: 0.43, depth: 2.65, at: [-1 + side * 0.63, 0.4, bank + 1.5], colour: "#b8604a" },
+      { shape: "box", width: 0.16, height: 0.46, depth: 1.2, at: [-1 + side * 0.32, 0.43, bank + 3.28], turn: [0, -side * 0.55, 0], colour: "#b8604a" },
+    ]),
+    { shape: "box", width: 1.34, height: 0.43, depth: 0.16, at: [-1, 0.4, bank + 0.18], colour: "#b8604a" },
+    { shape: "box", width: 1.55, depth: 0.32, height: 0.09, at: [-1, 0.69, bank + 1.5], colour: palette.wood },
+    { shape: "box", width: 0.09, depth: 2.2, height: 0.09, at: [-1.4, 0.78, bank + 1.6], turn: [0, -0.38, 0], colour: palette.sisal },
     ...[-20, 0, 20].map((x, i): Part => ({
       shape: "ball", diameter: 28, height: 9 + i * 1.5,
       at: [x, 0.5, bank + 24], colour: i % 2 ? "#8bb987" : "#a0c78c",
     })),
-    ...[-12, -9.8, 9.8, 12.2].map((x, i): Part => ({
-      shape: "ball", diameter: 2.6, height: 5.1, at: [x, 3.2 + i % 2, bank + 0.2],
-      colour: i % 2 ? "#689e75" : "#82b080",
-    })),
+    ...[-12, -9.8, 9.8, 12.2].flatMap((x, i): Part[] => [
+      { shape: "cylinder", diameter: 0.32, height: 2.3, at: [x, 1.15, bank - 0.7], colour: palette.darkWood },
+      { shape: "ball", diameter: 2.6, height: 5.1, at: [x, 3.2 + i % 2, bank - 0.7], colour: i % 2 ? "#689e75" : "#82b080" },
+    ]),
   ];
 }
 
