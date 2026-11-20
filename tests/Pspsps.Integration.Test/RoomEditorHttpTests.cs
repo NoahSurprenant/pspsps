@@ -423,4 +423,37 @@ public sealed class RoomEditorHttpTests
             Assert.That(export["wildlife"], Is.Not.Null);
         });
     }
+
+    [Test]
+    public async Task LoadingTheContentFile_MakesDrafts_ThatAreNotLiveUntilPublished()
+    {
+        var (adminPlayer, cookie) = await Game.SignInGuestAsync();
+        Game.Admins.Add(adminPlayer.Id);
+        using var admin = ClientFor(cookie);
+        using var opened = await SendAsync(admin, HttpMethod.Get, "rooms/pear-orchard");
+        var layout = (await JsonOfAsync(opened))["published"]!.DeepClone();
+        layout["name"] = "Pear Orchard (draft)";
+        var file = new ContentFile([new DraftRoom("pear-orchard", layout.Deserialize<RoomLayout>(ContentFile.Json)!)]);
+        var editor = Game.Get<IRoomEditor>();
+        var library = Game.Get<IRoomLibrary>();
+        var player = adminPlayer.Id;
+        try
+        {
+            var report = await editor.ImportAsync(file, player, CancellationToken.None);
+            var again = await editor.ImportAsync(file, player, CancellationToken.None);
+            var detail = await editor.GetAsync("pear-orchard", CancellationToken.None);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(report.Applied, Has.Some.Contains("pear-orchard").And.Some.Contains("saved as a draft"));
+                Assert.That(again.Applied, Is.Empty, "loading it twice changes nothing");
+                Assert.That(detail!.Draft!.Name, Is.EqualTo("Pear Orchard (draft)"));
+                Assert.That(library.Find("pear-orchard")!.Name, Is.Not.EqualTo("Pear Orchard (draft)"), "players still have the published room");
+            });
+        }
+        finally
+        {
+            await editor.DiscardDraftAsync("pear-orchard", player, CancellationToken.None);
+        }
+    }
 }

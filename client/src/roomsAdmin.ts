@@ -24,6 +24,15 @@ export function recipeBody(kind: "painters" | "wildlife", entry: Record<string, 
   return kind === "painters" ? { surface: entry.surface, steps: entry.steps } : { parts: entry.parts, motion: entry.motion };
 }
 
+export interface ImportReport { applied: string[]; unchanged: string[]; problems: string[] }
+
+/** What loading the repository's content file did, in words for the admin. */
+export function importText(report: ImportReport | null): string {
+  if (report === null) return "Nothing came back.";
+  const lines = [...report.applied, ...report.problems.map((problem) => `Not applied: ${problem}`)];
+  return lines.length > 0 ? lines.join("\n") : `Nothing to load: ${report.unchanged.length} items already match.`;
+}
+
 /** Where the published content is downloaded as JSON, to commit to the repository for review. */
 export const exportUrl = "/api/admin/export";
 
@@ -222,7 +231,11 @@ export function roomsSection(say: (message: string) => void): HTMLElement {
   };
   const body = el("section", {}, el("h2", { text: "Rooms" }),
     el("p", { className: "quiet", text: "A room is what its published version says. Saving makes a draft; publishing checks every room together first." }),
-    list, waiting, editor, exportLink(), el("h3", { text: "What admins changed" }), button("Show the latest changes", () => void run(loadHistory)), history);
+    list, waiting, editor, exportLink(), button("Load the reviewed content as drafts", () => void run(async () => {
+      const report = (await send("POST", "/api/admin/import")) as ImportReport | null;
+      say(importText(report));
+      await loadList();
+    })), el("h3", { text: "What admins changed" }), button("Show the latest changes", () => void run(loadHistory)), history);
 
   const run = async (action: () => Promise<void>): Promise<void> => {
     try {

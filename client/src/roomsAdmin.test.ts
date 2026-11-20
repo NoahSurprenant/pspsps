@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { auditText, draftQuery, draftSetUrl, goLiveInstant, goLiveText, exportUrl, newLookTemplate, optionsText, parseJson, problemsText, publishQuery, roomLine } from "./roomsAdmin";
+import { auditText, draftQuery, draftSetUrl, goLiveInstant, goLiveText, exportUrl, importText, newLookTemplate, optionsText, parseJson, problemsText, publishQuery, roomLine } from "./roomsAdmin";
 
 describe("roomLine", () => {
   it("says what is live and whether a draft waits", () => {
@@ -86,5 +86,11 @@ describe("saving over a draft", () => {
 
   it("downloads the content from the admin export", () => {
     expect(exportUrl).toBe("/api/admin/export");
+  });
+
+  it("says what loading the content file did", () => {
+    expect(importText({ applied: ["room a: saved as a draft"], unchanged: [], problems: ["look b: differs"] })).toBe("room a: saved as a draft\nNot applied: look b: differs");
+    expect(importText({ applied: [], unchanged: ["room a"], problems: [] })).toBe("Nothing to load: 1 items already match.");
+    expect(importText(null)).toBe("Nothing came back.");
   });
 });
