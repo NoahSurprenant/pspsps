@@ -100,6 +100,40 @@ public sealed class RoomEditorHttpTests
     }
 
     [Test]
+    public async Task APreview_IsTheRoomWithItsDraftInPlace_AndNoCats_ForAdminsOnly()
+    {
+        var (_, cookie) = await Game.SignInGuestAsync();
+        using var guest = ClientFor(cookie);
+        using var admin = await AdminClientAsync();
+        using var opened = await SendAsync(admin, HttpMethod.Get, "rooms/garden");
+        var layout = (await JsonOfAsync(opened))["published"]!.DeepClone();
+        layout["name"] = "The Previewed Garden";
+        using var saved = await SendAsync(admin, HttpMethod.Put, "rooms/garden/draft", layout);
+
+        using var refused = await SendAsync(guest, HttpMethod.Get, "rooms/garden/preview");
+        using var preview = await SendAsync(admin, HttpMethod.Get, "rooms/garden/preview");
+        using var noOverlay = await SendAsync(admin, HttpMethod.Get, "rooms/garden/preview?overlay=nope");
+        using var noRoom = await SendAsync(admin, HttpMethod.Get, "rooms/attic/preview");
+        using var published = await SendAsync(admin, HttpMethod.Get, "rooms/garden");
+        var snapshot = await JsonOfAsync(preview);
+        using var discard = await SendAsync(admin, HttpMethod.Delete, "rooms/garden/draft");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(saved.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(refused.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+            Assert.That(preview.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(snapshot["roomName"]!.GetValue<string>(), Is.EqualTo("The Previewed Garden"));
+            Assert.That(snapshot["cats"]!.AsArray(), Is.Empty);
+            Assert.That(snapshot["doors"]!.AsArray(), Is.Not.Empty);
+            Assert.That(snapshot["worldMap"], Is.Not.Null);
+            Assert.That(noOverlay.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+            Assert.That(noRoom.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+            Assert.That(discard.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+        });
+    }
+
+    [Test]
     public async Task SavingOverADraftThatChangedSinceItWasOpened_IsRefused_AndEveryChangeIsRecorded()
     {
         using var admin = await AdminClientAsync();

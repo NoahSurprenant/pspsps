@@ -1,4 +1,5 @@
 import { el } from "./dom";
+import { roomPreview } from "./roomPreview";
 import { calendar, fieldsOf, monthNames, summary, windowOf, windowProblem, type WindowFields, type WindowJson } from "./overlayWindow";
 import { type CanvasDoor, type CanvasLayout, isLayout, newRoomTemplate, roomCanvas } from "./roomCanvas";
 
@@ -212,6 +213,18 @@ export function roomsSection(say: (message: string) => void): HTMLElement {
     together.setAttribute("aria-label", "Publish together with these rooms");
     together.placeholder = "publish with: room-a, room-b";
     const picture = el("div", {});
+    const stage = el("canvas", {});
+    stage.width = 640;
+    stage.height = 400;
+    stage.style.maxWidth = "100%";
+    stage.setAttribute("aria-label", `Preview of ${roomId} in 3D`);
+    stage.hidden = true;
+    const preview = roomPreview(stage);
+    const look = (overlayId?: string): void => void run(async () => {
+      await preview.show(roomId, overlayId);
+      stage.hidden = false;
+      say(overlayId ? `${roomId} with ${overlayId} on, with every draft in place.` : `${roomId} with every draft in place.`);
+    });
     const roomIds = ((await (await fetch("/api/admin/rooms")).json().catch(() => [])) as RoomSummary[]).map((room) => room.roomId);
     const addDoorPair = async (door: CanvasDoor, back: CanvasDoor): Promise<void> => {
       const other = (await (await fetch(base(door.toRoom))).json()) as RoomDetail;
@@ -235,6 +248,7 @@ export function roomsSection(say: (message: string) => void): HTMLElement {
     editor.replaceChildren(
       el("h3", { text: `${roomId}${detail?.draft ? " (editing the draft)" : ""}` }),
       picture,
+      stage,
       layout,
       el("div", {},
         button("Save draft", () => void run(async () => {
@@ -244,6 +258,7 @@ export function roomsSection(say: (message: string) => void): HTMLElement {
           say(problemsText(saved?.problems ?? []));
           await refresh();
         })),
+        button("Preview in 3D", () => look()),
         button("Publish draft", () => void run(async () => {
           await send("POST", `${base(roomId)}/publish${publishQuery(together.value)}`);
           say(`${roomId} is published.`);
@@ -290,6 +305,7 @@ export function roomsSection(say: (message: string) => void): HTMLElement {
       el("h3", { text: "Seasonal overlays" }),
       el("ul", { className: "list" }, ...(detail?.overlays ?? []).map((existing) =>
         el("li", { text: `${existing.id} ` },
+          button("Preview", () => look(existing.id)),
           button("Edit", () => { overlay.value = JSON.stringify(existing, null, 2); picker.load(); }),
           button("Delete", () => void run(async () => {
             await send("DELETE", `${base(roomId)}/overlays/${encodeURIComponent(existing.id)}`);
