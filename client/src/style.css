@@ -223,7 +223,11 @@ button:disabled {
   border-radius: 0.6rem;
   line-height: 1.1;
   font-size: 0.8rem;
-  overflow-wrap: anywhere;
+}
+
+.map-place > span:last-child {
+  width: 100%;
+  text-align: center;
 }
 
 .map-place[aria-current] {
@@ -240,7 +244,17 @@ button:disabled {
 
 .map-with-plan .map-place[data-place="garden"],
 .map-with-plan .map-place[data-place="riverside"] {
-  min-width: 3.75rem;
+  min-width: 4.35rem;
+}
+
+@media (max-width: 380px) {
+  .sheet.map-sheet {
+    padding-inline: 0.6rem;
+  }
+
+  .map-with-plan .map-landmark {
+    display: none;
+  }
 }
 
 .map-landmark {

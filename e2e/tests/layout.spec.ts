@@ -53,7 +53,7 @@ const CHECKS: Record<Screen["name"], Checks> = {
   "admin-card": { parts: [".sheet"] },
   // The admin page: its own page, which scrolls inside its column.
   "admin-page": { parts: [".admin"] },
-  "world-map": { parts: [".sheet"] },
+  "world-map": { parts: [".sheet"], shows: mapLabelsFit },
   "town-square": {
     parts: [".room-bar", ".emote-bar", ".chat-bar", ".fishing"],
     // The pond and the doors' mats, drawn: from further off (a narrow screen backs the camera away) the floor's outline
@@ -102,6 +102,32 @@ const CHECKS: Record<Screen["name"], Checks> = {
 async function doorsReachable(page: Page, destinations: string[]): Promise<string[]> {
   const mats = await Promise.all(destinations.map((destination) => doorMat(page, destination)));
   return mats.filter((mat): mat is string => typeof mat === "string");
+}
+
+async function mapLabelsFit(page: Page): Promise<string[]> {
+  return page.locator(".world-map").evaluate((map) => {
+    const problems: string[] = [];
+    const bounds = map.getBoundingClientRect();
+    const buttons = [...map.querySelectorAll<HTMLButtonElement>(".map-place")];
+    for (const [index, button] of buttons.entries()) {
+      const name = button.textContent?.trim();
+      const box = button.getBoundingClientRect();
+      const label = button.querySelector("span:last-child");
+      if (box.left < bounds.left || box.right > bounds.right || box.top < bounds.top || box.bottom > bounds.bottom) {
+        problems.push(`${name} extends past the map`);
+      }
+      if (label && label.scrollWidth > label.clientWidth + 1) {
+        problems.push(`${name} overflows its button`);
+      }
+      for (const other of buttons.slice(index + 1)) {
+        const b = other.getBoundingClientRect();
+        if (box.left < b.right && b.left < box.right && box.top < b.bottom && b.top < box.bottom) {
+          problems.push(`${name} overlaps ${other.textContent?.trim()}`);
+        }
+      }
+    }
+    return problems;
+  });
 }
 
 /**
