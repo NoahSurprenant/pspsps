@@ -61,6 +61,17 @@ public static class RoomEditorEndpoints
 
         var looks = admin.MapGroup("/looks");
 
+        looks.MapGet("/options", (ClaimsPrincipal user, IModerationService moderation) =>
+            Admin(user, moderation, _ => Task.FromResult(Results.Ok(new
+            {
+                propKinds = PropKinds.All,
+                floors = RoomLook.Floors,
+                walls = RoomLook.Walls,
+                grounds = RoomLook.Grounds,
+                generators = RoomLook.Generators,
+                wildlife = RoomLook.WildlifeKinds,
+            }))));
+
         looks.MapPut("/rooms/{id}", (string id, RoomLook look, HttpRequest request, ClaimsPrincipal user, IModerationService moderation, IRoomEditor editor) =>
             Change(request, user, moderation, async _ =>
             {

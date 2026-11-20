@@ -79,6 +79,27 @@ public sealed class RoomEditorHttpTests
     }
 
     [Test]
+    public async Task TheEditorsOptions_ListTheNamesARoomMayUse_ForAdminsOnly()
+    {
+        var (_, cookie) = await Game.SignInGuestAsync();
+        using var guest = ClientFor(cookie);
+        using var admin = await AdminClientAsync();
+
+        using var refused = await SendAsync(guest, HttpMethod.Get, "looks/options");
+        using var allowed = await SendAsync(admin, HttpMethod.Get, "looks/options");
+        var options = await JsonOfAsync(allowed);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(refused.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+            Assert.That(allowed.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(options["propKinds"]!.AsArray().Select(n => n!.GetValue<string>()), Is.EquivalentTo(PropKinds.All));
+            Assert.That(options["floors"]!.AsArray().Select(n => n!.GetValue<string>()), Is.EquivalentTo(RoomLook.Floors));
+            Assert.That(options["wildlife"]!.AsArray().Select(n => n!.GetValue<string>()), Is.EquivalentTo(RoomLook.WildlifeKinds));
+        });
+    }
+
+    [Test]
     public async Task AnAdmin_EditsARoomAsJson_PublishesIt_AndGoesBack()
     {
         using var admin = await AdminClientAsync();

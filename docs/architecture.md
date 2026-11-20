@@ -63,9 +63,13 @@ page without a deploy (`IRoomEditor`, `/api/admin/rooms`): a draft is saved, che
 (`RoomBook.Problems`: doors meet, rooms fit on the map, props keep clear), then published, which archives the version it
 replaces; going back publishes a copy of an old version. Seasonal and event changes are `RoomOverlay` rows (props added or
 removed, a named look variant) with a window, yearly or one-off, applied while on. `IRoomLibrary` holds the current
-`RoomBook` in memory on each pod and reloads it every 30 seconds; a room's grain deactivates, and its tabs rejoin, when
-its definition has changed. Prop designs are data too (`prop_designs`, served at `/api/props`); room looks and backdrops
-and the growth-stage props are still code in the client.
+`RoomBook` in memory on each pod and reloads it every 10 seconds; a room's grain deactivates, and its tabs rejoin, when
+its definition has changed. Prop designs (including growth stages) are data too (`prop_designs`, served at `/api/props`), and so are room looks
+(`room_looks`, `look_variants`, served at `/api/looks`): a look names the client's painters, generators and wildlife,
+and the lists of names are mirrored in `RoomLook.cs` and the client registries, held equal by a test. A room needs a look
+to be published, and an overlay may only name a look variant that exists. A brand-new room cannot be published alone,
+since doors must meet both ways: the publish call takes the other rooms to publish with it (`?with=a,b`), all in one
+transaction. The admin page edits a layout as JSON or on a top-down canvas (drag props, doors and the spawn; click to add).
 
 Rooms are joined by doors, in the room catalogue (`RoomCatalog`): a door (`Door`) is a round spot on a room's floor
 that leads to a door of another room. The browser walks the cat onto it, then calls `GoThroughDoor`; the room's grain
