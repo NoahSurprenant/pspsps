@@ -56,6 +56,31 @@ public sealed class RoomVersionTests
     }
 
     [Test]
+    public void ADraft_CountsItsEdits_SoASaveOverSomeoneElsesCanBeSpotted()
+    {
+        var draft = RoomVersion.Draft("garden", 2, Layout, null, Now);
+        Assert.That(draft.Revision, Is.EqualTo(1));
+
+        draft.Edit(Layout with { Name = "A" });
+        draft.Edit(Layout with { Name = "B" });
+
+        Assert.That(draft.Revision, Is.EqualTo(3));
+    }
+
+    [Test]
+    public void AnAuditEntry_NeedsAnActionAndATarget()
+    {
+        var entry = RoomAuditEntry.Of(Guid.NewGuid(), "published", "garden", "version 2", Now);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That((entry.Action, entry.Target, entry.Detail, entry.At), Is.EqualTo(("published", "garden", "version 2", Now)));
+            Assert.That(() => RoomAuditEntry.Of(Guid.NewGuid(), " ", "garden", "", Now), Throws.InstanceOf<ArgumentException>());
+            Assert.That(() => RoomAuditEntry.Of(Guid.NewGuid(), "published", " ", "", Now), Throws.InstanceOf<ArgumentException>());
+        });
+    }
+
+    [Test]
     public void AVersion_NeedsARoomAndANumberFromOne()
     {
         Assert.Multiple(() =>

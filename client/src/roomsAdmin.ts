@@ -1,6 +1,6 @@
 import { el } from "./dom";
 import { roomPreview } from "./roomPreview";
-import { type CanvasLayout, isLayout, newRoomTemplate, roomCanvas } from "./roomCanvas";
+import { type CanvasDoor, type CanvasLayout, isLayout, newRoomTemplate, roomCanvas } from "./roomCanvas";
 
 export interface LookOptions {
   propKinds: string[];
@@ -34,6 +34,19 @@ export function publishQuery(together: string): string {
   return ids.length === 0 ? "" : `?${ids.map((id) => `with=${encodeURIComponent(id)}`).join("&")}`;
 }
 
+/** The query that saves over the draft as it was opened, so a draft someone else saved meanwhile is refused; none for a new draft. */
+export function draftQuery(revision: number | null | undefined): string {
+  return revision === null || revision === undefined ? "" : `?revision=${revision}`;
+}
+
+export interface AuditLine { at: string; adminId: string | null; action: string; target: string; detail: string }
+
+/** One line of what admins did: when, what, to which room and the detail. */
+export function auditText(line: AuditLine): string {
+  const detail = line.detail === "" ? "" : ` (${line.detail})`;
+  return `${line.at.slice(0, 16).replace("T", " ")} ${line.action} ${line.target}${detail}`;
+}
+
 /** A starting look for a new room, to edit: plain colours and a plain floor. */
 export function newLookTemplate(): unknown {
   return { sky: "#cfe8ff", floorColour: "#c8b79a", wallColour: "#e6dccb", floor: { painter: "planks", colour: "#b08a5a" }, wall: { painter: "panelled" }, backdrop: { parts: [] } };
@@ -47,6 +60,7 @@ export interface RoomDetail {
   published: unknown | null;
   draft: unknown | null;
   overlays: { id: string }[];
+  draftRevision?: number | null;
 }
 
 /** One line for a room in the list: its name, the version players have and whether a draft waits. */
@@ -106,9 +120,14 @@ function textArea(rows: number, label: string): HTMLTextAreaElement {
 export function roomsSection(say: (message: string) => void): HTMLElement {
   const list = el("ul", { className: "list" });
   const editor = el("div", {});
+  const history = el("ul", { className: "list" });
+  const loadHistory = async (): Promise<void> => {
+    const lines = (await (await fetch("/api/admin/rooms/audit?limit=50")).json()) as AuditLine[];
+    history.replaceChildren(...lines.map((line) => el("li", { text: auditText(line) })));
+  };
   const body = el("section", {}, el("h2", { text: "Rooms" }),
     el("p", { className: "quiet", text: "A room is what its published version says. Saving makes a draft; publishing checks every room together first." }),
-    list, editor);
+    list, editor, el("h3", { text: "What admins changed" }), button("Show the latest changes", () => void run(loadHistory)), history);
 
   const run = async (action: () => Promise<void>): Promise<void> => {
     try {
@@ -157,10 +176,18 @@ export function roomsSection(say: (message: string) => void): HTMLElement {
       stage.hidden = false;
       say(overlayId ? `${roomId} with ${overlayId} on, with every draft in place.` : `${roomId} with every draft in place.`);
     });
+    const roomIds = ((await (await fetch("/api/admin/rooms")).json().catch(() => [])) as RoomSummary[]).map((room) => room.roomId);
+    const addDoorPair = async (door: CanvasDoor, back: CanvasDoor): Promise<void> => {
+      const other = (await (await fetch(base(door.toRoom))).json()) as RoomDetail;
+      const otherLayout = (other.draft ?? other.published) as CanvasLayout | null;
+      if (!isLayout(otherLayout)) throw new Error(`${door.toRoom} has no layout to add the way back to.`);
+      await send("PUT", `${base(door.toRoom)}/draft`, { ...otherLayout, doors: [...otherLayout.doors, back] });
+      say(`The way back is in ${door.toRoom}'s draft: publish both rooms together.`);
+    };
     const showPicture = (): void => {
       const parsed = parseJson(layout.value);
       if (!isLayout(parsed)) { picture.replaceChildren(el("p", { className: "quiet", text: "The picture needs a layout with a floor size, props and doors." })); return; }
-      picture.replaceChildren(roomCanvas(parsed, options?.propKinds ?? [], (changed: CanvasLayout) => { layout.value = JSON.stringify(changed, null, 2); }));
+      picture.replaceChildren(roomCanvas(parsed, options?.propKinds ?? [], (changed: CanvasLayout) => { layout.value = JSON.stringify(changed, null, 2); }, { addDoorPair, rooms: roomIds, roomId }));
     };
     layout.addEventListener("change", showPicture);
     showPicture();
@@ -178,7 +205,7 @@ export function roomsSection(say: (message: string) => void): HTMLElement {
         button("Save draft", () => void run(async () => {
           const parsed = parseJson(layout.value);
           if (parsed === null) { say("That isn't valid JSON."); return; }
-          const saved = (await send("PUT", `${base(roomId)}/draft`, parsed)) as { problems: string[] } | null;
+          const saved = (await send("PUT", `${base(roomId)}/draft${draftQuery(detail?.draftRevision)}`, parsed)) as { problems: string[] } | null;
           say(problemsText(saved?.problems ?? []));
           await refresh();
         })),

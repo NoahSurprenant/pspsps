@@ -14,7 +14,10 @@ public sealed record RoomDetail(
     IReadOnlyList<VersionSummary> Versions,
     RoomLayout? Published,
     RoomLayout? Draft,
-    IReadOnlyList<RoomOverlay> Overlays);
+    IReadOnlyList<RoomOverlay> Overlays,
+    int? DraftRevision = null);
+
+public sealed record AuditLine(DateTimeOffset At, Guid? AdminId, string Action, string Target, string Detail);
 
 /// <summary>What admins do to rooms: draft, check, publish and roll back layouts, and set overlays. Every change is checked as a whole book first.</summary>
 public interface IRoomEditor
@@ -23,27 +26,37 @@ public interface IRoomEditor
 
     Task<RoomDetail?> GetAsync(string roomId, CancellationToken cancellationToken);
 
-    /// <summary>Keeps the layout as the room's draft (a new room's first one too) and says what would stop it being published.</summary>
-    Task<IReadOnlyList<string>> SaveDraftAsync(string roomId, RoomLayout layout, Guid adminId, CancellationToken cancellationToken);
+    /// <summary>
+    /// Keeps the layout as the room's draft (a new room's first one too) and says what would stop it being published.
+    /// <paramref name="expectedRevision"/> is the draft's <see cref="RoomDetail.DraftRevision"/> as the admin opened it: when the
+    /// draft has been saved since (or is gone), nothing is saved and a <see cref="DomainException"/> says so.
+    /// </summary>
+    Task<IReadOnlyList<string>> SaveDraftAsync(string roomId, RoomLayout layout, Guid adminId, int? expectedRevision, CancellationToken cancellationToken);
 
-    Task DiscardDraftAsync(string roomId, CancellationToken cancellationToken);
+    Task DiscardDraftAsync(string roomId, Guid adminId, CancellationToken cancellationToken);
 
-    /// <summary>Publishes the draft in place of the published version; throws <see cref="DomainException"/> with the problems if the rooms together would be wrong.</summary>
-    /// <summary>Publishes the room's draft, together with the drafts of <paramref name="together"/> (a new room and the doors that lead to it are only fine as a set).</summary>
-    Task PublishAsync(string roomId, IReadOnlyList<string> together, CancellationToken cancellationToken);
+    /// <summary>
+    /// Publishes the room's draft in place of the published version, together with the drafts of <paramref name="together"/> (a
+    /// new room and the doors that lead to it are only fine as a set); throws <see cref="DomainException"/> with the problems if
+    /// the rooms together would be wrong.
+    /// </summary>
+    Task PublishAsync(string roomId, IReadOnlyList<string> together, Guid adminId, CancellationToken cancellationToken);
 
     /// <summary>Makes a draft of an earlier version, and publishes it.</summary>
     Task RollbackAsync(string roomId, int number, Guid adminId, CancellationToken cancellationToken);
 
-    Task SaveOverlayAsync(RoomOverlay overlay, CancellationToken cancellationToken);
+    Task SaveOverlayAsync(RoomOverlay overlay, Guid adminId, CancellationToken cancellationToken);
 
-    Task DeleteOverlayAsync(string roomId, string overlayId, CancellationToken cancellationToken);
+    Task DeleteOverlayAsync(string roomId, string overlayId, Guid adminId, CancellationToken cancellationToken);
 
-    Task SaveLookAsync(string id, RoomLook look, CancellationToken cancellationToken);
+    Task SaveLookAsync(string id, RoomLook look, Guid adminId, CancellationToken cancellationToken);
 
-    Task SaveVariantAsync(string name, LookVariant variant, CancellationToken cancellationToken);
+    Task SaveVariantAsync(string name, LookVariant variant, Guid adminId, CancellationToken cancellationToken);
 
-    Task DeleteVariantAsync(string name, CancellationToken cancellationToken);
+    Task DeleteVariantAsync(string name, Guid adminId, CancellationToken cancellationToken);
+
+    /// <summary>What admins did to rooms and looks, the latest first.</summary>
+    Task<IReadOnlyList<AuditLine>> AuditAsync(int limit, CancellationToken cancellationToken);
 }
 
 public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, TimeProvider time) : IRoomEditor
@@ -76,14 +89,20 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             [.. versions.Select(v => new VersionSummary(v.Number, v.State, v.CreatedAt, v.PublishedAt))],
             versions.FirstOrDefault(v => v.State == RoomVersionState.Published)?.Layout,
             versions.FirstOrDefault(v => v.State == RoomVersionState.Draft)?.Layout,
-            [.. overlays.Select(o => o.ToOverlay()).OrderBy(o => o.Id, StringComparer.Ordinal)]);
+            [.. overlays.Select(o => o.ToOverlay()).OrderBy(o => o.Id, StringComparer.Ordinal)],
+            versions.FirstOrDefault(v => v.State == RoomVersionState.Draft)?.Revision);
     }
 
-    public async Task<IReadOnlyList<string>> SaveDraftAsync(string roomId, RoomLayout layout, Guid adminId, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<string>> SaveDraftAsync(string roomId, RoomLayout layout, Guid adminId, int? expectedRevision, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(layout);
         var versions = await db.RoomVersions.Where(v => v.RoomId == roomId).ToListAsync(cancellationToken);
         var draft = versions.FirstOrDefault(v => v.State == RoomVersionState.Draft);
+        if (expectedRevision is not null && draft?.Revision != expectedRevision)
+        {
+            throw new DomainException($"{roomId}'s draft has been changed (or published, or dropped) since you opened it: open it again to see what is there, then make your change again.");
+        }
+
         if (draft is null)
         {
             db.RoomVersions.Add(RoomVersion.Draft(roomId, versions.Select(v => v.Number).DefaultIfEmpty(0).Max() + 1, layout, adminId, time.GetUtcNow()));
@@ -93,19 +112,21 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             draft.Edit(layout);
         }
 
+        Audit(adminId, "draft-saved", roomId, draft is null ? "a new draft" : $"draft over revision {draft.Revision - 1}");
         await SaveAsync(cancellationToken);
         return await ProblemsWithAsync(roomId, layout, cancellationToken);
     }
 
-    public async Task DiscardDraftAsync(string roomId, CancellationToken cancellationToken)
+    public async Task DiscardDraftAsync(string roomId, Guid adminId, CancellationToken cancellationToken)
     {
         var draft = await db.RoomVersions.FirstOrDefaultAsync(v => v.RoomId == roomId && v.State == RoomVersionState.Draft, cancellationToken)
             ?? throw new DomainException("This room has no draft.");
         db.RoomVersions.Remove(draft);
-        await db.SaveChangesAsync(cancellationToken);
+        Audit(adminId, "draft-discarded", roomId, $"version {draft.Number}");
+        await SaveAsync(cancellationToken);
     }
 
-    public async Task PublishAsync(string roomId, IReadOnlyList<string> together, CancellationToken cancellationToken)
+    public async Task PublishAsync(string roomId, IReadOnlyList<string> together, Guid adminId, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(together);
         string[] ids = [.. together.Append(roomId).Distinct()];
@@ -116,7 +137,7 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             throw new DomainException($"{string.Join(", ", without)} has no draft.");
         }
 
-        await PublishAsync(drafts, cancellationToken);
+        await PublishAsync(drafts, adminId, "published", _ => string.Empty, cancellationToken);
     }
 
     public async Task RollbackAsync(string roomId, int number, Guid adminId, CancellationToken cancellationToken)
@@ -133,10 +154,10 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
         var back = old.DraftFrom(versions.Max(v => v.Number) + 1, adminId, time.GetUtcNow());
         db.RoomVersions.Add(back);
         await SaveAsync(cancellationToken);
-        await PublishAsync([back], cancellationToken);
+        await PublishAsync([back], adminId, "rolled-back", _ => $" (a copy of version {number})", cancellationToken);
     }
 
-    public async Task SaveOverlayAsync(RoomOverlay overlay, CancellationToken cancellationToken)
+    public async Task SaveOverlayAsync(RoomOverlay overlay, Guid adminId, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(overlay);
         var published = await PublishedLayoutsAsync(cancellationToken);
@@ -157,20 +178,22 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             entry.Replace(overlay);
         }
 
+        Audit(adminId, "overlay-saved", $"{overlay.RoomId}/{overlay.Id}", overlay.Name);
         await SaveAsync(cancellationToken);
         await library.RefreshAsync(cancellationToken);
     }
 
-    public async Task DeleteOverlayAsync(string roomId, string overlayId, CancellationToken cancellationToken)
+    public async Task DeleteOverlayAsync(string roomId, string overlayId, Guid adminId, CancellationToken cancellationToken)
     {
         var entry = await db.RoomOverlays.FirstOrDefaultAsync(o => o.RoomId == roomId && o.Id == overlayId, cancellationToken)
             ?? throw new DomainException($"{roomId} has no overlay {overlayId}.");
         db.RoomOverlays.Remove(entry);
-        await db.SaveChangesAsync(cancellationToken);
+        Audit(adminId, "overlay-deleted", $"{roomId}/{overlayId}", string.Empty);
+        await SaveAsync(cancellationToken);
         await library.RefreshAsync(cancellationToken);
     }
 
-    public async Task SaveLookAsync(string id, RoomLook look, CancellationToken cancellationToken)
+    public async Task SaveLookAsync(string id, RoomLook look, Guid adminId, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(look);
         var now = time.GetUtcNow();
@@ -184,10 +207,11 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             entry.Replace(look, now);
         }
 
+        Audit(adminId, "look-saved", id, string.Empty);
         await SaveAsync(cancellationToken);
     }
 
-    public async Task SaveVariantAsync(string name, LookVariant variant, CancellationToken cancellationToken)
+    public async Task SaveVariantAsync(string name, LookVariant variant, Guid adminId, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(variant);
         var now = time.GetUtcNow();
@@ -201,10 +225,11 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             entry.Replace(variant, now);
         }
 
+        Audit(adminId, "variant-saved", name, string.Empty);
         await SaveAsync(cancellationToken);
     }
 
-    public async Task DeleteVariantAsync(string name, CancellationToken cancellationToken)
+    public async Task DeleteVariantAsync(string name, Guid adminId, CancellationToken cancellationToken)
     {
         var entry = await db.LookVariants.FirstOrDefaultAsync(v => v.Id == name, cancellationToken)
             ?? throw new DomainException($"There is no look {name}.");
@@ -215,10 +240,18 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
         }
 
         db.LookVariants.Remove(entry);
-        await db.SaveChangesAsync(cancellationToken);
+        Audit(adminId, "variant-deleted", name, string.Empty);
+        await SaveAsync(cancellationToken);
     }
 
-    private async Task PublishAsync(List<RoomVersion> drafts, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<AuditLine>> AuditAsync(int limit, CancellationToken cancellationToken) =>
+        [.. (await db.RoomAudit.AsNoTracking().OrderByDescending(a => a.At).Take(Math.Clamp(limit, 1, 500)).ToListAsync(cancellationToken))
+            .Select(a => new AuditLine(a.At, a.AdminId, a.Action, a.Target, a.Detail))];
+
+    private void Audit(Guid adminId, string action, string target, string detail) =>
+        db.RoomAudit.Add(RoomAuditEntry.Of(adminId, action, target, detail, time.GetUtcNow()));
+
+    private async Task PublishAsync(List<RoomVersion> drafts, Guid adminId, string action, Func<RoomVersion, string> note, CancellationToken cancellationToken)
     {
         ThrowIfProblems(await ProblemsWithAsync(drafts.ToDictionary(d => d.RoomId, d => d.Layout), cancellationToken));
         var draftIds = drafts.Select(d => d.Id).ToList();
@@ -242,6 +275,7 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
                 foreach (var draft in await db.RoomVersions.Where(v => draftIds.Contains(v.Id)).ToListAsync(ct))
                 {
                     draft.Publish(now);
+                    Audit(adminId, action, draft.RoomId, $"version {draft.Number}{note(draft)}");
                 }
 
                 await db.SaveChangesAsync(ct);
@@ -264,6 +298,10 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
         catch (DbUpdateException exception) when (db.IsUniqueViolation(exception))
         {
             throw new DomainException("Someone else changed this room at the same moment: look again and retry.");
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new DomainException("Someone else changed this draft at the same moment: open it again and retry.");
         }
     }
 
