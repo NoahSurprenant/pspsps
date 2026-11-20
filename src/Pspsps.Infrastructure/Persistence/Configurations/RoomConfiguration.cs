@@ -55,3 +55,27 @@ internal sealed class PropDesignConfiguration : IEntityTypeConfiguration<PropDes
             .HasConversion(RoomJson.Converter<IReadOnlyList<PropGrowth>>(), RoomJson.Comparer<IReadOnlyList<PropGrowth>>());
     }
 }
+
+internal sealed class RoomLookConfiguration : IEntityTypeConfiguration<RoomLookEntry>
+{
+    public void Configure(EntityTypeBuilder<RoomLookEntry> builder)
+    {
+        builder.ToTable("room_looks");
+        builder.HasKey(l => l.Id);
+        builder.Property(l => l.Id).HasMaxLength(RoomOverlayConfiguration.IdLength);
+        builder.Property(l => l.Look).HasColumnType("jsonb")
+            .HasConversion(RoomJson.Converter<RoomLook>(), RoomJson.Comparer<RoomLook>());
+    }
+}
+
+internal sealed class LookVariantConfiguration : IEntityTypeConfiguration<LookVariantEntry>
+{
+    public void Configure(EntityTypeBuilder<LookVariantEntry> builder)
+    {
+        builder.ToTable("look_variants");
+        builder.HasKey(v => v.Id);
+        builder.Property(v => v.Id).HasMaxLength(32);
+        builder.Property(v => v.Sky).HasMaxLength(7);
+        builder.Property(v => v.WallColour).HasMaxLength(7);
+    }
+}

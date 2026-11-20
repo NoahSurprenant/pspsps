@@ -136,6 +136,34 @@ public sealed class RoomBookTests
         });
     }
 
+    private static (Dictionary<string, RoomLayout> Layouts, RoomLayout Loft) WithALoft(RoomEdge gardenEdge, RoomEdge loftEdge)
+    {
+        var layouts = Seed();
+        var garden = layouts["garden"];
+        layouts["garden"] = garden with { Props = [], Doors = [.. garden.Doors, new DoorLayout("loft", gardenEdge, 0, "loft", "garden")] };
+        var loft = new RoomLayout("The Loft", 10, 8, new Position(0, 0), 12) { Doors = [new DoorLayout("garden", loftEdge, 0, "garden", "loft")] };
+        return (layouts, loft);
+    }
+
+    [Test]
+    public void ANewRoom_NeedsDoorsBothWays_SoItIsOnlyFineBesideTheRoomsThatLeadToIt()
+    {
+        var (layouts, loft) = WithALoft(RoomEdge.West, RoomEdge.East);
+
+        var loftAlone = Seed();
+        loftAlone["loft"] = loft;
+        var doorsOnly = new Dictionary<string, RoomLayout>(layouts);
+
+        layouts["loft"] = loft;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(RoomBook.Problems(layouts, []), Is.Empty, "a set with both ends");
+            Assert.That(RoomBook.Problems(loftAlone, []), Is.Not.Empty, "the loft by itself leads to a door that is not there");
+            Assert.That(RoomBook.Problems(doorsOnly, []), Is.Not.Empty, "the door by itself leads to a room that is not there");
+        });
+    }
+
     [Test]
     public void ABookWithProblems_IsNotBuilt()
     {

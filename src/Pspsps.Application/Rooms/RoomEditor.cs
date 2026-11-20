@@ -29,7 +29,8 @@ public interface IRoomEditor
     Task DiscardDraftAsync(string roomId, CancellationToken cancellationToken);
 
     /// <summary>Publishes the draft in place of the published version; throws <see cref="DomainException"/> with the problems if the rooms together would be wrong.</summary>
-    Task PublishAsync(string roomId, CancellationToken cancellationToken);
+    /// <summary>Publishes the room's draft, together with the drafts of <paramref name="together"/> (a new room and the doors that lead to it are only fine as a set).</summary>
+    Task PublishAsync(string roomId, IReadOnlyList<string> together, CancellationToken cancellationToken);
 
     /// <summary>Makes a draft of an earlier version, and publishes it.</summary>
     Task RollbackAsync(string roomId, int number, Guid adminId, CancellationToken cancellationToken);
@@ -37,6 +38,12 @@ public interface IRoomEditor
     Task SaveOverlayAsync(RoomOverlay overlay, CancellationToken cancellationToken);
 
     Task DeleteOverlayAsync(string roomId, string overlayId, CancellationToken cancellationToken);
+
+    Task SaveLookAsync(string id, RoomLook look, CancellationToken cancellationToken);
+
+    Task SaveVariantAsync(string name, LookVariant variant, CancellationToken cancellationToken);
+
+    Task DeleteVariantAsync(string name, CancellationToken cancellationToken);
 }
 
 public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, TimeProvider time) : IRoomEditor
@@ -98,11 +105,18 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
         await db.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task PublishAsync(string roomId, CancellationToken cancellationToken)
+    public async Task PublishAsync(string roomId, IReadOnlyList<string> together, CancellationToken cancellationToken)
     {
-        var versions = await db.RoomVersions.Where(v => v.RoomId == roomId).ToListAsync(cancellationToken);
-        var draft = versions.FirstOrDefault(v => v.State == RoomVersionState.Draft) ?? throw new DomainException("This room has no draft.");
-        await PublishAsync(versions, draft, cancellationToken);
+        ArgumentNullException.ThrowIfNull(together);
+        string[] ids = [.. together.Append(roomId).Distinct()];
+        var drafts = await db.RoomVersions.Where(v => ids.Contains(v.RoomId) && v.State == RoomVersionState.Draft).ToListAsync(cancellationToken);
+        var without = ids.Where(id => drafts.All(d => d.RoomId != id)).ToList();
+        if (without.Count > 0)
+        {
+            throw new DomainException($"{string.Join(", ", without)} has no draft.");
+        }
+
+        await PublishAsync(drafts, cancellationToken);
     }
 
     public async Task RollbackAsync(string roomId, int number, Guid adminId, CancellationToken cancellationToken)
@@ -118,7 +132,7 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
 
         var back = old.DraftFrom(versions.Max(v => v.Number) + 1, adminId, time.GetUtcNow());
         db.RoomVersions.Add(back);
-        await PublishAsync(versions, back, cancellationToken);
+        await PublishAsync([back], cancellationToken);
     }
 
     public async Task SaveOverlayAsync(RoomOverlay overlay, CancellationToken cancellationToken)
@@ -130,7 +144,7 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             .Where(o => o.RoomId != overlay.RoomId || o.Id != overlay.Id)
             .Append(overlay)
             .ToList();
-        ThrowIfProblems(RoomBook.Problems(published, overlays));
+        ThrowIfProblems([.. RoomBook.Problems(published, overlays), .. await LookProblemsAsync(published, overlays, cancellationToken)]);
 
         var entry = await db.RoomOverlays.FirstOrDefaultAsync(o => o.RoomId == overlay.RoomId && o.Id == overlay.Id, cancellationToken);
         if (entry is null)
@@ -155,20 +169,78 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
         await library.RefreshAsync(cancellationToken);
     }
 
-    private async Task PublishAsync(List<RoomVersion> versions, RoomVersion draft, CancellationToken cancellationToken)
+    public async Task SaveLookAsync(string id, RoomLook look, CancellationToken cancellationToken)
     {
-        ThrowIfProblems(await ProblemsWithAsync(draft.RoomId, draft.Layout, cancellationToken));
-        var current = versions.FirstOrDefault(v => v.State == RoomVersionState.Published);
+        ArgumentNullException.ThrowIfNull(look);
+        var now = time.GetUtcNow();
+        var entry = await db.RoomLooks.FirstOrDefaultAsync(l => l.Id == id, cancellationToken);
+        if (entry is null)
+        {
+            db.RoomLooks.Add(RoomLookEntry.Of(id, look, now));
+        }
+        else
+        {
+            entry.Replace(look, now);
+        }
+
+        await SaveAsync(cancellationToken);
+    }
+
+    public async Task SaveVariantAsync(string name, LookVariant variant, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(variant);
+        var now = time.GetUtcNow();
+        var entry = await db.LookVariants.FirstOrDefaultAsync(v => v.Id == name, cancellationToken);
+        if (entry is null)
+        {
+            db.LookVariants.Add(LookVariantEntry.Of(name, variant, now));
+        }
+        else
+        {
+            entry.Replace(variant, now);
+        }
+
+        await SaveAsync(cancellationToken);
+    }
+
+    public async Task DeleteVariantAsync(string name, CancellationToken cancellationToken)
+    {
+        var entry = await db.LookVariants.FirstOrDefaultAsync(v => v.Id == name, cancellationToken)
+            ?? throw new DomainException($"There is no look {name}.");
+        var users = await db.RoomOverlays.AsNoTracking().Where(o => o.Look == name).Select(o => o.RoomId + "/" + o.Id).ToListAsync(cancellationToken);
+        if (users.Count > 0)
+        {
+            throw new DomainException($"The look {name} is in use by {string.Join(", ", users)}.");
+        }
+
+        db.LookVariants.Remove(entry);
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task PublishAsync(List<RoomVersion> drafts, CancellationToken cancellationToken)
+    {
+        ThrowIfProblems(await ProblemsWithAsync(drafts.ToDictionary(d => d.RoomId, d => d.Layout), cancellationToken));
+        var ids = drafts.Select(d => d.RoomId).ToList();
+        var current = await db.RoomVersions.Where(v => ids.Contains(v.RoomId) && v.State == RoomVersionState.Published).ToListAsync(cancellationToken);
         await using var transaction = await db.BeginTransactionAsync(cancellationToken);
         try
         {
-            if (current is not null)
+            if (current.Count > 0)
             {
-                current.Archive();
+                foreach (var version in current)
+                {
+                    version.Archive();
+                }
+
                 await db.SaveChangesAsync(cancellationToken);
             }
 
-            draft.Publish(time.GetUtcNow());
+            var now = time.GetUtcNow();
+            foreach (var draft in drafts)
+            {
+                draft.Publish(now);
+            }
+
             await db.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
         }
@@ -197,12 +269,32 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             .Where(v => v.State == RoomVersionState.Published)
             .ToDictionaryAsync(v => v.RoomId, v => v.Layout, cancellationToken);
 
-    private async Task<IReadOnlyList<string>> ProblemsWithAsync(string roomId, RoomLayout layout, CancellationToken cancellationToken)
+    private Task<IReadOnlyList<string>> ProblemsWithAsync(string roomId, RoomLayout layout, CancellationToken cancellationToken) =>
+        ProblemsWithAsync(new Dictionary<string, RoomLayout> { [roomId] = layout }, cancellationToken);
+
+    private async Task<IReadOnlyList<string>> ProblemsWithAsync(IReadOnlyDictionary<string, RoomLayout> replaced, CancellationToken cancellationToken)
     {
         var layouts = await PublishedLayoutsAsync(cancellationToken);
-        layouts[roomId] = layout;
+        foreach (var (id, layout) in replaced)
+        {
+            layouts[id] = layout;
+        }
+
         var overlays = (await db.RoomOverlays.AsNoTracking().ToListAsync(cancellationToken)).Select(entry => entry.ToOverlay()).ToList();
-        return RoomBook.Problems(layouts, overlays);
+        return [.. RoomBook.Problems(layouts, overlays), .. await LookProblemsAsync(layouts, overlays, cancellationToken)];
+    }
+
+    /// <summary>A room is published only with a look to be drawn in, and an overlay only with a look that is there.</summary>
+    private async Task<IReadOnlyList<string>> LookProblemsAsync(IReadOnlyDictionary<string, RoomLayout> layouts, IReadOnlyList<RoomOverlay> overlays, CancellationToken cancellationToken)
+    {
+        var looks = await db.RoomLooks.AsNoTracking().Select(l => l.Id).ToListAsync(cancellationToken);
+        var variants = await db.LookVariants.AsNoTracking().Select(v => v.Id).ToListAsync(cancellationToken);
+        return
+        [
+            .. layouts.Keys.Where(id => !looks.Contains(id)).Order(StringComparer.Ordinal).Select(id => $"{id}: has no look: add one (how it is painted and what is round it) before publishing."),
+            .. layouts.Where(pair => pair.Value.Look is not null && !variants.Contains(pair.Value.Look)).Select(pair => $"{pair.Key}: its look '{pair.Value.Look}' is not one of ({string.Join(", ", variants)})."),
+            .. overlays.Where(o => o.Look is not null && !variants.Contains(o.Look)).Select(o => $"{o.RoomId}/{o.Id}: its look '{o.Look}' is not one of ({string.Join(", ", variants)})."),
+        ];
     }
 
     private static void ThrowIfProblems(IReadOnlyList<string> problems)

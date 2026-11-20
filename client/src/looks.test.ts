@@ -1,5 +1,10 @@
-import { describe, expect, it } from "vitest";
-import { lookOf } from "./looks";
+import { afterEach, describe, expect, it } from "vitest";
+import seed from "../../src/Pspsps.Application/Rooms/RoomLooks.json?raw";
+import serverLook from "../../src/Pspsps.Domain/Rooms/RoomLook.cs?raw";
+import { openLandscape } from "./doors";
+import {
+  backdropGenerators, floorPainters, groundPainters, lookOf, setLooks, wallPainters, wildlifeKinds, type LooksData, type RoomLookData,
+} from "./looks";
 import type { Floorplan } from "./paint";
 
 const plans = {
@@ -87,5 +92,64 @@ describe("lookOf", () => {
         expect(y - height / 2, `${part.shape} at ${part.at.join(", ")}`).toBeGreaterThan(2);
       }
     }
+  });
+});
+
+describe("looks as data", () => {
+  const newRoom: RoomLookData = {
+    sky: "#112233", floorColour: "#445566", wallColour: "#778899",
+    floor: { painter: "planks", colour: "#aa8855" }, wall: { painter: "bricks", accent: "#123456" },
+    backdrop: { parts: [{ shape: "box", width: 1, height: 1, depth: 1, at: [0, 3, 8], colour: "#ffffff" }] },
+  };
+
+  afterEach(() => setLooks(JSON.parse(seed) as LooksData));
+
+  it("draws a room the client has never heard of, from its painters' names and its own colours and parts", () => {
+    setLooks({ rooms: [{ id: "loft", look: newRoom }], variants: [] });
+
+    const look = lookOf("loft");
+
+    expect(look.paintFloor).toBeDefined();
+    expect(look.paintWall).toBeDefined();
+    expect(look.floorNeedsProps).toBe(false);
+    expect(look.backdrop({ width: 10, depth: 8, pond: null, doors: [] }, 4)).toEqual(newRoom.backdrop.parts);
+  });
+
+  it("ignores a painter it doesn't know, painting the plain floor instead of failing", () => {
+    setLooks({ rooms: [{ id: "loft", look: { ...newRoom, floor: { painter: "marble" } } }], variants: [] });
+
+    expect(lookOf("loft").paintFloor).toBeUndefined();
+  });
+
+  it("knows which rooms are open countryside, from their looks", () => {
+    expect(openLandscape("pear-orchard")).toBe(true);
+    expect(openLandscape("riverside")).toBe(true);
+    expect(openLandscape("cafe")).toBe(false);
+    setLooks({ rooms: [{ id: "loft", look: { ...newRoom, openLandscape: true } }], variants: [] });
+    expect(openLandscape("loft")).toBe(true);
+    expect(openLandscape("riverside")).toBe(false);
+  });
+
+  it("runs the town's generator beside any parts the look gives", () => {
+    const square = lookOf("town-square").backdrop({ width: 24, depth: 16, pond: null, doors: [] }, 4);
+
+    expect(square.length).toBeGreaterThan(0);
+  });
+
+  it("gives each room the wildlife its look names", () => {
+    expect(lookOf("riverside").wildlife).toBe("fish");
+    expect(lookOf("garden").wildlife).toBe("butterfly");
+    expect(lookOf("cafe").wildlife).toBeUndefined();
+  });
+
+  it("names the same painters, generators and wildlife as the server checks a look against", () => {
+    const listed = (field: string) =>
+      [...(new RegExp(`${field} =\\s*\\[([^\\]]*)\\]`).exec(serverLook)?.[1] ?? "").matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+
+    expect(listed("Floors").sort()).toEqual(Object.keys(floorPainters).sort());
+    expect(listed("Walls").sort()).toEqual(Object.keys(wallPainters).sort());
+    expect(listed("Grounds").sort()).toEqual(Object.keys(groundPainters).sort());
+    expect(listed("Generators").sort()).toEqual(Object.keys(backdropGenerators).sort());
+    expect(listed("WildlifeKinds").sort()).toEqual([...wildlifeKinds].sort());
   });
 });

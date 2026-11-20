@@ -356,6 +356,35 @@ namespace Pspsps.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Pspsps.Domain.Rooms.LookVariantEntry", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Sky")
+                        .IsRequired()
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)")
+                        .HasColumnName("sky");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("WallColour")
+                        .IsRequired()
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)")
+                        .HasColumnName("wall_colour");
+
+                    b.HasKey("Id")
+                        .HasName("pk_look_variants");
+
+                    b.ToTable("look_variants", (string)null);
+                });
+
             modelBuilder.Entity("Pspsps.Domain.Rooms.PropDesign", b =>
                 {
                     b.Property<string>("Kind")
@@ -387,6 +416,28 @@ namespace Pspsps.Infrastructure.Migrations
                         .HasName("pk_prop_designs");
 
                     b.ToTable("prop_designs", (string)null);
+                });
+
+            modelBuilder.Entity("Pspsps.Domain.Rooms.RoomLookEntry", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Look")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("look");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_room_looks");
+
+                    b.ToTable("room_looks", (string)null);
                 });
 
             modelBuilder.Entity("Pspsps.Domain.Rooms.RoomOverlayEntry", b =>

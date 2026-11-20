@@ -52,10 +52,10 @@ const stage = lazily(async (): Promise<RoomScene> => {
 });
 
 async function makeStage(): Promise<RoomScene> {
-  const [{ Engine }, { RoomScene }, { Logger }, { loadPropDesigns }] = await Promise.all([
-    import("@babylonjs/core/Engines/engine"), import("./scene"), import("@babylonjs/core/Misc/logger"), import("./props"),
+  const [{ Engine }, { RoomScene }, { Logger }, { loadPropDesigns }, { loadLooks }] = await Promise.all([
+    import("@babylonjs/core/Engines/engine"), import("./scene"), import("@babylonjs/core/Misc/logger"), import("./props"), import("./looks"),
   ]);
-  await loadPropDesigns();
+  await Promise.all([loadPropDesigns(), loadLooks()]);
   const canvas = required<HTMLCanvasElement>("#game");
   if (telemetry.enabled) {
     watchBabylonLog(Logger, appLog);

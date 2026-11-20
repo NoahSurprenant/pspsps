@@ -117,7 +117,7 @@ public sealed partial class PropDesign
         return problems;
     }
 
-    private static IEnumerable<string> PartProblems(PropPart part)
+    internal static IEnumerable<string> PartProblems(PropPart part)
     {
         if (!Shapes.Contains(part.Shape))
         {

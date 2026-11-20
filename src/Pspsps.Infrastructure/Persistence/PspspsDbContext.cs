@@ -38,6 +38,10 @@ public sealed class PspspsDbContext(DbContextOptions<PspspsDbContext> options)
 
     public DbSet<PropDesign> PropDesigns => Set<PropDesign>();
 
+    public DbSet<RoomLookEntry> RoomLooks => Set<RoomLookEntry>();
+
+    public DbSet<LookVariantEntry> LookVariants => Set<LookVariantEntry>();
+
     /// <summary>The ASP.NET Core key ring, shared by every server pod so a sign-in cookie works on all of them.</summary>
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 

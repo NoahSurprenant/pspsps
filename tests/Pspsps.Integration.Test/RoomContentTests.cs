@@ -74,6 +74,27 @@ public sealed class RoomContentTests
     }
 
     [Test]
+    public async Task EveryStartingRoom_AndTheHome_HasASeededLook_AndSoDoesEveryVariantAnOverlayNames()
+    {
+        await using var db = Db();
+        var looks = await db.RoomLooks.ToListAsync();
+        var variants = await db.LookVariants.Select(v => v.Id).ToListAsync();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(looks.Select(l => l.Id), Is.EquivalentTo(RoomCatalog.All.Select(room => room.Id).Append(RoomLookSeeder.HomeId)));
+            Assert.That(looks.SelectMany(l => l.Look.Problems(l.Id)), Is.Empty);
+            Assert.That(variants, Is.SupersetOf(new[] { "winter", "autumn", "night" }));
+        });
+        Assert.That(await RoomLookSeeder.SeedAsync(db, TimeProvider.System, CancellationToken.None), Is.False);
+
+        using var client = PostgresFixture.Game.CreateClient();
+        var served = await client.GetFromJsonAsync<System.Text.Json.JsonElement>(new Uri("/api/looks", UriKind.Relative));
+
+        Assert.That(served.GetProperty("rooms").GetArrayLength(), Is.EqualTo(looks.Count));
+    }
+
+    [Test]
     public async Task SeedingAgain_ChangesNothing()
     {
         await using var db = Db();
@@ -146,7 +167,7 @@ public sealed class RoomContentTests
 
         var problems = await editor.SaveDraftAsync("garden", original with { Name = "The Big Garden" }, admin, ct);
         Assert.That(problems, Is.Empty);
-        await editor.PublishAsync("garden", ct);
+        await editor.PublishAsync("garden", [], ct);
         var published = (await editor.GetAsync("garden", ct))!;
         Assert.Multiple(() =>
         {
@@ -159,7 +180,7 @@ public sealed class RoomContentTests
         Assert.That((await editor.GetAsync("garden", ct))!.Published!.Name, Is.EqualTo(original.Name));
 
         await editor.SaveDraftAsync("garden", original with { Doors = [] }, admin, ct);
-        Assert.That(async () => await editor.PublishAsync("garden", ct), Throws.TypeOf<Pspsps.Domain.DomainException>());
+        Assert.That(async () => await editor.PublishAsync("garden", [], ct), Throws.TypeOf<Pspsps.Domain.DomainException>());
         await editor.DiscardDraftAsync("garden", ct);
         Assert.That((await editor.GetAsync("garden", ct))!.Draft, Is.Null);
     }

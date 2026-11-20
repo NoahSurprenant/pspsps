@@ -5,7 +5,7 @@ namespace Pspsps.Server.Game;
 /// <summary>Reads the published rooms and overlays again every <see cref="Every"/>, so a room published on one pod reaches the others.</summary>
 internal sealed partial class RoomLibraryRefresher(IRoomLibrary library, ILogger<RoomLibraryRefresher> logger) : BackgroundService
 {
-    internal static readonly TimeSpan Every = TimeSpan.FromSeconds(30);
+    internal static readonly TimeSpan Every = TimeSpan.FromSeconds(10);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

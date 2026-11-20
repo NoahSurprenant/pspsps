@@ -41,6 +41,10 @@ public interface IApplicationDbContext
 
     DbSet<PropDesign> PropDesigns { get; }
 
+    DbSet<RoomLookEntry> RoomLooks { get; }
+
+    DbSet<LookVariantEntry> LookVariants { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>Starts a transaction: saves made until it is committed are kept together, or all dropped when it is disposed first.</summary>

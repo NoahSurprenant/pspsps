@@ -31,10 +31,10 @@ public static class RoomEditorEndpoints
                 return Results.NoContent();
             }));
 
-        rooms.MapPost("/{roomId}/publish", (string roomId, HttpRequest request, ClaimsPrincipal user, IModerationService moderation, IRoomEditor editor) =>
+        rooms.MapPost("/{roomId}/publish", (string roomId, [Microsoft.AspNetCore.Mvc.FromQuery(Name = "with")] string[]? together, HttpRequest request, ClaimsPrincipal user, IModerationService moderation, IRoomEditor editor) =>
             Change(request, user, moderation, async _ =>
             {
-                await editor.PublishAsync(roomId, CancellationToken.None);
+                await editor.PublishAsync(roomId, together ?? [], CancellationToken.None);
                 return Results.NoContent();
             }));
 
@@ -56,6 +56,29 @@ public static class RoomEditorEndpoints
             Change(request, user, moderation, async _ =>
             {
                 await editor.DeleteOverlayAsync(roomId, overlayId, CancellationToken.None);
+                return Results.NoContent();
+            }));
+
+        var looks = admin.MapGroup("/looks");
+
+        looks.MapPut("/rooms/{id}", (string id, RoomLook look, HttpRequest request, ClaimsPrincipal user, IModerationService moderation, IRoomEditor editor) =>
+            Change(request, user, moderation, async _ =>
+            {
+                await editor.SaveLookAsync(id, look, CancellationToken.None);
+                return Results.NoContent();
+            }));
+
+        looks.MapPut("/variants/{name}", (string name, LookVariant variant, HttpRequest request, ClaimsPrincipal user, IModerationService moderation, IRoomEditor editor) =>
+            Change(request, user, moderation, async _ =>
+            {
+                await editor.SaveVariantAsync(name, variant, CancellationToken.None);
+                return Results.NoContent();
+            }));
+
+        looks.MapDelete("/variants/{name}", (string name, HttpRequest request, ClaimsPrincipal user, IModerationService moderation, IRoomEditor editor) =>
+            Change(request, user, moderation, async _ =>
+            {
+                await editor.DeleteVariantAsync(name, CancellationToken.None);
                 return Results.NoContent();
             }));
     }
