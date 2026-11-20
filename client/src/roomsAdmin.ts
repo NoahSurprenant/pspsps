@@ -1,10 +1,6 @@
 import { el } from "./dom";
-<<<<<<< HEAD
 import { calendar, fieldsOf, monthNames, summary, windowOf, windowProblem, type WindowFields, type WindowJson } from "./overlayWindow";
-import { type CanvasLayout, isLayout, newRoomTemplate, roomCanvas } from "./roomCanvas";
-=======
 import { type CanvasDoor, type CanvasLayout, isLayout, newRoomTemplate, roomCanvas } from "./roomCanvas";
->>>>>>> origin/master
 
 export interface LookOptions {
   propKinds: string[];
