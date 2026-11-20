@@ -41,6 +41,18 @@ public sealed class PropPlacementTests
         });
     }
 
+    [TestCase("garden", PropKinds.PottingBench)]
+    [TestCase("pear-orchard", PropKinds.PackingCrate)]
+    public void ASeatLooksAtTheRoomActivity(string roomId, string kind)
+    {
+        var room = RoomCatalog.Find(roomId)!;
+        var landmark = room.Props.Single(prop => prop.Kind == kind);
+        var seat = room.Props.Where(prop => prop.Kind == PropKinds.Bench).MinBy(prop => prop.Spot.DistanceTo(landmark.Spot))!;
+        var distance = seat.Spot.DistanceTo(landmark.Spot);
+        Assert.That(-Math.Sin(seat.Facing) * distance, Is.EqualTo(landmark.Spot.X - seat.Spot.X).Within(1e-6));
+        Assert.That(-Math.Cos(seat.Facing) * distance, Is.EqualTo(landmark.Spot.Z - seat.Spot.Z).Within(1e-6));
+    }
+
     [Test]
     public void AProblem_NamesTheRoomAndTheProp()
     {

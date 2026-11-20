@@ -1,7 +1,7 @@
 // The rooms' painted surfaces (floors and back walls), drawn in code onto a canvas in the game's flat, illustrated style:
 // flat colours, the dark ink for edges. Nothing to download: each is painted on the way into its room.
 import { ink, palette } from "./props";
-import type { DoorView, PondView, WorldMapView } from "./types";
+import type { DoorView, PondView, PropView, WorldMapView } from "./types";
 
 /** What a painter needs to know of the room: its size, and where its pond and doors are. */
 export interface Floorplan {
@@ -9,6 +9,7 @@ export interface Floorplan {
   depth: number;
   pond: PondView | null;
   doors: readonly DoorView[];
+  props?: readonly PropView[] | null;
   worldMap?: WorldMapView | null;
 }
 
@@ -226,6 +227,31 @@ export function paintGardenFloor(brush: Brush, plan: Floorplan, scale: number): 
     steppingStones(brush, at, { x: 0, z: 0.5 }, door, 0);
   }
   paintPlaza(brush, at(0, -1.6), scale);
+}
+
+export function paintOrchardFloor(brush: Brush, plan: Floorplan, scale: number): void {
+  paintGrass(brush, plan, scale, seeded(51));
+  const at = (x: number, z: number) => floorPixel(plan, scale, x, z);
+  const props = plan.props ?? [];
+  const crate = props.find(prop => prop.kind === "packing-crate");
+  if (!crate) return;
+  // The barrow leaves two wheel tracks between the packing station and each gate.
+  for (const door of plan.doors) {
+    for (const offset of [-0.32, 0.32]) {
+      brush.strokeStyle = "#c8b988";
+      brush.lineWidth = 0.19 * scale;
+      brush.beginPath();
+      brush.moveTo(...at(crate.x + offset, crate.z));
+      brush.quadraticCurveTo(...at(crate.x + offset, door.z), ...at(door.x + offset, door.z));
+      brush.stroke();
+    }
+  }
+  for (const tree of props.filter(prop => prop.kind === "pear-tree")) {
+    brush.fillStyle = "#b6a277";
+    brush.beginPath();
+    brush.arc(...at(tree.x, tree.z), 1.2 * scale, 0, 2 * Math.PI);
+    brush.fill();
+  }
 }
 
 export function paintRiversideFloor(brush: Brush, plan: Floorplan, scale: number): void {

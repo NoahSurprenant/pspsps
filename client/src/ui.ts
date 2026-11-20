@@ -5,6 +5,7 @@ import type { Fishing } from "./fishing";
 import { canGoTo, friendButtons, friendStatus, sections, whereIs, type FriendAction, type Here } from "./friends";
 import { coatOf } from "./fur";
 import { visitorChoices, type FurnitureLeft } from "./home";
+import { activityName } from "./roomActivities";
 import { drawMap } from "./worldMap";
 import {
   banLengths, bannedLines, bannedNetworks, canLift, maxReasonLength, mutedNote, muteLengths, networkLengths, networkLine,
@@ -20,7 +21,7 @@ import {
 import { maxDisplayNameLength, type OwnCardRename } from "./rename";
 import { pageTitle } from "./title";
 import type {
-  DoorView, Emote, FurColor, Friend, FurnitureView, HomeVisitors, MutedView, Player, PlayerCard, RoomSnapshot, Shop,
+  DoorView, PropView, Emote, FurColor, Friend, FurnitureView, HomeVisitors, MutedView, Player, PlayerCard, RoomSnapshot, Shop,
   WorldSummary,
 } from "./types";
 
@@ -53,6 +54,7 @@ export interface CatPicture {
 export interface RoomKeys {
   yourCat: () => void;
   catalogue?: () => void;
+  activity: (prop: PropView) => void;
   travel: (roomId: string) => void;
 }
 
@@ -202,11 +204,7 @@ export class Overlay {
         return pick;
       }),
     );
-    const map = button("", () => this.openDialog(
-      { kind: "map" }, "map-sheet",
-      el("h2", { text: "World map", id: "dialog-title" }),
-      drawMap(room, keys.travel),
-    ), "map-toggle");
+    const map = button("", () => this.showMap(room, keys.travel), "map-toggle");
     map.setAttribute("aria-label", "World map");
     map.setAttribute("aria-haspopup", "dialog");
     this.replace(
@@ -747,6 +745,10 @@ export class Overlay {
     window.setTimeout(() => marker.remove(), 580);
   }
 
+  showMap(room: RoomSnapshot, travel: (id: string) => void): void {
+    this.openDialog({ kind: "map" }, "map-sheet", el("h2", { text: "World map", id: "dialog-title" }), drawMap(room, travel));
+  }
+
   toast(message: string): void {
     // Said in the open card or list too: the toast is behind it.
     const inDialog = this.dialog?.element.querySelector<HTMLElement>("#dialog-message");
@@ -829,6 +831,12 @@ function keyboardLinks(room: RoomSnapshot, throughDoor: (door: DoorView) => void
     button("Your cat", keys.yourCat),
     ...(keys.catalogue ? [button("Open the catalogue", keys.catalogue)] : []),
     nav,
+    ...(room.props ?? []).flatMap((prop, index, props) => {
+      const label = activityName(prop);
+      if (!label) return [];
+      const tree = prop.kind === "pear-tree" ? ` from tree ${props.slice(0, index + 1).filter(p => p.kind === prop.kind).length}` : "";
+      return [button(label + tree, () => keys.activity(prop))];
+    }),
   );
 }
 

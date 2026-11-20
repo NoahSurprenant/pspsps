@@ -14,10 +14,10 @@ public static class RoomCatalog
             Props =
             [
                 new Prop(PropKinds.Tree, new Position(-10.5, 6.6), Radius: 1.4),
-                new Prop(PropKinds.Tree, new Position(10.2, 4.6), Radius: 1.4),
-                new Prop(PropKinds.Bench, new Position(-10.7, -6.7), Radius: 1, Facing: Math.PI),
-                new Prop(PropKinds.Bench, new Position(9.8, -1.2), Radius: 1, Facing: Math.PI / 2),
-                new Prop(PropKinds.Bench, new Position(0, -7), Radius: 1, Facing: Math.PI),
+                new Prop(PropKinds.MapBoard, new Position(10.2, 4.6), Radius: 1.4),
+                Prop.BenchFacing(new(-10.7, -6.7), new(-7, -3)),
+                Prop.BenchFacing(new(9.8, -1.2), new(0, 4)),
+                Prop.BenchFacing(new(0, -7), new(0, 4)),
                 new Prop(PropKinds.Lamp, new Position(9.2, 7.4), Radius: 0.35),
                 new Prop(PropKinds.Lamp, new Position(-6.7, -7.5), Radius: 0.35),
                 new Prop(PropKinds.Lamp, new Position(9.8, -5.8), Radius: 0.35),
@@ -36,7 +36,7 @@ public static class RoomCatalog
             Props =
             [
                 new Prop(PropKinds.Counter, new Position(4.4, 3), Radius: 1.9),
-                new Prop(PropKinds.CafeTable, new Position(-4.3, -1.3), Radius: 1.2, Facing: 0.3),
+                new Prop(PropKinds.Piano, new Position(-4.3, -1.3), Radius: 1.2, Facing: 0.3),
                 new Prop(PropKinds.CafeTable, new Position(0.3, -2.8), Radius: 1.2, Facing: -0.2),
                 new Prop(PropKinds.CafeTable, new Position(4.3, -0.4), Radius: 1.2, Facing: 0.5),
                 new Prop(PropKinds.Plant, new Position(-6.3, 4.3), Radius: 0.5),
@@ -69,13 +69,13 @@ public static class RoomCatalog
         {
             Props =
             [
-                new Prop(PropKinds.Tree, new Position(-7.6, 2), Radius: 1.3),
+                new Prop(PropKinds.PottingBench, new Position(-7.6, 2), Radius: 1.3),
                 new Prop(PropKinds.Tree, new Position(6.9, 4.4), Radius: 1.3),
                 new Prop(PropKinds.FlowerBed, new Position(-6.8, -0.4), Radius: 1.1),
                 new Prop(PropKinds.FlowerBed, new Position(0.3, -3), Radius: 1.1),
                 new Prop(PropKinds.FlowerBed, new Position(0, 3.5), Radius: 0.9),
-                new Prop(PropKinds.Bench, new Position(-7.7, -2.5), Radius: 1, Facing: Math.PI / 2),
-                new Prop(PropKinds.Bench, new Position(-3.6, -4.8), Radius: 1),
+                Prop.BenchFacing(new(-7.7, -2.5), new(-7.6, 2)),
+                Prop.BenchFacing(new(-3.6, -4.8), new(0.3, -3)),
                 new Prop(PropKinds.Lamp, new Position(1.2, -4.8), Radius: 0.35),
             ],
         }.WithDoors(
@@ -87,9 +87,9 @@ public static class RoomCatalog
             Props =
             [
                 new Prop(PropKinds.Tree, new Position(-8.4, -3.8), Radius: 1.35),
-                new Prop(PropKinds.Tree, new Position(8.3, -2.5), Radius: 1.4),
+                new Prop(PropKinds.RodRack, new Position(8.3, -2.5), Radius: 1.4),
                 new Prop(PropKinds.Tree, new Position(7.3, -5.4), Radius: 1.4),
-                new Prop(PropKinds.Bench, new Position(3.5, -2.5), Radius: 1, Facing: Math.PI / 2),
+                Prop.BenchFacing(new(3.5, -2.5), new(-3, -2)),
                 new Prop(PropKinds.FlowerBed, new Position(1.1, -5.7), Radius: 0.9),
                 new Prop(PropKinds.Lamp, new Position(3, -4.8), Radius: 0.35),
             ],
@@ -100,11 +100,11 @@ public static class RoomCatalog
         {
             Props =
             [
-                new Prop(PropKinds.Tree, new(-6, 6), Radius: 1.4),
-                new Prop(PropKinds.Tree, new(-6, 0), Radius: 1.4),
-                new Prop(PropKinds.Tree, new(-6, -6), Radius: 1.4),
-                new Prop(PropKinds.Tree, new(2, -6), Radius: 1.4),
-                new Prop(PropKinds.Bench, new(-2, -7), Radius: 1),
+                new Prop(PropKinds.PearTree, new(-6, 6), Radius: 1.4),
+                new Prop(PropKinds.PearTree, new(-6, 0), Radius: 1.4),
+                new Prop(PropKinds.PearTree, new(-6, -6), Radius: 1.4),
+                new Prop(PropKinds.PackingCrate, new(2, -6), Radius: 1.4),
+                Prop.BenchFacing(new(-2, -7), new(2, -6)),
             ],
         }.WithDoors(
             ("garden", RoomEdge.North, 5.8, "garden", "pear-orchard"),

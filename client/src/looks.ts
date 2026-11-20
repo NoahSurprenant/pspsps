@@ -2,7 +2,7 @@
 // backdrop behind its back wall that the fixed camera sees over it.
 import {
   townHouses, paintCafeFloor, paintCafeWall, paintHomeFloor, paintHomeWall, paints, paintShopFloor, paintShopWall, paintStreet,
-  paintGardenFloor, paintGardenWall, paintRiversideFloor, paintRiversideWall, paintTownSquareFloor, paintTownSquareWall,
+  paintGardenFloor, paintGardenWall, paintOrchardFloor, paintRiversideFloor, paintRiversideWall, paintTownSquareFloor, paintTownSquareWall,
   type Brush, type Floorplan,
 } from "./paint";
 import { ink, palette, type Part } from "./props";
@@ -68,7 +68,7 @@ const looks: Record<string, RoomLook> = {
     floorColour: paints.grass,
     wallColour: "#91ad72",
     ground: { colour: "#a9c587" },
-    paintFloor: paintRiversideFloor,
+    paintFloor: paintOrchardFloor,
     backdrop: orchardBackdrop,
   },
   riverside: {

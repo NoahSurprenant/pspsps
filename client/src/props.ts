@@ -69,6 +69,78 @@ const ball = (diameter: number, at: [number, number, number], colour: string, he
 
 /** Each prop's parts at the size it is designed for (<size>: the radius it fits in, outline included). */
 const designs: Record<string, { size: number; parts: Part[] }> = {
+  "map-board": {
+    size: 1.4,
+    parts: [
+      ...[-0.87, 0.87].map(x => box(0.16, 2.2, 0.16, [x, 1.1, 0], palette.darkWood)),
+      box(2.2, 1.25, 0.16, [0, 1.55, 0], palette.wood),
+      box(1.98, 1.04, 0.06, [0, 1.55, -0.12], palette.cream),
+      box(2.35, 0.16, 0.48, [0, 2.27, 0], palette.teal),
+      ...[[-0.52, 1.72], [0.2, 1.72], [-0.52, 1.35], [0.2, 1.35]].map(([x, y]) =>
+        box(0.46, 0.26, 0.03, [x!, y!, -0.17], palette.sage)),
+      ball(0.18, [0.25, 1.77, -0.22], palette.rose),
+    ],
+  },
+  piano: {
+    size: 1.2,
+    parts: [
+      box(1.73, 1.45, 0.64, [0, 0.725, 0.22], palette.teal),
+      box(1.84, 0.1, 0.76, [0, 1.49, 0.2], palette.darkWood),
+      box(1.74, 0.15, 0.38, [0, 0.82, -0.25], palette.wood),
+      ...Array.from({ length: 12 }, (_, n) => box(0.115, 0.08, 0.32, [(n - 5.5) * 0.13, 0.93, -0.25], palette.white)),
+      ...[0, 1, 3, 4, 5, 7, 8, 10].map(n => box(0.075, 0.08, 0.16, [(n - 5) * 0.13, 1, -0.19], palette.iron)),
+      box(0.86, 0.12, 0.34, [0, 0.45, -0.76], palette.rose),
+      ...[-0.32, 0.32].map(x => box(0.1, 0.45, 0.23, [x, 0.225, -0.76], palette.darkWood)),
+    ],
+  },
+  "potting-bench": {
+    size: 1.3,
+    parts: [
+      box(1.94, 0.15, 0.88, [0, 0.85, 0], palette.wood),
+      ...[-0.8, 0.8].flatMap(x => [-0.32, 0.32].map(z => box(0.12, 0.85, 0.12, [x, 0.425, z], palette.darkWood))),
+      box(1.75, 0.12, 0.65, [0, 0.25, 0], palette.sage),
+      ...[-0.58, 0, 0.58].flatMap(x => [
+        cylinder(0.31, 0.38, [x, 1.1, 0], "#b96f53", { top: 0.47 }),
+        cylinder(0.38, 0.04, [x, 1.3, 0], palette.soil),
+        ball(0.19, [x, 1.38, 0], palette.leaf, 0.14),
+      ]),
+      cylinder(0.4, 0.43, [-0.35, 0.52, 0], palette.teal),
+      box(0.35, 0.09, 0.12, [-0.06, 0.57, 0], palette.teal, [0, 0, 0.5]),
+    ],
+  },
+  "rod-rack": {
+    size: 1.4,
+    parts: [
+      box(1.7, 0.22, 0.65, [0, 0.11, 0], palette.darkWood),
+      box(1.67, 0.18, 0.15, [0, 0.95, 0], palette.wood),
+      ...[-0.7, 0.7].map(x => box(0.12, 1.08, 0.18, [x, 0.55, 0.05], palette.wood)),
+      ...[-0.53, 0, 0.53].flatMap(x => [
+        cylinder(0.09, 2.2, [x, 1.24, -0.12], palette.sisal, { top: 0.04, turn: [0, 0, -0.11] }),
+        box(0.025, 0.72, 0.025, [x + 0.12, 1.97, -0.12], palette.iron),
+        ball(0.16, [x + 0.12, 1.55, -0.12], palette.rose),
+      ]),
+    ],
+  },
+  "pear-tree": {
+    size: 1.4,
+    parts: [
+      cylinder(0.43, 1.8, [0, 0.9, 0], palette.darkWood, { top: 0.25 }),
+      ball(1.9, [0, 2.18, 0], "#799e55", 1.65),
+      ball(1.45, [-0.25, 2.92, 0.1], "#96b969", 1.25),
+    ],
+  },
+  "packing-crate": {
+    size: 1.4,
+    parts: [
+      box(1.82, 0.14, 1.24, [0, 0.14, 0], palette.darkWood),
+      ...[-1, 1].flatMap(side => [
+        ...[0.34, 0.62].map(y => box(1.85, 0.2, 0.1, [0, y, side * 0.6], palette.wood)),
+        ...[0.34, 0.62].map(y => box(0.1, 0.2, 1.15, [side * 0.87, y, 0], palette.wood)),
+      ]),
+      box(0.66, 0.36, 0.04, [0, 0.5, -0.67], palette.cream),
+      ball(0.22, [0, 0.5, -0.73], palette.mustard, 0.24),
+    ],
+  },
   // A park bench: wooden slats on dark iron sides, its seat to the front.
   bench: {
     size: 1,
@@ -314,7 +386,12 @@ const designs: Record<string, { size: number; parts: Part[] }> = {
 export const propKinds = Object.keys(designs);
 
 /** A prop's parts, sized to fit its radius, turned to face its way and stood on its spot; none for a kind not drawn here. */
-export function propParts(prop: PropView): Part[] {
+function pears(x: number, y: number, z: number): Part[] {
+  return [ball(0.36, [x, y, z], "#ebbf55", 0.42), ball(0.24, [x, y + 0.2, z], "#ebbf55"),
+    box(0.05, 0.16, 0.05, [x, y + 0.36, z], palette.darkWood, [0, 0, -0.2])];
+}
+
+export function propParts(prop: PropView, stage = 0): Part[] {
   const design = designs[prop.kind];
   if (!design) {
     return [];
@@ -322,7 +399,27 @@ export function propParts(prop: PropView): Part[] {
   // The outline is the same width at any size, so what is drawn inside it scales to leave room for it.
   const scale = Math.max(0, prop.radius - outline) / (design.size - outline);
   const turn = Matrix.RotationY(prop.facing);
-  return design.parts.map((part) => {
+  const parts = [...design.parts];
+  if (prop.kind === "pear-tree" && stage === 0) {
+    for (const [x, y, z] of [[-0.57, 2.05, -0.65], [0.48, 1.88, -0.72], [0, 2.87, -0.64]] as const) {
+      parts.push(...pears(x, y, z));
+    }
+  }
+  if (prop.kind === "packing-crate") {
+    for (let i = 0; i < stage; i++) parts.push(...pears((i % 3 - 1) * 0.5, 0.75, 0));
+  }
+  if (prop.kind === "potting-bench") {
+    for (let i = 0; i < stage; i++) {
+      const x = (i - 1) * 0.58;
+      parts.push(box(0.06, 0.45, 0.06, [x, 1.54, 0], palette.leaf));
+      for (let p = 0; p < 5; p++) {
+        const a = p * 2 * Math.PI / 5;
+        parts.push(ball(0.22, [x + 0.14 * Math.cos(a), 1.82 + 0.14 * Math.sin(a), -0.06], palette.rose));
+      }
+      parts.push(ball(0.17, [x, 1.82, -0.17], palette.butter));
+    }
+  }
+  return parts.map((part) => {
     const at = Vector3.TransformCoordinates(new Vector3(...part.at).scale(scale), turn);
     return {
       ...scaled(part, scale),

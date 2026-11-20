@@ -6,6 +6,28 @@ import {
   enterWorldSignedIn, signInAsAdmin, fakeNetwork, pinchRoom,
 } from "./game";
 
+test("read the square map, grow daisies, and pick and pack a pear", async ({ page }) => {
+  await enterWorld(page, "Tabby");
+  const board = await page.evaluate(() => window.pspsps?.room()?.snapshot.props?.find(prop => prop.kind === "map-board"));
+  if (!board) throw new Error("no town map board");
+  await tapFloor(page, board.x, board.z);
+  const map = page.getByRole("dialog", { name: "World map" });
+  await map.getByRole("button", { name: "Garden Courtyard" }).click();
+  await expectRoom(page, "Garden Courtyard");
+  const use = async (name: string) => {
+    const button = page.getByRole("button", { name, exact: true });
+    await button.focus();
+    await page.keyboard.press("Enter");
+  };
+  await use("Water the seedlings");
+  await expect(page.locator("#toast")).toHaveText("The first daisy opened.");
+  await goThroughDoor(page, "pear-orchard", "Pear Orchard");
+  await use("Pick a pear from tree 1");
+  await expect(page.locator("#toast")).toContainText("One ripe pear");
+  await use("Pack the pears");
+  await expect(page.locator("#toast")).toHaveText("Pears packed: 1 of 3.");
+});
+
 test("the sign-in page loads without errors", async ({ page }) => {
   await page.goto("/");
 
