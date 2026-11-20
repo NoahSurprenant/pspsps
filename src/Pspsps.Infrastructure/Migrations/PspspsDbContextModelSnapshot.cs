@@ -385,6 +385,34 @@ namespace Pspsps.Infrastructure.Migrations
                     b.ToTable("look_variants", (string)null);
                 });
 
+            modelBuilder.Entity("Pspsps.Domain.Rooms.PainterRecipeEntry", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Steps")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("steps");
+
+                    b.Property<string>("Surface")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasColumnName("surface");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_painter_recipes");
+
+                    b.ToTable("painter_recipes", (string)null);
+                });
+
             modelBuilder.Entity("Pspsps.Domain.Rooms.PropDesign", b =>
                 {
                     b.Property<string>("Kind")
@@ -612,6 +640,33 @@ namespace Pspsps.Infrastructure.Migrations
                         {
                             t.HasCheckConstraint("ck_room_versions_number", "number >= 1");
                         });
+                });
+
+            modelBuilder.Entity("Pspsps.Domain.Rooms.WildlifeRecipeEntry", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Motion")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("motion");
+
+                    b.Property<string>("Parts")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("parts");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_wildlife_recipes");
+
+                    b.ToTable("wildlife_recipes", (string)null);
                 });
 
             modelBuilder.Entity("Pspsps.Domain.Safety.Mute", b =>

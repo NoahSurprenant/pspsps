@@ -71,6 +71,18 @@ public interface IRoomEditor
 
     Task DeleteVariantAsync(string name, Guid adminId, CancellationToken cancellationToken);
 
+    /// <summary>Adds or changes a painter recipe: a floor or back wall that looks can name, drawn by the browser from steps.</summary>
+    Task SavePainterAsync(string name, string surface, IReadOnlyList<PaintStep> steps, Guid adminId, CancellationToken cancellationToken);
+
+    /// <summary>Takes a painter recipe away; refused while a look paints with it.</summary>
+    Task DeletePainterAsync(string name, Guid adminId, CancellationToken cancellationToken);
+
+    /// <summary>Adds or changes a wildlife recipe: a creature that looks can name, drawn from parts and moved in one of a few ways.</summary>
+    Task SaveWildlifeAsync(string name, IReadOnlyList<PropPart> parts, WildlifeMotion motion, Guid adminId, CancellationToken cancellationToken);
+
+    /// <summary>Takes a wildlife recipe away; refused while a look has it.</summary>
+    Task DeleteWildlifeAsync(string name, Guid adminId, CancellationToken cancellationToken);
+
     /// <summary>What admins did to rooms and looks, the latest first.</summary>
     Task<IReadOnlyList<AuditLine>> AuditAsync(int limit, CancellationToken cancellationToken);
 }
@@ -280,14 +292,15 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
     {
         ArgumentNullException.ThrowIfNull(look);
         var now = time.GetUtcNow();
+        var names = await LookNamesAsync(cancellationToken);
         var entry = await db.RoomLooks.FirstOrDefaultAsync(l => l.Id == id, cancellationToken);
         if (entry is null)
         {
-            db.RoomLooks.Add(RoomLookEntry.Of(id, look, now));
+            db.RoomLooks.Add(RoomLookEntry.Of(id, look, now, names));
         }
         else
         {
-            entry.Replace(look, now);
+            entry.Replace(look, now, names);
         }
 
         Audit(adminId, "look-saved", id, string.Empty);
@@ -326,6 +339,81 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
         Audit(adminId, "variant-deleted", name, string.Empty);
         await SaveAsync(cancellationToken);
     }
+
+    public async Task SavePainterAsync(string name, string surface, IReadOnlyList<PaintStep> steps, Guid adminId, CancellationToken cancellationToken)
+    {
+        var now = time.GetUtcNow();
+        var entry = await db.PainterRecipes.FirstOrDefaultAsync(r => r.Id == name, cancellationToken);
+        if (entry is null)
+        {
+            db.PainterRecipes.Add(PainterRecipeEntry.Of(name, surface, steps, now));
+        }
+        else
+        {
+            if (entry.Surface != surface && await UsedByLooksAsync(look => look.Floor?.Painter == name || look.Wall?.Painter == name, cancellationToken) is { Count: > 0 } users)
+            {
+                throw new DomainException($"The painter {name} is in use by {string.Join(", ", users)}: it cannot change what it paints.");
+            }
+
+            entry.Replace(surface, steps, now);
+        }
+
+        Audit(adminId, "painter-saved", name, surface);
+        await SaveAsync(cancellationToken);
+    }
+
+    public async Task DeletePainterAsync(string name, Guid adminId, CancellationToken cancellationToken)
+    {
+        var entry = await db.PainterRecipes.FirstOrDefaultAsync(r => r.Id == name, cancellationToken)
+            ?? throw new DomainException($"There is no painter {name}.");
+        if (await UsedByLooksAsync(look => look.Floor?.Painter == name || look.Wall?.Painter == name, cancellationToken) is { Count: > 0 } users)
+        {
+            throw new DomainException($"The painter {name} is in use by {string.Join(", ", users)}.");
+        }
+
+        db.PainterRecipes.Remove(entry);
+        Audit(adminId, "painter-deleted", name, string.Empty);
+        await SaveAsync(cancellationToken);
+    }
+
+    public async Task SaveWildlifeAsync(string name, IReadOnlyList<PropPart> parts, WildlifeMotion motion, Guid adminId, CancellationToken cancellationToken)
+    {
+        var now = time.GetUtcNow();
+        var entry = await db.WildlifeRecipes.FirstOrDefaultAsync(r => r.Id == name, cancellationToken);
+        if (entry is null)
+        {
+            db.WildlifeRecipes.Add(WildlifeRecipeEntry.Of(name, parts, motion, now));
+        }
+        else
+        {
+            entry.Replace(parts, motion, now);
+        }
+
+        Audit(adminId, "wildlife-saved", name, motion?.Kind ?? string.Empty);
+        await SaveAsync(cancellationToken);
+    }
+
+    public async Task DeleteWildlifeAsync(string name, Guid adminId, CancellationToken cancellationToken)
+    {
+        var entry = await db.WildlifeRecipes.FirstOrDefaultAsync(r => r.Id == name, cancellationToken)
+            ?? throw new DomainException($"There is no creature {name}.");
+        if (await UsedByLooksAsync(look => look.Wildlife == name, cancellationToken) is { Count: > 0 } users)
+        {
+            throw new DomainException($"The creature {name} is in use by {string.Join(", ", users)}.");
+        }
+
+        db.WildlifeRecipes.Remove(entry);
+        Audit(adminId, "wildlife-deleted", name, string.Empty);
+        await SaveAsync(cancellationToken);
+    }
+
+    private async Task<LookNames> LookNamesAsync(CancellationToken cancellationToken) =>
+        LookNames.BuiltIn.With(
+            (await db.PainterRecipes.AsNoTracking().Select(r => new { r.Surface, r.Id }).ToListAsync(cancellationToken)).Select(r => (r.Surface, r.Id)),
+            await db.WildlifeRecipes.AsNoTracking().Select(r => r.Id).ToListAsync(cancellationToken));
+
+    private async Task<List<string>> UsedByLooksAsync(Func<RoomLook, bool> uses, CancellationToken cancellationToken) =>
+        [.. (await db.RoomLooks.AsNoTracking().ToListAsync(cancellationToken)).Where(entry => uses(entry.Look)).Select(entry => entry.Id)];
 
     public async Task<IReadOnlyList<AuditLine>> AuditAsync(int limit, CancellationToken cancellationToken) =>
         [.. (await db.RoomAudit.AsNoTracking().OrderByDescending(a => a.At).Take(Math.Clamp(limit, 1, 500)).ToListAsync(cancellationToken))

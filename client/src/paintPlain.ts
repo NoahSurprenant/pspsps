@@ -18,7 +18,7 @@ export function shade(hex: string, amount: number): string {
   return `#${channel(1)}${channel(3)}${channel(5)}`;
 }
 
-const accentOf = ({ colour, accent }: PaintColours) => accent ?? shade(colour, -0.18);
+export const accentOf = ({ colour, accent }: PaintColours) => accent ?? shade(colour, -0.18);
 
 /** Boards running across the room, their joints staggered, with a dark line between. */
 export function paintPlanks(brush: Brush, plan: Floorplan, scale: number, colours: PaintColours): void {

@@ -47,6 +47,10 @@ public interface IApplicationDbContext
 
     DbSet<LookVariantEntry> LookVariants { get; }
 
+    DbSet<PainterRecipeEntry> PainterRecipes { get; }
+
+    DbSet<WildlifeRecipeEntry> WildlifeRecipes { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>

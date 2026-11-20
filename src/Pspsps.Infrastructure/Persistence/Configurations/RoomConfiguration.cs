@@ -96,3 +96,30 @@ internal sealed class LookVariantConfiguration : IEntityTypeConfiguration<LookVa
         builder.Property(v => v.WallColour).HasMaxLength(7);
     }
 }
+
+internal sealed class PainterRecipeConfiguration : IEntityTypeConfiguration<PainterRecipeEntry>
+{
+    public void Configure(EntityTypeBuilder<PainterRecipeEntry> builder)
+    {
+        builder.ToTable("painter_recipes");
+        builder.HasKey(r => r.Id);
+        builder.Property(r => r.Id).HasMaxLength(32);
+        builder.Property(r => r.Surface).HasMaxLength(8);
+        builder.Property(r => r.Steps).HasColumnType("jsonb")
+            .HasConversion(RoomJson.Converter<IReadOnlyList<PaintStep>>(), RoomJson.Comparer<IReadOnlyList<PaintStep>>());
+    }
+}
+
+internal sealed class WildlifeRecipeConfiguration : IEntityTypeConfiguration<WildlifeRecipeEntry>
+{
+    public void Configure(EntityTypeBuilder<WildlifeRecipeEntry> builder)
+    {
+        builder.ToTable("wildlife_recipes");
+        builder.HasKey(r => r.Id);
+        builder.Property(r => r.Id).HasMaxLength(32);
+        builder.Property(r => r.Parts).HasColumnType("jsonb")
+            .HasConversion(RoomJson.Converter<IReadOnlyList<PropPart>>(), RoomJson.Comparer<IReadOnlyList<PropPart>>());
+        builder.Property(r => r.Motion).HasColumnType("jsonb")
+            .HasConversion(RoomJson.Converter<WildlifeMotion>(), RoomJson.Comparer<WildlifeMotion>());
+    }
+}

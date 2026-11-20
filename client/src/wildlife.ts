@@ -1,9 +1,10 @@
 import type { Scene } from "@babylonjs/core/scene";
 import { buildParts, palette, type Part } from "./props";
+import { wildlifeRecipe, type WildlifeMotion } from "./recipes";
 import type { RoomSnapshot } from "./types";
 
 /** A pair of fish under the blue shallows or a butterfly visiting the courtyard flowers. Both let taps through. */
-export function wildlife(scene: Scene, room: RoomSnapshot, kind: "fish" | "butterfly" | undefined): ((seconds: number) => void) | undefined {
+export function wildlife(scene: Scene, room: RoomSnapshot, kind: string | undefined): ((seconds: number) => void) | undefined {
   let parts: Part[];
   let position: (time: number) => [number, number, number];
   if (kind === "fish" && room.pond) {
@@ -31,7 +32,11 @@ export function wildlife(scene: Scene, room: RoomSnapshot, kind: "fish" | "butte
         first.z + (next.z - first.z) * along + 0.45 * Math.sin(t * 1.2)];
     };
   } else {
-    return undefined;
+    const recipe = kind ? wildlifeRecipe(kind) : undefined;
+    const move = recipe && motionOf(recipe.motion, room);
+    if (!recipe || !move) return undefined;
+    parts = recipe.parts;
+    position = move;
   }
 
   const mesh = buildParts(scene, "wildlife", parts);
@@ -48,4 +53,23 @@ export function wildlife(scene: Scene, room: RoomSnapshot, kind: "fish" | "butte
   };
   pose(0);
   return globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? undefined : pose;
+}
+
+/** Where an admin's creature is at a time, or nothing where the room has nothing for it to move by. */
+function motionOf(motion: WildlifeMotion, room: RoomSnapshot): ((time: number) => [number, number, number]) | undefined {
+  const { speed, height, bob = 0, sway = 0 } = motion;
+  if (motion.kind === "orbit") {
+    const pond = room.pond;
+    return pond ? (t => [pond.x + Math.cos(t * speed) * pond.radius * 0.48, height, pond.z + Math.sin(t * speed) * pond.radius * 0.48]) : undefined;
+  }
+  if (motion.kind === "shuttle") {
+    const props = room.props?.filter(p => p.kind === motion.prop);
+    const [first, next] = [props?.[0], props?.[1]];
+    return first && next && (t => {
+      const along = (1 - Math.cos(t * speed)) / 2;
+      return [first.x + (next.x - first.x) * along, height + bob * Math.sin(t * 3), first.z + (next.z - first.z) * along + sway * Math.sin(t * 1.2)];
+    });
+  }
+  const reach = (motion.reach ?? 2) / 2;
+  return t => [Math.cos(t * speed) * reach, height + bob * Math.sin(t * 3), Math.sin(t * speed * 1.3) * reach + sway * Math.sin(t * 1.2)];
 }

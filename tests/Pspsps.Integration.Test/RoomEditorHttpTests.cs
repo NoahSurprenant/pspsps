@@ -300,6 +300,58 @@ public sealed class RoomEditorHttpTests
     }
 
     [Test]
+    public async Task APainterAndACreatureRecipe_AreServedToTheBrowser_UsedByALook_AndKeptWhileALookUsesThem()
+    {
+        using var admin = await AdminClientAsync();
+        var look = JsonNode.Parse("""{"sky":"#112233","floorColour":"#445566","wallColour":"#778899","floor":{"painter":"recipe-stripes","colour":"#808080"},"wildlife":"recipe-moth","backdrop":{"parts":[]}}""");
+        try
+        {
+            using var badPainter = await SendAsync(admin, HttpMethod.Put, "looks/painters/recipe-stripes", JsonNode.Parse("""{"surface":"floor","steps":[{"op":"splat"}]}"""));
+            using var painter = await SendAsync(admin, HttpMethod.Put, "looks/painters/recipe-stripes", JsonNode.Parse("""{"surface":"floor","steps":[{"op":"fill","colour":"main"}]}"""));
+            using var moth = await SendAsync(admin, HttpMethod.Put, "looks/wildlife/recipe-moth", JsonNode.Parse("""{"parts":[{"shape":"ball","diameter":0.2,"height":0.05,"at":[0,0,0],"colour":"#d9d2c3"}],"motion":{"kind":"wander","speed":0.6,"height":1.2,"reach":3}}"""));
+            using var unknown = await SendAsync(admin, HttpMethod.Put, "looks/rooms/recipe-loft", look);
+            using var served = await admin.GetAsync(new Uri("/api/looks", UriKind.Relative));
+            using var refusedPainter = await SendAsync(admin, HttpMethod.Delete, "looks/painters/recipe-stripes");
+            using var refusedMoth = await SendAsync(admin, HttpMethod.Delete, "looks/wildlife/recipe-moth");
+            var looks = await JsonOfAsync(served);
+
+            Assert.Multiple(async () =>
+            {
+                Assert.That(badPainter.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+                Assert.That(painter.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+                Assert.That(moth.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+                Assert.That(unknown.StatusCode, Is.EqualTo(HttpStatusCode.NoContent), "a look may name the recipes");
+                Assert.That(looks["painters"]!.AsArray().Any(p => p!["id"]!.GetValue<string>() == "recipe-stripes"), Is.True);
+                Assert.That(looks["wildlife"]!.AsArray().Any(w => w!["id"]!.GetValue<string>() == "recipe-moth"), Is.True);
+                Assert.That(refusedPainter.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), "a look still uses it");
+                Assert.That(refusedMoth.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+                Assert.That(await refusedPainter.Content.ReadAsStringAsync(), Does.Contain("recipe-loft"));
+            });
+
+            await using var db = Db();
+            db.RoomLooks.RemoveRange(db.RoomLooks.Where(l => l.Id == "recipe-loft"));
+            await db.SaveChangesAsync();
+            using var deletedPainter = await SendAsync(admin, HttpMethod.Delete, "looks/painters/recipe-stripes");
+            using var deletedMoth = await SendAsync(admin, HttpMethod.Delete, "looks/wildlife/recipe-moth");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(deletedPainter.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+                Assert.That(deletedMoth.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+            });
+        }
+        finally
+        {
+            await using var db = Db();
+            db.RoomLooks.RemoveRange(db.RoomLooks.Where(l => l.Id == "recipe-loft"));
+            db.PainterRecipes.RemoveRange(db.PainterRecipes.Where(p => p.Id == "recipe-stripes"));
+            db.WildlifeRecipes.RemoveRange(db.WildlifeRecipes.Where(w => w.Id == "recipe-moth"));
+            await db.SaveChangesAsync();
+        }
+    }
+
+    [Test]
+
     public async Task ADraftScheduledForLater_GoesLiveWhenItsTimeComes_AndNotBefore()
     {
         using var admin = await AdminClientAsync();
