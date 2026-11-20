@@ -141,8 +141,17 @@ async function mapLabelsFit(page: Page): Promise<string[]> {
       if (box.left < bounds.left || box.right > bounds.right || box.top < bounds.top || box.bottom > bounds.bottom) {
         problems.push(`${name} extends past the map`);
       }
-      if (label && label.scrollWidth > label.clientWidth + 1) {
-        problems.push(`${name} overflows its button`);
+      if (!label?.textContent?.trim()) {
+        problems.push("destination has no visible label");
+      } else {
+        const text = document.createRange();
+        text.selectNodeContents(label);
+        for (const line of text.getClientRects()) {
+          if (line.left < box.left + 2 || line.right > box.right - 2 ||
+              line.top < box.top + 2 || line.bottom > box.bottom - 2) {
+            problems.push(`${name} text extends into its button border`);
+          }
+        }
       }
       for (const other of buttons.slice(index + 1)) {
         const b = other.getBoundingClientRect();
