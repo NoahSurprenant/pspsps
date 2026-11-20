@@ -34,6 +34,9 @@ public sealed class RoomVersion
 
     public RoomVersionState State { get; private set; }
 
+    /// <summary>1 for a new draft, and one more with each edit: an admin saving over a draft someone else has since changed is refused.</summary>
+    public int Revision { get; private set; }
+
     public RoomLayout Layout { get; private set; }
 
     public Guid? CreatedBy { get; private set; }
@@ -57,6 +60,7 @@ public sealed class RoomVersion
             RoomId = roomId,
             Number = number,
             State = RoomVersionState.Draft,
+            Revision = 1,
             Layout = layout,
             CreatedBy = createdBy,
             CreatedAt = now,
@@ -80,6 +84,7 @@ public sealed class RoomVersion
         }
 
         Layout = layout;
+        Revision++;
     }
 
     public void Publish(DateTimeOffset now)

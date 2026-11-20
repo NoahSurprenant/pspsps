@@ -418,6 +418,50 @@ namespace Pspsps.Infrastructure.Migrations
                     b.ToTable("prop_designs", (string)null);
                 });
 
+            modelBuilder.Entity("Pspsps.Domain.Rooms.RoomAuditEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("action");
+
+                    b.Property<Guid?>("AdminId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("admin_id");
+
+                    b.Property<DateTimeOffset>("At")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("at");
+
+                    b.Property<string>("Detail")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("detail");
+
+                    b.Property<string>("Target")
+                        .IsRequired()
+                        .HasMaxLength(129)
+                        .HasColumnType("character varying(129)")
+                        .HasColumnName("target");
+
+                    b.HasKey("Id")
+                        .HasName("pk_room_audit");
+
+                    b.HasIndex("AdminId")
+                        .HasDatabaseName("ix_room_audit_admin_id");
+
+                    b.HasIndex("At")
+                        .HasDatabaseName("ix_room_audit_at");
+
+                    b.ToTable("room_audit", (string)null);
+                });
+
             modelBuilder.Entity("Pspsps.Domain.Rooms.RoomLookEntry", b =>
                 {
                     b.Property<string>("Id")
@@ -517,6 +561,13 @@ namespace Pspsps.Infrastructure.Migrations
                     b.Property<DateTimeOffset?>("PublishedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("published_at");
+
+                    b.Property<int>("Revision")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("revision");
 
                     b.Property<string>("RoomId")
                         .IsRequired()
@@ -832,6 +883,15 @@ namespace Pspsps.Infrastructure.Migrations
                     b.Navigation("Items");
 
                     b.Navigation("Logins");
+                });
+
+            modelBuilder.Entity("Pspsps.Domain.Rooms.RoomAuditEntry", b =>
+                {
+                    b.HasOne("Pspsps.Domain.Players.Player", null)
+                        .WithMany()
+                        .HasForeignKey("AdminId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_room_audit_players_admin_id");
                 });
 
             modelBuilder.Entity("Pspsps.Domain.Rooms.RoomVersion", b =>

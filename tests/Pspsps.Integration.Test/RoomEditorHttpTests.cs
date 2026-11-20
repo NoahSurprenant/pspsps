@@ -100,6 +100,38 @@ public sealed class RoomEditorHttpTests
     }
 
     [Test]
+    public async Task SavingOverADraftThatChangedSinceItWasOpened_IsRefused_AndEveryChangeIsRecorded()
+    {
+        using var admin = await AdminClientAsync();
+        using var opened = await SendAsync(admin, HttpMethod.Get, "rooms/cafe");
+        var layout = (await JsonOfAsync(opened))["published"]!.DeepClone();
+        layout["name"] = "Cafe, first edit";
+
+        using var first = await SendAsync(admin, HttpMethod.Put, "rooms/cafe/draft", layout);
+        using var draftOpened = await SendAsync(admin, HttpMethod.Get, "rooms/cafe");
+        var revision = (await JsonOfAsync(draftOpened))["draftRevision"]!.GetValue<int>();
+        layout["name"] = "Cafe, second edit";
+        using var current = await SendAsync(admin, HttpMethod.Put, $"rooms/cafe/draft?revision={revision}", layout);
+        layout["name"] = "Cafe, from a stale page";
+        using var stale = await SendAsync(admin, HttpMethod.Put, $"rooms/cafe/draft?revision={revision}", layout);
+        using var staleBody = await SendAsync(admin, HttpMethod.Put, $"rooms/cafe/draft?revision={revision}", layout);
+        var message = (await JsonOfAsync(staleBody))["message"]!.GetValue<string>();
+        using var discard = await SendAsync(admin, HttpMethod.Delete, "rooms/cafe/draft");
+        using var audit = await SendAsync(admin, HttpMethod.Get, "rooms/audit?limit=20");
+        var actions = (await JsonOfAsync(audit)).AsArray().Where(line => line!["target"]!.GetValue<string>() == "cafe").Select(line => line!["action"]!.GetValue<string>()).ToList();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(first.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(current.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(stale.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+            Assert.That(message, Does.Contain("has been changed"));
+            Assert.That(discard.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+            Assert.That(actions, Does.Contain("draft-saved").And.Contain("draft-discarded"));
+        });
+    }
+
+    [Test]
     public async Task AnAdmin_EditsARoomAsJson_PublishesIt_AndGoesBack()
     {
         using var admin = await AdminClientAsync();
