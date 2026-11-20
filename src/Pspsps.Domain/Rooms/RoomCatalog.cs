@@ -7,16 +7,10 @@ public static class RoomCatalog
 
     public static IReadOnlyList<RoomDefinition> All { get; } =
     [
-        new("town-square", "Town Square", Width: 24, Depth: 16, Spawn: new(0, 4), Capacity: 80,
+        new RoomDefinition("town-square", "Town Square", Width: 24, Depth: 16, Spawn: new(0, 4), Capacity: 80,
             Pond: new Pond(new Position(-7, -3), Radius: 2.5))
         {
-            Doors =
-            [
-                new Door("cafe", new Position(7, 7), Radius: 0.8, ToRoom: "cafe", ToDoor: "town-square"),
-                new Door(ShopId, new Position(-0.25, 7), Radius: 0.8, ToRoom: ShopId, ToDoor: "town-square"),
-                new Door("garden", new Position(-11, 3.3), Radius: 0.8, ToRoom: "garden", ToDoor: "town-square"),
-                new Door("riverside", new Position(6.4, -7), Radius: 0.8, ToRoom: "riverside", ToDoor: "town-square"),
-            ],
+            MapCentre = new(0, 0),
             // A plaza in front of a row of shops: trees and benches along the back and the sides, lamps, flower beds.
             Props =
             [
@@ -31,10 +25,15 @@ public static class RoomCatalog
                 new Prop(PropKinds.FlowerBed, new Position(10.4, 1.6), Radius: 0.9),
                 new Prop(PropKinds.FlowerBed, new Position(-3.4, -6.7), Radius: 0.9),
             ],
-        },
-        new("cafe", "Cat Café", Width: 14, Depth: 10, Spawn: new(0, 3), Capacity: 40)
+        }.WithDoors(
+            ("cafe", RoomEdge.North, 7, "cafe", "town-square"),
+            (ShopId, RoomEdge.North, -0.25, ShopId, "town-square"),
+            ("garden", RoomEdge.West, 3.3, "garden", "town-square"),
+            ("riverside", RoomEdge.South, 6.4, "riverside", "town-square")),
+        new RoomDefinition("cafe", "Cat Café", Width: 14, Depth: 10, Spawn: new(0, 3), Capacity: 40)
         {
-            Doors = [new Door("town-square", new Position(-4, 4), Radius: 0.8, ToRoom: "town-square", ToDoor: "cafe")],
+            MapCentre = new(12, 18),
+            MapRotated = true,
             // A counter at the back, tables with two chairs each, plants, and a cat tree to climb (to look at).
             Props =
             [
@@ -47,10 +46,12 @@ public static class RoomCatalog
                 new Prop(PropKinds.Plant, new Position(6.4, -4.4), Radius: 0.5),
                 new Prop(PropKinds.CatTree, new Position(-6.1, -3.9), Radius: 0.8),
             ],
-        },
-        new(ShopId, "Cat Shop", Width: 13, Depth: 9, Spawn: new(-1.6, 1), Capacity: 40)
+        }.WithDoors(
+            ("town-square", RoomEdge.North, -4, "town-square", "cafe")),
+        new RoomDefinition(ShopId, "Cat Shop", Width: 13, Depth: 9, Spawn: new(-1.6, 1), Capacity: 40)
         {
-            Doors = [new Door("town-square", new Position(-4.9, 3.6), Radius: 0.8, ToRoom: "town-square", ToDoor: ShopId)],
+            MapCentre = new(-7, 18),
+            MapRotated = true,
             // Shelves of hats along the back, the counter in the corner, a mirror to try things on in, a chair to wait in,
             // plants; and in the middle, the catalogue on its stand, where everything is bought.
             Props =
@@ -65,14 +66,11 @@ public static class RoomCatalog
                 new Prop(PropKinds.Plant, new Position(6, -3.9), Radius: 0.5),
                 new Prop(PropKinds.Plant, new Position(2.2, 4.0), Radius: 0.45),
             ],
-        },
-        new("garden", "Garden Courtyard", Width: 18, Depth: 12, Spawn: new(0, 1), Capacity: 40)
+        }.WithDoors(
+            ("town-square", RoomEdge.North, -4.9, "town-square", ShopId)),
+        new RoomDefinition("garden", "Garden Courtyard", Width: 18, Depth: 12, Spawn: new(0, 1), Capacity: 40)
         {
-            Doors =
-            [
-                new Door("town-square", new Position(8, 1.8), Radius: 0.8, ToRoom: "town-square", ToDoor: "garden"),
-                new Door("riverside", new Position(5.8, -5), Radius: 0.8, ToRoom: "riverside", ToDoor: "garden"),
-            ],
+            MapCentre = new(-47, 0),
             Props =
             [
                 new Prop(PropKinds.Tree, new Position(-7.6, 2), Radius: 1.3),
@@ -84,15 +82,13 @@ public static class RoomCatalog
                 new Prop(PropKinds.Bench, new Position(-3.6, -4.8), Radius: 1),
                 new Prop(PropKinds.Lamp, new Position(1.2, -4.8), Radius: 0.35),
             ],
-        },
-        new("riverside", "Riverside Trail", Width: 20, Depth: 14, Spawn: new(0, 3), Capacity: 40,
+        }.WithDoors(
+            ("town-square", RoomEdge.East, 1.8, "town-square", "garden"),
+            ("riverside", RoomEdge.South, 5.8, "riverside", "garden")),
+        new RoomDefinition("riverside", "Riverside Trail", Width: 20, Depth: 14, Spawn: new(0, 3), Capacity: 40,
             Pond: new Pond(new Position(-3, -2), Radius: 2.4))
         {
-            Doors =
-            [
-                new Door("garden", new Position(-9, 3.5), Radius: 0.8, ToRoom: "garden", ToDoor: "riverside"),
-                new Door("town-square", new Position(9, 3.8), Radius: 0.8, ToRoom: "town-square", ToDoor: "riverside"),
-            ],
+            MapCentre = new(-24, -22),
             Props =
             [
                 new Prop(PropKinds.Tree, new Position(-8.4, -3.8), Radius: 1.35),
@@ -102,7 +98,9 @@ public static class RoomCatalog
                 new Prop(PropKinds.FlowerBed, new Position(1.1, -5.7), Radius: 0.9),
                 new Prop(PropKinds.Lamp, new Position(3, -4.8), Radius: 0.35),
             ],
-        },
+        }.WithDoors(
+            ("garden", RoomEdge.West, 3.5, "garden", "riverside"),
+            ("town-square", RoomEdge.East, 3.8, "town-square", "riverside")),
     ];
 
     public static RoomDefinition Default => All[0];

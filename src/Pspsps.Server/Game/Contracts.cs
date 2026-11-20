@@ -104,7 +104,8 @@ public sealed record RoomSnapshot(
     [property: Id(9)] IReadOnlyList<DoorView> Doors,
     [property: Id(10)] IReadOnlyList<PropView> Props,
     [property: Id(11)] HomeView? Home = null,
-    [property: Id(12)] string? Notice = null);
+    [property: Id(12)] string? Notice = null,
+    [property: Id(13)] WorldMapView? WorldMap = null);
 
 /// <summary>
 /// A player's home, as the browser draws it and its owner decorates it: whose it is, who may visit ("Friends", "Anyone"

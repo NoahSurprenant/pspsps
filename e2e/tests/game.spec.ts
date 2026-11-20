@@ -585,6 +585,11 @@ test("a cat walks the garden loop and travels to a room's spawn from the world m
   await openMap.click();
   const map = page.getByRole("dialog", { name: "World map" });
   await expect(map.getByRole("button", { name: "Town Square, you are here" })).toHaveAttribute("aria-current", "location");
+  await expect(map.locator(".map-route")).toHaveCount(5);
+  const square = await map.locator('.map-footprint[data-room="town-square"]').boundingBox();
+  const cafe = await map.locator('.map-footprint[data-room="cafe"]').boundingBox();
+  if (!square || !cafe) throw new Error("the map is missing a room footprint");
+  expect(square.width / cafe.width).toBeCloseTo(24 / 14);
   await page.keyboard.press("Escape");
   await expect(map).toBeHidden();
   await expect(openMap).toBeFocused();

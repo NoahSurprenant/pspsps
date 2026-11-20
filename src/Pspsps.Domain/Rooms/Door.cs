@@ -10,6 +10,9 @@ public sealed record Door(string Id, Position Spot, double Radius, string ToRoom
     /// <summary>How far past the door's edge, towards the room's middle, a cat coming in through it stands.</summary>
     public const double StepIn = 0.75;
 
+    /// <summary>The floor edge this exit leads through, when the room is on the world map.</summary>
+    public RoomEdge? Edge { get; init; }
+
     /// <summary>Whether a cat standing at <paramref name="cat"/> is on the door, and can go through it.</summary>
     public bool InReach(Position cat) => cat.DistanceTo(Spot) <= Radius;
 

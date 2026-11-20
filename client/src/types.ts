@@ -89,6 +89,11 @@ export interface RoomLink {
   name: string;
 }
 
+export interface WorldMapView {
+  rooms: (RoomLink & { x: number; z: number; width: number; depth: number })[];
+  routes: { fromX: number; fromZ: number; toX: number; toZ: number }[];
+}
+
 export interface RoomSnapshot {
   worldId: string;
   roomId: string;
@@ -111,6 +116,8 @@ export interface RoomSnapshot {
    * next place on its way out ("Town Square is full. You went to Cat Café instead."). Missing from an older server.
    */
   notice?: string | null;
+  /** The public floor plans and routes. Older pods send the destination list only. */
+  worldMap?: WorldMapView | null;
 }
 
 /** Who may come into a player's home, besides its owner (the Domain's HomeVisitors). */

@@ -65,6 +65,9 @@ garden to its west and the riverside to its south, with a path between them. The
 Each entrance has a keyboard button that shows on
 focus, as do the player's own cat and the shop catalogue. The world map uses the public destinations from the current
 room's snapshot and calls `GoToRoom` to travel to a destination's spawn point, just as the browser does after a reconnect.
+The map takes each footprint's centre, width and depth from the room catalogue. Exits are placed one metre inside a
+specified floor edge and the map draws routes between those edges. Public footprints may not overlap, and each exit
+must face the footprint it leads to. The café and shop are turned on the map so their back doors face Town Square.
 
 A room's props (`Prop`: benches, trees, café tables) are in the catalogue too, and go to the browser with the room;
 they are decoration, which cats walk through. `PropPlacement` keeps them out of the way: on the floor, off the doors,

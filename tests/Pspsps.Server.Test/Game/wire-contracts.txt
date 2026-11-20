@@ -126,6 +126,16 @@ type OutfitView 1: String FurColor
 type OutfitView 2: String Hat
 type OutfitView 3: String Collar
 type OutfitView 4: Int32 Version
+type MapRoomView 0: String Id
+type MapRoomView 1: String Name
+type MapRoomView 2: Double X
+type MapRoomView 3: Double Z
+type MapRoomView 4: Double Width
+type MapRoomView 5: Double Depth
+type MapRouteView 0: Double FromX
+type MapRouteView 1: Double FromZ
+type MapRouteView 2: Double ToX
+type MapRouteView 3: Double ToZ
 type PlayerCard 0: Guid PlayerId
 type PlayerCard 1: String DisplayName
 type PlayerCard 2: String FurColor
@@ -166,3 +176,6 @@ type RoomSnapshot 9: IReadOnlyList<DoorView> Doors
 type RoomSnapshot 10: IReadOnlyList<PropView> Props
 type RoomSnapshot 11: HomeView Home
 type RoomSnapshot 12: String Notice
+type RoomSnapshot 13: WorldMapView WorldMap
+type WorldMapView 0: IReadOnlyList<MapRoomView> Rooms
+type WorldMapView 1: IReadOnlyList<MapRouteView> Routes
