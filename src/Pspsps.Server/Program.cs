@@ -109,6 +109,10 @@ try
         {
             Log.Information("Seeded the starting rooms");
         }
+        if (await Pspsps.Application.Rooms.PropDesignSeeder.SeedAsync(db, time, CancellationToken.None))
+        {
+            Log.Information("Seeded the starting prop designs");
+        }
         await scope.ServiceProvider.GetRequiredService<Pspsps.Application.Rooms.IRoomLibrary>().RefreshAsync(CancellationToken.None);
     }
 
@@ -131,6 +135,7 @@ try
     app.MapAuthEndpoints(providers);
     app.MapClientTelemetry();
     app.MapAdminEndpoints();
+    app.MapPropDesigns();
     app.MapHub<GameHub>("/hubs/game").RequireAuthorization(AdminEndpoints.NotBannedPolicy);
     app.MapFallbackToFile("index.html");
 

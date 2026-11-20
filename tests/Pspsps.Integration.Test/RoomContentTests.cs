@@ -1,3 +1,4 @@
+using System.Net.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Pspsps.Application.Abstractions;
@@ -53,6 +54,23 @@ public sealed class RoomContentTests
             Assert.That(library.Find("garden")!.Props, Is.EqualTo(RoomCatalog.Find("garden")!.Props));
             Assert.That(library.Find("attic"), Is.Null);
         });
+    }
+
+    [Test]
+    public async Task EveryKindOfPropTheServerPlaces_HasASeededDesign_ThatTheEndpointServes()
+    {
+        await using var db = Db();
+        var designs = await db.PropDesigns.ToListAsync();
+
+        Assert.That(designs.Select(d => d.Kind), Is.EquivalentTo(PropKinds.All));
+        Assert.That(designs.All(d => PropDesign.Problems(d.Kind, d.Size, d.Parts).Count == 0), Is.True);
+        Assert.That(await PropDesignSeeder.SeedAsync(db, TimeProvider.System, CancellationToken.None), Is.False);
+
+        using var client = PostgresFixture.Game.CreateClient();
+        var served = await client.GetFromJsonAsync<System.Text.Json.JsonElement>(new Uri("/api/props", UriKind.Relative));
+
+        Assert.That(served.GetArrayLength(), Is.EqualTo(PropKinds.All.Count));
+        Assert.That(served[0].GetProperty("parts")[0].TryGetProperty("top", out _), Is.False, "nothing is written as null");
     }
 
     [Test]

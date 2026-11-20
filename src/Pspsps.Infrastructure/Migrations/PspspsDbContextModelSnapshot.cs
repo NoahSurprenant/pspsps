@@ -356,6 +356,32 @@ namespace Pspsps.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Pspsps.Domain.Rooms.PropDesign", b =>
+                {
+                    b.Property<string>("Kind")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("Parts")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("parts");
+
+                    b.Property<double>("Size")
+                        .HasColumnType("double precision")
+                        .HasColumnName("size");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Kind")
+                        .HasName("pk_prop_designs");
+
+                    b.ToTable("prop_designs", (string)null);
+                });
+
             modelBuilder.Entity("Pspsps.Domain.Rooms.RoomOverlayEntry", b =>
                 {
                     b.Property<string>("RoomId")

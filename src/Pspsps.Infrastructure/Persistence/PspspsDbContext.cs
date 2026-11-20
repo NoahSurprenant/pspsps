@@ -36,6 +36,8 @@ public sealed class PspspsDbContext(DbContextOptions<PspspsDbContext> options)
 
     public DbSet<RoomOverlayEntry> RoomOverlays => Set<RoomOverlayEntry>();
 
+    public DbSet<PropDesign> PropDesigns => Set<PropDesign>();
+
     /// <summary>The ASP.NET Core key ring, shared by every server pod so a sign-in cookie works on all of them.</summary>
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 

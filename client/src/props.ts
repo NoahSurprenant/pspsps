@@ -12,7 +12,6 @@ import { CreateIcoSphereVertexData } from "@babylonjs/core/Meshes/Builders/icoSp
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import type { Scene } from "@babylonjs/core/scene";
-import { catalogueStandKind } from "./catalogue";
 import type { PropView } from "./types";
 
 /** The dark ink every outline in a room is drawn in. */
@@ -61,341 +60,48 @@ export const palette = {
 
 const box = (width: number, height: number, depth: number, at: [number, number, number], colour: string,
   turn?: [number, number, number]): Part => ({ shape: "box", width, height, depth, at, colour, turn });
-const cylinder = (diameter: number, height: number, at: [number, number, number], colour: string,
-  extra: { top?: number; sides?: number; turn?: [number, number, number] } = {}): Part =>
-  ({ shape: "cylinder", diameter, height, at, colour, top: extra.top, sides: extra.sides, turn: extra.turn });
 const ball = (diameter: number, at: [number, number, number], colour: string, height?: number): Part =>
   ({ shape: "ball", diameter, height, at, colour });
 
-/** Each prop's parts at the size it is designed for (<size>: the radius it fits in, outline included). */
-const designs: Record<string, { size: number; parts: Part[] }> = {
-  "map-board": {
-    size: 1.4,
-    parts: [
-      ...[-0.87, 0.87].map(x => box(0.16, 2.2, 0.16, [x, 1.1, 0], palette.darkWood)),
-      box(2.2, 1.25, 0.16, [0, 1.55, 0], palette.wood),
-      box(1.98, 1.04, 0.06, [0, 1.55, -0.12], palette.cream),
-      box(2.35, 0.16, 0.48, [0, 2.27, 0], palette.teal),
-      ...([[-0.52, 1.72], [0.2, 1.72], [-0.52, 1.35], [0.2, 1.35]] as const).map(([x, y]) =>
-        box(0.46, 0.26, 0.03, [x, y, -0.17], palette.sage)),
-      ball(0.18, [0.25, 1.77, -0.22], palette.rose),
-    ],
-  },
-  piano: {
-    size: 1.2,
-    parts: [
-      box(1.73, 1.45, 0.64, [0, 0.725, 0.22], palette.teal),
-      box(1.84, 0.1, 0.76, [0, 1.49, 0.2], palette.darkWood),
-      box(1.74, 0.15, 0.38, [0, 0.82, -0.25], palette.wood),
-      ...Array.from({ length: 12 }, (_, n) => box(0.115, 0.08, 0.32, [(n - 5.5) * 0.13, 0.93, -0.25], palette.white)),
-      ...[0, 1, 3, 4, 5, 7, 8, 10].map(n => box(0.075, 0.08, 0.16, [(n - 5) * 0.13, 1, -0.19], palette.iron)),
-      box(0.86, 0.12, 0.34, [0, 0.45, -0.76], palette.rose),
-      ...[-0.32, 0.32].map(x => box(0.1, 0.45, 0.23, [x, 0.225, -0.76], palette.darkWood)),
-    ],
-  },
-  "potting-bench": {
-    size: 1.3,
-    parts: [
-      box(1.94, 0.15, 0.88, [0, 0.85, 0], palette.wood),
-      ...[-0.8, 0.8].flatMap(x => [-0.32, 0.32].map(z => box(0.12, 0.85, 0.12, [x, 0.425, z], palette.darkWood))),
-      box(1.75, 0.12, 0.65, [0, 0.25, 0], palette.sage),
-      ...[-0.58, 0, 0.58].flatMap(x => [
-        cylinder(0.31, 0.38, [x, 1.1, 0], "#b96f53", { top: 0.47 }),
-        cylinder(0.38, 0.04, [x, 1.3, 0], palette.soil),
-        ball(0.19, [x, 1.38, 0], palette.leaf, 0.14),
-      ]),
-      cylinder(0.4, 0.43, [-0.35, 0.52, 0], palette.teal),
-      box(0.35, 0.09, 0.12, [-0.06, 0.57, 0], palette.teal, [0, 0, 0.5]),
-    ],
-  },
-  "rod-rack": {
-    size: 1.4,
-    parts: [
-      box(1.7, 0.22, 0.65, [0, 0.11, 0], palette.darkWood),
-      box(1.67, 0.18, 0.15, [0, 0.95, 0], palette.wood),
-      ...[-0.7, 0.7].map(x => box(0.12, 1.08, 0.18, [x, 0.55, 0.05], palette.wood)),
-      ...[-0.53, 0, 0.53].flatMap(x => [
-        cylinder(0.09, 2.2, [x, 1.24, -0.12], palette.sisal, { top: 0.04, turn: [0, 0, -0.11] }),
-        box(0.025, 0.72, 0.025, [x + 0.12, 1.97, -0.12], palette.iron),
-        ball(0.16, [x + 0.12, 1.55, -0.12], palette.rose),
-      ]),
-    ],
-  },
-  "pear-tree": {
-    size: 1.4,
-    parts: [
-      cylinder(0.43, 1.8, [0, 0.9, 0], palette.darkWood, { top: 0.25 }),
-      ball(1.9, [0, 2.18, 0], "#799e55", 1.65),
-      ball(1.45, [-0.25, 2.92, 0.1], "#96b969", 1.25),
-    ],
-  },
-  "packing-crate": {
-    size: 1.4,
-    parts: [
-      box(1.82, 0.14, 1.24, [0, 0.14, 0], palette.darkWood),
-      ...[-0.82, 0.82].map(x => box(0.1, 2.15, 0.1, [x, 1.075, 0.48], palette.darkWood)),
-      ...Array.from({ length: 5 }, (_, i) => box(0.4, 0.11, 1.25, [(i - 2) * 0.4, 2.12, 0], i % 2 ? palette.cream : palette.mustard, [-0.12, 0, 0])),
-      ...Array.from({ length: 5 }, (_, i) => box(0.4, 0.16, 0.08, [(i - 2) * 0.4, 1.98, -0.61], i % 2 ? palette.cream : palette.mustard)),
-      ...[-1, 1].flatMap(side => [
-        ...[0.34, 0.62].map(y => box(1.85, 0.2, 0.1, [0, y, side * 0.6], palette.wood)),
-        ...[0.34, 0.62].map(y => box(0.1, 0.2, 1.15, [side * 0.87, y, 0], palette.wood)),
-      ]),
-      box(0.66, 0.36, 0.04, [0, 0.5, -0.67], palette.cream),
-      ball(0.22, [0, 0.5, -0.73], palette.mustard, 0.24),
-    ],
-  },
-  // A park bench: wooden slats on dark iron sides, its seat to the front.
-  bench: {
-    size: 1,
-    parts: [
-      box(1.6, 0.08, 0.45, [0, 0.45, 0], palette.wood),
-      box(1.6, 0.1, 0.06, [0, 0.66, 0.2], palette.wood),
-      box(1.6, 0.1, 0.06, [0, 0.84, 0.2], palette.wood),
-      box(0.08, 0.45, 0.45, [-0.7, 0.225, 0], palette.iron),
-      box(0.08, 0.45, 0.45, [0.7, 0.225, 0], palette.iron),
-      box(0.06, 0.5, 0.06, [-0.7, 0.7, 0.2], palette.iron),
-      box(0.06, 0.5, 0.06, [0.7, 0.7, 0.2], palette.iron),
-    ],
-  },
-  // A street lamp: a dark post with a pale, glowing lantern under a little roof.
-  lamp: {
-    size: 0.35,
-    parts: [
-      cylinder(0.3, 0.2, [0, 0.1, 0], palette.iron),
-      cylinder(0.12, 2.5, [0, 1.35, 0], palette.iron, { sides: 8 }),
-      box(0.3, 0.36, 0.3, [0, 2.78, 0], palette.glow),
-      cylinder(0.44, 0.22, [0, 3.07, 0], palette.iron, { top: 0, sides: 4, turn: [0, Math.PI / 4, 0] }),
-    ],
-  },
-  // A round, leafy tree.
-  tree: {
-    size: 1.4,
-    parts: [
-      cylinder(0.36, 1.9, [0, 0.95, 0], palette.darkWood, { top: 0.26, sides: 8 }),
-      ball(2.1, [0, 2.45, 0], palette.leaf),
-      ball(1.4, [0.45, 3.2, -0.1], palette.lightLeaf),
-      ball(1.2, [-0.55, 2.95, 0.25], palette.lightLeaf),
-    ],
-  },
-  // A round stone bed of flowers.
-  "flower-bed": {
-    size: 0.9,
-    parts: [
-      cylinder(1.6, 0.26, [0, 0.13, 0], palette.stone, { sides: 20 }),
-      cylinder(1.36, 0.06, [0, 0.27, 0], palette.soil, { sides: 20 }),
-      ball(0.5, [0, 0.4, 0], palette.lightLeaf, 0.35),
-      ...([
-        [0.45, 0, palette.pink], [-0.45, 0.05, palette.lilac], [0.1, 0.45, palette.butter], [-0.15, -0.45, palette.white],
-        [0.32, -0.32, palette.lilac], [-0.33, 0.33, palette.pink], [0.33, 0.3, palette.white], [-0.35, -0.28, palette.butter],
-        [0, 0.05, palette.pink],
-      ] as const).flatMap(([x, z, colour]) => [
-        ball(0.26, [x, 0.38, z], palette.leaf, 0.16),
-        ball(0.2, [x, 0.48, z], colour),
-      ]),
-    ],
-  },
-  // A little round café table with a cup on it, and a chair either side.
-  "cafe-table": {
-    size: 1.2,
-    parts: [
-      cylinder(0.5, 0.05, [0, 0.025, 0], palette.iron, { sides: 16 }),
-      cylinder(0.1, 0.7, [0, 0.38, 0], palette.iron, { sides: 8 }),
-      cylinder(0.95, 0.06, [0, 0.74, 0], palette.cream, { sides: 24 }),
-      cylinder(0.14, 0.12, [0.15, 0.83, -0.1], palette.white, { sides: 10 }),
-      cylinder(0.11, 0.02, [0.15, 0.885, -0.1], palette.darkWood, { sides: 10 }),
-      ...[-1, 1].flatMap((side) => [
-        box(0.45, 0.06, 0.45, [side * 0.75, 0.45, 0], palette.mustard),
-        box(0.06, 0.5, 0.45, [side * 0.95, 0.73, 0], palette.mustard),
-        ...[-1, 1].flatMap((front) => [
-          box(0.05, 0.45, 0.05, [side * 0.75 + 0.19, 0.225, front * 0.19], palette.iron),
-          box(0.05, 0.45, 0.05, [side * 0.75 - 0.19, 0.225, front * 0.19], palette.iron),
-        ]),
-      ]),
-    ],
-  },
-  // The café's counter: wooden front, cream top, a coffee machine, a till and a cake.
-  counter: {
-    size: 1.9,
-    parts: [
-      box(3.2, 1.05, 0.8, [0, 0.525, 0], palette.wood),
-      box(3.0, 0.08, 0.04, [0, 0.35, -0.41], palette.darkWood),
-      box(3.0, 0.08, 0.04, [0, 0.75, -0.41], palette.darkWood),
-      box(3.36, 0.08, 0.92, [0, 1.09, 0], palette.cream),
-      box(0.5, 0.6, 0.42, [-1.1, 1.43, 0.12], palette.silver),
-      box(0.3, 0.06, 0.14, [-1.1, 1.3, -0.15], palette.iron),
-      box(0.42, 0.3, 0.36, [1.15, 1.28, 0.1], palette.teal),
-      cylinder(0.5, 0.04, [0.2, 1.15, -0.05], palette.white, { sides: 20 }),
-      cylinder(0.4, 0.22, [0.2, 1.28, -0.05], palette.rose, { sides: 20 }),
-      cylinder(0.42, 0.05, [0.2, 1.41, -0.05], palette.white, { sides: 20 }),
-    ],
-  },
-  // A potted plant.
-  plant: {
-    size: 0.5,
-    parts: [
-      cylinder(0.42, 0.5, [0, 0.25, 0], palette.pot, { top: 0.52, sides: 12 }),
-      box(0.5, 0.06, 0.04, [0, 0.36, -0.235], palette.sage, [0.13, 0, 0]),
-      ball(0.62, [0, 0.82, 0], palette.leaf),
-      ball(0.42, [0.14, 1.1, -0.05], palette.lightLeaf),
-      ball(0.36, [-0.15, 1.02, 0.08], palette.lightLeaf),
-    ],
-  },
-  // A cat tree: a carpeted base, two sisal posts, a platform and a round bed at the top, and a toy on a string.
-  "cat-tree": {
-    size: 0.8,
-    parts: [
-      box(1.0, 0.1, 1.0, [0, 0.05, 0], palette.lavender),
-      cylinder(0.18, 1.0, [-0.25, 0.6, -0.2], palette.sisal, { sides: 10 }),
-      box(0.7, 0.08, 0.6, [-0.1, 1.12, -0.1], palette.lavender),
-      cylinder(0.18, 0.8, [0.2, 1.55, 0.2], palette.sisal, { sides: 10 }),
-      cylinder(0.72, 0.14, [0.1, 2.0, 0.1], palette.lavender, { sides: 16 }),
-      box(0.02, 0.4, 0.02, [0.18, 0.88, -0.32], palette.iron),
-      ball(0.14, [0.18, 0.64, -0.32], palette.pink),
-    ],
-  },
-  // The furniture players put in their homes, each drawn to fit the circle its shop item takes up (ShopCatalog.cs).
-  // A rug, lying flat: a rose border, a cream middle, three lavender stripes across it. Cats walk over it.
-  rug: {
-    size: 1.3,
-    parts: [
-      box(1.96, 0.03, 1.2, [0, 0.015, 0], palette.rose),
-      box(1.56, 0.036, 0.8, [0, 0.018, 0], palette.cream),
-      ...[-0.45, 0, 0.45].map((x): Part => ({ ...box(0.16, 0.04, 0.8, [x, 0.02, 0], palette.lavender), outlined: false })),
-    ],
-  },
-  // An armchair: a mustard frame, its back and arms, and a cream cushion on the seat.
-  armchair: {
-    size: 0.7,
-    parts: [
-      box(0.8, 0.32, 0.62, [0, 0.16, 0], palette.mustard),
-      box(0.56, 0.12, 0.5, [0, 0.38, -0.04], palette.cream),
-      box(0.8, 0.5, 0.15, [0, 0.62, 0.235], palette.mustard),
-      ...[-1, 1].map((side) => box(0.13, 0.26, 0.62, [side * 0.335, 0.45, 0], palette.mustard)),
-    ],
-  },
-  // A sofa: a teal frame, its back and arms, two seat cushions and two back cushions.
-  sofa: {
-    size: 1.2,
-    parts: [
-      box(1.86, 0.3, 0.76, [0, 0.15, 0], palette.teal),
-      box(1.86, 0.56, 0.16, [0, 0.58, 0.3], palette.teal),
-      ...[-1, 1].flatMap((side) => [
-        box(0.16, 0.5, 0.76, [side * 0.85, 0.25, 0], palette.teal),
-        box(0.74, 0.13, 0.56, [side * 0.38, 0.365, -0.07], palette.cream),
-        box(0.72, 0.38, 0.11, [side * 0.38, 0.6, 0.165], palette.cream),
-      ]),
-    ],
-  },
-  // A floor lamp: a round dark base, a thin pole, a glowing shade.
-  "floor-lamp": {
-    size: 0.4,
-    parts: [
-      cylinder(0.4, 0.06, [0, 0.03, 0], palette.iron, { sides: 16 }),
-      cylinder(0.06, 1.6, [0, 0.86, 0], palette.iron, { sides: 8 }),
-      cylinder(0.46, 0.42, [0, 1.8, 0], palette.glow, { top: 0.28, sides: 16 }),
-    ],
-  },
-  // A bookshelf against nothing in particular: wooden sides, back and shelves, with books in colours on two of them.
-  bookshelf: {
-    size: 0.9,
-    parts: [
-      ...[-1, 1].map((side) => box(0.07, 1.7, 0.34, [side * 0.585, 0.85, 0], palette.wood)),
-      box(1.24, 1.7, 0.04, [0, 0.85, 0.15], palette.darkWood),
-      ...[0.03, 0.6, 1.15, 1.67].map((y) => box(1.1, 0.06, 0.32, [0, y, 0], palette.wood)),
-      ...([
-        [0.06, [[-0.42, 0.34, palette.teal], [-0.29, 0.4, palette.rose], [-0.16, 0.3, palette.mustard], [0.1, 0.38, palette.sage], [0.24, 0.32, palette.lilac]]],
-        [0.63, [[-0.4, 0.36, palette.lilac], [-0.26, 0.3, palette.sage], [0.02, 0.4, palette.teal], [0.16, 0.34, palette.rose], [0.3, 0.38, palette.mustard]]],
-      ] as [number, [number, number, string][]][]).flatMap(([shelf, books]) =>
-        books.map(([x, height, colour]) => box(0.11, height, 0.24, [x, shelf + height / 2, -0.02], colour))),
-    ],
-  },
-  // A cat's round bed: a lilac basket with a cream cushion in it, and a pink ball.
-  "cat-bed": {
-    size: 0.6,
-    parts: [
-      cylinder(0.9, 0.22, [0, 0.11, 0], palette.lilac, { sides: 24 }),
-      cylinder(0.68, 0.1, [0, 0.21, 0], palette.cream, { sides: 24 }),
-      ball(0.14, [0.18, 0.31, -0.12], palette.pink),
-    ],
-  },
-  // The shop's. Its catalogue, open on a wooden lectern whose top slopes down to the reader (the front), a ribbon
-  // hanging from its pages: tapping it opens the catalogue (main.ts).
-  [catalogueStandKind]: {
-    size: 0.6,
-    parts: [
-      box(0.66, 0.06, 0.46, [0, 0.03, 0], palette.darkWood),
-      box(0.14, 0.95, 0.14, [0, 0.5, 0.04], palette.wood),
-      box(0.78, 0.06, 0.52, [0, 1.02, 0], palette.wood, [-0.45, 0, 0]),
-      box(0.74, 0.03, 0.48, [0, 1.06, -0.02], palette.teal, [-0.45, 0, 0]),
-      ...[-1, 1].map((side) => box(0.34, 0.04, 0.44, [side * 0.18, 1.09, -0.03], palette.white, [-0.45, 0.04 * side, 0])),
-      { ...box(0.04, 0.36, 0.015, [0.06, 0.88, -0.25], palette.rose, [-0.15, 0, 0]), outlined: false },
-    ],
-  },
-  // A shelf unit of hats: wooden sides and back, three shelves, party hats, top hats, beanies and bows on show.
-  "hat-shelf": {
-    size: 0.8,
-    parts: [
-      ...[-1, 1].map((side) => box(0.07, 1.75, 0.32, [side * 0.6, 0.875, 0], palette.wood)),
-      box(1.26, 1.75, 0.04, [0, 0.875, 0.14], palette.darkWood),
-      ...[0.03, 0.62, 1.2, 1.72].map((y) => box(1.14, 0.06, 0.3, [0, y, 0], palette.wood)),
-      // The bottom shelf: two top hats and a beanie.
-      ...[-0.34, 0.06].flatMap((x) => [
-        cylinder(0.3, 0.03, [x, 0.075, -0.02], palette.felt, { sides: 12 }),
-        cylinder(0.19, 0.28, [x, 0.22, -0.02], palette.felt, { sides: 12 }),
-        cylinder(0.2, 0.05, [x, 0.12, -0.02], palette.rose, { sides: 12 }),
-      ]),
-      ball(0.3, [0.38, 0.17, -0.02], palette.sage, 0.3),
-      // The middle shelf: party hats.
-      ...[-0.36, -0.06, 0.24].flatMap((x) => [
-        cylinder(0.22, 0.32, [x, 0.81, -0.02], palette.hatPink, { top: 0, sides: 10 }),
-        ball(0.08, [x, 0.99, -0.02], palette.butter),
-      ]),
-      // The top shelf: beanies and a bow.
-      ball(0.32, [-0.3, 1.34, -0.02], palette.lavender, 0.3),
-      ball(0.32, [0.05, 1.34, -0.02], palette.mustard, 0.3),
-      ...[-1, 1].map((side) => cylinder(0.14, 0.12, [0.36 + side * 0.07, 1.33, -0.04], palette.rose, { top: 0.02, sides: 8, turn: [0, 0, side * Math.PI / 2] })),
-    ],
-  },
-  // The shop's counter: a wooden front with panels, a cream top, a till, a bell to ring, folded collars and a gift box.
-  "shop-counter": {
-    size: 1.2,
-    parts: [
-      box(1.96, 1.0, 0.66, [0, 0.5, 0], palette.wood),
-      ...[-0.6, 0, 0.6].map((x) => box(0.48, 0.6, 0.03, [x, 0.5, -0.34], palette.darkWood)),
-      box(2.06, 0.08, 0.74, [0, 1.04, 0], palette.cream),
-      box(0.44, 0.26, 0.34, [-0.62, 1.21, 0.06], palette.teal),
-      box(0.36, 0.1, 0.12, [-0.62, 1.39, 0.16], palette.teal, [-0.5, 0, 0]),
-      cylinder(0.18, 0.03, [-0.15, 1.095, -0.12], palette.silver, { sides: 12 }),
-      ball(0.14, [-0.15, 1.15, -0.12], palette.mustard, 0.12),
-      ...[palette.teal, palette.sage, palette.lilac].map((colour, i) => box(0.3, 0.05, 0.2, [0.25, 1.105 + i * 0.05, -0.08], colour)),
-      box(0.3, 0.26, 0.3, [0.7, 1.21, 0.05], palette.lavender),
-      { ...box(0.06, 0.27, 0.31, [0.7, 1.215, 0.05], palette.butter), outlined: false },
-    ],
-  },
-  // A standing mirror, to try things on in: a tall wooden frame on two feet, the glass with a glint across it.
-  mirror: {
-    size: 0.55,
-    parts: [
-      ...[-1, 1].map((side) => box(0.1, 0.06, 0.4, [side * 0.26, 0.03, 0], palette.darkWood)),
-      box(0.62, 1.4, 0.07, [0, 0.9, 0.02], palette.wood),
-      box(0.5, 1.26, 0.03, [0, 0.9, -0.025], palette.mirror),
-      { ...box(0.05, 0.5, 0.01, [-0.08, 1.05, -0.045], palette.white, [0, 0, -0.6]), outlined: false },
-      { ...box(0.03, 0.3, 0.01, [0.06, 1.0, -0.045], palette.white, [0, 0, -0.6]), outlined: false },
-    ],
-  },
-};
 
-/** The kinds of prop drawn here (the server's PropKinds). */
-export const propKinds = Object.keys(designs);
+/** What each kind of prop is drawn from, at the size it is designed for (<size>: the radius it fits in, outline included); the server's, from /api/props. */
+export interface PropDesign {
+  kind: string;
+  size: number;
+  parts: Part[];
+}
 
-/** A prop's parts, sized to fit its radius, turned to face its way and stood on its spot; none for a kind not drawn here. */
+const designs = new Map<string, PropDesign>();
+
+/** The kinds of prop drawn here: those the server has a design for. */
+export const propKinds: string[] = [];
+
+export function setPropDesigns(list: readonly PropDesign[]): void {
+  designs.clear();
+  propKinds.length = 0;
+  for (const design of list) {
+    designs.set(design.kind, design);
+    propKinds.push(design.kind);
+  }
+}
+
+/** Reads the designs from the server: every page load, so a new design or kind needs no new client. */
+export async function loadPropDesigns(): Promise<void> {
+  const response = await fetch("/api/props");
+  if (!response.ok) {
+    throw new Error(`The prop designs could not be read (${response.status}).`);
+  }
+  setPropDesigns((await response.json()) as PropDesign[]);
+}
+
+/** A prop's parts, sized to fit its radius, turned to face its way and stood on its spot; none for a kind without a design. */
 function pears(x: number, y: number, z: number): Part[] {
   return [ball(0.36, [x, y, z], "#ebbf55", 0.42), ball(0.24, [x, y + 0.2, z], "#ebbf55"),
     box(0.05, 0.16, 0.05, [x, y + 0.36, z], palette.darkWood, [0, 0, -0.2])];
 }
 
 export function propParts(prop: PropView, stage = 0): Part[] {
-  const design = designs[prop.kind];
+  const design = designs.get(prop.kind);
   if (!design) {
     return [];
   }

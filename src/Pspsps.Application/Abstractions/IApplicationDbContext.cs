@@ -39,6 +39,8 @@ public interface IApplicationDbContext
     /// <summary>The seasonal and event changes to rooms.</summary>
     DbSet<RoomOverlayEntry> RoomOverlays { get; }
 
+    DbSet<PropDesign> PropDesigns { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>Whether a save failed because a row with the same unique key is already there (another request won).</summary>

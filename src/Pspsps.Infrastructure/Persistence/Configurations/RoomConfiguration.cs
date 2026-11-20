@@ -41,3 +41,15 @@ internal sealed class RoomOverlayConfiguration : IEntityTypeConfiguration<RoomOv
             .HasConversion(RoomJson.Converter<IReadOnlyList<Prop>>(), RoomJson.Comparer<IReadOnlyList<Prop>>());
     }
 }
+
+internal sealed class PropDesignConfiguration : IEntityTypeConfiguration<PropDesign>
+{
+    public void Configure(EntityTypeBuilder<PropDesign> builder)
+    {
+        builder.ToTable("prop_designs");
+        builder.HasKey(d => d.Kind);
+        builder.Property(d => d.Kind).HasMaxLength(RoomOverlayConfiguration.IdLength);
+        builder.Property(d => d.Parts).HasColumnType("jsonb")
+            .HasConversion(RoomJson.Converter<IReadOnlyList<PropPart>>(), RoomJson.Comparer<IReadOnlyList<PropPart>>());
+    }
+}

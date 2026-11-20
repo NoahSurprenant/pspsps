@@ -12,6 +12,7 @@ internal static class RoomJson
     private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web)
     {
         Converters = { new JsonStringEnumConverter() },
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
     public static ValueConverter<T, string> Converter<T>() where T : class =>
