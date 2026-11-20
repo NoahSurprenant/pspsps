@@ -86,6 +86,8 @@ export function roomsSection(say: (message: string) => void): HTMLElement {
     const add = el("input");
     add.setAttribute("aria-label", "New room ID");
     add.placeholder = "new-room-id";
+    add.style.minHeight = "44px";
+    add.style.fontSize = "16px";
     list.replaceChildren(
       ...rooms.map((room) => el("li", {}, button(roomLine(room), () => void run(() => open(room.roomId))))),
       el("li", {}, add, button("New room", () => { if (add.value) void run(() => open(add.value, true)); })));
