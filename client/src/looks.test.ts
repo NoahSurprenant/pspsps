@@ -13,6 +13,14 @@ const plans = {
 } satisfies Record<string, Floorplan>;
 
 describe("lookOf", () => {
+  it("lets an overlay's named variant change a room's colours and nothing else", () => {
+    const [plain, winter] = [lookOf("cafe"), lookOf("cafe", "winter")];
+
+    expect(winter.sky).not.toBe(plain.sky);
+    expect(winter.paintFloor).toBe(plain.paintFloor);
+    expect(lookOf("cafe", "no-such-look")).toBe(plain);
+  });
+
   it("gives every home one look of its own, indoors", () => {
     const [home, cafe] = [lookOf("home"), lookOf("cafe")];
 

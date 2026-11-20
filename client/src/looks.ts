@@ -94,8 +94,17 @@ const looks: Record<string, RoomLook> = {
 /** A room no look is made for yet: a plain floor and wall under the sky. */
 const plain: RoomLook = { sky: "#bfe3f2", floorColour: paints.grass, wallColour: "#f4efe4", backdrop: () => [] };
 
-export function lookOf(roomId: string): RoomLook {
-  return looks[roomId] ?? plain;
+/** What a seasonal overlay changes of a room's look, by name: its colours only, so any room can wear any of them. */
+const variants: Record<string, Partial<Pick<RoomLook, "sky" | "wallColour">>> = {
+  winter: { sky: "#dbe7f2", wallColour: "#e8eef4" },
+  autumn: { sky: "#f0d9b5", wallColour: "#e9cfa8" },
+  night: { sky: "#2b2f55", wallColour: "#4a4a6a" },
+};
+
+export function lookOf(roomId: string, variant?: string | null): RoomLook {
+  const base = looks[roomId] ?? plain;
+  const changes = variant ? variants[variant] : undefined;
+  return changes ? { ...base, ...changes } : base;
 }
 
 function gardenBackdrop(plan: Floorplan): Part[] {

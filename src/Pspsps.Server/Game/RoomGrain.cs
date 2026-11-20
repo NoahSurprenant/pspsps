@@ -148,7 +148,8 @@ internal sealed class RoomGrain(
             _doors,
             _props,
             _home,
-            WorldMap: _home is null ? _worldMap : null);
+            WorldMap: _home is null ? _worldMap : null,
+            Look: _home is null ? _state.Room.Look : null);
     }
 
     public async Task Leave(Guid playerId, string session)
