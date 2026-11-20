@@ -76,8 +76,8 @@ const designs: Record<string, { size: number; parts: Part[] }> = {
       box(2.2, 1.25, 0.16, [0, 1.55, 0], palette.wood),
       box(1.98, 1.04, 0.06, [0, 1.55, -0.12], palette.cream),
       box(2.35, 0.16, 0.48, [0, 2.27, 0], palette.teal),
-      ...[[-0.52, 1.72], [0.2, 1.72], [-0.52, 1.35], [0.2, 1.35]].map(([x, y]) =>
-        box(0.46, 0.26, 0.03, [x!, y!, -0.17], palette.sage)),
+      ...([[-0.52, 1.72], [0.2, 1.72], [-0.52, 1.35], [0.2, 1.35]] as const).map(([x, y]) =>
+        box(0.46, 0.26, 0.03, [x, y, -0.17], palette.sage)),
       ball(0.18, [0.25, 1.77, -0.22], palette.rose),
     ],
   },
@@ -133,6 +133,9 @@ const designs: Record<string, { size: number; parts: Part[] }> = {
     size: 1.4,
     parts: [
       box(1.82, 0.14, 1.24, [0, 0.14, 0], palette.darkWood),
+      ...[-0.82, 0.82].map(x => box(0.1, 2.15, 0.1, [x, 1.075, 0.48], palette.darkWood)),
+      ...Array.from({ length: 5 }, (_, i) => box(0.4, 0.11, 1.25, [(i - 2) * 0.4, 2.12, 0], i % 2 ? palette.cream : palette.mustard, [-0.12, 0, 0])),
+      ...Array.from({ length: 5 }, (_, i) => box(0.4, 0.16, 0.08, [(i - 2) * 0.4, 1.98, -0.61], i % 2 ? palette.cream : palette.mustard)),
       ...[-1, 1].flatMap(side => [
         ...[0.34, 0.62].map(y => box(1.85, 0.2, 0.1, [0, y, side * 0.6], palette.wood)),
         ...[0.34, 0.62].map(y => box(0.1, 0.2, 1.15, [side * 0.87, y, 0], palette.wood)),

@@ -291,6 +291,31 @@ export function paintGardenWall(brush: Brush, width: number, height: number, sca
     }
     brush.stroke();
   }
+  // Fan trellises on the stonework, trained roses climbing each spoke.
+  for (const centre of [width * 0.2, width * 0.55, width * 0.85]) {
+    for (const spread of [-1.15, -0.55, 0, 0.55, 1.15]) {
+      brush.strokeStyle = "#907156";
+      brush.lineWidth = scale * 0.1;
+      brush.beginPath();
+      brush.moveTo(centre * scale, height * scale);
+      brush.lineTo((centre + spread) * scale, height * 0.17 * scale);
+      brush.stroke();
+      for (let n = 1; n <= 5; n++) {
+        const x = centre + spread * n / 6;
+        const y = height * (1 - n * 0.83 / 6);
+        brush.fillStyle = n % 2 ? "#799953" : "#608053";
+        brush.beginPath();
+        brush.ellipse(x * scale, y * scale, 0.19 * scale, 0.08 * scale, n % 2 ? -0.6 : 0.6, 0, Math.PI * 2);
+        brush.fill();
+        if (n % 3 === 0 || n === 5) {
+          brush.fillStyle = "#d5828d";
+          brush.beginPath();
+          brush.arc((x + 0.09) * scale, (y - 0.1) * scale, 0.115 * scale, 0, Math.PI * 2);
+          brush.fill();
+        }
+      }
+    }
+  }
 }
 
 export function paintRiversideWall(brush: Brush, width: number, height: number, scale: number): void {

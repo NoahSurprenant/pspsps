@@ -31,7 +31,12 @@ export class RoomActivities {
   tend(prop: PropView, treeCount: number): string {
     if (prop.kind === "potting-bench") {
       this.blossoms = (this.blossoms + 1) % 4;
-      return ["Fresh seedlings are ready to water.", "The first daisy opened.", "Two daisies in bloom.", "All three daisies are in bloom!"][this.blossoms]!;
+      switch (this.blossoms) {
+        case 1: return "The first daisy opened.";
+        case 2: return "Two daisies in bloom.";
+        case 3: return "All three daisies are in bloom!";
+        default: return "Fresh seedlings are ready to water.";
+      }
     }
     if (prop.kind === "pear-tree") {
       if (this.carrying) return "Put your pear in the wooden crate first.";

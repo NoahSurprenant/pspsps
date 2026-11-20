@@ -28,6 +28,30 @@ test("read the square map, grow daisies, and pick and pack a pear", async ({ pag
   await expect(page.locator("#toast")).toHaveText("Pears packed: 1 of 3.");
 });
 
+test("play the café piano, try the shop mirror and cast from the river rod rack", async ({ page }) => {
+  await enterWorld(page, "Tabby");
+  const travel = async (name: string) => {
+    await page.getByRole("button", { name: "World map" }).click();
+    await page.getByRole("dialog", { name: "World map" }).getByRole("button", { name }).click();
+    await expectRoom(page, name);
+  };
+  const use = async (kind: string) => {
+    const prop = await page.evaluate(wanted => window.pspsps?.room()?.snapshot.props?.find(p => p.kind === wanted), kind);
+    if (!prop) throw new Error(`missing ${kind}`);
+    await tapFloor(page, prop.x, prop.z);
+  };
+  await travel("Cat Café");
+  await use("piano");
+  await expect(page.locator("#toast")).toContainText("café waltz");
+  await travel("Cat Shop");
+  await use("mirror");
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await travel("Riverside Trail");
+  await use("rod-rack");
+  await expect.poll(() => page.evaluate(() => window.pspsps?.fishing())).toMatch(/waiting|bite/);
+});
+
 test("the sign-in page loads without errors", async ({ page }) => {
   await page.goto("/");
 
