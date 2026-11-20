@@ -33,8 +33,8 @@ public static class RoomPlan
                 }
 
                 var exit = room.MapExit(door);
-                var entrance = target.MapExit(back);
-                var centre = new Position(target.MapCentre.X + exit.X - entrance.X, target.MapCentre.Z + exit.Z - entrance.Z);
+                var entrance = target.MapExitOffset(back);
+                var centre = new Position(exit.X - entrance.X, exit.Z - entrance.Z);
                 if (placed.TryGetValue(target.Id, out var existing))
                 {
                     if (existing.MapCentre.DistanceTo(centre) > tolerance)

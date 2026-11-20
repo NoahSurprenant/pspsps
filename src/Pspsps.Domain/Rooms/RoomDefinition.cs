@@ -65,10 +65,15 @@ public sealed record RoomDefinition(
     /// <summary>The point where an exit reaches the floor boundary, converted to world-map coordinates.</summary>
     public Position MapExit(Door door)
     {
+        var offset = MapExitOffset(door);
+        return new Position(MapCentre.X + offset.X, MapCentre.Z + offset.Z);
+    }
+
+    internal Position MapExitOffset(Door door)
+    {
         var edge = MapEdge(door);
         var offset = edge is RoomEdge.North or RoomEdge.South ? door.Spot.X : door.Spot.Z;
-        var point = PointOnEdge(edge, Exterior is null ? offset : 0, 0, MapWidth, MapDepth);
-        return new Position(MapCentre.X + point.X, MapCentre.Z + point.Z);
+        return PointOnEdge(edge, Exterior is null ? offset : 0, 0, MapWidth, MapDepth);
     }
 
     private static Position PointOnEdge(RoomEdge edge, double offset, double inset, double width, double depth) => edge switch
