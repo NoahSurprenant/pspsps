@@ -30,7 +30,7 @@ export function drawMap(room: RoomSnapshot, travel: (roomId: string) => void): H
 }
 
 function drawPlan(map: HTMLElement, plan: WorldMapView, place: (room: RoomLink) => HTMLElement): void {
-  const margin = 5;
+  const margin = 2;
   const left = Math.min(...plan.rooms.map((room) => room.x - room.width / 2)) - margin;
   const right = Math.max(...plan.rooms.map((room) => room.x + room.width / 2)) + margin;
   const north = Math.max(...plan.rooms.map((room) => room.z + room.depth / 2)) + margin;

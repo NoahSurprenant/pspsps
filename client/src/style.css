@@ -255,7 +255,7 @@ button:disabled {
   min-width: 4.35rem;
 }
 
-@media (max-width: 380px) {
+@media (max-width: 420px) {
   .sheet.map-sheet {
     padding-inline: 0.6rem;
   }
