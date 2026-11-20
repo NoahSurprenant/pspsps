@@ -1,5 +1,5 @@
 import { el } from "./dom";
-import { type CanvasLayout, isLayout, newRoomTemplate, roomCanvas } from "./roomCanvas";
+import { type CanvasDoor, type CanvasLayout, isLayout, newRoomTemplate, roomCanvas } from "./roomCanvas";
 
 export interface LookOptions {
   propKinds: string[];
@@ -163,10 +163,18 @@ export function roomsSection(say: (message: string) => void): HTMLElement {
     together.setAttribute("aria-label", "Publish together with these rooms");
     together.placeholder = "publish with: room-a, room-b";
     const picture = el("div", {});
+    const roomIds = ((await (await fetch("/api/admin/rooms")).json().catch(() => [])) as RoomSummary[]).map((room) => room.roomId);
+    const addDoorPair = async (door: CanvasDoor, back: CanvasDoor): Promise<void> => {
+      const other = (await (await fetch(base(door.toRoom))).json()) as RoomDetail;
+      const otherLayout = (other.draft ?? other.published) as CanvasLayout | null;
+      if (!isLayout(otherLayout)) throw new Error(`${door.toRoom} has no layout to add the way back to.`);
+      await send("PUT", `${base(door.toRoom)}/draft`, { ...otherLayout, doors: [...otherLayout.doors, back] });
+      say(`The way back is in ${door.toRoom}'s draft: publish both rooms together.`);
+    };
     const showPicture = (): void => {
       const parsed = parseJson(layout.value);
       if (!isLayout(parsed)) { picture.replaceChildren(el("p", { className: "quiet", text: "The picture needs a layout with a floor size, props and doors." })); return; }
-      picture.replaceChildren(roomCanvas(parsed, options?.propKinds ?? [], (changed: CanvasLayout) => { layout.value = JSON.stringify(changed, null, 2); }));
+      picture.replaceChildren(roomCanvas(parsed, options?.propKinds ?? [], (changed: CanvasLayout) => { layout.value = JSON.stringify(changed, null, 2); }, { addDoorPair, rooms: roomIds, roomId }));
     };
     layout.addEventListener("change", showPicture);
     showPicture();
