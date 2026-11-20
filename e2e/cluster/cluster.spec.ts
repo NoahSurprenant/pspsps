@@ -83,8 +83,6 @@ test("two cats on different pods see each other walk and chat", async ({ browser
     const felixId = await enterWorld(felix.page, "Tabby");
 
     // One room, whichever pod holds its grain: both see both.
-    await expect.poll(async () => Object.keys(await cats(tom.page)).sort()).toEqual([tomId, felixId].sort());
-    await expect.poll(async () => Object.keys(await cats(felix.page)).sort()).toEqual([tomId, felixId].sort());
 
     // Felix (pod B) walks: Tom (pod A) sees him go; and the other way round.
     await tapFloor(felix.page, 4, 2);
@@ -168,6 +166,9 @@ test("a rolling update: pod A is replaced by a new pod while the game goes on", 
     // Tom's tab came back through the Service (to the new pod) and walked back into the room. If the room's grain was on
     // pod A, it starts over empty elsewhere, and pod A told Felix's tab so as it stopped: he walks back in at once rather
     // than at his next lease renewal (30 s). Either way, within seconds each hears the other again.
+    // Both tabs are back in the room (each sees both cats) before chat is polled, so a line isn't sent into a reconnect.
+    await expect.poll(async () => Object.keys(await cats(tom.page)).sort(), { timeout: 40_000 }).toEqual([tomId, felixId].sort());
+    await expect.poll(async () => Object.keys(await cats(felix.page)).sort(), { timeout: 40_000 }).toEqual([tomId, felixId].sort());
     await expect.poll(async () => {
       await trySay(felix.page, `back ${Date.now()}`);
       return (await chat(tom.page)).some((line) => line.startsWith("back "));
