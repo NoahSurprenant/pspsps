@@ -634,7 +634,7 @@ test("a cat walks the garden loop and travels to a room's spawn from the world m
     const dz = entrance.edge === "north" ? -offset : entrance.edge === "south" ? offset : 0;
     expect(cat.x).toBeCloseTo(entrance.x + dx, 6);
     expect(cat.z).toBeCloseTo(entrance.z + dz, 6);
-    if (id === "riverside") await expect(page.getByRole("button", { name: "Fish" })).toBeVisible();
+    if (id === "riverside") await expect(page.getByRole("button", { name: "🎣 Fish", exact: true })).toBeVisible();
     previous = id;
   }
   await goThroughDoor(page, "cafe", "Cat Café");

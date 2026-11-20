@@ -87,11 +87,11 @@ public static class RoomCatalog
             Props =
             [
                 new Prop(PropKinds.Tree, new Position(-8.4, -3.8), Radius: 1.35),
-                new Prop(PropKinds.RodRack, new Position(8.3, -2.5), Radius: 1.4),
-                new Prop(PropKinds.Tree, new Position(7.3, -5.4), Radius: 1.4),
+                new Prop(PropKinds.RodRack, new Position(4.3, -5.5), Radius: 1.4),
+                new Prop(PropKinds.Tree, new Position(8.3, -2.5), Radius: 1.4),
                 Prop.BenchFacing(new(3.5, -2.5), new(-3, -2)),
                 new Prop(PropKinds.FlowerBed, new Position(1.1, -5.7), Radius: 0.9),
-                new Prop(PropKinds.Lamp, new Position(3, -4.8), Radius: 0.35),
+                new Prop(PropKinds.Lamp, new Position(8.2, -5.8), Radius: 0.35),
             ],
         }.WithDoors(
             ("pear-orchard", RoomEdge.West, 3.5, "pear-orchard", "riverside"),
@@ -104,7 +104,7 @@ public static class RoomCatalog
                 new Prop(PropKinds.PearTree, new(-6, 0), Radius: 1.4),
                 new Prop(PropKinds.PearTree, new(-6, -6), Radius: 1.4),
                 new Prop(PropKinds.PackingCrate, new(2, -6), Radius: 1.4),
-                Prop.BenchFacing(new(-2, -7), new(2, -6)),
+                Prop.BenchFacing(new(-3.6, -4.8), new(2, -6)),
             ],
         }.WithDoors(
             ("garden", RoomEdge.North, 5.8, "garden", "pear-orchard"),

@@ -155,10 +155,10 @@ function riversideBackdrop(plan: Floorplan): Part[] {
       shape: "ball", diameter: 28, height: 9 + i * 1.5,
       at: [x, 0.5, bank + 24], colour: i % 2 ? "#8bb987" : "#a0c78c",
     })),
-    ...[-12, -9.8, 9.8, 12.2].map((x, i): Part => ({
-      shape: "ball", diameter: 2.6, height: 5.1, at: [x, 3.2 + i % 2, bank + 0.2],
-      colour: i % 2 ? "#689e75" : "#82b080",
-    })),
+    ...[-12, -9.8, 9.8, 12.2].flatMap((x, i): Part[] => [
+      { shape: "cylinder", diameter: 0.32, height: 2.3, at: [x, 1.15, bank - 0.7], colour: palette.darkWood },
+      { shape: "ball", diameter: 2.6, height: 5.1, at: [x, 3.2 + i % 2, bank - 0.7], colour: i % 2 ? "#689e75" : "#82b080" },
+    ]),
   ];
 }
 
