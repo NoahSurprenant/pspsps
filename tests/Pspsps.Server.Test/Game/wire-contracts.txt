@@ -106,6 +106,7 @@ type DoorView 2: Double Z
 type DoorView 3: Double Radius
 type DoorView 4: String ToRoomId
 type DoorView 5: String ToRoomName
+type DoorView 6: String Edge
 type EmoteView 0: Guid PlayerId
 type EmoteView 1: String Emote
 type EmoteView 2: DateTimeOffset At

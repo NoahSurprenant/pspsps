@@ -36,15 +36,21 @@ export class DoorWalks {
 const doorwayReach = 2;
 
 /** Whether <door> has a doorway in the back wall of a room <depth> deep (the wall is at +depth / 2). */
-export function hasDoorway(door: Pick<DoorView, "z">, depth: number): boolean {
-  return depth / 2 - door.z <= doorwayReach;
+export function hasDoorway(door: Pick<DoorView, "z" | "edge">, depth: number): boolean {
+  return door.edge ? door.edge === "north" : depth / 2 - door.z <= doorwayReach;
 }
 
 /** The edge an outdoor path exits through, continuing straight past its walkable entrance. */
 export function pathEdge(
-  door: Pick<DoorView, "x" | "z">, room: { width: number; depth: number },
+  door: Pick<DoorView, "x" | "z" | "edge">, room: { width: number; depth: number },
 ): { x: number; z: number } {
   const [halfWidth, halfDepth] = [room.width / 2, room.depth / 2];
+  switch (door.edge) {
+    case "north": return { x: door.x, z: halfDepth };
+    case "east": return { x: halfWidth, z: door.z };
+    case "south": return { x: door.x, z: -halfDepth };
+    case "west": return { x: -halfWidth, z: door.z };
+  }
   return halfWidth - Math.abs(door.x) < halfDepth - Math.abs(door.z)
     ? { x: Math.sign(door.x) * halfWidth, z: door.z }
     : { x: door.x, z: Math.sign(door.z) * halfDepth };

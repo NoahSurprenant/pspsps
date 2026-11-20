@@ -157,6 +157,8 @@ export interface DoorView {
   radius: number;
   toRoomId: string;
   toRoomName: string;
+  /** The chosen side of the floor. Homes and older pods send no edge. */
+  edge?: "north" | "east" | "south" | "west" | null;
 }
 
 /**

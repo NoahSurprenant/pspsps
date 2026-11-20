@@ -190,13 +190,14 @@ public sealed record DoorView(
     [property: Id(2)] double Z,
     [property: Id(3)] double Radius,
     [property: Id(4)] string ToRoomId,
-    [property: Id(5)] string ToRoomName)
+    [property: Id(5)] string ToRoomName,
+    [property: Id(6)] string? Edge = null)
 {
     public static DoorView From(Door door)
     {
         ArgumentNullException.ThrowIfNull(door);
         var to = RoomCatalog.Find(door.ToRoom) ?? throw new InvalidOperationException($"No room '{door.ToRoom}'.");
-        return new DoorView(door.Id, door.Spot.X, door.Spot.Z, door.Radius, to.Id, to.Name);
+        return new DoorView(door.Id, door.Spot.X, door.Spot.Z, door.Radius, to.Id, to.Name, door.Edge?.ToString().ToLowerInvariant());
     }
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DoorWalks, doorAt, pathEdge } from "./doors";
+import { DoorWalks, doorAt, hasDoorway, pathEdge } from "./doors";
 import type { DoorView } from "./types";
 
 const cafe: DoorView = { id: "cafe", x: 7, z: 7, radius: 0.8, toRoomId: "cafe", toRoomName: "Cat Café" };
@@ -20,6 +20,12 @@ describe("pathEdge", () => {
   it("extends each outdoor path to its nearest edge", () => {
     expect(pathEdge({ x: -11, z: 3.3 }, square)).toEqual({ x: -12, z: 3.3 });
     expect(pathEdge({ x: 6.4, z: -7 }, square)).toEqual({ x: 6.4, z: -8 });
+  });
+
+  it("uses the declared side of an exit near a corner", () => {
+    const exit = { x: -11, z: 7.2, edge: "west" } as const;
+    expect(pathEdge(exit, square)).toEqual({ x: -12, z: 7.2 });
+    expect(hasDoorway(exit, square.depth)).toBe(false);
   });
 });
 
