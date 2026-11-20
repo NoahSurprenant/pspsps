@@ -19,6 +19,7 @@ public static class DependencyInjection
         services.AddKeyedSingleton(ModerationClock.Key, (provider, _) => provider.GetRequiredService<TimeProvider>());
         services.AddSingleton<IRoomLibrary, RoomLibrary>();
         services.AddScoped<IRoomEditor, RoomEditor>();
+        services.AddScoped<IRoomPreviewer, RoomPreviewer>();
         services.AddScoped<IPlayerService, PlayerService>();
         services.AddScoped<IFriendService, FriendService>();
         services.AddScoped<IShopService, ShopService>();

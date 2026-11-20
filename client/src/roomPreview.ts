@@ -1,0 +1,42 @@
+import type { RoomSnapshot } from "./types";
+
+/** Where the server gives a room as it would be with its drafts in place; with an overlay, that overlay on. */
+export function previewUrl(roomId: string, overlayId?: string): string {
+  const query = overlayId ? `?overlay=${encodeURIComponent(overlayId)}` : "";
+  return `/api/admin/rooms/${encodeURIComponent(roomId)}/preview${query}`;
+}
+
+export interface RoomPreview {
+  /** Draws the room as the server says it would be (the draft and the overlay in place); throws the server's message when it can't be. */
+  show(roomId: string, overlayId?: string): Promise<void>;
+}
+
+/**
+ * The real 3D scene on an admin-page canvas, with no cats and no connection. The scene and Babylon load on the first
+ * preview, not with the admin page.
+ */
+export function roomPreview(canvas: HTMLCanvasElement): RoomPreview {
+  let scene: Promise<{ show: (snapshot: RoomSnapshot) => void }> | undefined;
+  const make = async (): Promise<{ show: (snapshot: RoomSnapshot) => void }> => {
+    const [{ Engine }, { RoomScene }, { loadPropDesigns }, { loadLooks }] = await Promise.all([
+      import("@babylonjs/core/Engines/engine"), import("./scene"), import("./props"), import("./looks"),
+    ]);
+    await Promise.all([loadPropDesigns(), loadLooks()]);
+    const engine = new Engine(canvas, true, { stencil: true, canvasTabIndex: -1 });
+    const made = new RoomScene(engine, undefined, false);
+    window.addEventListener("resize", () => engine.resize());
+    return made;
+  };
+  return {
+    async show(roomId, overlayId) {
+      const response = await fetch(previewUrl(roomId, overlayId));
+      if (!response.ok) {
+        const said = (await response.json().catch(() => null)) as { message?: string } | null;
+        throw new Error(said?.message ?? `The preview could not be made (${response.status}).`);
+      }
+      const snapshot = (await response.json()) as RoomSnapshot;
+      scene ??= make();
+      (await scene).show(snapshot);
+    },
+  };
+}

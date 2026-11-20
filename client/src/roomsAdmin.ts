@@ -1,4 +1,5 @@
 import { el } from "./dom";
+import { roomPreview } from "./roomPreview";
 import { type CanvasLayout, isLayout, newRoomTemplate, roomCanvas } from "./roomCanvas";
 
 export interface LookOptions {
@@ -144,6 +145,18 @@ export function roomsSection(say: (message: string) => void): HTMLElement {
     together.setAttribute("aria-label", "Publish together with these rooms");
     together.placeholder = "publish with: room-a, room-b";
     const picture = el("div", {});
+    const stage = el("canvas", {});
+    stage.width = 640;
+    stage.height = 400;
+    stage.style.maxWidth = "100%";
+    stage.setAttribute("aria-label", `Preview of ${roomId} in 3D`);
+    stage.hidden = true;
+    const preview = roomPreview(stage);
+    const look = (overlayId?: string): void => void run(async () => {
+      await preview.show(roomId, overlayId);
+      stage.hidden = false;
+      say(overlayId ? `${roomId} with ${overlayId} on, with every draft in place.` : `${roomId} with every draft in place.`);
+    });
     const showPicture = (): void => {
       const parsed = parseJson(layout.value);
       if (!isLayout(parsed)) { picture.replaceChildren(el("p", { className: "quiet", text: "The picture needs a layout with a floor size, props and doors." })); return; }
@@ -159,6 +172,7 @@ export function roomsSection(say: (message: string) => void): HTMLElement {
     editor.replaceChildren(
       el("h3", { text: `${roomId}${detail?.draft ? " (editing the draft)" : ""}` }),
       picture,
+      stage,
       layout,
       el("div", {},
         button("Save draft", () => void run(async () => {
@@ -168,6 +182,7 @@ export function roomsSection(say: (message: string) => void): HTMLElement {
           say(problemsText(saved?.problems ?? []));
           await refresh();
         })),
+        button("Preview in 3D", () => look()),
         button("Publish draft", () => void run(async () => {
           await send("POST", `${base(roomId)}/publish${publishQuery(together.value)}`);
           say(`${roomId} is published.`);
@@ -214,6 +229,7 @@ export function roomsSection(say: (message: string) => void): HTMLElement {
       el("h3", { text: "Seasonal overlays" }),
       el("ul", { className: "list" }, ...(detail?.overlays ?? []).map((existing) =>
         el("li", { text: `${existing.id} ` },
+          button("Preview", () => look(existing.id)),
           button("Edit", () => { overlay.value = JSON.stringify(existing, null, 2); }),
           button("Delete", () => void run(async () => {
             await send("DELETE", `${base(roomId)}/overlays/${encodeURIComponent(existing.id)}`);
