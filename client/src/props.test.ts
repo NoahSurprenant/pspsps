@@ -116,3 +116,16 @@ describe("besideProp", () => {
     expect(besideProp([bench], floor, 0, 6)).toBeUndefined();
   });
 });
+
+describe("growth", () => {
+  const spot = (kind: string): PropView => ({ kind, x: 0, z: 0, radius: 1.4, facing: 0 }) as PropView;
+
+  it("draws a growing prop's extra parts only at the stages its design says", () => {
+    const tree = (stage: number): number => propParts(spot("pear-tree"), stage).length;
+    const crate = (stage: number): number => propParts(spot("packing-crate"), stage).length;
+
+    expect(tree(0)).toBeGreaterThan(tree(1));
+    expect(crate(2)).toBeGreaterThan(crate(1));
+    expect(crate(1)).toBeGreaterThan(crate(0));
+  });
+});

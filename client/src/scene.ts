@@ -265,9 +265,9 @@ export class RoomScene {
     this.scene.onDisposeObservable.add(() => this.engine.onResizeObservable.removeCallback(fit));
     camera.inputs.clear();
 
-    const look = lookOf(room.roomId);
+    const look = lookOf(room.roomId, room.look);
     this.scene.clearColor = Color4.FromHexString(`${look.sky}ff`);
-    const plan: Floorplan = { width: room.width, depth: room.depth, pond: room.pond, doors: room.doors, props: room.roomId === "pear-orchard" ? room.props : undefined, worldMap: room.worldMap };
+    const plan: Floorplan = { width: room.width, depth: room.depth, pond: room.pond, doors: room.doors, props: look.floorNeedsProps ? room.props : undefined, worldMap: room.worldMap };
     const floor = CreateGround("floor", { width: room.width, height: room.depth }, this.scene);
     floor.material = look.paintFloor
       ? painted(this.scene, "floor", `${room.roomId}/floor/${JSON.stringify(plan)}`, textureSize(room.width, room.depth, floorPixelsPerMetre),
@@ -408,7 +408,7 @@ export class RoomScene {
         this.tapScreen(this.scene.pointerX, this.scene.pointerY);
       }
     };
-    const animateWildlife = wildlife(this.scene, room);
+    const animateWildlife = wildlife(this.scene, room, look.wildlife);
     this.scene.onBeforeRenderObservable.add(() => {
       const seconds = this.engine.getDeltaTime() / 1000;
       this.step(seconds);

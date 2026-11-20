@@ -3,17 +3,17 @@ import { buildParts, palette, type Part } from "./props";
 import type { RoomSnapshot } from "./types";
 
 /** A pair of fish under the blue shallows or a butterfly visiting the courtyard flowers. Both let taps through. */
-export function wildlife(scene: Scene, room: RoomSnapshot): ((seconds: number) => void) | undefined {
+export function wildlife(scene: Scene, room: RoomSnapshot, kind: "fish" | "butterfly" | undefined): ((seconds: number) => void) | undefined {
   let parts: Part[];
   let position: (time: number) => [number, number, number];
-  if (room.roomId === "riverside" && room.pond) {
+  if (kind === "fish" && room.pond) {
     const pond = room.pond;
     parts = [-0.2, 0.2].flatMap((side): Part[] => [
       { shape: "ball", diameter: 0.2, height: 0.03, at: [side, 0, side], colour: "#44879b", outlined: false },
       { shape: "box", width: 0.13, height: 0.02, depth: 0.13, at: [side, 0, side - 0.13], turn: [0, Math.PI / 4, 0], colour: "#44879b", outlined: false },
     ]);
     position = t => [pond.x + Math.cos(t * 0.55) * pond.radius * 0.48, 0.065, pond.z + Math.sin(t * 0.55) * pond.radius * 0.48];
-  } else if (room.roomId === "garden") {
+  } else if (kind === "butterfly") {
     const flowers = room.props?.filter(p => p.kind === "flower-bed");
     const first = flowers?.[0];
     const next = flowers?.[1];

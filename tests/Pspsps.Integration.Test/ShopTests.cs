@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Pspsps.Application.Abstractions;
 using Pspsps.Application.Friends;
+using Pspsps.Application.Rooms;
 using Pspsps.Application.Moderation;
 using Pspsps.Application.Players;
 using Pspsps.Application.Shop;
@@ -99,7 +100,7 @@ public sealed class ShopTests
         await using var db = RacingContext(ct => Shop.BuyAsync(guest.Id, RoomCatalog.ShopId, "beanie", ct));
 
         var refused = Assert.ThrowsAsync<DomainException>(() =>
-            new ShopService(db, TimeProvider.System).BuyAsync(guest.Id, RoomCatalog.ShopId, "bow", CancellationToken.None));
+            new ShopService(db, FixedRoomLibrary.Starting(), TimeProvider.System).BuyAsync(guest.Id, RoomCatalog.ShopId, "bow", CancellationToken.None));
         var saved = await Shop.GetAsync(guest.Id, CancellationToken.None);
 
         Assert.Multiple(() =>
@@ -118,7 +119,7 @@ public sealed class ShopTests
         await using var db = RacingContext(ct => Shop.BuyAsync(guest.Id, RoomCatalog.ShopId, "bow", ct));
 
         var refused = Assert.ThrowsAsync<DomainException>(() =>
-            new ShopService(db, TimeProvider.System).BuyAsync(guest.Id, RoomCatalog.ShopId, "bow", CancellationToken.None));
+            new ShopService(db, FixedRoomLibrary.Starting(), TimeProvider.System).BuyAsync(guest.Id, RoomCatalog.ShopId, "bow", CancellationToken.None));
         var saved = await Shop.GetAsync(guest.Id, CancellationToken.None);
 
         Assert.That(refused!.Message, Is.EqualTo("You already have the Bow."));
@@ -133,7 +134,7 @@ public sealed class ShopTests
         await GiveCoinsAsync(guest.Id, 50);
         await using var db = RacingContext(ct => Game.Get<IPlayerService>().EarnCoinsAsync(guest.Id, 20, ct));
 
-        var bought = await new ShopService(db, TimeProvider.System).BuyAsync(guest.Id, RoomCatalog.ShopId, "bow", CancellationToken.None);
+        var bought = await new ShopService(db, FixedRoomLibrary.Starting(), TimeProvider.System).BuyAsync(guest.Id, RoomCatalog.ShopId, "bow", CancellationToken.None);
         var saved = await Shop.GetAsync(guest.Id, CancellationToken.None);
 
         Assert.That(bought.Coins, Is.EqualTo(25));

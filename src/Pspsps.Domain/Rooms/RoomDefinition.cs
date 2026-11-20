@@ -13,11 +13,22 @@ public sealed record RoomDefinition(
     /// <summary>The room's decoration, which cats walk through (<see cref="PropPlacement"/> has where props may stand).</summary>
     public IReadOnlyList<Prop> Props { get; init; } = [];
 
+    /// <summary>The ID of the look the browser paints the room in (an overlay's season, say); null for the room's own.</summary>
+    public string? Look { get; init; }
+
     /// <summary>The centre of a public room on the world map, in the same metres as its floor.</summary>
     public Position MapCentre { get; init; }
 
     /// <summary>For an interior, the building seen from the street has its own footprint and front entrance.</summary>
     public Storefront? Exterior { get; init; }
+
+    /// <summary>Whether this is the same room as <paramref name="other"/> to a cat in it: the same floor, doors, props and look.</summary>
+    public bool SameAs(RoomDefinition other)
+    {
+        ArgumentNullException.ThrowIfNull(other);
+        return Equals(this with { Doors = [], Props = [] }, other with { Doors = [], Props = [] })
+            && Doors.SequenceEqual(other.Doors) && Props.SequenceEqual(other.Props);
+    }
 
     public double MapWidth => Exterior?.Width ?? Width;
     public double MapDepth => Exterior?.Depth ?? Depth;

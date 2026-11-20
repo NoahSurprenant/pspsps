@@ -118,6 +118,8 @@ export interface RoomSnapshot {
   notice?: string | null;
   /** The public floor plans and routes. Older pods send the destination list only. */
   worldMap?: WorldMapView | null;
+  /** The look an overlay gives the room for now (a named variant of its own look); missing when it has none, or from an older server. */
+  look?: string | null;
 }
 
 /** Who may come into a player's home, besides its owner (the Domain's HomeVisitors). */

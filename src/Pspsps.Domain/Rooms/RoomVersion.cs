@@ -1,0 +1,108 @@
+namespace Pspsps.Domain.Rooms;
+
+public enum RoomVersionState
+{
+    /// <summary>Being worked on: players never see it.</summary>
+    Draft,
+
+    /// <summary>The room as players have it; a room has at most one.</summary>
+    Published,
+
+    /// <summary>Once published, since replaced; kept so the room can go back to it.</summary>
+    Archived,
+}
+
+/// <summary>
+/// One version of a room's layout. A room is what its published version says; to change it, a draft is made (from the
+/// published version, or from nothing for a new room), edited, checked against every other room (<see cref="RoomBook"/>)
+/// and published, which archives the version it replaces. Going back is publishing a copy of an archived version.
+/// </summary>
+public sealed class RoomVersion
+{
+    private RoomVersion()
+    {
+        RoomId = string.Empty;
+        Layout = null!;
+    }
+
+    public Guid Id { get; private set; }
+
+    public string RoomId { get; private set; }
+
+    /// <summary>1 for a room's first version, and one more for each after it.</summary>
+    public int Number { get; private set; }
+
+    public RoomVersionState State { get; private set; }
+
+    public RoomLayout Layout { get; private set; }
+
+    public Guid? CreatedBy { get; private set; }
+
+    public DateTimeOffset CreatedAt { get; private set; }
+
+    public DateTimeOffset? PublishedAt { get; private set; }
+
+    public static RoomVersion Draft(string roomId, int number, RoomLayout layout, Guid? createdBy, DateTimeOffset now)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(roomId);
+        ArgumentNullException.ThrowIfNull(layout);
+        if (number < 1)
+        {
+            throw new DomainException("A room's versions are numbered from 1.");
+        }
+
+        return new RoomVersion
+        {
+            Id = Guid.NewGuid(),
+            RoomId = roomId,
+            Number = number,
+            State = RoomVersionState.Draft,
+            Layout = layout,
+            CreatedBy = createdBy,
+            CreatedAt = now,
+        };
+    }
+
+    /// <summary>Publishes a version straight away: for the rooms a new database starts with.</summary>
+    public static RoomVersion Published(string roomId, RoomLayout layout, DateTimeOffset now)
+    {
+        var version = Draft(roomId, 1, layout, null, now);
+        version.Publish(now);
+        return version;
+    }
+
+    public void Edit(RoomLayout layout)
+    {
+        ArgumentNullException.ThrowIfNull(layout);
+        if (State != RoomVersionState.Draft)
+        {
+            throw new DomainException("Only a draft can be edited: make a new draft from this version.");
+        }
+
+        Layout = layout;
+    }
+
+    public void Publish(DateTimeOffset now)
+    {
+        if (State != RoomVersionState.Draft)
+        {
+            throw new DomainException("Only a draft can be published: make a new draft from this version.");
+        }
+
+        State = RoomVersionState.Published;
+        PublishedAt = now;
+    }
+
+    public void Archive()
+    {
+        if (State != RoomVersionState.Published)
+        {
+            throw new DomainException("Only the published version can be replaced.");
+        }
+
+        State = RoomVersionState.Archived;
+    }
+
+    /// <summary>A new draft of the room with this version's layout, to edit or to go back to.</summary>
+    public RoomVersion DraftFrom(int number, Guid? createdBy, DateTimeOffset now) => Draft(RoomId, number, Layout, createdBy, now);
+}

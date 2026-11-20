@@ -57,6 +57,20 @@ A move goes like this:
 3. The grain checks the move against the room's rules (`RoomState`), then broadcasts it to the room's SignalR group.
 4. The Redis backplane carries the broadcast to every pod with a connection in that group.
 
+Rooms are content, not code. A room is what its published `RoomVersion` says (a `RoomLayout` kept as jsonb); the
+compiled-in `RoomCatalog` is only the seed a new database starts with (`RoomSeeder`). Admins change rooms on the admin
+page without a deploy (`IRoomEditor`, `/api/admin/rooms`): a draft is saved, checked with every other room as a whole
+(`RoomBook.Problems`: doors meet, rooms fit on the map, props keep clear), then published, which archives the version it
+replaces; going back publishes a copy of an old version. Seasonal and event changes are `RoomOverlay` rows (props added or
+removed, a named look variant) with a window, yearly or one-off, applied while on. `IRoomLibrary` holds the current
+`RoomBook` in memory on each pod and reloads it every 10 seconds; a room's grain deactivates, and its tabs rejoin, when
+its definition has changed. Prop designs (including growth stages) are data too (`prop_designs`, served at `/api/props`), and so are room looks
+(`room_looks`, `look_variants`, served at `/api/looks`): a look names the client's painters, generators and wildlife,
+and the lists of names are mirrored in `RoomLook.cs` and the client registries, held equal by a test. A room needs a look
+to be published, and an overlay may only name a look variant that exists. A brand-new room cannot be published alone,
+since doors must meet both ways: the publish call takes the other rooms to publish with it (`?with=a,b`), all in one
+transaction. The admin page edits a layout as JSON or on a top-down canvas (drag props, doors and the spawn; click to add).
+
 Rooms are joined by doors, in the room catalogue (`RoomCatalog`): a door (`Door`) is a round spot on a room's floor
 that leads to a door of another room. The browser walks the cat onto it, then calls `GoThroughDoor`; the room's grain
 lets the cat out only if it stands on that door (`RoomState.LeaveThrough`), and the next room puts it just inside

@@ -8,9 +8,8 @@ public sealed record WorldMapView(
     [property: Id(0)] IReadOnlyList<MapRoomView> Rooms,
     [property: Id(1)] IReadOnlyList<MapRouteView> Routes)
 {
-    internal static WorldMapView FromCatalogue()
+    internal static WorldMapView From(IReadOnlyList<RoomDefinition> rooms)
     {
-        var rooms = RoomCatalog.All;
         var byId = rooms.ToDictionary(room => room.Id);
         var routes = new List<MapRouteView>();
         foreach (var room in rooms)

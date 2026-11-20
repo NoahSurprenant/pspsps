@@ -1,11 +1,15 @@
-// Each room's look: the sky (the colour round it), how its floor and back wall are painted, the ground round it, and the
-// backdrop behind its back wall that the fixed camera sees over it.
+// Each room's look, read from the server (the server starts with RoomLooks.json): the sky (the colour round it), how its
+// floor and back wall are painted, the ground round it, and the backdrop behind its back wall that the fixed camera sees
+// over it. The browser only knows the painters, generators and wildlife by name (the lists the server checks a look
+// against: src/Pspsps.Domain/Rooms/RoomLook.cs); which a room uses, and every colour and part, is data.
 import {
   townHouses, paintCafeFloor, paintCafeWall, paintHomeFloor, paintHomeWall, paints, paintShopFloor, paintShopWall, paintStreet,
   paintGardenFloor, paintGardenWall, paintOrchardFloor, paintRiversideFloor, paintRiversideWall, paintTownSquareFloor, paintTownSquareWall,
   type Brush, type Floorplan,
 } from "./paint";
-import { ink, palette, type Part } from "./props";
+import { paintBrickWall, paintChecker, paintPanelledWall, paintPlanks, paintTiles, type PaintColours } from "./paintPlain";
+import { setOpenLandscapes } from "./doors";
+import { palette, type Part } from "./props";
 import type { DoorView } from "./types";
 
 export interface RoomLook {
@@ -18,148 +22,132 @@ export interface RoomLook {
   /** The ground round the floor, if any (a town's street): its colour, and a painting that repeats every <streetTile> metres. */
   ground?: { colour: string; paint?(brush: Brush, scale: number): void };
   paintFloor?(brush: Brush, plan: Floorplan, scale: number): void;
+  /** Whether the floor's painter wants the room's props (the orchard paints round its trees). */
+  floorNeedsProps: boolean;
   /** Paints the back wall's front, round <doorways>: the doors with a doorway in the wall (doors.ts, hasDoorway). */
   paintWall?(brush: Brush, width: number, height: number, scale: number, doorways: readonly DoorView[], map?: Floorplan["worldMap"]): void;
+  /** Open countryside: no back wall, and a path through the north edge as well. */
+  openLandscape: boolean;
+  /** A creature that lives in the room, drawn by wildlife.ts. */
+  wildlife?: "fish" | "butterfly";
   /** What stands behind the back wall (and round the room), in the room's own space. */
   backdrop(plan: Floorplan, wallHeight: number): Part[];
+}
+
+/** A room's look as the server keeps it. */
+export interface RoomLookData {
+  sky: string;
+  floorColour: string;
+  wallColour: string;
+  ground?: { colour: string; painter?: string };
+  floor?: { painter: string; colour?: string; accent?: string };
+  wall?: { painter: string; colour?: string; accent?: string };
+  openLandscape?: boolean;
+  wildlife?: string;
+  backdrop: { generator?: string; parts: Part[] };
+}
+
+export interface LooksData {
+  rooms: { id: string; look: RoomLookData }[];
+  variants: { id: string; sky: string; wallColour: string }[];
 }
 
 /** Where Town Square's plaza is paved: round the spawn point (src/Pspsps.Domain/Rooms/RoomCatalog.cs), a little in front. */
 const plaza = { x: 0, z: 3.4 };
 
-const looks: Record<string, RoomLook> = {
-  "town-square": {
-    sky: "#bfe3f2",
-    floorColour: paints.grass,
-    wallColour: paints.plinth,
-    ground: { colour: paints.street, paint: paintStreet },
-    paintFloor: (brush, plan, scale) => paintTownSquareFloor(brush, plan, scale, plaza),
-    paintWall: paintTownSquareWall,
-    backdrop: townBackdrop,
-  },
-  cafe: {
-    sky: "#e8d2b8",
-    floorColour: paints.plank,
-    wallColour: paints.cafeWall,
-    paintFloor: paintCafeFloor,
-    paintWall: paintCafeWall,
-    backdrop: cafeBackdrop,
-  },
-  // The shop, off Town Square, where the catalogue is.
-  shop: {
-    sky: "#eadfc4",
-    floorColour: paints.shopTile,
-    wallColour: paints.shopWall,
-    paintFloor: paintShopFloor,
-    paintWall: paintShopWall,
-    backdrop: shopBackdrop,
-  },
-  garden: {
-    sky: "#d1eaf3",
-    floorColour: paints.grass,
-    wallColour: "#f0ddba",
-    ground: { colour: "#b7cf98" },
-    paintFloor: paintGardenFloor,
-    paintWall: paintGardenWall,
-    backdrop: gardenBackdrop,
-  },
-  "pear-orchard": {
-    sky: "#e1edf2",
-    floorColour: paints.grass,
-    wallColour: "#91ad72",
-    ground: { colour: "#a9c587" },
-    paintFloor: paintOrchardFloor,
-    backdrop: orchardBackdrop,
-  },
-  riverside: {
-    sky: "#c1e2ef",
-    floorColour: paints.grass,
-    wallColour: "#ac805b",
-    ground: { colour: "#acc98b" },
-    paintFloor: paintRiversideFloor,
-    paintWall: paintRiversideWall,
-    backdrop: riversideBackdrop,
-  },
-  // Every player's home (src/Pspsps.Domain/Homes/Home.cs, Layout): one look, its furniture the owner's own.
-  home: {
-    sky: "#e9d8c8",
-    floorColour: paints.homeBoard,
-    wallColour: paints.wallpaper,
-    paintFloor: paintHomeFloor,
-    paintWall: paintHomeWall,
-    backdrop: homeBackdrop,
-  },
+type FloorPainter = (brush: Brush, plan: Floorplan, scale: number, colours: PaintColours) => void;
+type WallPainter = (brush: Brush, width: number, height: number, scale: number, doors: readonly DoorView[], map: Floorplan["worldMap"], colours: PaintColours) => void;
+
+/** The floor painters a look may name. */
+export const floorPainters: Record<string, FloorPainter> = {
+  "town-square": (brush, plan, scale) => paintTownSquareFloor(brush, plan, scale, plaza),
+  cafe: paintCafeFloor,
+  shop: paintShopFloor,
+  garden: paintGardenFloor,
+  "pear-orchard": paintOrchardFloor,
+  riverside: paintRiversideFloor,
+  home: paintHomeFloor,
+  planks: paintPlanks,
+  tiles: paintTiles,
+  checker: paintChecker,
 };
 
+/** The back-wall painters a look may name. */
+export const wallPainters: Record<string, WallPainter> = {
+  "town-square": (brush, width, height, scale, doors, map) => paintTownSquareWall(brush, width, height, scale, doors, map),
+  cafe: (brush, width, height, scale, doors) => paintCafeWall(brush, width, height, scale, doors),
+  shop: (brush, width, height, scale, doors) => paintShopWall(brush, width, height, scale, doors),
+  garden: (brush, width, height, scale) => paintGardenWall(brush, width, height, scale),
+  riverside: (brush, width, height, scale) => paintRiversideWall(brush, width, height, scale),
+  home: (brush, width, height, scale, doors) => paintHomeWall(brush, width, height, scale, doors),
+  panelled: (brush, width, height, scale, _doors, _map, colours) => paintPanelledWall(brush, width, height, scale, colours),
+  bricks: (brush, width, height, scale, _doors, _map, colours) => paintBrickWall(brush, width, height, scale, colours),
+};
+
+/** The ground painters a look may name. */
+export const groundPainters: Record<string, (brush: Brush, scale: number) => void> = { street: paintStreet };
+
+/** The backdrop generators a look may name: what is too much to write out as parts. */
+export const backdropGenerators: Record<string, (plan: Floorplan, wallHeight: number) => Part[]> = { town: townBackdrop };
+
+export const wildlifeKinds = ["fish", "butterfly"] as const;
+
 /** A room no look is made for yet: a plain floor and wall under the sky. */
-const plain: RoomLook = { sky: "#bfe3f2", floorColour: paints.grass, wallColour: "#f4efe4", backdrop: () => [] };
+const plain: RoomLook = {
+  sky: "#bfe3f2", floorColour: paints.grass, wallColour: "#f4efe4", floorNeedsProps: false, openLandscape: false, backdrop: () => [],
+};
 
-export function lookOf(roomId: string): RoomLook {
-  return looks[roomId] ?? plain;
+const rooms = new Map<string, RoomLook>();
+
+/** What a seasonal overlay changes of a room's look, by name: its colours only, so any room can wear any of them. */
+const variants = new Map<string, { sky: string; wallColour: string }>();
+
+function lookFromData(data: RoomLookData): RoomLook {
+  const floor = data.floor && floorPainters[data.floor.painter];
+  const wall = data.wall && wallPainters[data.wall.painter];
+  const ground = data.ground?.painter ? groundPainters[data.ground.painter] : undefined;
+  const generate = data.backdrop.generator ? backdropGenerators[data.backdrop.generator] : undefined;
+  const floorColours = { colour: data.floor?.colour ?? data.floorColour, accent: data.floor?.accent };
+  const wallColours = { colour: data.wall?.colour ?? data.wallColour, accent: data.wall?.accent };
+  return {
+    sky: data.sky,
+    floorColour: data.floorColour,
+    wallColour: data.wallColour,
+    ground: data.ground ? { colour: data.ground.colour, paint: ground } : undefined,
+    paintFloor: floor ? (brush, plan, scale) => floor(brush, plan, scale, floorColours) : undefined,
+    floorNeedsProps: data.floor?.painter === "pear-orchard",
+    paintWall: wall ? (brush, width, height, scale, doors, map) => wall(brush, width, height, scale, doors, map, wallColours) : undefined,
+    openLandscape: data.openLandscape ?? false,
+    wildlife: data.wildlife === "fish" || data.wildlife === "butterfly" ? data.wildlife : undefined,
+    backdrop: (plan, wallHeight) => [...(generate ? generate(plan, wallHeight) : []), ...data.backdrop.parts],
+  };
 }
 
-function gardenBackdrop(plan: Floorplan): Part[] {
-  // Clipped hedges and flowering canopies behind the courtyard's stone wall.
-  const back = plan.depth / 2 + 3.2;
-  return [
-    { shape: "box", width: plan.width + 9, height: 4.15, depth: 1.6, at: [0, 2.08, back], colour: "#76a46b" },
-    ...[-9, -4.5, 0, 4.5, 9].map((x, i): Part => ({
-      shape: "ball", diameter: 5.6, height: i % 2 ? 3.8 : 4.8,
-      at: [x, 4.8, back + 0.8], colour: i % 2 ? "#a9c681" : "#93b578",
-    })),
-    ...[-8.4, -5.4, -0.5, 4.9, 8.1].map((x, i): Part => ({
-      shape: "ball", diameter: 0.7, at: [x, i % 2 ? 5.3 : 6, back - 1.15], colour: i % 2 ? "#f6d28e" : "#e8a5ad",
-    })),
-  ];
+export function setLooks(data: LooksData): void {
+  rooms.clear();
+  variants.clear();
+  for (const { id, look } of data.rooms) {
+    rooms.set(id, lookFromData(look));
+  }
+  for (const { id, sky, wallColour } of data.variants) {
+    variants.set(id, { sky, wallColour });
+  }
+  setOpenLandscapes(data.rooms.filter(({ look }) => look.openLandscape).map(({ id }) => id));
 }
 
-function orchardBackdrop(plan: Floorplan): Part[] {
-  const trees: Part[] = [];
-  for (const x of [-12, -8, -4, 0, 12]) {
-    const z = plan.depth / 2 + 3;
-    trees.push(
-      { shape: "cylinder", diameter: 0.55, height: 3, at: [x, 1.5, z], colour: palette.wood },
-      { shape: "ball", diameter: 3.8, height: 3.2, at: [x, 3.2, z], colour: "#84ab69" },
-    );
-    for (const dx of [-0.8, 0.6]) {
-      trees.push({ shape: "ball", diameter: 0.38, height: 0.5, at: [x + dx, 3 + dx / 2, z - 1.6], colour: "#e8c960" });
-    }
+/** Reads the looks from the server: every page load, so a new room's look needs no new client. */
+export async function loadLooks(): Promise<void> {
+  const response = await fetch("/api/looks");
+  if (!response.ok) {
+    throw new Error(`The room looks could not be read (${response.status}).`);
   }
-  return trees;
+  setLooks((await response.json()) as LooksData);
 }
 
-function riversideBackdrop(plan: Floorplan): Part[] {
-  const bank = plan.depth / 2 + 3;
-  // A plank jetty and a red rowboat on its mooring, just off the trail.
-  const jetty: Part[] = [];
-  for (let i = 0; i < 12; i++) {
-    jetty.push({ shape: "box", width: 1.6, height: 0.14, depth: 0.34, at: [-3, 0.35, bank - 1.4 + i * 0.35], colour: i % 2 ? "#c79e76" : "#c29570" });
-  }
-  for (const x of [-3.68, -2.32]) {
-    for (const z of [bank - 1.25, bank + 2.35]) {
-      jetty.push({ shape: "cylinder", diameter: 0.2, height: 1.1, at: [x, 0.55, z], colour: palette.darkWood });
-    }
-  }
-  return [
-    { shape: "box", width: 65, height: 0.25, depth: 9, at: [0, 0, bank + 4.5], colour: "#83bed4" },
-    ...jetty,
-    { shape: "box", width: 1.28, height: 0.25, depth: 2.6, at: [-1, 0.24, bank + 1.5], colour: "#88593e" },
-    ...[-1, 1].flatMap((side): Part[] => [
-      { shape: "box", width: 0.16, height: 0.43, depth: 2.65, at: [-1 + side * 0.63, 0.4, bank + 1.5], colour: "#b8604a" },
-      { shape: "box", width: 0.16, height: 0.46, depth: 1.2, at: [-1 + side * 0.32, 0.43, bank + 3.28], turn: [0, -side * 0.55, 0], colour: "#b8604a" },
-    ]),
-    { shape: "box", width: 1.34, height: 0.43, depth: 0.16, at: [-1, 0.4, bank + 0.18], colour: "#b8604a" },
-    { shape: "box", width: 1.55, depth: 0.32, height: 0.09, at: [-1, 0.69, bank + 1.5], colour: palette.wood },
-    { shape: "box", width: 0.09, depth: 2.2, height: 0.09, at: [-1.4, 0.78, bank + 1.6], turn: [0, -0.38, 0], colour: palette.sisal },
-    ...[-20, 0, 20].map((x, i): Part => ({
-      shape: "ball", diameter: 28, height: 9 + i * 1.5,
-      at: [x, 0.5, bank + 24], colour: i % 2 ? "#8bb987" : "#a0c78c",
-    })),
-    ...[-12, -9.8, 9.8, 12.2].flatMap((x, i): Part[] => [
-      { shape: "cylinder", diameter: 0.32, height: 2.3, at: [x, 1.15, bank - 0.7], colour: palette.darkWood },
-      { shape: "ball", diameter: 2.6, height: 5.1, at: [x, 3.2 + i % 2, bank - 0.7], colour: i % 2 ? "#689e75" : "#82b080" },
-    ]),
-  ];
+export function lookOf(roomId: string, variant?: string | null): RoomLook {
+  const base = rooms.get(roomId) ?? plain;
+  const changes = variant ? variants.get(variant) : undefined;
+  return changes ? { ...base, ...changes } : base;
 }
 
 /**
@@ -208,109 +196,6 @@ function townBackdrop(plan: Floorplan, wallHeight: number): Part[] {
     for (const [dx, dy, size] of [[0, 0, 4], [2.4, -0.4, 3], [-2.3, -0.6, 2.8]] as const) {
       parts.push({ shape: "ball", diameter: size, height: size * 0.7, at: [x + dx, y + dy, front + 26], colour: palette.white });
     }
-  }
-  return parts;
-}
-
-/**
- * The café's walls: above the back wall's painted front, a cornice and more wall with a clock and two pictures on it; at
- * the sides, walls panelled like the back. Lamps hang over the counter.
- */
-function cafeBackdrop(plan: Floorplan, wallHeight: number): Part[] {
-  const [halfWidth, halfDepth] = [plan.width / 2, plan.depth / 2];
-  const upper = 7;
-  const face = halfDepth + 0.05;
-  const parts: Part[] = [
-    { shape: "box", width: plan.width + 0.7, height: upper, depth: 0.3, at: [0, wallHeight + upper / 2, halfDepth + 0.15], colour: paints.cafeWall },
-    { shape: "box", width: plan.width + 0.9, height: 0.3, depth: 0.5, at: [0, wallHeight + 0.15, halfDepth + 0.05], colour: palette.darkWood },
-    // A clock, at ten past ten.
-    { shape: "cylinder", diameter: 1.5, height: 0.12, sides: 32, turn: [Math.PI / 2, 0, 0], at: [0, wallHeight + 2.3, face - 0.06], colour: palette.cream },
-    { shape: "box", width: 0.06, height: 0.45, depth: 0.02, turn: [0, 0, -1], at: [0.19, wallHeight + 2.42, face - 0.14], colour: ink, outlined: false },
-    { shape: "box", width: 0.06, height: 0.6, depth: 0.02, turn: [0, 0, 1], at: [-0.25, wallHeight + 2.46, face - 0.14], colour: ink, outlined: false },
-  ];
-  // Two pictures either side of the clock.
-  for (const [x, colour] of [[-3.6, palette.sage], [3.6, palette.rose]] as const) {
-    parts.push(
-      { shape: "box", width: 1.4, height: 1.0, depth: 0.06, at: [x, wallHeight + 2.2, face - 0.03], colour: palette.darkWood },
-      { shape: "box", width: 1.1, height: 0.7, depth: 0.04, at: [x, wallHeight + 2.2, face - 0.07], colour, outlined: false },
-    );
-  }
-  for (const side of [-1, 1]) {
-    const x = side * (halfWidth + 0.2);
-    parts.push(
-      { shape: "box", width: 0.3, height: wallHeight, depth: plan.depth + 0.3, at: [x, wallHeight / 2, 0.15], colour: paints.cafeWall },
-      { shape: "box", width: 0.36, height: 1.1, depth: plan.depth + 0.36, at: [x, 0.55, 0.15], colour: palette.wood, outlined: false },
-      { shape: "box", width: 0.4, height: 0.3, depth: plan.depth + 0.4, at: [x, wallHeight + 0.15, 0.15], colour: palette.darkWood },
-    );
-  }
-  // Lamps over the counter, on cords up to the ceiling.
-  const lamp = wallHeight - 1.45;
-  const cord = wallHeight + upper - lamp;
-  for (const x of [3.3, 5.5]) {
-    parts.push(
-      { shape: "box", width: 0.03, height: cord, depth: 0.03, at: [x, lamp + cord / 2, halfDepth - 1.3], colour: palette.iron, outlined: false },
-      { shape: "cylinder", diameter: 0.6, top: 0.16, height: 0.36, sides: 16, at: [x, lamp, halfDepth - 1.3], colour: palette.mustard },
-    );
-  }
-  return parts;
-}
-
-/**
- * A home's walls: above the back wall's painted front, a picture rail's worth more of wallpaper under a cornice; at the
- * sides, walls papered like the back, with their skirting. A paper lantern hangs from the ceiling, over the cats' heads.
- */
-function homeBackdrop(plan: Floorplan, wallHeight: number): Part[] {
-  const [halfWidth, halfDepth] = [plan.width / 2, plan.depth / 2];
-  const upper = 7;
-  const parts: Part[] = [
-    { shape: "box", width: plan.width + 0.7, height: upper, depth: 0.3, at: [0, wallHeight + upper / 2, halfDepth + 0.15], colour: paints.wallpaper },
-    { shape: "box", width: plan.width + 0.9, height: 0.25, depth: 0.45, at: [0, wallHeight + 0.125, halfDepth + 0.05], colour: paints.skirting },
-  ];
-  for (const side of [-1, 1]) {
-    const x = side * (halfWidth + 0.2);
-    parts.push(
-      { shape: "box", width: 0.3, height: wallHeight, depth: plan.depth + 0.3, at: [x, wallHeight / 2, 0.15], colour: paints.wallpaper },
-      { shape: "box", width: 0.36, height: 0.35, depth: plan.depth + 0.36, at: [x, 0.175, 0.15], colour: paints.skirting, outlined: false },
-      { shape: "box", width: 0.4, height: 0.25, depth: plan.depth + 0.4, at: [x, wallHeight + 0.125, 0.15], colour: paints.skirting },
-    );
-  }
-  // A round paper lantern on a cord, over the middle of the room and well above the cats.
-  const lantern = wallHeight - 0.9;
-  const cord = wallHeight + upper - lantern;
-  parts.push(
-    { shape: "box", width: 0.03, height: cord, depth: 0.03, at: [1.5, lantern + cord / 2, halfDepth - 2.5], colour: palette.iron, outlined: false },
-    { shape: "ball", diameter: 0.7, at: [1.5, lantern, halfDepth - 2.5], colour: palette.glow },
-  );
-  return parts;
-}
-
-/**
- * The shop's walls: above the back wall's painted front, more wallpaper under a dark cornice; at the sides, walls like
- * the back, panelled. Two lamps hang over the catalogue, well above the cats.
- */
-function shopBackdrop(plan: Floorplan, wallHeight: number): Part[] {
-  const [halfWidth, halfDepth] = [plan.width / 2, plan.depth / 2];
-  const upper = 7;
-  const parts: Part[] = [
-    { shape: "box", width: plan.width + 0.7, height: upper, depth: 0.3, at: [0, wallHeight + upper / 2, halfDepth + 0.15], colour: paints.shopWall },
-    { shape: "box", width: plan.width + 0.9, height: 0.3, depth: 0.5, at: [0, wallHeight + 0.15, halfDepth + 0.05], colour: palette.darkWood },
-  ];
-  for (const side of [-1, 1]) {
-    const x = side * (halfWidth + 0.2);
-    parts.push(
-      { shape: "box", width: 0.3, height: wallHeight, depth: plan.depth + 0.3, at: [x, wallHeight / 2, 0.15], colour: paints.shopWall },
-      { shape: "box", width: 0.36, height: 1.0, depth: plan.depth + 0.36, at: [x, 0.5, 0.15], colour: palette.sage, outlined: false },
-      { shape: "box", width: 0.4, height: 0.3, depth: plan.depth + 0.4, at: [x, wallHeight + 0.15, 0.15], colour: palette.darkWood },
-    );
-  }
-  const lamp = wallHeight - 1.2;
-  const cord = wallHeight + upper - lamp;
-  for (const x of [0.2, 2.6]) {
-    parts.push(
-      { shape: "box", width: 0.03, height: cord, depth: 0.03, at: [x, lamp + cord / 2, halfDepth - 3], colour: palette.iron, outlined: false },
-      { shape: "cylinder", diameter: 0.55, top: 0.2, height: 0.34, sides: 16, at: [x, lamp, halfDepth - 3], colour: palette.teal },
-      { shape: "ball", diameter: 0.22, at: [x, lamp - 0.18, halfDepth - 3], colour: palette.glow },
-    );
   }
   return parts;
 }

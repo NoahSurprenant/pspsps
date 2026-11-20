@@ -6,6 +6,10 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Rooms/PropDesigns.json" LogicalName="PropDesigns.json" />
+    <EmbeddedResource Include="Rooms/RoomLooks.json" LogicalName="RoomLooks.json" />
+  </ItemGroup>
+  <ItemGroup>
     <InternalsVisibleTo Include="Pspsps.Integration.Test" />
   </ItemGroup>
 </Project>

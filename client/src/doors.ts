@@ -35,9 +35,16 @@ export class DoorWalks {
 /** How near the back wall (in metres) a door has a doorway in the wall behind its mat; one further out is just its mat. */
 const doorwayReach = 2;
 
-/** Open countryside has a path through the north edge as well. */
+const openRooms = new Set<string>();
+
+/** Which rooms are open countryside (their look says so): no back wall, and a path through the north edge as well. */
+export function setOpenLandscapes(roomIds: Iterable<string>): void {
+  openRooms.clear();
+  for (const id of roomIds) openRooms.add(id);
+}
+
 export function openLandscape(roomId: string): boolean {
-  return roomId === "pear-orchard" || roomId === "riverside";
+  return openRooms.has(roomId);
 }
 
 /** Whether <door> has a doorway in the back wall of a room <depth> deep (the wall is at +depth / 2). */

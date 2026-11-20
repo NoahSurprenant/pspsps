@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using Pspsps.Application.Homes;
 using Pspsps.Application.Moderation;
 using Pspsps.Application.Players;
+using Pspsps.Application.Rooms;
 using Pspsps.Application.Safety;
 using Pspsps.Application.Shop;
 using Pspsps.Domain.Fishing;
@@ -105,7 +106,8 @@ public sealed record RoomSnapshot(
     [property: Id(10)] IReadOnlyList<PropView> Props,
     [property: Id(11)] HomeView? Home = null,
     [property: Id(12)] string? Notice = null,
-    [property: Id(13)] WorldMapView? WorldMap = null);
+    [property: Id(13)] WorldMapView? WorldMap = null,
+    [property: Id(14)] string? Look = null);
 
 /// <summary>
 /// A player's home, as the browser draws it and its owner decorates it: whose it is, who may visit ("Friends", "Anyone"
@@ -193,10 +195,10 @@ public sealed record DoorView(
     [property: Id(5)] string ToRoomName,
     [property: Id(6)] string? Edge = null)
 {
-    public static DoorView From(Door door)
+    public static DoorView From(Door door, IRoomLibrary rooms)
     {
         ArgumentNullException.ThrowIfNull(door);
-        var to = RoomCatalog.Find(door.ToRoom) ?? throw new InvalidOperationException($"No room '{door.ToRoom}'.");
+        var to = rooms.Find(door.ToRoom) ?? throw new InvalidOperationException($"No room '{door.ToRoom}'.");
         return new DoorView(door.Id, door.Spot.X, door.Spot.Z, door.Radius, to.Id, to.Name, door.Edge?.ToString().ToLowerInvariant());
     }
 }
@@ -445,11 +447,11 @@ public sealed record AdminOverviewView(
     IReadOnlyList<OpenReportView> Reports, IReadOnlyList<SanctionedPlayerView> Sanctioned, IReadOnlyList<ModerationLogView> Recent,
     IReadOnlyList<NetworkBanView> NetworkBans)
 {
-    public static AdminOverviewView From(ModerationOverview overview)
+    public static AdminOverviewView From(ModerationOverview overview, IRoomLibrary rooms)
     {
         ArgumentNullException.ThrowIfNull(overview);
         return new(
-            [.. overview.Reports.Select(OpenReportView.From)],
+            [.. overview.Reports.Select(report => OpenReportView.From(report, rooms))],
             [.. overview.Sanctioned.Select(SanctionedPlayerView.From)],
             [.. overview.Recent.Select(ModerationLogView.From)],
             [.. overview.AddressBans.Select(NetworkBanView.From)]);
@@ -467,17 +469,17 @@ public sealed record OpenReportView(
     Guid Id, Guid ReporterId, string ReporterName, Guid ReportedId, string ReportedName, string Reason, string? Note,
     string Place, DateTimeOffset FiledAt, IReadOnlyList<ReportLineView> Context)
 {
-    public static OpenReportView From(OpenReport report)
+    public static OpenReportView From(OpenReport report, IRoomLibrary rooms)
     {
         ArgumentNullException.ThrowIfNull(report);
         return new(
             report.Id, report.ReporterId, report.ReporterName, report.ReportedId, report.ReportedName, report.Reason.ToString(),
-            report.Note, PlaceOf(report.WorldId, report.Room), report.FiledAt,
+            report.Note, PlaceOf(report.WorldId, report.Room, rooms), report.FiledAt,
             [.. report.Context.Select(line => new ReportLineView(line.PlayerId, line.DisplayName, line.Text, line.At))]);
     }
 
     /// <summary>Where a report was filed, to read: the room and the world, or a home (which is in no world).</summary>
-    public static string PlaceOf(string worldId, string room)
+    public static string PlaceOf(string worldId, string room, IRoomLibrary rooms)
     {
         ArgumentNullException.ThrowIfNull(room);
         var roomId = room;
@@ -491,7 +493,7 @@ public sealed record OpenReportView(
             roomId = RoomKey.Parse(room).RoomId;
         }
 
-        var roomName = RoomCatalog.Find(roomId)?.Name ?? roomId;
+        var roomName = rooms.Find(roomId)?.Name ?? roomId;
         return WorldCatalog.Find(worldId) is { } world ? $"{roomName}, {world.Name}" : roomName;
     }
 }

@@ -178,5 +178,6 @@ type RoomSnapshot 10: IReadOnlyList<PropView> Props
 type RoomSnapshot 11: HomeView Home
 type RoomSnapshot 12: String Notice
 type RoomSnapshot 13: WorldMapView WorldMap
+type RoomSnapshot 14: String Look
 type WorldMapView 0: IReadOnlyList<MapRoomView> Rooms
 type WorldMapView 1: IReadOnlyList<MapRouteView> Routes

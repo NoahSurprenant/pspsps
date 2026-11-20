@@ -71,6 +71,7 @@ try
     // Renews this pod's connections' leases with their rooms and worlds; a dead pod's cats leave when theirs run out.
     builder.Services.AddSingleton<SessionHeartbeat>();
     builder.Services.AddHostedService(services => services.GetRequiredService<SessionHeartbeat>());
+    builder.Services.AddHostedService<RoomLibraryRefresher>();
 
     builder.UseOrleans(silo => OrleansSetup.Configure(silo, clustering, builder.Configuration));
 
@@ -104,6 +105,19 @@ try
 
         // EF Core takes a database lock while migrating, so pods starting together don't race.
         await db.Database.MigrateAsync();
+        if (await Pspsps.Application.Rooms.RoomSeeder.SeedAsync(db, time, CancellationToken.None))
+        {
+            Log.Information("Seeded the starting rooms");
+        }
+        if (await Pspsps.Application.Rooms.PropDesignSeeder.SeedAsync(db, time, CancellationToken.None))
+        {
+            Log.Information("Seeded the starting prop designs");
+        }
+        if (await Pspsps.Application.Rooms.RoomLookSeeder.SeedAsync(db, time, CancellationToken.None))
+        {
+            Log.Information("Seeded the starting room looks");
+        }
+        await scope.ServiceProvider.GetRequiredService<Pspsps.Application.Rooms.IRoomLibrary>().RefreshAsync(CancellationToken.None);
     }
 
     // Forwarded headers first: everything after sees the real client address and scheme.
@@ -125,6 +139,8 @@ try
     app.MapAuthEndpoints(providers);
     app.MapClientTelemetry();
     app.MapAdminEndpoints();
+    app.MapPropDesigns();
+    app.MapRoomLooks();
     app.MapHub<GameHub>("/hubs/game").RequireAuthorization(AdminEndpoints.NotBannedPolicy);
     app.MapFallbackToFile("index.html");
 

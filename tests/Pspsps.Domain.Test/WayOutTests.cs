@@ -19,7 +19,7 @@ public sealed class WayOutTests
     public void SentOutOfAnotherPlayersHome_TriesTownSquare_ThenTheWorldsOtherRooms_ThenItsOwnHome()
     {
         // The home that sent it out isn't tried: it no longer lets the cat in.
-        var places = WayOut.For(Tom, from: Whereabouts.Home(Felix), refused: null);
+        var places = WayOut.For(RoomCatalog.All, Tom, from: Whereabouts.Home(Felix), refused: null);
 
         Assert.That(places, Is.EqualTo(new[] { TownSquare, Cafe, Shop, Garden, Riverside, Orchard, Whereabouts.Home(Tom) }));
     }
@@ -27,7 +27,7 @@ public sealed class WayOutTests
     [Test]
     public void RefusedByTownSquare_AfterBeingSentOut_DoesntTryTownSquareAgain()
     {
-        var places = WayOut.For(Tom, from: Whereabouts.Home(Felix), refused: TownSquare);
+        var places = WayOut.For(RoomCatalog.All, Tom, from: Whereabouts.Home(Felix), refused: TownSquare);
 
         Assert.That(places, Is.EqualTo(new[] { Cafe, Shop, Garden, Riverside, Orchard, Whereabouts.Home(Tom) }));
     }
@@ -35,7 +35,7 @@ public sealed class WayOutTests
     [Test]
     public void RefusedByARoom_GoesBackIntoTheRoomItLeftFirst()
     {
-        var places = WayOut.For(Tom, from: Cafe, refused: TownSquare);
+        var places = WayOut.For(RoomCatalog.All, Tom, from: Cafe, refused: TownSquare);
 
         Assert.That(places, Is.EqualTo(new[] { Cafe, Shop, Garden, Riverside, Orchard, Whereabouts.Home(Tom) }));
     }
@@ -43,7 +43,7 @@ public sealed class WayOutTests
     [Test]
     public void RefusedByAHome_FromItsOwnHome_GoesBackHomeFirst()
     {
-        var places = WayOut.For(Tom, from: Whereabouts.Home(Tom), refused: Whereabouts.Home(Felix));
+        var places = WayOut.For(RoomCatalog.All, Tom, from: Whereabouts.Home(Tom), refused: Whereabouts.Home(Felix));
 
         Assert.That(places, Is.EqualTo(new[] { Whereabouts.Home(Tom), TownSquare, Cafe, Shop, Garden, Riverside, Orchard }));
     }
@@ -52,7 +52,7 @@ public sealed class WayOutTests
     public void FromNoRoom_EndsInItsOwnHome()
     {
         // Entering a world whose Town Square is full.
-        var places = WayOut.For(Tom, from: null, refused: TownSquare);
+        var places = WayOut.For(RoomCatalog.All, Tom, from: null, refused: TownSquare);
 
         Assert.That(places, Is.EqualTo(new[] { Cafe, Shop, Garden, Riverside, Orchard, Whereabouts.Home(Tom) }));
     }
@@ -64,7 +64,7 @@ public sealed class WayOutTests
         {
             foreach (var refused in new[] { null, TownSquare, Cafe, Shop, Whereabouts.Home(Felix) })
             {
-                Assert.That(WayOut.For(Tom, from, refused), Does.Contain(Whereabouts.Home(Tom)), $"from {from}, refused by {refused}");
+                Assert.That(WayOut.For(RoomCatalog.All, Tom, from, refused), Does.Contain(Whereabouts.Home(Tom)), $"from {from}, refused by {refused}");
             }
         }
     }

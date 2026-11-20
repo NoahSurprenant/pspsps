@@ -2,6 +2,7 @@ using System.Net;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Pspsps.Application.Moderation;
+using Pspsps.Application.Rooms;
 using Pspsps.Domain;
 using Pspsps.Server.Auth;
 using Pspsps.Server.Game;
@@ -101,9 +102,9 @@ public static class AdminEndpoints
 
         var admin = app.MapGroup("/api/admin");
 
-        admin.MapGet("/overview", async (ClaimsPrincipal user, IModerationService moderation, CancellationToken ct) =>
+        admin.MapGet("/overview", async (ClaimsPrincipal user, IModerationService moderation, IRoomLibrary rooms, CancellationToken ct) =>
             user.GetPlayerId() is { } playerId && moderation.IsAdmin(playerId)
-                ? Results.Ok(AdminOverviewView.From(await moderation.OverviewAsync(playerId, ct)))
+                ? Results.Ok(AdminOverviewView.From(await moderation.OverviewAsync(playerId, ct), rooms))
                 : Results.StatusCode(StatusCodes.Status403Forbidden));
 
         // From the admin page only (Sec-Fetch-Site or Origin): another site can't act through an admin's cookie.
@@ -137,6 +138,7 @@ public static class AdminEndpoints
             }
         });
 
+        admin.MapRoomEditor();
         MapReportDecisions(admin);
         MapAddressLifts(admin);
     }

@@ -3,6 +3,7 @@ using Pspsps.Domain.Friends;
 using Pspsps.Domain.Homes;
 using Pspsps.Domain.Moderation;
 using Pspsps.Domain.Players;
+using Pspsps.Domain.Rooms;
 using Pspsps.Domain.Safety;
 
 namespace Pspsps.Application.Abstractions;
@@ -32,7 +33,25 @@ public interface IApplicationDbContext
 
     DbSet<Report> Reports { get; }
 
+    /// <summary>Every version of every room: a room is what its published version says.</summary>
+    DbSet<RoomVersion> RoomVersions { get; }
+
+    /// <summary>The seasonal and event changes to rooms.</summary>
+    DbSet<RoomOverlayEntry> RoomOverlays { get; }
+
+    DbSet<PropDesign> PropDesigns { get; }
+
+    DbSet<RoomLookEntry> RoomLooks { get; }
+
+    DbSet<LookVariantEntry> LookVariants { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Runs <paramref name="work"/> in a transaction: its saves are kept together, or all dropped when it throws. The
+    /// database may run it again after a dropped connection, so it must load what it changes itself, each time.
+    /// </summary>
+    Task InTransactionAsync(Func<CancellationToken, Task> work, CancellationToken cancellationToken = default);
 
     /// <summary>Whether a save failed because a row with the same unique key is already there (another request won).</summary>
     bool IsUniqueViolation(DbUpdateException exception);
@@ -64,3 +83,4 @@ public interface IApplicationDbContext
     /// <summary>Stops tracking the report and its lines, so its unsaved decision (refused by the database) isn't saved.</summary>
     void Forget(Report report);
 }
+

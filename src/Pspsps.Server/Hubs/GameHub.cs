@@ -5,6 +5,7 @@ using Pspsps.Application.Friends;
 using Pspsps.Application.Homes;
 using Pspsps.Application.Moderation;
 using Pspsps.Application.Players;
+using Pspsps.Application.Rooms;
 using Pspsps.Application.Safety;
 using Pspsps.Application.Shop;
 using Pspsps.Domain;
@@ -32,6 +33,7 @@ public sealed partial class GameHub(
     IPlayerService players,
     IFriendService friends,
     IShopService shop,
+    IRoomLibrary rooms,
     IHomeService homes,
     IModerationService moderation,
     IModerationEffects moderationEffects,
@@ -108,7 +110,7 @@ public sealed partial class GameHub(
         }
 
         metrics.EnteredWorld(world.Id);
-        var townSquare = RoomKey.For(world.Id, RoomCatalog.Default.Id);
+        var townSquare = RoomKey.For(world.Id, rooms.Start.Id);
         try
         {
             return await JoinRoom(world.Id, townSquare, throughDoor: null);
@@ -133,7 +135,7 @@ public sealed partial class GameHub(
         }
 
         await EnsureCurrentTab();
-        var room = RoomCatalog.Find(roomId) ?? throw new HubException("That room doesn't exist.");
+        var room = rooms.Find(roomId) ?? throw new HubException("That room doesn't exist.");
         // Read after the wait: the heartbeat may have moved it meanwhile (a lost room or world).
         var place = Here ?? throw new HubException("Pick a world first.");
         return await MoveInto(place, RoomKey.For(place.WorldId, room.Id));
@@ -233,7 +235,7 @@ public sealed partial class GameHub(
 
         var cameFrom = from.RoomKey is { } was ? RoomKey.WhereaboutsOf(was) : null;
         var deadline = time.GetUtcNow() + WayOutTimeLimit;
-        foreach (var place in WayOut.For(PlayerId, cameFrom, RoomKey.WhereaboutsOf(refused)))
+        foreach (var place in WayOut.For(rooms.All, PlayerId, cameFrom, RoomKey.WhereaboutsOf(refused)))
         {
             var timeLeft = deadline - time.GetUtcNow();
             if (timeLeft <= TimeSpan.Zero)
@@ -1161,8 +1163,8 @@ public sealed partial class GameHub(
         return WorldPlaceView(place);
     }
 
-    private static FriendPlaceView? WorldPlaceView(PlayerPlace? place) =>
-        place is not null && WorldCatalog.Find(place.WorldId) is { } world && RoomCatalog.Find(place.RoomId) is { } room
+    private FriendPlaceView? WorldPlaceView(PlayerPlace? place) =>
+        place is not null && WorldCatalog.Find(place.WorldId) is { } world && rooms.Find(place.RoomId) is { } room
             ? new FriendPlaceView(world.Id, world.Name, room.Id, room.Name)
             : null;
 

@@ -1,12 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 using Pspsps.Application.Abstractions;
+using Pspsps.Application.Rooms;
 using Pspsps.Domain;
 using Pspsps.Domain.Players;
 using Pspsps.Domain.Rooms;
 
 namespace Pspsps.Application.Shop;
 
-internal sealed class ShopService(IApplicationDbContext db, TimeProvider time) : IShopService
+internal sealed class ShopService(IApplicationDbContext db, IRoomLibrary rooms, TimeProvider time) : IShopService
 {
     /// <summary>How many times a change is decided again when the player changed meanwhile, before giving up.</summary>
     internal const int Attempts = 5;
@@ -22,7 +23,7 @@ internal sealed class ShopService(IApplicationDbContext db, TimeProvider time) :
 
     public Task<Wardrobe> BuyAsync(Guid playerId, string? roomId, string itemId, CancellationToken cancellationToken)
     {
-        var room = roomId is null ? null : RoomCatalog.Find(roomId);
+        var room = roomId is null ? null : rooms.Find(roomId);
         return ChangeAsync(playerId, player => player.Buy(itemId, room, time.GetUtcNow()), cancellationToken);
     }
 
