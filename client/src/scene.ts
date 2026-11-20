@@ -24,6 +24,7 @@ import { AdvancedDynamicTexture } from "@babylonjs/gui/2D/advancedDynamicTexture
 import { Rectangle } from "@babylonjs/gui/2D/controls/rectangle";
 import { TextBlock } from "@babylonjs/gui/2D/controls/textBlock";
 import { cameraFocus, cameraPitch, cameraRadius, fieldOfView, roomPitch, startingZoom, zoomRadius } from "./view";
+import { wildlife } from "./wildlife";
 import { sceneryTarget } from "./walking";
 import { animationFor, Cat, facing, loadCatModel, MeowClip, type CatAnimation, type Outfit } from "./cat";
 import { hasDoorway, openLandscape, pathEdge } from "./doors";
@@ -407,8 +408,11 @@ export class RoomScene {
         this.tapScreen(this.scene.pointerX, this.scene.pointerY);
       }
     };
+    const animateWildlife = wildlife(this.scene, room);
     this.scene.onBeforeRenderObservable.add(() => {
-      this.step(this.engine.getDeltaTime() / 1000);
+      const seconds = this.engine.getDeltaTime() / 1000;
+      this.step(seconds);
+      animateWildlife?.(seconds);
       aim();
     });
 

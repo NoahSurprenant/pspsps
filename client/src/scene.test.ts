@@ -184,6 +184,26 @@ describe("RoomScene", () => {
     expect(colour("door-cafe-mat")).toBe("#C8553D");
   });
 
+  it("keeps the shoal within the fishing water and lets taps reach the pond", () => {
+    const engine = new NullEngine();
+    const view = new RoomScene(engine, () => new Promise<AssetContainer>(() => {}));
+    const pond = { x: -3, z: -2, radius: 2.4 };
+    view.show({ ...room, roomId: "riverside", pond });
+    const scene = (view as unknown as { scene: Scene }).scene;
+    const shoal = scene.getMeshByName("wildlife");
+    expect(shoal?.isPickable).toBe(false);
+    if (!shoal) throw new Error("no fish");
+    vi.spyOn(engine, "getDeltaTime").mockReturnValue(50);
+    const start = shoal.position.clone();
+    for (let i = 0; i < 80; i++) {
+      scene.onBeforeRenderObservable.notifyObservers(scene);
+      expect(Math.hypot(shoal.position.x - pond.x, shoal.position.z - pond.z)).toBeLessThan(pond.radius - 0.5);
+    }
+    expect(shoal.position.equals(start)).toBe(false);
+    view.show(room);
+    expect(shoal.isDisposed()).toBe(true);
+  });
+
   describe("a tap", () => {
     // Everything a tap's ray goes through, nearest first, as the scene's multiPick finds them.
     function setUp() {
