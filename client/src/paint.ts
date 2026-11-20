@@ -801,7 +801,7 @@ export function powerOfTwo(pixels: number): number {
   return Math.min(largestTexture, 2 ** Math.max(0, Math.round(Math.log2(pixels))));
 }
 
-/** Where the shop's catalogue stand is (src/Pspsps.Domain/Rooms/RoomCatalog.cs): its rug is under it. */
+/** Where the shop's catalogue stand is (src/Pspsps.Domain/Rooms/StartingRooms.json): its rug is under it. */
 const shopCatalogueStand = { x: 1.4, z: -0.6 };
 
 /** The shop's floor: big tiles, mint and cream, in a check, and a round lilac rug in the middle under the catalogue. */
