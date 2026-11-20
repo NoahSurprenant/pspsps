@@ -115,10 +115,10 @@ const scenery: readonly { from: number; to: number; depth?: number; height: numb
 export function townHouses(map?: WorldMapView | null) {
   const square = map?.rooms.find(room => room.id === "town-square");
   if (!map || !square) return scenery;
-  const interiors = map.rooms.filter(room => room.id === "shop" || room.id === "cafe");
-  // Older snapshots placed the interiors at a distance from the square.
-  if (interiors.some(room => Math.abs(room.z - room.depth / 2 - square.z - square.depth / 2) > 0.000001)) return scenery;
-  const buildings = interiors.map(room => ({
+  const storefronts = map.rooms.filter(room => room.id === "shop" || room.id === "cafe");
+  // Older snapshots placed the building markers at a distance from the square.
+  if (storefronts.some(room => Math.abs(room.z - room.depth / 2 - square.z - square.depth / 2) > 0.000001)) return scenery;
+  const buildings = storefronts.map(room => ({
     from: room.x - square.x - room.width / 2,
     to: room.x - square.x + room.width / 2,
     depth: room.depth,

@@ -20,8 +20,14 @@ public static class RoomPlan
             foreach (var door in room.Doors)
             {
                 var target = byId[door.ToRoom];
+                if (target.Exterior is { } exterior &&
+                    (!double.IsFinite(exterior.Width) || !double.IsFinite(exterior.Depth) ||
+                     exterior.Width <= 0 || exterior.Depth <= 0))
+                {
+                    throw new InvalidOperationException($"Invalid storefront dimensions for {target.Id}.");
+                }
                 var back = target.GetDoor(door.ToDoor ?? throw new InvalidOperationException("Missing return door."));
-                if (back.ToRoom != room.Id || back.ToDoor != door.Id || Facing(room, door) != (Facing(target, back) + 2) % 4)
+                if (back.ToRoom != room.Id || back.ToDoor != door.Id || (int)room.MapEdge(door) != ((int)target.MapEdge(back) + 2) % 4)
                 {
                     throw new InvalidOperationException($"Mismatched thresholds at {room.Id}/{door.Id}.");
                 }
@@ -54,8 +60,8 @@ public static class RoomPlan
             var a = neighbours[i];
             foreach (var b in neighbours.Skip(i + 1))
             {
-                if (Math.Abs(a.MapCentre.X - b.MapCentre.X) + tolerance < (a.Width + b.Width) / 2 &&
-                    Math.Abs(a.MapCentre.Z - b.MapCentre.Z) + tolerance < (a.Depth + b.Depth) / 2)
+                if (Math.Abs(a.MapCentre.X - b.MapCentre.X) + tolerance < (a.MapWidth + b.MapWidth) / 2 &&
+                    Math.Abs(a.MapCentre.Z - b.MapCentre.Z) + tolerance < (a.MapDepth + b.MapDepth) / 2)
                 {
                     throw new InvalidOperationException($"{a.Id} overlaps {b.Id}.");
                 }
@@ -65,6 +71,4 @@ public static class RoomPlan
         return floors.Select(room => placed[room.Id]).ToArray();
     }
 
-    private static int Facing(RoomDefinition room, Door door) =>
-        ((int)(door.Edge ?? throw new InvalidOperationException("Missing floor edge.")) + (room.MapRotated ? 2 : 0)) % 4;
 }

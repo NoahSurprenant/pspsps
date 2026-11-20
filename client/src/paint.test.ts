@@ -84,7 +84,7 @@ describe("the painters", () => {
     expect(circles.map((c) => c.args[2])).toContain((2.5 + 0.6) * 10);
   });
 
-  it("builds the café facade and roof over the full interior footprint relative to the square", () => {
+  it("builds the café facade and roof from its street footprint relative to the square", () => {
     const rooms = [
       { id: "town-square", name: "Square", x: -4, z: 3, width: 24, depth: 16 },
       { id: "cafe", name: "Café", x: 1, z: 17, width: 15, depth: 12 },

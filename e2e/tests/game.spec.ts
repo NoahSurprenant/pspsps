@@ -604,7 +604,7 @@ test("a cat walks the garden loop and travels to a room's spawn from the world m
   if (!square || !cafe) throw new Error("the map is missing a room footprint");
   expect(Math.abs(square.y - (cafe.y + cafe.height))).toBeLessThan(1);
   expect(Math.abs(square.width / 24 - square.height / 16)).toBeLessThan(0.1);
-  expect(square.width / cafe.width).toBeCloseTo(24 / 14);
+  expect(square.width / cafe.width).toBeCloseTo(24 / 8);
   await page.keyboard.press("Escape");
   await expect(map).toBeHidden();
   await expect(openMap).toBeFocused();

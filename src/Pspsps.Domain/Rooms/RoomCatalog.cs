@@ -31,7 +31,7 @@ public static class RoomCatalog
             ("riverside", RoomEdge.South, 6.4, "riverside", "town-square")),
         new RoomDefinition("cafe", "Cat Café", Width: 14, Depth: 10, Spawn: new(0, 3), Capacity: 40)
         {
-            MapRotated = true,
+            Exterior = new(8, 7, RoomEdge.South),
             // A counter at the back, tables with two chairs each, plants, and a cat tree to climb (to look at).
             Props =
             [
@@ -48,7 +48,7 @@ public static class RoomCatalog
             ("town-square", RoomEdge.North, -4, "town-square", "cafe")),
         new RoomDefinition(ShopId, "Cat Shop", Width: 13, Depth: 9, Spawn: new(-1.6, 1), Capacity: 40)
         {
-            MapRotated = true,
+            Exterior = new(7, 7, RoomEdge.South),
             // Shelves of hats along the back, the counter in the corner, a mirror to try things on in, a chair to wait in,
             // plants; and in the middle, the catalogue on its stand, where everything is bought.
             Props =
