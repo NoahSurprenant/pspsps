@@ -137,7 +137,10 @@ public sealed class RoomContentTests
         await using var db = Db();
         var editor = new RoomEditor(db, FixedRoomLibrary.Starting(), TimeProvider.System);
         var ct = CancellationToken.None;
-        var admin = Guid.NewGuid();
+        var player = Pspsps.Domain.Players.Player.CreateGuest("Editor", Pspsps.Domain.Players.FurColor.Grey, DateTimeOffset.UtcNow);
+        db.Players.Add(player);
+        await db.SaveChangesAsync(ct);
+        var admin = player.Id;
         var before = (await editor.GetAsync("garden", ct))!;
         var original = before.Published!;
 
