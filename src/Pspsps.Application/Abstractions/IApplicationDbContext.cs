@@ -43,6 +43,8 @@ public interface IApplicationDbContext
 
     DbSet<RoomLookEntry> RoomLooks { get; }
 
+    DbSet<RoomAuditEntry> RoomAudit { get; }
+
     DbSet<LookVariantEntry> LookVariants { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

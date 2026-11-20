@@ -14,6 +14,7 @@ internal sealed class RoomVersionConfiguration : IEntityTypeConfiguration<RoomVe
         builder.Property(v => v.Id).ValueGeneratedNever();
         builder.Property(v => v.RoomId).HasMaxLength(RoomOverlayConfiguration.IdLength);
         builder.Property(v => v.State).HasConversion<string>().HasMaxLength(16);
+        builder.Property(v => v.Revision).IsConcurrencyToken().HasDefaultValue(1);
         builder.Property(v => v.Layout).HasColumnType("jsonb")
             .HasConversion(RoomJson.Converter<RoomLayout>(), RoomJson.Comparer<RoomLayout>());
         builder.HasIndex(v => new { v.RoomId, v.Number }).IsUnique();
@@ -53,6 +54,21 @@ internal sealed class PropDesignConfiguration : IEntityTypeConfiguration<PropDes
             .HasConversion(RoomJson.Converter<IReadOnlyList<PropPart>>(), RoomJson.Comparer<IReadOnlyList<PropPart>>());
         builder.Property(d => d.Growth).HasColumnType("jsonb").HasDefaultValueSql("'[]'::jsonb")
             .HasConversion(RoomJson.Converter<IReadOnlyList<PropGrowth>>(), RoomJson.Comparer<IReadOnlyList<PropGrowth>>());
+    }
+}
+
+internal sealed class RoomAuditConfiguration : IEntityTypeConfiguration<RoomAuditEntry>
+{
+    public void Configure(EntityTypeBuilder<RoomAuditEntry> builder)
+    {
+        builder.ToTable("room_audit");
+        builder.HasKey(a => a.Id);
+        builder.Property(a => a.Id).ValueGeneratedNever();
+        builder.Property(a => a.Action).HasMaxLength(32);
+        builder.Property(a => a.Target).HasMaxLength(RoomOverlayConfiguration.IdLength * 2 + 1);
+        builder.Property(a => a.Detail).HasMaxLength(500);
+        builder.HasIndex(a => a.At);
+        builder.HasOne<Player>().WithMany().HasForeignKey(a => a.AdminId).OnDelete(DeleteBehavior.SetNull);
     }
 }
 

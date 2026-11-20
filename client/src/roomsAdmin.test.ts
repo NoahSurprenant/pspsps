@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { newLookTemplate, optionsText, parseJson, problemsText, publishQuery, roomLine } from "./roomsAdmin";
+import { auditText, draftQuery, newLookTemplate, optionsText, parseJson, problemsText, publishQuery, roomLine } from "./roomsAdmin";
 
 describe("roomLine", () => {
   it("says what is live and whether a draft waits", () => {
@@ -40,5 +40,20 @@ describe("the editor's aids", () => {
 
   it("starts a new look from a floor and a wall that exist", () => {
     expect(newLookTemplate()).toMatchObject({ floor: { painter: "planks" }, wall: { painter: "panelled" } });
+  });
+});
+
+describe("saving over a draft", () => {
+  it("names the revision it was opened at, and none for a new draft", () => {
+    expect(draftQuery(3)).toBe("?revision=3");
+    expect(draftQuery(null)).toBe("");
+    expect(draftQuery(undefined)).toBe("");
+  });
+
+  it("reads an audit line as when, what and to which room", () => {
+    expect(auditText({ at: "2026-11-20T18:05:33+00:00", adminId: null, action: "published", target: "garden", detail: "version 2" }))
+      .toBe("2026-11-20 18:05 published garden (version 2)");
+    expect(auditText({ at: "2026-11-20T18:05:33+00:00", adminId: null, action: "look-saved", target: "cafe", detail: "" }))
+      .toBe("2026-11-20 18:05 look-saved cafe");
   });
 });
