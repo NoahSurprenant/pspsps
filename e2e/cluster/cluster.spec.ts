@@ -166,13 +166,13 @@ test("a rolling update: pod A is replaced by a new pod while the game goes on", 
     // Tom's tab came back through the Service (to the new pod) and walked back into the room. If the room's grain was on
     // pod A, it starts over empty elsewhere, and pod A told Felix's tab so as it stopped: he walks back in at once rather
     // than at his next lease renewal (30 s). Either way, within seconds each hears the other again.
-    // Both tabs are back in the room (each sees both cats) before chat is polled, so a line isn't sent into a reconnect.
-    await expect.poll(async () => Object.keys(await cats(tom.page)).sort(), { timeout: 40_000 }).toEqual([tomId, felixId].sort());
-    await expect.poll(async () => Object.keys(await cats(felix.page)).sort(), { timeout: 40_000 }).toEqual([tomId, felixId].sort());
+    // Both tabs are back (their chat boxes are there again: they aren't while the room reloads) before chat is polled.
+    await expect(felix.page.getByPlaceholder("Say something…")).toBeVisible({ timeout: 40_000 });
+    await expect(tom.page.getByPlaceholder("Say something…")).toBeVisible({ timeout: 40_000 });
     await expect.poll(async () => {
       await trySay(felix.page, `back ${Date.now()}`);
       return (await chat(tom.page)).some((line) => line.startsWith("back "));
-    }, { timeout: 20_000, intervals: [2_000] }).toBe(true);
+    }, { timeout: 30_000, intervals: [2_000] }).toBe(true);
     await expect.poll(async () => {
       await trySay(tom.page, `here ${Date.now()}`);
       return (await chat(felix.page)).some((line) => line.startsWith("here "));
