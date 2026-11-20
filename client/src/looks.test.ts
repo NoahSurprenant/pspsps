@@ -2,14 +2,14 @@ import { describe, expect, it } from "vitest";
 import { lookOf } from "./looks";
 import type { Floorplan } from "./paint";
 
-const plans: Record<string, Floorplan> = {
+const plans = {
   "town-square": { width: 24, depth: 16, pond: { x: -7, z: -3, radius: 2.5 }, doors: [] },
   cafe: { width: 14, depth: 10, pond: null, doors: [] },
   home: { width: 12, depth: 9, pond: null, doors: [] },
   shop: { width: 13, depth: 9, pond: null, doors: [] },
   garden: { width: 18, depth: 12, pond: null, doors: [] },
   riverside: { width: 20, depth: 14, pond: { x: -3, z: -2, radius: 2.4 }, doors: [] },
-};
+} satisfies Record<string, Floorplan>;
 
 describe("lookOf", () => {
   it("gives every home one look of its own, indoors", () => {
@@ -18,7 +18,7 @@ describe("lookOf", () => {
     expect(home.paintFloor).toBeDefined();
     expect(home.paintWall).toBeDefined();
     expect(home.paintFloor).not.toBe(cafe.paintFloor);
-    expect(home.backdrop(plans.home ?? { width: 12, depth: 9, pond: null, doors: [] }, 4).length).toBeGreaterThan(0);
+    expect(home.backdrop(plans.home, 4).length).toBeGreaterThan(0);
   });
 
   it("gives Town Square and the café each their own look", () => {
@@ -55,7 +55,7 @@ describe("lookOf", () => {
     expect(garden.paintFloor).toBeDefined();
     expect(riverside.paintFloor).toBeDefined();
     expect(garden.paintFloor).not.toBe(riverside.paintFloor);
-    expect(garden.backdrop(plans.garden!, 4)).not.toEqual(riverside.backdrop(plans.riverside!, 4));
+    expect(garden.backdrop(plans.garden, 4)).not.toEqual(riverside.backdrop(plans.riverside, 4));
   });
 
   // Hidden in the back wall, a part costs drawing and shows nothing.
