@@ -820,7 +820,7 @@ function homeTools(home: HomeControls): HTMLElement {
 function keyboardLinks(room: RoomSnapshot, throughDoor: (door: DoorView) => void, keys: RoomKeys): HTMLElement {
   const nav = el("nav", { className: "doors" },
     ...room.doors.map((door) => {
-      const action = hasDoorway(door, room.depth) ? "Through the door to" : "Follow the path to";
+      const action = hasDoorway(door, room.depth, room.roomId) ? "Through the door to" : "Follow the path to";
       return button(`${action} ${door.toRoomName}`, () => throughDoor(door));
     }),
   );

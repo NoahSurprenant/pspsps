@@ -204,6 +204,13 @@ button:disabled {
   background: #edd9ac;
 }
 
+.map-route.map-threshold {
+  z-index: 1;
+  width: 0.42rem;
+  margin-left: -0.21rem;
+  background: #735741;
+}
+
 .map-footprint {
   box-sizing: border-box;
   transform: translate(-50%, -50%);
@@ -217,6 +224,7 @@ button:disabled {
   min-width: 0;
   padding: 0.25rem 0.12rem;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   justify-items: center;
   align-content: center;
   gap: 0.25rem;
@@ -242,13 +250,15 @@ button:disabled {
   min-width: 2.75rem;
 }
 
+.map-with-plan .map-place[data-place="pear-orchard"],
 .map-with-plan .map-place[data-place="garden"],
 .map-with-plan .map-place[data-place="riverside"] {
   min-width: 4.35rem;
 }
 
-@media (max-width: 380px) {
+@media (max-width: 420px) {
   .sheet.map-sheet {
+    max-width: calc(100% - 1rem);
     padding-inline: 0.6rem;
   }
 
@@ -286,6 +296,11 @@ button:disabled {
   border-radius: 0.9rem 0.9rem 0.2rem 0.2rem;
   background: radial-gradient(circle at 25% 58%, #ffb4b4 0 12%, transparent 14%),
     radial-gradient(circle at 75% 42%, #fff0a8 0 13%, transparent 15%), #91b871;
+}
+
+[data-place="pear-orchard"] .map-landmark {
+  border-radius: 50% 50% 35% 35%;
+  background: radial-gradient(ellipse at 35% 55%, #f2d478 0 18%, transparent 20%), #88b071;
 }
 
 [data-place="riverside"] .map-landmark {

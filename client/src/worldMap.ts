@@ -30,7 +30,7 @@ export function drawMap(room: RoomSnapshot, travel: (roomId: string) => void): H
 }
 
 function drawPlan(map: HTMLElement, plan: WorldMapView, place: (room: RoomLink) => HTMLElement): void {
-  const margin = 5;
+  const margin = 2;
   const left = Math.min(...plan.rooms.map((room) => room.x - room.width / 2)) - margin;
   const right = Math.max(...plan.rooms.map((room) => room.x + room.width / 2)) + margin;
   const north = Math.max(...plan.rooms.map((room) => room.z + room.depth / 2)) + margin;
@@ -49,7 +49,11 @@ function drawPlan(map: HTMLElement, plan: WorldMapView, place: (room: RoomLink) 
     const path = el("span", { className: "map-route" });
     path.setAttribute("aria-hidden", "true");
     position(path, fromX, fromZ);
-    path.style.width = percent(Math.hypot(dx, dy), width);
+    if (Math.hypot(dx, dy) < 0.000001) {
+      path.classList.add("map-threshold");
+    } else {
+      path.style.width = percent(Math.hypot(dx, dy), width);
+    }
     path.style.transform = `translateY(-50%) rotate(${Math.atan2(dy, dx)}rad)`;
     map.append(path);
   }
@@ -65,7 +69,7 @@ function drawPlan(map: HTMLElement, plan: WorldMapView, place: (room: RoomLink) 
     footprint.style.height = percent(room.depth, depth);
     const button = place(room);
     position(button, room.x, room.z);
-    button.style.width = percent(room.width, width);
+    button.style.width = `calc(${percent(room.width, width)} - 8px)`;
     map.append(footprint, button);
   }
 }

@@ -16,8 +16,14 @@ public sealed record RoomDefinition(
     /// <summary>The centre of a public room on the world map, in the same metres as its floor.</summary>
     public Position MapCentre { get; init; }
 
-    /// <summary>Indoors the camera looks back toward the entrance, so the floor faces the opposite way on the map.</summary>
-    public bool MapRotated { get; init; }
+    /// <summary>For an interior, the building seen from the street has its own footprint and front entrance.</summary>
+    public Storefront? Exterior { get; init; }
+
+    public double MapWidth => Exterior?.Width ?? Width;
+    public double MapDepth => Exterior?.Depth ?? Depth;
+
+    public RoomEdge MapEdge(Door door) =>
+        Exterior?.Front ?? door.Edge ?? throw new ArgumentException("A map exit needs a floor edge.", nameof(door));
 
     /// <summary>Places each exit one metre inside its edge. Offsets run across the edge from its midpoint.</summary>
     public RoomDefinition WithDoors(params (string Id, RoomEdge Edge, double Offset, string ToRoom, string ToDoor)[] exits)
@@ -38,13 +44,19 @@ public sealed record RoomDefinition(
                 throw new ArgumentOutOfRangeException(nameof(exits), $"Exit {exit.Id} does not fit on the {exit.Edge} edge of {Id}.");
             }
 
-            var spot = PointOnEdge(exit.Edge, exit.Offset, inset);
+            var spot = PointOnEdge(exit.Edge, exit.Offset, inset, Width, Depth);
             if (doors.Any(door => door.Spot.DistanceTo(spot) <= door.Radius + radius))
             {
                 throw new ArgumentException($"Exit {exit.Id} overlaps another exit in {Id}.", nameof(exits));
             }
 
-            doors.Add(new Door(exit.Id, spot, radius, exit.ToRoom, exit.ToDoor) { Edge = exit.Edge });
+            var door = new Door(exit.Id, spot, radius, exit.ToRoom, exit.ToDoor) { Edge = exit.Edge };
+            if (Clamp(door.Arrival) != door.Arrival)
+            {
+                throw new ArgumentOutOfRangeException(nameof(exits), $"No landing inside {Id}/{exit.Id}.");
+            }
+
+            doors.Add(door);
         }
 
         return this with { Doors = doors };
@@ -53,19 +65,23 @@ public sealed record RoomDefinition(
     /// <summary>The point where an exit reaches the floor boundary, converted to world-map coordinates.</summary>
     public Position MapExit(Door door)
     {
-        var edge = door.Edge ?? throw new ArgumentException("A map exit needs a floor edge.", nameof(door));
-        var offset = edge is RoomEdge.North or RoomEdge.South ? door.Spot.X : door.Spot.Z;
-        var point = PointOnEdge(edge, offset, inset: 0);
-        var scale = MapRotated ? -1 : 1;
-        return new Position(MapCentre.X + (point.X * scale), MapCentre.Z + (point.Z * scale));
+        var offset = MapExitOffset(door);
+        return new Position(MapCentre.X + offset.X, MapCentre.Z + offset.Z);
     }
 
-    private Position PointOnEdge(RoomEdge edge, double offset, double inset) => edge switch
+    internal Position MapExitOffset(Door door)
     {
-        RoomEdge.North => new Position(offset, Depth / 2 - inset),
-        RoomEdge.East => new Position(Width / 2 - inset, offset),
-        RoomEdge.South => new Position(offset, -Depth / 2 + inset),
-        RoomEdge.West => new Position(-Width / 2 + inset, offset),
+        var edge = MapEdge(door);
+        var offset = edge is RoomEdge.North or RoomEdge.South ? door.Spot.X : door.Spot.Z;
+        return PointOnEdge(edge, Exterior is null ? offset : 0, 0, MapWidth, MapDepth);
+    }
+
+    private static Position PointOnEdge(RoomEdge edge, double offset, double inset, double width, double depth) => edge switch
+    {
+        RoomEdge.North => new Position(offset, depth / 2 - inset),
+        RoomEdge.East => new Position(width / 2 - inset, offset),
+        RoomEdge.South => new Position(offset, -depth / 2 + inset),
+        RoomEdge.West => new Position(-width / 2 + inset, offset),
         _ => throw new ArgumentOutOfRangeException(nameof(edge)),
     };
 
@@ -84,3 +100,5 @@ public sealed record RoomDefinition(
     public Door GetDoor(string doorId) =>
         Doors.FirstOrDefault(d => d.Id == doorId) ?? throw new DomainException("There's no such door here.");
 }
+
+public sealed record Storefront(double Width, double Depth, RoomEdge Front);

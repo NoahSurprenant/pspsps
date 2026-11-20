@@ -2,7 +2,7 @@ using Pspsps.Domain.Rooms;
 
 namespace Pspsps.Server.Game;
 
-/// <summary>The public rooms' actual floor sizes and the routes between their entrances.</summary>
+/// <summary>The public rooms' outdoor floors and storefronts and the routes between their entrances.</summary>
 [GenerateSerializer, Immutable]
 public sealed record WorldMapView(
     [property: Id(0)] IReadOnlyList<MapRoomView> Rooms,
@@ -26,7 +26,7 @@ public sealed record WorldMapView(
         }
 
         return new WorldMapView(
-            [.. rooms.Select(room => new MapRoomView(room.Id, room.Name, room.MapCentre.X, room.MapCentre.Z, room.Width, room.Depth))],
+            [.. rooms.Select(room => new MapRoomView(room.Id, room.Name, room.MapCentre.X, room.MapCentre.Z, room.MapWidth, room.MapDepth))],
             routes.ToArray());
     }
 }

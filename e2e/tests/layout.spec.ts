@@ -90,12 +90,17 @@ const CHECKS: Record<Screen["name"], Checks> = {
   garden: {
     parts: [".room-bar", ".emote-bar", ".chat-bar"],
     shows: (page) => drawn(page, [["the paths", pathTan, 4]]),
-    reachable: (page) => doorsReachable(page, ["town-square", "riverside"]),
+    reachable: (page) => doorsReachable(page, ["town-square", "pear-orchard"]),
+  },
+  "pear-orchard": {
+    parts: [".room-bar", ".emote-bar", ".chat-bar"],
+    shows: (page) => drawn(page, [["the paths", pathTan, 4]]),
+    reachable: (page) => doorsReachable(page, ["garden", "riverside"]),
   },
   riverside: {
     parts: [".room-bar", ".emote-bar", ".chat-bar", ".fishing"],
     shows: (page) => drawn(page, [["the pond", pondBlue, 20], ["the paths", pathTan, 4]]),
-    reachable: (page) => doorsReachable(page, ["garden", "town-square"]),
+    reachable: (page) => doorsReachable(page, ["pear-orchard", "town-square"]),
   },
 };
 
@@ -109,6 +114,26 @@ async function mapLabelsFit(page: Page): Promise<string[]> {
     const problems: string[] = [];
     const bounds = map.getBoundingClientRect();
     const buttons = [...map.querySelectorAll<HTMLButtonElement>(".map-place")];
+    const rooms = window.pspsps?.room()?.snapshot.worldMap?.rooms;
+    if (!rooms?.length) return ["no public floor plan"];
+    const origin = rooms[0]!;
+    const footprint = (id: string) => map.querySelector(`.map-footprint[data-room="${id}"]`)?.getBoundingClientRect();
+    const anchor = footprint(origin.id);
+    if (!anchor) return ["missing starting footprint"];
+    const scale = anchor.width / origin.width;
+    for (const room of rooms) {
+      const box = footprint(room.id);
+      if (!box || !buttons.some(button => button.dataset.place === room.id)) {
+        problems.push(`missing floor or destination for ${room.id}`);
+        continue;
+      }
+      const dx = box.left + box.width / 2 - anchor.left - anchor.width / 2;
+      const dz = anchor.top + anchor.height / 2 - box.top - box.height / 2;
+      if (Math.abs(box.width - scale * room.width) > 1 || Math.abs(box.height - scale * room.depth) > 1 ||
+          Math.abs(dx - scale * (room.x - origin.x)) > 1 || Math.abs(dz - scale * (room.z - origin.z)) > 1) {
+        problems.push(`${room.id} differs from its world footprint by over one pixel`);
+      }
+    }
     for (const [index, button] of buttons.entries()) {
       const name = button.textContent?.trim();
       const box = button.getBoundingClientRect();
@@ -116,13 +141,22 @@ async function mapLabelsFit(page: Page): Promise<string[]> {
       if (box.left < bounds.left || box.right > bounds.right || box.top < bounds.top || box.bottom > bounds.bottom) {
         problems.push(`${name} extends past the map`);
       }
-      if (label && label.scrollWidth > label.clientWidth + 1) {
-        problems.push(`${name} overflows its button`);
+      if (!label?.textContent?.trim()) {
+        problems.push("destination has no visible label");
+      } else {
+        const text = document.createRange();
+        text.selectNodeContents(label);
+        for (const line of text.getClientRects()) {
+          if (line.left < box.left + 2 || line.right > box.right - 2 ||
+              line.top < box.top + 2 || line.bottom > box.bottom - 2) {
+            problems.push(`${name} text extends into its button border`);
+          }
+        }
       }
       for (const other of buttons.slice(index + 1)) {
         const b = other.getBoundingClientRect();
-        if (box.left < b.right && b.left < box.right && box.top < b.bottom && b.top < box.bottom) {
-          problems.push(`${name} overlaps ${other.textContent?.trim()}`);
+        if (box.left < b.right + 4 && b.left < box.right + 4 && box.top < b.bottom + 4 && b.top < box.bottom + 4) {
+          problems.push(`${name} needs 4px clearance from ${other.textContent?.trim()}`);
         }
       }
     }

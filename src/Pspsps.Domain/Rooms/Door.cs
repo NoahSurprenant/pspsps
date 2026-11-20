@@ -24,6 +24,20 @@ public sealed record Door(string Id, Position Spot, double Radius, string ToRoom
     {
         get
         {
+            var inward = Radius + StepIn;
+            if (Edge is { } edge)
+            {
+                // Keep the cat on the same line as the passage across the world boundary.
+                return edge switch
+                {
+                    RoomEdge.North => Spot with { Z = Spot.Z - inward },
+                    RoomEdge.South => Spot with { Z = Spot.Z + inward },
+                    RoomEdge.East => Spot with { X = Spot.X - inward },
+                    RoomEdge.West => Spot with { X = Spot.X + inward },
+                    _ => throw new InvalidOperationException("Unknown entrance edge."),
+                };
+            }
+
             var length = Spot.DistanceTo(new Position(0, 0));
             if (length == 0)
             {
@@ -31,7 +45,7 @@ public sealed record Door(string Id, Position Spot, double Radius, string ToRoom
                 return Spot with { Z = Spot.Z - Radius - StepIn };
             }
 
-            var step = (Radius + StepIn) / length;
+            var step = inward / length;
             return new Position(Spot.X - (Spot.X * step), Spot.Z - (Spot.Z * step));
         }
     }
