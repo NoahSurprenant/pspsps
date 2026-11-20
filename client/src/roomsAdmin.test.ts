@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { auditText, draftQuery, draftSetUrl, goLiveInstant, goLiveText, newLookTemplate, optionsText, parseJson, problemsText, publishQuery, roomLine } from "./roomsAdmin";
+import { auditText, draftQuery, draftSetUrl, goLiveInstant, goLiveText, exportUrl, newLookTemplate, optionsText, parseJson, problemsText, publishQuery, roomLine } from "./roomsAdmin";
 
 describe("roomLine", () => {
   it("says what is live and whether a draft waits", () => {
@@ -82,5 +82,9 @@ describe("saving over a draft", () => {
       .toBe("2026-11-20 18:05 published garden (version 2)");
     expect(auditText({ at: "2026-11-20T18:05:33+00:00", adminId: null, action: "look-saved", target: "cafe", detail: "" }))
       .toBe("2026-11-20 18:05 look-saved cafe");
+  });
+
+  it("downloads the content from the admin export", () => {
+    expect(exportUrl).toBe("/api/admin/export");
   });
 });

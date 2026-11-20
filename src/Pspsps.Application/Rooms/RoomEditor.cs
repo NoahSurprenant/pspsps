@@ -18,6 +18,19 @@ public sealed record RoomDetail(
     int? DraftRevision = null,
     DateTimeOffset? GoLiveAt = null);
 
+/// <summary>Everything admins author, in the shape the files in the repository hold it, to commit and review.</summary>
+public sealed record ContentExport(
+    IReadOnlyList<ExportedRoom> Rooms,
+    IReadOnlyList<RoomOverlay> Overlays,
+    ExportedLooks Looks,
+    IReadOnlyList<object> Painters,
+    IReadOnlyList<object> Wildlife,
+    IReadOnlyList<object> PropDesigns);
+
+public sealed record ExportedRoom(string Id, RoomLayout Layout);
+
+public sealed record ExportedLooks(IReadOnlyList<object> Rooms, IReadOnlyList<object> Variants);
+
 public sealed record AuditLine(DateTimeOffset At, Guid? AdminId, string Action, string Target, string Detail);
 
 /// <summary>What admins do to rooms: draft, check, publish and roll back layouts, and set overlays. Every change is checked as a whole book first.</summary>
@@ -26,6 +39,9 @@ public interface IRoomEditor
     Task<IReadOnlyList<RoomSummary>> ListAsync(CancellationToken cancellationToken);
 
     Task<RoomDetail?> GetAsync(string roomId, CancellationToken cancellationToken);
+
+    /// <summary>The published rooms (the starting room first), their overlays and looks, the painter and wildlife recipes and the prop designs, in a stable order.</summary>
+    Task<ContentExport> ExportAsync(CancellationToken cancellationToken);
 
     /// <summary>
     /// Keeps the layout as the room's draft (a new room's first one too) and says what would stop it being published.
@@ -101,6 +117,23 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
                 var draft = group.FirstOrDefault(v => v.State == RoomVersionState.Draft);
                 return new RoomSummary(group.Key, (published ?? draft ?? group.First()).Layout.Name, published?.Number, draft?.Number, draft?.GoLiveAt);
             })];
+    }
+
+    public async Task<ContentExport> ExportAsync(CancellationToken cancellationToken)
+    {
+        var published = await db.RoomVersions.AsNoTracking().Where(v => v.State == RoomVersionState.Published).ToListAsync(cancellationToken);
+        var overlays = await db.RoomOverlays.AsNoTracking().ToListAsync(cancellationToken);
+        return new ContentExport(
+            [.. published
+                .OrderBy(v => v.RoomId == RoomBook.StartingRoom ? 0 : 1).ThenBy(v => v.RoomId, StringComparer.Ordinal)
+                .Select(v => new ExportedRoom(v.RoomId, v.Layout))],
+            [.. overlays.Select(o => o.ToOverlay()).OrderBy(o => o.RoomId, StringComparer.Ordinal).ThenBy(o => o.Id, StringComparer.Ordinal)],
+            new ExportedLooks(
+                [.. (await db.RoomLooks.AsNoTracking().OrderBy(l => l.Id).ToListAsync(cancellationToken)).Select(l => new { l.Id, l.Look })],
+                [.. (await db.LookVariants.AsNoTracking().OrderBy(v => v.Id).ToListAsync(cancellationToken)).Select(v => new { v.Id, v.Sky, v.WallColour })]),
+            [.. (await db.PainterRecipes.AsNoTracking().OrderBy(r => r.Id).ToListAsync(cancellationToken)).Select(r => new { r.Id, r.Surface, r.Steps })],
+            [.. (await db.WildlifeRecipes.AsNoTracking().OrderBy(r => r.Id).ToListAsync(cancellationToken)).Select(r => new { r.Id, r.Parts, r.Motion })],
+            [.. (await db.PropDesigns.AsNoTracking().OrderBy(d => d.Kind).ToListAsync(cancellationToken)).Select(d => new { d.Kind, d.Size, d.Parts, d.Growth })]);
     }
 
     public async Task<RoomDetail?> GetAsync(string roomId, CancellationToken cancellationToken)

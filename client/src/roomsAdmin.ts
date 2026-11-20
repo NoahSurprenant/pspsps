@@ -24,6 +24,16 @@ export function recipeBody(kind: "painters" | "wildlife", entry: Record<string, 
   return kind === "painters" ? { surface: entry.surface, steps: entry.steps } : { parts: entry.parts, motion: entry.motion };
 }
 
+/** Where the published content is downloaded as JSON, to commit to the repository for review. */
+export const exportUrl = "/api/admin/export";
+
+function exportLink(): HTMLElement {
+  const link = el("a", { text: "Download everything as JSON (rooms, looks, recipes, prop designs)" });
+  link.href = exportUrl;
+  link.download = "content.json";
+  return el("p", {}, link);
+}
+
 export function newPainterTemplate(): unknown {
   return { id: "stripes", surface: "floor", steps: [{ op: "fill", colour: "main" }, { op: "rect", colour: "accent", x: 0, y: 0, width: 0.5, height: 100, repeat: { dx: 1, dy: 0 } }] };
 }
@@ -212,7 +222,7 @@ export function roomsSection(say: (message: string) => void): HTMLElement {
   };
   const body = el("section", {}, el("h2", { text: "Rooms" }),
     el("p", { className: "quiet", text: "A room is what its published version says. Saving makes a draft; publishing checks every room together first." }),
-    list, waiting, editor, el("h3", { text: "What admins changed" }), button("Show the latest changes", () => void run(loadHistory)), history);
+    list, waiting, editor, exportLink(), el("h3", { text: "What admins changed" }), button("Show the latest changes", () => void run(loadHistory)), history);
 
   const run = async (action: () => Promise<void>): Promise<void> => {
     try {

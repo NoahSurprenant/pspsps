@@ -10,12 +10,22 @@ namespace Pspsps.Server.Moderation;
 /// <summary>What the admin page does to rooms (<c>/api/admin/rooms</c>): admins only, and changes only from the admin page itself.</summary>
 public static class RoomEditorEndpoints
 {
+    private static readonly System.Text.Json.JsonSerializerOptions Export = new(System.Text.Json.JsonSerializerDefaults.Web)
+    {
+        WriteIndented = true,
+        Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() },
+        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+    };
+
     public static void MapRoomEditor(this RouteGroupBuilder admin)
     {
         var rooms = admin.MapGroup("/rooms");
 
         rooms.MapGet("", (ClaimsPrincipal user, IModerationService moderation, IRoomEditor editor, CancellationToken ct) =>
             Admin(user, moderation, async _ => Results.Ok(await editor.ListAsync(ct))));
+
+        admin.MapGet("/export", (ClaimsPrincipal user, IModerationService moderation, IRoomEditor editor, CancellationToken ct) =>
+            Admin(user, moderation, async _ => Results.Json(await editor.ExportAsync(ct), Export)));
 
         rooms.MapGet("/audit", (int? limit, ClaimsPrincipal user, IModerationService moderation, IRoomEditor editor, CancellationToken ct) =>
             Admin(user, moderation, async _ => Results.Ok(await editor.AuditAsync(limit ?? 100, ct))));

@@ -399,4 +399,28 @@ public sealed class RoomEditorHttpTests
             Assert.That(back.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
         });
     }
+
+    [Test]
+    public async Task TheExport_IsForAdminsOnly_AndHoldsThePublishedContentStartingRoomFirst()
+    {
+        var (_, cookie) = await Game.SignInGuestAsync();
+        using var guest = ClientFor(cookie);
+        using var admin = await AdminClientAsync();
+
+        using var refused = await SendAsync(guest, HttpMethod.Get, "export");
+        using var allowed = await SendAsync(admin, HttpMethod.Get, "export");
+        var export = await JsonOfAsync(allowed);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(refused.StatusCode, Is.Not.EqualTo(HttpStatusCode.OK));
+            Assert.That(allowed.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(export["rooms"]![0]!["id"]!.GetValue<string>(), Is.EqualTo(RoomBook.StartingRoom));
+            Assert.That(export["rooms"]![0]!["layout"]!["props"]!.AsArray(), Is.Not.Empty);
+            Assert.That(export["looks"]!["rooms"]!.AsArray(), Is.Not.Empty);
+            Assert.That(export["propDesigns"]!.AsArray(), Is.Not.Empty);
+            Assert.That(export["painters"], Is.Not.Null);
+            Assert.That(export["wildlife"], Is.Not.Null);
+        });
+    }
 }
