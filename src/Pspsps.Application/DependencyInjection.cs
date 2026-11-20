@@ -18,6 +18,7 @@ public static class DependencyInjection
         // Bans and mutes are timed by the system's clock, unless a test swaps this one for its own.
         services.AddKeyedSingleton(ModerationClock.Key, (provider, _) => provider.GetRequiredService<TimeProvider>());
         services.AddSingleton<IRoomLibrary, RoomLibrary>();
+        services.AddScoped<IRoomEditor, RoomEditor>();
         services.AddScoped<IPlayerService, PlayerService>();
         services.AddScoped<IFriendService, FriendService>();
         services.AddScoped<IShopService, ShopService>();

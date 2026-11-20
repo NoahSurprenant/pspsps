@@ -138,6 +138,7 @@ public static class AdminEndpoints
             }
         });
 
+        admin.MapRoomEditor();
         MapReportDecisions(admin);
         MapAddressLifts(admin);
     }

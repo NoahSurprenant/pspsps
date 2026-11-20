@@ -130,4 +130,34 @@ public sealed class RoomContentTests
         read.RoomOverlays.RemoveRange(read.RoomOverlays.Where(o => o.Id == "winter-test"));
         await read.SaveChangesAsync();
     }
+
+    [Test]
+    public async Task TheEditor_PublishesADraft_ArchivesTheOldVersion_AndRollsBack_AndRefusesABrokenBook()
+    {
+        await using var db = Db();
+        var editor = new RoomEditor(db, FixedRoomLibrary.Starting(), TimeProvider.System);
+        var ct = CancellationToken.None;
+        var admin = Guid.NewGuid();
+        var before = (await editor.GetAsync("garden", ct))!;
+        var original = before.Published!;
+
+        var problems = await editor.SaveDraftAsync("garden", original with { Name = "The Big Garden" }, admin, ct);
+        Assert.That(problems, Is.Empty);
+        await editor.PublishAsync("garden", ct);
+        var published = (await editor.GetAsync("garden", ct))!;
+        Assert.Multiple(() =>
+        {
+            Assert.That(published.Published!.Name, Is.EqualTo("The Big Garden"));
+            Assert.That(published.Draft, Is.Null);
+            Assert.That(published.Versions.Count(v => v.State == RoomVersionState.Published), Is.EqualTo(1));
+        });
+
+        await editor.RollbackAsync("garden", before.Versions.First(v => v.State == RoomVersionState.Published).Number, admin, ct);
+        Assert.That((await editor.GetAsync("garden", ct))!.Published!.Name, Is.EqualTo(original.Name));
+
+        await editor.SaveDraftAsync("garden", original with { Doors = [] }, admin, ct);
+        Assert.That(async () => await editor.PublishAsync("garden", ct), Throws.TypeOf<Pspsps.Domain.DomainException>());
+        await editor.DiscardDraftAsync("garden", ct);
+        Assert.That((await editor.GetAsync("garden", ct))!.Draft, Is.Null);
+    }
 }

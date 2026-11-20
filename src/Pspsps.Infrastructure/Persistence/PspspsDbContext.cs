@@ -41,6 +41,16 @@ public sealed class PspspsDbContext(DbContextOptions<PspspsDbContext> options)
     /// <summary>The ASP.NET Core key ring, shared by every server pod so a sign-in cookie works on all of them.</summary>
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
+    public async Task<IDbTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default) =>
+        new Transaction(await Database.BeginTransactionAsync(cancellationToken));
+
+    private sealed class Transaction(Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction inner) : IDbTransaction
+    {
+        public Task CommitAsync(CancellationToken cancellationToken = default) => inner.CommitAsync(cancellationToken);
+
+        public ValueTask DisposeAsync() => inner.DisposeAsync();
+    }
+
     public bool IsUniqueViolation(DbUpdateException exception) =>
         exception?.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation };
 

@@ -43,6 +43,9 @@ public interface IApplicationDbContext
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>Starts a transaction: saves made until it is committed are kept together, or all dropped when it is disposed first.</summary>
+    Task<IDbTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default);
+
     /// <summary>Whether a save failed because a row with the same unique key is already there (another request won).</summary>
     bool IsUniqueViolation(DbUpdateException exception);
 
@@ -72,4 +75,10 @@ public interface IApplicationDbContext
 
     /// <summary>Stops tracking the report and its lines, so its unsaved decision (refused by the database) isn't saved.</summary>
     void Forget(Report report);
+}
+
+/// <summary>Saves made together; disposed without a commit, they are all undone.</summary>
+public interface IDbTransaction : IAsyncDisposable
+{
+    Task CommitAsync(CancellationToken cancellationToken = default);
 }
