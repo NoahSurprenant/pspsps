@@ -57,6 +57,16 @@ A move goes like this:
 3. The grain checks the move against the room's rules (`RoomState`), then broadcasts it to the room's SignalR group.
 4. The Redis backplane carries the broadcast to every pod with a connection in that group.
 
+Rooms are content, not code. A room is what its published `RoomVersion` says (a `RoomLayout` kept as jsonb); the
+compiled-in `RoomCatalog` is only the seed a new database starts with (`RoomSeeder`). Admins change rooms on the admin
+page without a deploy (`IRoomEditor`, `/api/admin/rooms`): a draft is saved, checked with every other room as a whole
+(`RoomBook.Problems`: doors meet, rooms fit on the map, props keep clear), then published, which archives the version it
+replaces; going back publishes a copy of an old version. Seasonal and event changes are `RoomOverlay` rows (props added or
+removed, a named look variant) with a window, yearly or one-off, applied while on. `IRoomLibrary` holds the current
+`RoomBook` in memory on each pod and reloads it every 30 seconds; a room's grain deactivates, and its tabs rejoin, when
+its definition has changed. Prop designs are data too (`prop_designs`, served at `/api/props`); room looks and backdrops
+and the growth-stage props are still code in the client.
+
 Rooms are joined by doors, in the room catalogue (`RoomCatalog`): a door (`Door`) is a round spot on a room's floor
 that leads to a door of another room. The browser walks the cat onto it, then calls `GoThroughDoor`; the room's grain
 lets the cat out only if it stands on that door (`RoomState.LeaveThrough`), and the next room puts it just inside
