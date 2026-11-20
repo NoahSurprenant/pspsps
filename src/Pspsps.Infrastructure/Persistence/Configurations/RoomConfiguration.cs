@@ -51,5 +51,7 @@ internal sealed class PropDesignConfiguration : IEntityTypeConfiguration<PropDes
         builder.Property(d => d.Kind).HasMaxLength(RoomOverlayConfiguration.IdLength);
         builder.Property(d => d.Parts).HasColumnType("jsonb")
             .HasConversion(RoomJson.Converter<IReadOnlyList<PropPart>>(), RoomJson.Comparer<IReadOnlyList<PropPart>>());
+        builder.Property(d => d.Growth).HasColumnType("jsonb").HasDefaultValueSql("'[]'::jsonb")
+            .HasConversion(RoomJson.Converter<IReadOnlyList<PropGrowth>>(), RoomJson.Comparer<IReadOnlyList<PropGrowth>>());
     }
 }

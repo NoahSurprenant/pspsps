@@ -58,17 +58,13 @@ export const palette = {
   felt: "#3d3a4a",
 } as const;
 
-const box = (width: number, height: number, depth: number, at: [number, number, number], colour: string,
-  turn?: [number, number, number]): Part => ({ shape: "box", width, height, depth, at, colour, turn });
-const ball = (diameter: number, at: [number, number, number], colour: string, height?: number): Part =>
-  ({ shape: "ball", diameter, height, at, colour });
-
-
 /** What each kind of prop is drawn from, at the size it is designed for (<size>: the radius it fits in, outline included); the server's, from /api/props. */
 export interface PropDesign {
   kind: string;
   size: number;
   parts: Part[];
+  /** Parts drawn only at some stages (a tree's fruit, the pears in a crate): from stage <from> (default 0) and below <until> (default no end). */
+  growth?: { from?: number; until?: number; parts: Part[] }[];
 }
 
 const designs = new Map<string, PropDesign>();
@@ -95,11 +91,6 @@ export async function loadPropDesigns(): Promise<void> {
 }
 
 /** A prop's parts, sized to fit its radius, turned to face its way and stood on its spot; none for a kind without a design. */
-function pears(x: number, y: number, z: number): Part[] {
-  return [ball(0.36, [x, y, z], "#ebbf55", 0.42), ball(0.24, [x, y + 0.2, z], "#ebbf55"),
-    box(0.05, 0.16, 0.05, [x, y + 0.36, z], palette.darkWood, [0, 0, -0.2])];
-}
-
 export function propParts(prop: PropView, stage = 0): Part[] {
   const design = designs.get(prop.kind);
   if (!design) {
@@ -108,26 +99,7 @@ export function propParts(prop: PropView, stage = 0): Part[] {
   // The outline is the same width at any size, so what is drawn inside it scales to leave room for it.
   const scale = Math.max(0, prop.radius - outline) / (design.size - outline);
   const turn = Matrix.RotationY(prop.facing);
-  const parts = [...design.parts];
-  if (prop.kind === "pear-tree" && stage === 0) {
-    for (const [x, y, z] of [[-0.57, 2.05, -0.65], [0.48, 1.88, -0.72], [0, 2.87, -0.64]] as const) {
-      parts.push(...pears(x, y, z));
-    }
-  }
-  if (prop.kind === "packing-crate") {
-    for (let i = 0; i < stage; i++) parts.push(...pears((i % 3 - 1) * 0.5, 0.75, 0));
-  }
-  if (prop.kind === "potting-bench") {
-    for (let i = 0; i < stage; i++) {
-      const x = (i - 1) * 0.58;
-      parts.push(box(0.06, 0.45, 0.06, [x, 1.54, 0], palette.leaf));
-      for (let p = 0; p < 5; p++) {
-        const a = p * 2 * Math.PI / 5;
-        parts.push(ball(0.22, [x + 0.14 * Math.cos(a), 1.82 + 0.14 * Math.sin(a), -0.06], palette.rose));
-      }
-      parts.push(ball(0.17, [x, 1.82, -0.17], palette.butter));
-    }
-  }
+  const parts = [...design.parts, ...(design.growth ?? []).filter((step) => stage >= (step.from ?? 0) && stage < (step.until ?? Infinity)).flatMap((step) => step.parts)];
   return parts.map((part) => {
     const at = Vector3.TransformCoordinates(new Vector3(...part.at).scale(scale), turn);
     return {

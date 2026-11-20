@@ -19,6 +19,20 @@ public sealed class PropDesignTests
     }
 
     [Test]
+    public void AGrowthStep_NeedsPartsAndASensibleRangeOfStages()
+    {
+        var fruit = new PropPart("ball", [0, 1, 0], "#ebbf55", Diameter: 0.3);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(PropDesign.Problems("pear-tree", 1, [Box()], [new PropGrowth([fruit], Until: 1), new PropGrowth([fruit], From: 2)]), Is.Empty);
+            Assert.That(PropDesign.Problems("pear-tree", 1, [Box()], [new PropGrowth([])]), Has.Some.Contains("growth 1"));
+            Assert.That(PropDesign.Problems("pear-tree", 1, [Box()], [new PropGrowth([fruit], From: 3, Until: 3)]), Has.Some.Contains("growth 1"));
+            Assert.That(PropDesign.Problems("pear-tree", 1, [Box()], [new PropGrowth([fruit with { Colour = "red" }])]), Has.Some.Contains("growth 1, part 1: its colour"));
+        });
+    }
+
+    [Test]
     public void ADesign_NeedsAKindASizeAndParts_ThatCanBeDrawn()
     {
         var problems = PropDesign.Problems("Park Bench", 0, [

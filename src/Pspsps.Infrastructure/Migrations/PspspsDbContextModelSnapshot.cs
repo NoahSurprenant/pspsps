@@ -363,6 +363,13 @@ namespace Pspsps.Infrastructure.Migrations
                         .HasColumnType("character varying(64)")
                         .HasColumnName("kind");
 
+                    b.Property<string>("Growth")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("growth")
+                        .HasDefaultValueSql("'[]'::jsonb");
+
                     b.Property<string>("Parts")
                         .IsRequired()
                         .HasColumnType("jsonb")

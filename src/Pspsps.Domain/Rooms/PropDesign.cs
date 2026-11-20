@@ -20,6 +20,9 @@ public sealed record PropPart(
     double[]? Turn = null,
     bool? Outlined = null);
 
+/// <summary>Parts drawn only at some stages of a prop that grows (fruit on a tree, pears in a crate): from stage <see cref="From"/> (default 0) and below stage <see cref="Until"/> (default no end).</summary>
+public sealed record PropGrowth(IReadOnlyList<PropPart> Parts, int? From = null, int? Until = null);
+
 /// <summary>What a kind of prop looks like: the parts it is drawn from, at the size it is designed for (<see cref="Size"/>: the radius it fits in, outline included).</summary>
 public sealed partial class PropDesign
 {
@@ -37,22 +40,24 @@ public sealed partial class PropDesign
 
     public IReadOnlyList<PropPart> Parts { get; private set; }
 
+    public IReadOnlyList<PropGrowth> Growth { get; private set; } = [];
+
     public DateTimeOffset UpdatedAt { get; private set; }
 
-    public static PropDesign Of(string kind, double size, IReadOnlyList<PropPart> parts, DateTimeOffset now)
+    public static PropDesign Of(string kind, double size, IReadOnlyList<PropPart> parts, DateTimeOffset now, IReadOnlyList<PropGrowth>? growth = null)
     {
-        var problems = Problems(kind, size, parts);
+        var problems = Problems(kind, size, parts, growth);
         if (problems.Count > 0)
         {
             throw new DomainException(string.Join(" ", problems));
         }
 
-        return new PropDesign { Kind = kind, Size = size, Parts = parts, UpdatedAt = now };
+        return new PropDesign { Kind = kind, Size = size, Parts = parts, Growth = growth ?? [], UpdatedAt = now };
     }
 
-    public void Replace(double size, IReadOnlyList<PropPart> parts, DateTimeOffset now)
+    public void Replace(double size, IReadOnlyList<PropPart> parts, DateTimeOffset now, IReadOnlyList<PropGrowth>? growth = null)
     {
-        var problems = Problems(Kind, size, parts);
+        var problems = Problems(Kind, size, parts, growth);
         if (problems.Count > 0)
         {
             throw new DomainException(string.Join(" ", problems));
@@ -60,11 +65,12 @@ public sealed partial class PropDesign
 
         Size = size;
         Parts = parts;
+        Growth = growth ?? [];
         UpdatedAt = now;
     }
 
     /// <summary>What is wrong with a design, one line each; empty when it can be drawn.</summary>
-    public static IReadOnlyList<string> Problems(string kind, double size, IReadOnlyList<PropPart> parts)
+    public static IReadOnlyList<string> Problems(string kind, double size, IReadOnlyList<PropPart> parts, IReadOnlyList<PropGrowth>? growth = null)
     {
         ArgumentNullException.ThrowIfNull(parts);
         var problems = new List<string>();
@@ -88,6 +94,23 @@ public sealed partial class PropDesign
             foreach (var problem in PartProblems(parts[i]))
             {
                 problems.Add($"{kind}, part {i + 1}: {problem}");
+            }
+        }
+
+        for (var g = 0; g < (growth?.Count ?? 0); g++)
+        {
+            var step = growth![g];
+            if (step.Parts.Count == 0 || step.From is < 0 || step.Until is < 0 || (step.From is { } from && step.Until is { } until && until <= from))
+            {
+                problems.Add($"{kind}, growth {g + 1}: needs parts, and stages from 0 with an end after its start.");
+            }
+
+            for (var i = 0; i < step.Parts.Count; i++)
+            {
+                foreach (var problem in PartProblems(step.Parts[i]))
+                {
+                    problems.Add($"{kind}, growth {g + 1}, part {i + 1}: {problem}");
+                }
             }
         }
 

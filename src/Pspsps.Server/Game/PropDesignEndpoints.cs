@@ -17,7 +17,7 @@ internal static class PropDesignEndpoints
         app.MapGet("/api/props", async (IApplicationDbContext db, HttpContext context, CancellationToken ct) =>
         {
             var designs = await db.PropDesigns.AsNoTracking().OrderBy(d => d.Kind)
-                .Select(d => new { d.Kind, d.Size, d.Parts }).ToListAsync(ct);
+                .Select(d => new { d.Kind, d.Size, d.Parts, d.Growth }).ToListAsync(ct);
             context.Response.Headers.CacheControl = "no-cache";
             return Results.Json(designs, Json);
         });

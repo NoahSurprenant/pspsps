@@ -11,15 +11,15 @@ public static class PropDesignSeeder
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
-    private sealed record Seed(string Kind, double Size, PropPart[] Parts);
+    private sealed record Seed(string Kind, double Size, PropPart[] Parts, PropGrowth[]? Growth);
 
     /// <summary>The designs the server starts with.</summary>
-    public static IReadOnlyList<(string Kind, double Size, IReadOnlyList<PropPart> Parts)> Starting()
+    public static IReadOnlyList<(string Kind, double Size, IReadOnlyList<PropPart> Parts, IReadOnlyList<PropGrowth> Growth)> Starting()
     {
         using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("PropDesigns.json")
             ?? throw new InvalidOperationException("PropDesigns.json is not in the assembly.");
         var seeds = JsonSerializer.Deserialize<Seed[]>(stream, Json) ?? [];
-        return [.. seeds.Select(seed => (seed.Kind, seed.Size, (IReadOnlyList<PropPart>)seed.Parts))];
+        return [.. seeds.Select(seed => (seed.Kind, seed.Size, (IReadOnlyList<PropPart>)seed.Parts, (IReadOnlyList<PropGrowth>)(seed.Growth ?? [])))];
     }
 
     public static async Task<bool> SeedAsync(IApplicationDbContext db, TimeProvider time, CancellationToken cancellationToken)
@@ -32,9 +32,9 @@ public static class PropDesignSeeder
         }
 
         var now = time.GetUtcNow();
-        foreach (var (kind, size, parts) in Starting())
+        foreach (var (kind, size, parts, growth) in Starting())
         {
-            db.PropDesigns.Add(PropDesign.Of(kind, size, parts, now));
+            db.PropDesigns.Add(PropDesign.Of(kind, size, parts, now, growth));
         }
 
         try
