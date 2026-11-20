@@ -310,9 +310,10 @@ describe("RoomScene", () => {
       const view = new RoomScene(new NullEngine(), () => new Promise<AssetContainer>(() => {}));
       const byTheWall = { id: "cafe", x: 6, z: 7, radius: 0.8, toRoomId: "cafe", toRoomName: "Cat Café" };
       const outFront = { id: "park", x: -6, z: -7, radius: 0.8, toRoomId: "park", toRoomName: "Park" };
-      view.show({ ...room, roomId: "town-square", width: 21, depth: 16, doors: [byTheWall, outFront] });
+      const worldMap = { rooms: [{ id: "town-square", name: "Town Square", x: 0, z: 0, width: 21, depth: 16 }], routes: [] };
+      view.show({ ...room, roomId: "town-square", width: 21, depth: 16, doors: [byTheWall, outFront], worldMap });
 
-      expect(paintWall).toHaveBeenCalledWith(expect.anything(), 21, 4, expect.any(Number), [byTheWall]);
+      expect(paintWall).toHaveBeenCalledWith(expect.anything(), 21, 4, expect.any(Number), [byTheWall], worldMap);
     } finally {
       paintWall.mockRestore();
     }
