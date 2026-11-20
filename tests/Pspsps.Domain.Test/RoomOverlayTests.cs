@@ -91,7 +91,7 @@ public sealed class RoomOverlayTests
 
         var problems = RoomOverlays.Problems(Square, [onTheDoor]);
 
-        Assert.That(problems, Has.Some.Matches<string>(p => p.StartsWith("town-square/winter: town-square: the tree at") && p.Contains("is on the door")));
+        Assert.That(problems, Has.Some.Matches<string>(p => p.StartsWith("town-square/winter: town-square: the tree at", StringComparison.Ordinal) && p.Contains("is on the door")));
     }
 
     [Test]
@@ -111,8 +111,8 @@ public sealed class RoomOverlayTests
 
         var problems = RoomOverlays.Problems(Square, [one, two]);
 
-        Assert.That(problems, Has.Some.Matches<string>(p => p.StartsWith("town-square, with all its overlays on:") && p.Contains("overlaps")));
-        Assert.That(problems.Where(problem => problem.StartsWith("town-square/")), Is.Empty);
+        Assert.That(problems, Has.Some.Matches<string>(p => p.StartsWith("town-square, with all its overlays on:", StringComparison.Ordinal) && p.Contains("overlaps")));
+        Assert.That(problems.Where(problem => problem.StartsWith("town-square/", StringComparison.Ordinal)), Is.Empty);
     }
 
     [Test]
