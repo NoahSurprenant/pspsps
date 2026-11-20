@@ -23,7 +23,8 @@ import "@babylonjs/core/Culling/ray";
 import { AdvancedDynamicTexture } from "@babylonjs/gui/2D/advancedDynamicTexture";
 import { Rectangle } from "@babylonjs/gui/2D/controls/rectangle";
 import { TextBlock } from "@babylonjs/gui/2D/controls/textBlock";
-import { cameraPitch, cameraRadius, fieldOfView } from "./view";
+import { cameraPitch, cameraRadius, fieldOfView, roomPitch } from "./view";
+import { sceneryTarget } from "./walking";
 import { animationFor, Cat, facing, loadCatModel, MeowClip, type CatAnimation, type Outfit } from "./cat";
 import { hasDoorway } from "./doors";
 import { lazily } from "./lazy";
@@ -108,7 +109,7 @@ export class RoomScene {
    */
   editing = false;
   // What a tap does, given everything along its ray (multiPick): set for the room showing.
-  private tap: (picks: readonly PickingInfo[]) => void = () => {};
+  private tap: (picks: readonly PickingInfo[], outside?: () => { x: number; z: number } | undefined) => void = () => {};
   /**
    * The player's own cat: a tap on it opens the player's own card, but only when nothing else a tap goes to is along its
    * ray (another cat, a door, the pond): a tap on a door just behind it still goes through the door.
@@ -203,7 +204,9 @@ export class RoomScene {
     camera.fov = fieldOfView;
     // Back far enough for the screen's shape, now and whenever it changes (a phone turned on its side).
     const fit = () => {
-      camera.radius = cameraRadius(this.engine.getAspectRatio(camera), room.width, room.depth);
+      const aspect = this.engine.getAspectRatio(camera);
+      camera.beta = roomPitch(aspect);
+      camera.radius = cameraRadius(aspect, room.width, room.depth);
     };
     fit();
     this.engine.onResizeObservable.add(fit);
@@ -286,10 +289,10 @@ export class RoomScene {
     }
 
     // A tap goes to the first thing along its ray in this order, not to the nearest: another cat, a door, the pond, the
-    // player's own cat, the catalogue stand, a prop (beside it), the floor. Props are tall and cats walk through them: a
+    // player's own cat, the catalogue stand, a prop (beside it), the floor or its edge. Props are tall and cats walk through them: a
     // cat among a table's chairs, or a door mat showing round a tree, still takes the tap; and the player's own cat
     // stands in front of the door it walks to.
-    this.tap = (picks) => {
+    this.tap = (picks, outside) => {
       const hits = picks.filter((pick) => pick.hit && pick.pickedMesh).sort((a, b) => a.distance - b.distance);
       const decor = this.decor;
       if (this.editing) {
@@ -328,11 +331,23 @@ export class RoomScene {
         this.standClicked(stand);
       } else if (beside) {
         this.floorClicked(beside.x, beside.z);
-      } else if (ground) {
-        this.floorClicked(ground.x, ground.z);
+      } else {
+        const point = ground ?? outside?.();
+        if (point) {
+          this.floorClicked(point.x, point.z);
+        }
       }
     };
-    this.scene.onPointerDown = () => this.tap(this.scene.multiPick(this.scene.pointerX, this.scene.pointerY) ?? []);
+    this.scene.onPointerDown = (_, pick) => {
+      const { pointerX, pointerY } = this.scene;
+      this.tap(this.scene.multiPick(pointerX, pointerY) ?? [], () => {
+        const cat = this.playerId === undefined ? undefined : this.positionOf(this.playerId);
+        if (cat) {
+          const ray = pick?.ray ?? this.scene.createPickingRay(pointerX, pointerY, Matrix.Identity(), camera);
+          return sceneryTarget(cat, ray, room);
+        }
+      });
+    };
     this.scene.onBeforeRenderObservable.add(() => this.step(this.engine.getDeltaTime() / 1000));
 
     for (const cat of room.cats) {
@@ -601,7 +616,8 @@ export class RoomScene {
     panel.material = flat(this.scene, `${name}-panel`, "#8a5a3c");
 
     const anchor = CreateBox(`${name}-anchor`, { size: 0.01 }, this.scene);
-    anchor.position.set(door.x, 3.1, wall - 0.11);
+    // Within the doorway so the sign stays below the room bar on short screens.
+    anchor.position.set(door.x, 2.15, wall - 0.16);
     anchor.isVisible = false;
     anchor.isPickable = false;
     const label = new TextBlock(`${name}-label`, door.toRoomName);

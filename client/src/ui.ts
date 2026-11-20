@@ -4,6 +4,7 @@ import type { Fishing } from "./fishing";
 import { canGoTo, friendButtons, friendStatus, sections, whereIs, type FriendAction, type Here } from "./friends";
 import { coatOf } from "./fur";
 import { visitorChoices, type FurnitureLeft } from "./home";
+import { drawMap } from "./worldMap";
 import {
   banLengths, bannedLines, bannedNetworks, canLift, maxReasonLength, mutedNote, muteLengths, networkLengths, networkLine,
   requestFor, standingLines,
@@ -51,6 +52,7 @@ export interface CatPicture {
 export interface RoomKeys {
   yourCat: () => void;
   catalogue?: () => void;
+  travel: (roomId: string) => void;
 }
 
 /** What the owner's controls in their own home do: decorate, and choose who may visit (now `visitors`). */
@@ -199,12 +201,19 @@ export class Overlay {
         return pick;
       }),
     );
+    const map = button("", () => this.openDialog(
+      { kind: "map" }, "map-sheet",
+      el("h2", { text: "World map", id: "dialog-title" }),
+      drawMap(room, keys.travel),
+    ), "map-toggle");
+    map.setAttribute("aria-label", "World map");
+    map.setAttribute("aria-haspopup", "dialog");
     this.replace(
-      // Small, to leave the room in view: the coins and the way to friends and worlds. No room name (it is the page's
-      // title) and no buttons to other rooms: the doors are the way around, and the shop is one of the rooms.
+      // Small, to leave the room in view: the coins, friends, world map and world picker.
       el("div", { className: "room-bar" },
         el("span", { className: "coins", id: "coins", text: coinText(coins) }),
         ...(this.onFriends ? [button("Friends", this.onFriends)] : []),
+        ...(room.rooms.length >= 2 ? [map] : []),
         button("Worlds", leave, "quiet"),
       ),
       // The cat, the doors and the catalogue are drawn on the canvas, which the keyboard can't reach: a button for each,
@@ -719,6 +728,17 @@ export class Overlay {
     document.title = pageTitle();
   }
 
+  /** A brief ring where a click or tap sent the cat, in pixels from the canvas's top left. */
+  markWalk(x: number, y: number): void {
+    this.root.querySelector(".walk-marker")?.remove();
+    const marker = el("div", { className: "walk-marker" });
+    marker.setAttribute("aria-hidden", "true");
+    marker.style.left = `${x}px`;
+    marker.style.top = `${y}px`;
+    this.root.append(marker);
+    window.setTimeout(() => marker.remove(), 580);
+  }
+
   toast(message: string): void {
     // Said in the open card or list too: the toast is behind it.
     const inDialog = this.dialog?.element.querySelector<HTMLElement>("#dialog-message");
@@ -877,6 +897,7 @@ export type OpenDialog =
   | { kind: "report"; playerId: string }
   | { kind: "own-card" }
   | { kind: "friends" }
+  | { kind: "map" }
   | { kind: "catalogue" }
   | { kind: "notice" };
 

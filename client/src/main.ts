@@ -24,6 +24,8 @@ import { describeCat, shopMessage, showsOutfit, type ShopAction } from "./shop";
 import { Notices, doneMessage, inForce, mutedToast, type ModerationRequest, type Sanction } from "./moderation";
 import { Mutes, muteMessage, reportRequest, reportSentMessage, type ReportDraft, type SafetyAction } from "./safety";
 import { pageTitle } from "./title";
+import { WalkKeys } from "./walkKeys";
+import { stepInRoom } from "./walking";
 import type {
   DoorView, HomeView, HomeVisitors, MutedView, OutfitView, Player, PlayerCard, PropView, RoomSnapshot, Shop,
 } from "./types";
@@ -77,19 +79,20 @@ async function makeStage(): Promise<RoomScene> {
     if (!room) {
       return;
     }
+    markWalk(x, z);
     // Walking onto a door goes through it.
     const door = doorAt(room.snapshot.doors, x, z);
     if (door) {
       void goThrough(door);
       return;
     }
-    doorWalks.callOff();
-    // Walking off reels the line in (the server drops it), with nothing on it.
-    fishing.drop();
-    connection.move(x, z).catch((error: unknown) => overlay.toast(messageOf(error)));
+    void moveCat(x, z);
   });
   made.onPondClicked(() => void fish());
-  made.onDoorClicked((door) => void goThrough(door));
+  made.onDoorClicked((door) => {
+    markWalk(door.x, door.z);
+    void goThrough(door);
+  });
   made.onEditTapped((x, z) => editTap(x, z));
   // A cat: its player card; the player's own, their own card (what they wear, to change it).
   made.onCatClicked((playerId) => {
@@ -123,6 +126,10 @@ let renamingOwnCard = false;
 const fishing = new FishingState((state) => overlay.setFishing(state));
 // The walk to a door (which goes through it once the cat gets there) or to the catalogue stand (which opens it).
 const doorWalks = new DoorWalks();
+const walkKeys = new WalkKeys(
+  () => !!room && !decorating && !overlay.openDialogFor && !picking && loads === 0,
+  walkByKey,
+);
 // Room events that arrive while the next room loads, for it once its snapshot shows.
 const loading = new PendingEvents<(room: Room) => void>();
 // Whom the player has muted: their chat lines and bubbles never show here.
@@ -422,6 +429,46 @@ async function fish(): Promise<void> {
   }
 }
 
+function markWalk(x: number, z: number): void {
+  const point = scene?.screenPoint(x, z);
+  if (point) {
+    overlay.markWalk(point.x, point.y);
+  }
+}
+
+async function moveCat(x: number, z: number): Promise<void> {
+  doorWalks.callOff();
+  // Walking off reels the line in (the server drops it), with nothing on it.
+  if (fishing.state !== "idle") {
+    fishing.drop();
+  }
+  try {
+    await connection.move(x, z);
+  } catch (error) {
+    walkKeys.stop();
+    overlay.toast(messageOf(error));
+  }
+}
+
+async function walkByKey(dx: number, dz: number): Promise<void> {
+  const here = room;
+  const cat = me && here?.cats.get(me.id);
+  if (!here || !cat) {
+    return;
+  }
+  const position = scene?.positionOf(cat.playerId) ?? cat;
+  const target = stepInRoom(position, dx, dz, here.snapshot);
+  if (target.x === cat.x && target.z === cat.z) {
+    return;
+  }
+  const door = doorAt(here.snapshot.doors, target.x, target.z);
+  if (door) {
+    await goThrough(door);
+  } else {
+    await moveCat(target.x, target.z);
+  }
+}
+
 /**
  * Walks the player's cat onto a door and, once it is drawn standing there, through it: the server checks the cat is on
  * it. Called off by any other walk meanwhile.
@@ -431,6 +478,7 @@ async function goThrough(door: DoorView): Promise<void> {
   if (!room || !me || !view) {
     return;
   }
+  walkKeys.stop();
   const walk = doorWalks.start();
   // Walking off reels the line in, as any walk does.
   fishing.drop();
@@ -493,6 +541,15 @@ function show(snapshot: RoomSnapshot, view: RoomScene): Room {
     {
       yourCat: () => void openOwnCard(),
       catalogue: catalogueStand(snapshot.props) ? () => void readCatalogue() : undefined,
+      travel: (roomId) => {
+        if (room !== shown || picking) {
+          return;
+        }
+        doorWalks.callOff();
+        fishing.drop();
+        overlay.closeDialog();
+        pick(() => goTo(roomId, shown));
+      },
     },
     snapshot.pond ? { fish: () => void fish(), reel: () => void reel(), state: () => fishing.state } : undefined,
     // In their own home, the owner decorates it and chooses who may visit.
@@ -604,6 +661,7 @@ async function goTo(roomId: string, stay?: Room): Promise<void> {
  * A load that fails leaves the page in `stay` (with what it said meanwhile) when the server kept the cat there.
  */
 async function load(request: () => Promise<RoomSnapshot>, stay?: Room): Promise<void> {
+  walkKeys.stop();
   room = undefined;
   loads++;
   try {

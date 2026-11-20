@@ -12,6 +12,12 @@ export const cameraPitch = 0.95;
 export function cameraRadius(aspect: number, roomWidth: number, roomDepth: number): number {
   const wide = Math.max(roomWidth, roomDepth) * 1.15;
   // The view's width at distance r is 2 r tan(fov / 2) * aspect; the front edge is (depth / 2) sin(pitch) nearer.
-  const fitWidth = (roomWidth * 1.1) / (2 * Math.tan(fieldOfView / 2) * aspect) + (roomDepth / 2) * Math.sin(cameraPitch);
+  const fitWidth = (roomWidth * 1.06) / (2 * Math.tan(fieldOfView / 2) * aspect)
+    + (roomDepth / 2) * Math.sin(roomPitch(aspect));
   return Math.max(wide, fitWidth);
+}
+
+/** A more overhead view on narrow screens gives the playable floor more of the tall canvas. */
+export function roomPitch(aspect: number): number {
+  return cameraPitch - Math.min(0.22, Math.max(0, 0.8 - aspect));
 }

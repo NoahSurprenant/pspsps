@@ -78,7 +78,8 @@ export async function goThroughDoor(page: Page, roomId: string, roomName: string
 
 /** The buttons in the room bar, by name. */
 export function roomBarButtons(page: Page): Promise<string[]> {
-  return page.locator(".room-bar button").allInnerTexts();
+  return page.locator(".room-bar button").evaluateAll((buttons) =>
+    buttons.map((button) => button.getAttribute("aria-label") ?? button.textContent ?? ""));
 }
 
 /** A second player, in their own browser context (their own cookie). */

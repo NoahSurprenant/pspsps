@@ -232,8 +232,10 @@ public sealed class HomesTests
         // Every room of the world full, his own home too: coming back into the world, he still gets into his home, which
         // always has room for him.
         await felixHub.InvokeAsync<RoomSnapshot>("EnterWorld", "calico");
-        await crowd.FillAsync(RoomKey.For("tabby", "cafe"), RoomCatalog.Find("cafe")!.Capacity);
-        await crowd.FillAsync(RoomKey.For("tabby", RoomCatalog.ShopId), RoomCatalog.Find(RoomCatalog.ShopId)!.Capacity);
+        foreach (var room in RoomCatalog.All.Where(room => room.Id != RoomCatalog.Default.Id))
+        {
+            await crowd.FillAsync(RoomKey.For("tabby", room.Id), room.Capacity);
+        }
         await crowd.FillAsync(RoomKey.ForHome(felix.Id), Home.Layout.Capacity);
         var home = await felixHub.InvokeAsync<RoomSnapshot>("EnterWorld", "tabby");
 
