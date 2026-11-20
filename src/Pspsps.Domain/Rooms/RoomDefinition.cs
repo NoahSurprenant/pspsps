@@ -13,6 +13,9 @@ public sealed record RoomDefinition(
     /// <summary>The room's decoration, which cats walk through (<see cref="PropPlacement"/> has where props may stand).</summary>
     public IReadOnlyList<Prop> Props { get; init; } = [];
 
+    /// <summary>The ID of the look the browser paints the room in (an overlay's season, say); null for the room's own.</summary>
+    public string? Look { get; init; }
+
     /// <summary>The centre of a public room on the world map, in the same metres as its floor.</summary>
     public Position MapCentre { get; init; }
 
