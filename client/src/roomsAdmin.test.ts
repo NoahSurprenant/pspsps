@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { auditText, draftQuery, newLookTemplate, optionsText, parseJson, problemsText, publishQuery, roomLine } from "./roomsAdmin";
+import { auditText, draftQuery, draftSetUrl, goLiveInstant, goLiveText, newLookTemplate, optionsText, parseJson, problemsText, publishQuery, roomLine } from "./roomsAdmin";
 
 describe("roomLine", () => {
   it("says what is live and whether a draft waits", () => {
@@ -20,6 +20,33 @@ describe("problemsText", () => {
   it("says it can be published, or what stops it", () => {
     expect(problemsText([])).toContain("can be published");
     expect(problemsText(["a.", "b."])).toContain("a. b.");
+  });
+});
+
+describe("scheduled publishing", () => {
+  it("adds the go-live instant to the query, with or without rooms riding along", () => {
+    expect(publishQuery("", "2026-12-01T10:00:00.000Z")).toBe("?at=2026-12-01T10%3A00%3A00.000Z");
+    expect(publishQuery("loft", "2026-12-01T10:00:00.000Z")).toBe("?with=loft&at=2026-12-01T10%3A00%3A00.000Z");
+  });
+
+  it("turns a date-time field into an instant, or nothing when it is empty or not a time", () => {
+    expect(goLiveInstant("2026-12-01T10:00")).toBe(new Date("2026-12-01T10:00").toISOString());
+    expect(goLiveInstant("")).toBeNull();
+    expect(goLiveInstant("soon")).toBeNull();
+  });
+
+  it("publishes some drafts as a set: the first is the room, the rest ride along", () => {
+    expect(draftSetUrl([])).toBeNull();
+    expect(draftSetUrl(["garden"])).toEqual({ roomId: "garden", query: "" });
+    expect(draftSetUrl(["garden", "loft", "attic"], "2026-12-01T10:00:00.000Z")).toEqual({
+      roomId: "garden",
+      query: "?with=loft&with=attic&at=2026-12-01T10%3A00%3A00.000Z",
+    });
+  });
+
+  it("says in the room's line when its draft is waiting for its time", () => {
+    expect(goLiveText(null)).toBe("");
+    expect(roomLine({ roomId: "garden", name: "Garden", published: 2, draft: 3, goLiveAt: "2026-12-01T10:00:00.000Z" })).toContain("draft 3, goes live");
   });
 });
 

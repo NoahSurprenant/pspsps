@@ -5,7 +5,7 @@ using Pspsps.Domain.Rooms;
 
 namespace Pspsps.Application.Rooms;
 
-public sealed record RoomSummary(string RoomId, string Name, int? Published, int? Draft);
+public sealed record RoomSummary(string RoomId, string Name, int? Published, int? Draft, DateTimeOffset? GoLiveAt = null);
 
 public sealed record VersionSummary(int Number, RoomVersionState State, DateTimeOffset CreatedAt, DateTimeOffset? PublishedAt);
 
@@ -15,7 +15,8 @@ public sealed record RoomDetail(
     RoomLayout? Published,
     RoomLayout? Draft,
     IReadOnlyList<RoomOverlay> Overlays,
-    int? DraftRevision = null);
+    int? DraftRevision = null,
+    DateTimeOffset? GoLiveAt = null);
 
 public sealed record AuditLine(DateTimeOffset At, Guid? AdminId, string Action, string Target, string Detail);
 
@@ -41,6 +42,21 @@ public interface IRoomEditor
     /// the rooms together would be wrong.
     /// </summary>
     Task PublishAsync(string roomId, IReadOnlyList<string> together, Guid adminId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Checks the room's draft together with the drafts of <paramref name="together"/> as <see cref="PublishAsync"/> does, and sets
+    /// them to go live at <paramref name="at"/> (a later time) by themselves: <see cref="PublishDueAsync"/> does it then.
+    /// </summary>
+    Task ScheduleAsync(string roomId, IReadOnlyList<string> together, DateTimeOffset at, Guid adminId, CancellationToken cancellationToken);
+
+    /// <summary>Takes the room's draft off the schedule; it stays a draft.</summary>
+    Task UnscheduleAsync(string roomId, Guid adminId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Publishes the drafts whose time has come, together. A set that would now be wrong (a room published or changed since) is
+    /// not published: it is taken off the schedule, with the problems put in the audit trail. Returns how many rooms went live.
+    /// </summary>
+    Task<int> PublishDueAsync(CancellationToken cancellationToken);
 
     /// <summary>Makes a draft of an earlier version, and publishes it.</summary>
     Task RollbackAsync(string roomId, int number, Guid adminId, CancellationToken cancellationToken);
@@ -71,7 +87,7 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             {
                 var published = group.FirstOrDefault(v => v.State == RoomVersionState.Published);
                 var draft = group.FirstOrDefault(v => v.State == RoomVersionState.Draft);
-                return new RoomSummary(group.Key, (published ?? draft ?? group.First()).Layout.Name, published?.Number, draft?.Number);
+                return new RoomSummary(group.Key, (published ?? draft ?? group.First()).Layout.Name, published?.Number, draft?.Number, draft?.GoLiveAt);
             })];
     }
 
@@ -90,7 +106,8 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             versions.FirstOrDefault(v => v.State == RoomVersionState.Published)?.Layout,
             versions.FirstOrDefault(v => v.State == RoomVersionState.Draft)?.Layout,
             [.. overlays.Select(o => o.ToOverlay()).OrderBy(o => o.Id, StringComparer.Ordinal)],
-            versions.FirstOrDefault(v => v.State == RoomVersionState.Draft)?.Revision);
+            versions.FirstOrDefault(v => v.State == RoomVersionState.Draft)?.Revision,
+            versions.FirstOrDefault(v => v.State == RoomVersionState.Draft)?.GoLiveAt);
     }
 
     public async Task<IReadOnlyList<string>> SaveDraftAsync(string roomId, RoomLayout layout, Guid adminId, int? expectedRevision, CancellationToken cancellationToken)
@@ -128,6 +145,70 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
 
     public async Task PublishAsync(string roomId, IReadOnlyList<string> together, Guid adminId, CancellationToken cancellationToken)
     {
+        var drafts = await DraftsOfAsync(roomId, together, cancellationToken);
+        await PublishAsync(drafts, adminId, "published", _ => string.Empty, cancellationToken);
+    }
+
+    public async Task ScheduleAsync(string roomId, IReadOnlyList<string> together, DateTimeOffset at, Guid adminId, CancellationToken cancellationToken)
+    {
+        var drafts = await DraftsOfAsync(roomId, together, cancellationToken);
+        ThrowIfProblems(await ProblemsWithAsync(drafts.ToDictionary(d => d.RoomId, d => d.Layout), cancellationToken));
+        var now = time.GetUtcNow();
+        foreach (var draft in drafts)
+        {
+            draft.Schedule(at, adminId, now);
+            Audit(adminId, "publish-scheduled", draft.RoomId, $"version {draft.Number} to go live at {at:u}");
+        }
+
+        await SaveAsync(cancellationToken);
+    }
+
+    public async Task UnscheduleAsync(string roomId, Guid adminId, CancellationToken cancellationToken)
+    {
+        var draft = await db.RoomVersions.FirstOrDefaultAsync(v => v.RoomId == roomId && v.State == RoomVersionState.Draft && v.GoLiveAt != null, cancellationToken)
+            ?? throw new DomainException("This room has no scheduled draft.");
+        draft.Unschedule();
+        Audit(adminId, "schedule-removed", roomId, $"version {draft.Number}");
+        await SaveAsync(cancellationToken);
+    }
+
+    public async Task<int> PublishDueAsync(CancellationToken cancellationToken)
+    {
+        var now = time.GetUtcNow();
+        var due = await db.RoomVersions.Where(v => v.State == RoomVersionState.Draft && v.GoLiveAt != null && v.GoLiveAt <= now).ToListAsync(cancellationToken);
+        if (due.Count == 0)
+        {
+            return 0;
+        }
+
+        var problems = await ProblemsWithAsync(due.ToDictionary(d => d.RoomId, d => d.Layout), cancellationToken);
+        if (problems.Count > 0)
+        {
+            foreach (var draft in due)
+            {
+                var by = draft.ScheduledBy;
+                draft.Unschedule();
+                Audit(by, "schedule-failed", draft.RoomId, Truncate($"version {draft.Number} not published: {string.Join(" ", problems)}"));
+            }
+
+            await SaveAsync(cancellationToken);
+            return 0;
+        }
+
+        try
+        {
+            await PublishAsync(due, due[0].ScheduledBy, "published", d => $" (scheduled for {d.GoLiveAt:u})", cancellationToken);
+        }
+        catch (DomainException)
+        {
+            return 0;
+        }
+
+        return due.Count;
+    }
+
+    private async Task<List<RoomVersion>> DraftsOfAsync(string roomId, IReadOnlyList<string> together, CancellationToken cancellationToken)
+    {
         ArgumentNullException.ThrowIfNull(together);
         string[] ids = [.. together.Append(roomId).Distinct()];
         var drafts = await db.RoomVersions.Where(v => ids.Contains(v.RoomId) && v.State == RoomVersionState.Draft).ToListAsync(cancellationToken);
@@ -137,8 +218,10 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             throw new DomainException($"{string.Join(", ", without)} has no draft.");
         }
 
-        await PublishAsync(drafts, adminId, "published", _ => string.Empty, cancellationToken);
+        return drafts;
     }
+
+    private static string Truncate(string text) => text.Length <= 500 ? text : text[..497] + "...";
 
     public async Task RollbackAsync(string roomId, int number, Guid adminId, CancellationToken cancellationToken)
     {
@@ -248,10 +331,10 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
         [.. (await db.RoomAudit.AsNoTracking().OrderByDescending(a => a.At).Take(Math.Clamp(limit, 1, 500)).ToListAsync(cancellationToken))
             .Select(a => new AuditLine(a.At, a.AdminId, a.Action, a.Target, a.Detail))];
 
-    private void Audit(Guid adminId, string action, string target, string detail) =>
+    private void Audit(Guid? adminId, string action, string target, string detail) =>
         db.RoomAudit.Add(RoomAuditEntry.Of(adminId, action, target, detail, time.GetUtcNow()));
 
-    private async Task PublishAsync(List<RoomVersion> drafts, Guid adminId, string action, Func<RoomVersion, string> note, CancellationToken cancellationToken)
+    private async Task PublishAsync(List<RoomVersion> drafts, Guid? adminId, string action, Func<RoomVersion, string> note, CancellationToken cancellationToken)
     {
         ThrowIfProblems(await ProblemsWithAsync(drafts.ToDictionary(d => d.RoomId, d => d.Layout), cancellationToken));
         var draftIds = drafts.Select(d => d.Id).ToList();
@@ -274,8 +357,9 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
                 var now = time.GetUtcNow();
                 foreach (var draft in await db.RoomVersions.Where(v => draftIds.Contains(v.Id)).ToListAsync(ct))
                 {
+                    var extra = note(draft);
                     draft.Publish(now);
-                    Audit(adminId, action, draft.RoomId, $"version {draft.Number}{note(draft)}");
+                    Audit(adminId, action, draft.RoomId, $"version {draft.Number}{extra}");
                 }
 
                 await db.SaveChangesAsync(ct);

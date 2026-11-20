@@ -24,7 +24,7 @@ public sealed class RoomAuditEntry
 
     public string Detail { get; private set; }
 
-    public static RoomAuditEntry Of(Guid adminId, string action, string target, string detail, DateTimeOffset at)
+    public static RoomAuditEntry Of(Guid? adminId, string action, string target, string detail, DateTimeOffset at)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(action);
         ArgumentException.ThrowIfNullOrWhiteSpace(target);
