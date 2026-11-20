@@ -574,11 +574,23 @@ test("a guest walks through the café door and comes in by the café's door back
 
 test("a cat walks the garden loop and travels to a room's spawn from the world map", async ({ page }) => {
   const me = await enterWorld(page, "Tabby");
-  await goThroughDoor(page, "garden", "Garden Courtyard");
-  await goThroughDoor(page, "pear-orchard", "Pear Orchard");
-  await goThroughDoor(page, "riverside", "Riverside Trail");
-  await expect(page.getByRole("button", { name: "Fish" })).toBeVisible();
-  await goThroughDoor(page, "town-square", "Town Square");
+  let previous = "town-square";
+  for (const [id, name] of [
+    ["garden", "Garden Courtyard"], ["pear-orchard", "Pear Orchard"],
+    ["riverside", "Riverside Trail"], ["town-square", "Town Square"],
+  ] as const) {
+    await goThroughDoor(page, id, name);
+    const entrance = await page.evaluate(from => window.pspsps?.room()?.snapshot.doors.find(d => d.toRoomId === from), previous);
+    const cat = (await cats(page))[me];
+    if (!entrance || !cat) throw new Error(`missing arrival at ${name}`);
+    const offset = entrance.radius + 0.75;
+    const dx = entrance.edge === "east" ? -offset : entrance.edge === "west" ? offset : 0;
+    const dz = entrance.edge === "north" ? -offset : entrance.edge === "south" ? offset : 0;
+    expect(cat.x).toBeCloseTo(entrance.x + dx, 6);
+    expect(cat.z).toBeCloseTo(entrance.z + dz, 6);
+    if (id === "riverside") await expect(page.getByRole("button", { name: "Fish" })).toBeVisible();
+    previous = id;
+  }
   await goThroughDoor(page, "cafe", "Cat Café");
   await goThroughDoor(page, "town-square", "Town Square");
 

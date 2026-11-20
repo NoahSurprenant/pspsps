@@ -4,6 +4,27 @@ namespace Pspsps.Domain.Test;
 
 public sealed class RoomPlanTests
 {
+    [Test]
+    public void AShallowRoomMustHaveSpaceToStepThroughItsDoor()
+    {
+        var shallow = new RoomDefinition("hall", "Hall", 8, 2.5, new(0, 0), 10);
+        Assert.That(() => shallow.WithDoors(("out", RoomEdge.South, 0, "square", "hall")),
+            Throws.TypeOf<ArgumentOutOfRangeException>());
+    }
+
+    [TestCase(RoomEdge.North, 2.5, 1)]
+    [TestCase(RoomEdge.South, 2.5, -1)]
+    [TestCase(RoomEdge.East, 1, 2.5)]
+    [TestCase(RoomEdge.West, -1, 2.5)]
+    public void ArrivalFollowsTheCentrelineAcrossTheThreshold(RoomEdge edge, double x, double z)
+    {
+        var room = new RoomDefinition("hall", "Hall", 7.1, 7.1, new(0, 0), 10)
+            .WithDoors(("out", edge, 2.5, "square", "hall"));
+        var arrival = room.GetDoor("out").Arrival;
+        Assert.That(arrival.X, Is.EqualTo(x).Within(1e-9));
+        Assert.That(arrival.Z, Is.EqualTo(z).Within(1e-9));
+    }
+
     [TestCase(19, 2.51)] // A one-centimetre lateral error at a threshold.
     [TestCase(19.02, 2.5)] // A one-centimetre gap after walking around the block.
     public void ALoopMustCloseFromBothDirections(double depth, double offset)

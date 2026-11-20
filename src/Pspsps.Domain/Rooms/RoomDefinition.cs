@@ -44,7 +44,13 @@ public sealed record RoomDefinition(
                 throw new ArgumentException($"Exit {exit.Id} overlaps another exit in {Id}.", nameof(exits));
             }
 
-            doors.Add(new Door(exit.Id, spot, radius, exit.ToRoom, exit.ToDoor) { Edge = exit.Edge });
+            var door = new Door(exit.Id, spot, radius, exit.ToRoom, exit.ToDoor) { Edge = exit.Edge };
+            if (Clamp(door.Arrival) != door.Arrival)
+            {
+                throw new ArgumentOutOfRangeException(nameof(exits), $"No landing inside {Id}/{exit.Id}.");
+            }
+
+            doors.Add(door);
         }
 
         return this with { Doors = doors };

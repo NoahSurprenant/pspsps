@@ -149,7 +149,7 @@ declare global {
             roomId: string;
             roomName: string;
             props: { kind: string; x: number; z: number; radius: number }[] | null;
-            doors: { id: string; x: number; z: number; radius: number; toRoomId: string }[];
+            doors: { id: string; x: number; z: number; radius: number; toRoomId: string; edge?: string }[];
           };
         }
         | undefined;
