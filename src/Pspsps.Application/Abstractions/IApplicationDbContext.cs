@@ -47,8 +47,11 @@ public interface IApplicationDbContext
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>Starts a transaction: saves made until it is committed are kept together, or all dropped when it is disposed first.</summary>
-    Task<IDbTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Runs <paramref name="work"/> in a transaction: its saves are kept together, or all dropped when it throws. The
+    /// database may run it again after a dropped connection, so it must load what it changes itself, each time.
+    /// </summary>
+    Task InTransactionAsync(Func<CancellationToken, Task> work, CancellationToken cancellationToken = default);
 
     /// <summary>Whether a save failed because a row with the same unique key is already there (another request won).</summary>
     bool IsUniqueViolation(DbUpdateException exception);
@@ -81,8 +84,3 @@ public interface IApplicationDbContext
     void Forget(Report report);
 }
 
-/// <summary>Saves made together; disposed without a commit, they are all undone.</summary>
-public interface IDbTransaction : IAsyncDisposable
-{
-    Task CommitAsync(CancellationToken cancellationToken = default);
-}

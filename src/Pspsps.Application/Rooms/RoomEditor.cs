@@ -220,29 +220,31 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
     private async Task PublishAsync(List<RoomVersion> drafts, CancellationToken cancellationToken)
     {
         ThrowIfProblems(await ProblemsWithAsync(drafts.ToDictionary(d => d.RoomId, d => d.Layout), cancellationToken));
-        var ids = drafts.Select(d => d.RoomId).ToList();
-        var current = await db.RoomVersions.Where(v => ids.Contains(v.RoomId) && v.State == RoomVersionState.Published).ToListAsync(cancellationToken);
-        await using var transaction = await db.BeginTransactionAsync(cancellationToken);
+        var draftIds = drafts.Select(d => d.Id).ToList();
+        var roomIds = drafts.Select(d => d.RoomId).ToList();
         try
         {
-            if (current.Count > 0)
+            await db.InTransactionAsync(async ct =>
             {
+                var current = await db.RoomVersions.Where(v => roomIds.Contains(v.RoomId) && v.State == RoomVersionState.Published).ToListAsync(ct);
                 foreach (var version in current)
                 {
                     version.Archive();
                 }
 
-                await db.SaveChangesAsync(cancellationToken);
-            }
+                if (current.Count > 0)
+                {
+                    await db.SaveChangesAsync(ct);
+                }
 
-            var now = time.GetUtcNow();
-            foreach (var draft in drafts)
-            {
-                draft.Publish(now);
-            }
+                var now = time.GetUtcNow();
+                foreach (var draft in await db.RoomVersions.Where(v => draftIds.Contains(v.Id)).ToListAsync(ct))
+                {
+                    draft.Publish(now);
+                }
 
-            await db.SaveChangesAsync(cancellationToken);
-            await transaction.CommitAsync(cancellationToken);
+                await db.SaveChangesAsync(ct);
+            }, cancellationToken);
         }
         catch (DbUpdateException exception) when (db.IsUniqueViolation(exception))
         {
