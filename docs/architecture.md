@@ -76,6 +76,8 @@ The room bar shows the coins, Friends, a map icon where there are at least three
 ("Cat Café · pspsps"), which the tab and screen readers say. A tap on the room goes to the first of these along its
 ray, not the nearest: another cat (its card), a door, the pond, the player's own cat (their own card), the catalogue
 stand, a prop (the cat walks beside it), the floor. So a door just behind the player's own cat still takes the tap.
+A tap past the playable floor walks towards it as far as the room's edge. A ring briefly marks the destination.
+Holding WASD walks in screen directions, including diagonally, through the same server movement as a tap.
 
 Chat goes the same way, through the room's chat filter (`ChatFilter`, a rule of `RoomState.Say`): word lists that
 either star a word out or refuse the whole line, seeing through accents, look-alike letters, digits for letters,

@@ -728,6 +728,17 @@ export class Overlay {
     document.title = pageTitle();
   }
 
+  /** A brief ring where a click or tap sent the cat, in pixels from the canvas's top left. */
+  markWalk(x: number, y: number): void {
+    this.root.querySelector(".walk-marker")?.remove();
+    const marker = el("div", { className: "walk-marker" });
+    marker.setAttribute("aria-hidden", "true");
+    marker.style.left = `${x}px`;
+    marker.style.top = `${y}px`;
+    this.root.append(marker);
+    window.setTimeout(() => marker.remove(), 580);
+  }
+
   toast(message: string): void {
     // Said in the open card or list too: the toast is behind it.
     const inDialog = this.dialog?.element.querySelector<HTMLElement>("#dialog-message");

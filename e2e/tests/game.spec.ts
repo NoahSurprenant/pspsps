@@ -12,6 +12,34 @@ test("the sign-in page loads without errors", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Play as a guest" })).toBeVisible();
 });
 
+test("clicking beyond the square walks to its edge and marks the destination", async ({ page }) => {
+  const me = await enterWorld(page, "Tabby");
+  await tapFloor(page, 13, 0);
+  const marker = page.locator(".walk-marker");
+  await expect(marker).toBeVisible();
+  await expect.poll(async () => (await cats(page))[me]?.x).toBeCloseTo(12);
+  expect((await cats(page))[me]?.z).toBeCloseTo(4 / 13);
+  await expect(marker).toHaveCount(0);
+});
+
+test("WASD walks while held and the chat box still takes typing", async ({ page }) => {
+  const me = await enterWorld(page, "Calico");
+  const position = async () => (await cats(page))[me];
+  await page.keyboard.down("s");
+  await expect.poll(async () => (await position())?.z).toBeLessThan(2);
+  await page.keyboard.up("s");
+  await page.keyboard.down("d");
+  await expect.poll(async () => (await position())?.x).toBeGreaterThan(1);
+  await page.keyboard.up("d");
+
+  const chat = page.getByPlaceholder("Say something…");
+  await chat.focus();
+  const before = await position();
+  await chat.pressSequentially("wasd", { delay: 130 });
+  await expect(chat).toHaveValue("wasd");
+  expect(await position()).toEqual(before);
+});
+
 test("a guest picks a world and the room draws", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Play as a guest" }).click();
