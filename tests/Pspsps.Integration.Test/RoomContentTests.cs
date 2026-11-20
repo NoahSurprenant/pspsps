@@ -165,9 +165,9 @@ public sealed class RoomContentTests
         var before = (await editor.GetAsync("garden", ct))!;
         var original = before.Published!;
 
-        var problems = await editor.SaveDraftAsync("garden", original with { Name = "The Big Garden" }, admin, ct);
+        var problems = await editor.SaveDraftAsync("garden", original with { Name = "The Big Garden" }, admin, null, ct);
         Assert.That(problems, Is.Empty);
-        await editor.PublishAsync("garden", [], ct);
+        await editor.PublishAsync("garden", [], admin, ct);
         var published = (await editor.GetAsync("garden", ct))!;
         Assert.Multiple(() =>
         {
@@ -179,9 +179,9 @@ public sealed class RoomContentTests
         await editor.RollbackAsync("garden", before.Versions.First(v => v.State == RoomVersionState.Published).Number, admin, ct);
         Assert.That((await editor.GetAsync("garden", ct))!.Published!.Name, Is.EqualTo(original.Name));
 
-        await editor.SaveDraftAsync("garden", original with { Doors = [] }, admin, ct);
-        Assert.That(async () => await editor.PublishAsync("garden", [], ct), Throws.TypeOf<Pspsps.Domain.DomainException>());
-        await editor.DiscardDraftAsync("garden", ct);
+        await editor.SaveDraftAsync("garden", original with { Doors = [] }, admin, null, ct);
+        Assert.That(async () => await editor.PublishAsync("garden", [], admin, ct), Throws.TypeOf<Pspsps.Domain.DomainException>());
+        await editor.DiscardDraftAsync("garden", admin, ct);
         Assert.That((await editor.GetAsync("garden", ct))!.Draft, Is.Null);
     }
 }

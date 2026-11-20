@@ -17,24 +17,27 @@ public static class RoomEditorEndpoints
         rooms.MapGet("", (ClaimsPrincipal user, IModerationService moderation, IRoomEditor editor, CancellationToken ct) =>
             Admin(user, moderation, async _ => Results.Ok(await editor.ListAsync(ct))));
 
+        rooms.MapGet("/audit", (int? limit, ClaimsPrincipal user, IModerationService moderation, IRoomEditor editor, CancellationToken ct) =>
+            Admin(user, moderation, async _ => Results.Ok(await editor.AuditAsync(limit ?? 100, ct))));
+
         rooms.MapGet("/{roomId}", (string roomId, ClaimsPrincipal user, IModerationService moderation, IRoomEditor editor, CancellationToken ct) =>
             Admin(user, moderation, async _ => await editor.GetAsync(roomId, ct) is { } detail ? Results.Ok(detail) : Results.NotFound()));
 
-        rooms.MapPut("/{roomId}/draft", (string roomId, RoomLayout layout, HttpRequest request, ClaimsPrincipal user, IModerationService moderation, IRoomEditor editor) =>
+        rooms.MapPut("/{roomId}/draft", (string roomId, RoomLayout layout, int? revision, HttpRequest request, ClaimsPrincipal user, IModerationService moderation, IRoomEditor editor) =>
             Change(request, user, moderation, async adminId =>
-                Results.Ok(new { problems = await editor.SaveDraftAsync(roomId, layout, adminId, CancellationToken.None) })));
+                Results.Ok(new { problems = await editor.SaveDraftAsync(roomId, layout, adminId, revision, CancellationToken.None) })));
 
         rooms.MapDelete("/{roomId}/draft", (string roomId, HttpRequest request, ClaimsPrincipal user, IModerationService moderation, IRoomEditor editor) =>
-            Change(request, user, moderation, async _ =>
+            Change(request, user, moderation, async adminId =>
             {
-                await editor.DiscardDraftAsync(roomId, CancellationToken.None);
+                await editor.DiscardDraftAsync(roomId, adminId, CancellationToken.None);
                 return Results.NoContent();
             }));
 
         rooms.MapPost("/{roomId}/publish", (string roomId, [Microsoft.AspNetCore.Mvc.FromQuery(Name = "with")] string[]? together, HttpRequest request, ClaimsPrincipal user, IModerationService moderation, IRoomEditor editor) =>
-            Change(request, user, moderation, async _ =>
+            Change(request, user, moderation, async adminId =>
             {
-                await editor.PublishAsync(roomId, together ?? [], CancellationToken.None);
+                await editor.PublishAsync(roomId, together ?? [], adminId, CancellationToken.None);
                 return Results.NoContent();
             }));
 
@@ -46,16 +49,16 @@ public static class RoomEditorEndpoints
             }));
 
         rooms.MapPut("/{roomId}/overlays/{overlayId}", (string roomId, string overlayId, RoomOverlay overlay, HttpRequest request, ClaimsPrincipal user, IModerationService moderation, IRoomEditor editor) =>
-            Change(request, user, moderation, async _ =>
+            Change(request, user, moderation, async adminId =>
             {
-                await editor.SaveOverlayAsync(overlay with { RoomId = roomId, Id = overlayId }, CancellationToken.None);
+                await editor.SaveOverlayAsync(overlay with { RoomId = roomId, Id = overlayId }, adminId, CancellationToken.None);
                 return Results.NoContent();
             }));
 
         rooms.MapDelete("/{roomId}/overlays/{overlayId}", (string roomId, string overlayId, HttpRequest request, ClaimsPrincipal user, IModerationService moderation, IRoomEditor editor) =>
-            Change(request, user, moderation, async _ =>
+            Change(request, user, moderation, async adminId =>
             {
-                await editor.DeleteOverlayAsync(roomId, overlayId, CancellationToken.None);
+                await editor.DeleteOverlayAsync(roomId, overlayId, adminId, CancellationToken.None);
                 return Results.NoContent();
             }));
 
@@ -73,23 +76,23 @@ public static class RoomEditorEndpoints
             }))));
 
         looks.MapPut("/rooms/{id}", (string id, RoomLook look, HttpRequest request, ClaimsPrincipal user, IModerationService moderation, IRoomEditor editor) =>
-            Change(request, user, moderation, async _ =>
+            Change(request, user, moderation, async adminId =>
             {
-                await editor.SaveLookAsync(id, look, CancellationToken.None);
+                await editor.SaveLookAsync(id, look, adminId, CancellationToken.None);
                 return Results.NoContent();
             }));
 
         looks.MapPut("/variants/{name}", (string name, LookVariant variant, HttpRequest request, ClaimsPrincipal user, IModerationService moderation, IRoomEditor editor) =>
-            Change(request, user, moderation, async _ =>
+            Change(request, user, moderation, async adminId =>
             {
-                await editor.SaveVariantAsync(name, variant, CancellationToken.None);
+                await editor.SaveVariantAsync(name, variant, adminId, CancellationToken.None);
                 return Results.NoContent();
             }));
 
         looks.MapDelete("/variants/{name}", (string name, HttpRequest request, ClaimsPrincipal user, IModerationService moderation, IRoomEditor editor) =>
-            Change(request, user, moderation, async _ =>
+            Change(request, user, moderation, async adminId =>
             {
-                await editor.DeleteVariantAsync(name, CancellationToken.None);
+                await editor.DeleteVariantAsync(name, adminId, CancellationToken.None);
                 return Results.NoContent();
             }));
     }
