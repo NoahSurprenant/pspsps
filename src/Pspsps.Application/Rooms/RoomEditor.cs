@@ -132,6 +132,7 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
 
         var back = old.DraftFrom(versions.Max(v => v.Number) + 1, adminId, time.GetUtcNow());
         db.RoomVersions.Add(back);
+        await SaveAsync(cancellationToken);
         await PublishAsync([back], cancellationToken);
     }
 
