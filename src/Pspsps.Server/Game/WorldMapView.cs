@@ -2,46 +2,27 @@ using Pspsps.Domain.Rooms;
 
 namespace Pspsps.Server.Game;
 
-/// <summary>The public rooms' outdoor floors and storefronts and the routes between their entrances.</summary>
+/// <summary>The island's outdoor places. A place whose room is not built (or not published) yet is shown but closed.</summary>
 [GenerateSerializer, Immutable]
-public sealed record WorldMapView(
-    [property: Id(0)] IReadOnlyList<MapRoomView> Rooms,
-    [property: Id(1)] IReadOnlyList<MapRouteView> Routes)
+public sealed record WorldMapView([property: Id(0)] IReadOnlyList<MapPlaceView> Places)
 {
     internal static WorldMapView From(IReadOnlyList<RoomDefinition> rooms)
     {
-        var byId = rooms.ToDictionary(room => room.Id);
-        var routes = new List<MapRouteView>();
-        foreach (var room in rooms)
-        {
-            foreach (var exit in room.Doors.Where(exit => StringComparer.Ordinal.Compare(room.Id, exit.ToRoom) < 0))
-            {
-                var destination = byId[exit.ToRoom];
-                var back = destination.GetDoor(exit.ToDoor ?? throw new InvalidOperationException("A public exit needs a return entrance."));
-                var from = room.MapExit(exit);
-                var to = destination.MapExit(back);
-                routes.Add(new MapRouteView(from.X, from.Z, to.X, to.Z));
-            }
-        }
-
-        return new WorldMapView(
-            [.. rooms.Select(room => new MapRoomView(room.Id, room.Name, room.MapCentre.X, room.MapCentre.Z, room.MapWidth, room.MapDepth))],
-            routes.ToArray());
+        var open = rooms.Select(room => room.Id).ToHashSet();
+        return new WorldMapView([.. IslandMap.Places.Select(place => new MapPlaceView(
+            place.Id, place.Name, place.Category, place.Landmark, place.X, place.Z, place.Blurb,
+            place.Room is { } room && open.Contains(room) ? room : null))]);
     }
 }
 
+/// <summary>A place on the island; <c>RoomId</c> is null while it cannot be entered.</summary>
 [GenerateSerializer, Immutable]
-public sealed record MapRoomView(
+public sealed record MapPlaceView(
     [property: Id(0)] string Id,
     [property: Id(1)] string Name,
-    [property: Id(2)] double X,
-    [property: Id(3)] double Z,
-    [property: Id(4)] double Width,
-    [property: Id(5)] double Depth);
-
-[GenerateSerializer, Immutable]
-public sealed record MapRouteView(
-    [property: Id(0)] double FromX,
-    [property: Id(1)] double FromZ,
-    [property: Id(2)] double ToX,
-    [property: Id(3)] double ToZ);
+    [property: Id(2)] string Category,
+    [property: Id(3)] string Landmark,
+    [property: Id(4)] double X,
+    [property: Id(5)] double Z,
+    [property: Id(6)] string Blurb,
+    [property: Id(7)] string? RoomId);

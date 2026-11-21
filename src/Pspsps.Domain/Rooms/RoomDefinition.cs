@@ -16,12 +16,6 @@ public sealed record RoomDefinition(
     /// <summary>The ID of the look the browser paints the room in (an overlay's season, say); null for the room's own.</summary>
     public string? Look { get; init; }
 
-    /// <summary>The centre of a public room on the world map, in the same metres as its floor.</summary>
-    public Position MapCentre { get; init; }
-
-    /// <summary>For an interior, the building seen from the street has its own footprint and front entrance.</summary>
-    public Storefront? Exterior { get; init; }
-
     /// <summary>Whether this is the same room as <paramref name="other"/> to a cat in it: the same floor, doors, props and look.</summary>
     public bool SameAs(RoomDefinition other)
     {
@@ -29,12 +23,6 @@ public sealed record RoomDefinition(
         return Equals(this with { Doors = [], Props = [] }, other with { Doors = [], Props = [] })
             && Doors.SequenceEqual(other.Doors) && Props.SequenceEqual(other.Props);
     }
-
-    public double MapWidth => Exterior?.Width ?? Width;
-    public double MapDepth => Exterior?.Depth ?? Depth;
-
-    public RoomEdge MapEdge(Door door) =>
-        Exterior?.Front ?? door.Edge ?? throw new ArgumentException("A map exit needs a floor edge.", nameof(door));
 
     /// <summary>Places each exit one metre inside its edge. Offsets run across the edge from its midpoint.</summary>
     public RoomDefinition WithDoors(params (string Id, RoomEdge Edge, double Offset, string ToRoom, string ToDoor)[] exits)
@@ -73,20 +61,6 @@ public sealed record RoomDefinition(
         return this with { Doors = doors };
     }
 
-    /// <summary>The point where an exit reaches the floor boundary, converted to world-map coordinates.</summary>
-    public Position MapExit(Door door)
-    {
-        var offset = MapExitOffset(door);
-        return new Position(MapCentre.X + offset.X, MapCentre.Z + offset.Z);
-    }
-
-    internal Position MapExitOffset(Door door)
-    {
-        var edge = MapEdge(door);
-        var offset = edge is RoomEdge.North or RoomEdge.South ? door.Spot.X : door.Spot.Z;
-        return PointOnEdge(edge, Exterior is null ? offset : 0, 0, MapWidth, MapDepth);
-    }
-
     private static Position PointOnEdge(RoomEdge edge, double offset, double inset, double width, double depth) => edge switch
     {
         RoomEdge.North => new Position(offset, depth / 2 - inset),
@@ -111,5 +85,3 @@ public sealed record RoomDefinition(
     public Door GetDoor(string doorId) =>
         Doors.FirstOrDefault(d => d.Id == doorId) ?? throw new DomainException("There's no such door here.");
 }
-
-public sealed record Storefront(double Width, double Depth, RoomEdge Front);

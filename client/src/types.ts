@@ -89,9 +89,20 @@ export interface RoomLink {
   name: string;
 }
 
+/** A place on the island; roomId is null while it can't be entered yet. */
+export interface MapPlaceView {
+  id: string;
+  name: string;
+  category: string;
+  landmark: string;
+  x: number;
+  z: number;
+  blurb: string;
+  roomId: string | null;
+}
+
 export interface WorldMapView {
-  rooms: (RoomLink & { x: number; z: number; width: number; depth: number })[];
-  routes: { fromX: number; fromZ: number; toX: number; toZ: number }[];
+  places: MapPlaceView[];
 }
 
 export interface RoomSnapshot {
@@ -116,7 +127,7 @@ export interface RoomSnapshot {
    * next place on its way out ("Town Square is full. You went to Cat Café instead."). Missing from an older server.
    */
   notice?: string | null;
-  /** The public floor plans and routes. Older pods send the destination list only. */
+  /** The island's outdoor places. Older pods send the destination list only. */
   worldMap?: WorldMapView | null;
   /** The look an overlay gives the room for now (a named variant of its own look); missing when it has none, or from an older server. */
   look?: string | null;

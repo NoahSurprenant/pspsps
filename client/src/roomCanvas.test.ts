@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { History, addProp, backDoor, newDoor, setPond, setProp, setStorefront, doorAtEdge, doorSpot, fromPixel, isLayout, moveTo, newRoomTemplate, pick, removePicked, toPixel } from "./roomCanvas";
+import { History, addProp, backDoor, newDoor, setPond, setProp, doorAtEdge, doorSpot, fromPixel, isLayout, moveTo, newRoomTemplate, pick, removePicked, toPixel } from "./roomCanvas";
 import { propProblems, propsInTheWay } from "./roomClearance";
 
 const room = {
@@ -73,7 +73,7 @@ describe("room canvas aids", () => {
     expect([history.canRedo, history.value]).toEqual([false, 9]);
   });
 
-  it("changes a prop's size and facing, the pond and the storefront without touching the original", () => {
+  it("changes a prop's size and facing, and the pond without touching the original", () => {
     const sized = setProp(room, 0, { radius: 2, facing: 0.25 });
     const pond = setPond(room, { center: { x: -2, z: 2 }, radius: 1.5 });
 
@@ -81,7 +81,6 @@ describe("room canvas aids", () => {
     expect(room.props[0]?.radius).toBe(1.5);
     expect(pond.pond?.radius).toBe(1.5);
     expect(setPond(pond, null).pond).toBeNull();
-    expect(setStorefront(room, { width: 12, depth: 6, front: "South" }).exterior?.front).toBe("South");
     expect(pick(pond, { x: -2.2, z: 2 })).toEqual({ kind: "pond" });
     expect(moveTo(pond, { kind: "pond" }, { x: 1, z: 1 }).pond?.center).toEqual({ x: 1, z: 1 });
   });

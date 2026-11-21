@@ -5,7 +5,6 @@ export interface Spot { x: number; z: number }
 export interface CanvasProp { kind: string; spot: Spot; radius: number; facing?: number }
 export interface CanvasDoor { id: string; edge: "North" | "East" | "South" | "West"; offset: number; toRoom: string; toDoor: string }
 export interface CanvasPond { center: Spot; radius: number }
-export interface CanvasStorefront { width: number; depth: number; front: CanvasDoor["edge"] }
 export interface CanvasLayout {
   name: string;
   width: number;
@@ -15,7 +14,6 @@ export interface CanvasLayout {
   props: CanvasProp[];
   doors: CanvasDoor[];
   pond?: CanvasPond | null;
-  exterior?: CanvasStorefront | null;
   [other: string]: unknown;
 }
 
@@ -164,10 +162,6 @@ export function setPond(layout: CanvasLayout, pond: CanvasPond | null): CanvasLa
   return { ...layout, pond };
 }
 
-export function setStorefront(layout: CanvasLayout, exterior: CanvasStorefront | null): CanvasLayout {
-  return { ...layout, exterior };
-}
-
 export interface CanvasOptions {
   /** Called to add a door and, with it, the door back in the other room; the canvas adds this room's door itself when it resolves. */
   addDoorPair?: (door: CanvasDoor, back: CanvasDoor) => Promise<void>;
@@ -272,20 +266,6 @@ export function roomCanvas(
     parts.push(pond
       ? el("span", {}, number("Pond radius", pond.radius, 0.25, (radius) => change(setPond(layout, { ...pond, radius }))), button("Remove pond", () => change(setPond(layout, null))))
       : button("Add pond", () => change(setPond(layout, { center: { x: 0, z: 0 }, radius: 2 }))));
-    const shop = layout.exterior;
-    if (shop) {
-      const front = el("select", {});
-      front.setAttribute("aria-label", "Storefront edge");
-      for (const edge of ["North", "East", "South", "West"]) front.append(el("option", { text: edge }));
-      front.value = shop.front;
-      front.addEventListener("change", () => change(setStorefront(layout, { ...shop, front: front.value as CanvasDoor["edge"] })));
-      parts.push(el("span", {},
-        number("Storefront width", shop.width, 1, (width) => change(setStorefront(layout, { ...shop, width }))),
-        number("depth", shop.depth, 1, (depth) => change(setStorefront(layout, { ...shop, depth }))), front,
-        button("Remove storefront", () => change(setStorefront(layout, null)))));
-    } else {
-      parts.push(button("Add storefront", () => change(setStorefront(layout, { width: layout.width, depth: 6, front: "South" }))));
-    }
     if (options.addDoorPair && options.rooms && options.roomId) parts.push(doorPairForm(options.addDoorPair, options.rooms, options.roomId));
     controls.replaceChildren(...parts);
   };

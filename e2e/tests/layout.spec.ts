@@ -112,51 +112,19 @@ async function doorsReachable(page: Page, destinations: string[]): Promise<strin
 async function mapLabelsFit(page: Page): Promise<string[]> {
   return page.locator(".world-map").evaluate((map) => {
     const problems: string[] = [];
-    const bounds = map.getBoundingClientRect();
-    const buttons = [...map.querySelectorAll<HTMLButtonElement>(".map-place")];
-    const rooms = window.pspsps?.room()?.snapshot.worldMap?.rooms;
-    if (!rooms?.length) return ["no public floor plan"];
-    const origin = rooms[0]!;
-    const footprint = (id: string) => map.querySelector(`.map-footprint[data-room="${id}"]`)?.getBoundingClientRect();
-    const anchor = footprint(origin.id);
-    if (!anchor) return ["missing starting footprint"];
-    const scale = anchor.width / origin.width;
-    for (const room of rooms) {
-      const box = footprint(room.id);
-      if (!box || !buttons.some(button => button.dataset.place === room.id)) {
-        problems.push(`missing floor or destination for ${room.id}`);
-        continue;
+    const picture = map.querySelector(".map-picture")?.getBoundingClientRect();
+    const dots = [...map.querySelectorAll<HTMLElement>(".map-place")];
+    if (!picture || dots.length === 0) return ["no island"];
+    for (const [index, button] of dots.entries()) {
+      const name = button.getAttribute("aria-label");
+      const box = button.querySelector(".map-dot")!.getBoundingClientRect();
+      if (box.left < picture.left || box.right > picture.right || box.top < picture.top || box.bottom > picture.bottom) {
+        problems.push(`${name} extends past the island`);
       }
-      const dx = box.left + box.width / 2 - anchor.left - anchor.width / 2;
-      const dz = anchor.top + anchor.height / 2 - box.top - box.height / 2;
-      if (Math.abs(box.width - scale * room.width) > 1 || Math.abs(box.height - scale * room.depth) > 1 ||
-          Math.abs(dx - scale * (room.x - origin.x)) > 1 || Math.abs(dz - scale * (room.z - origin.z)) > 1) {
-        problems.push(`${room.id} differs from its world footprint by over one pixel`);
-      }
-    }
-    for (const [index, button] of buttons.entries()) {
-      const name = button.textContent?.trim();
-      const box = button.getBoundingClientRect();
-      const label = button.querySelector("span:last-child");
-      if (box.left < bounds.left || box.right > bounds.right || box.top < bounds.top || box.bottom > bounds.bottom) {
-        problems.push(`${name} extends past the map`);
-      }
-      if (!label?.textContent?.trim()) {
-        problems.push("destination has no visible label");
-      } else {
-        const text = document.createRange();
-        text.selectNodeContents(label);
-        for (const line of text.getClientRects()) {
-          if (line.left < box.left + 2 || line.right > box.right - 2 ||
-              line.top < box.top + 2 || line.bottom > box.bottom - 2) {
-            problems.push(`${name} text extends into its button border`);
-          }
-        }
-      }
-      for (const other of buttons.slice(index + 1)) {
-        const b = other.getBoundingClientRect();
-        if (box.left < b.right + 4 && b.left < box.right + 4 && box.top < b.bottom + 4 && b.top < box.bottom + 4) {
-          problems.push(`${name} needs 4px clearance from ${other.textContent?.trim()}`);
+      for (const other of dots.slice(index + 1)) {
+        const b = other.querySelector(".map-dot")!.getBoundingClientRect();
+        if (box.left < b.right + 2 && b.left < box.right + 2 && box.top < b.bottom + 2 && b.top < box.bottom + 2) {
+          problems.push(`${name} touches ${other.getAttribute("aria-label")}`);
         }
       }
     }
