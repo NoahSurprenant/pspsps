@@ -115,9 +115,13 @@ type FloorPaint = { painter: string; colour?: string; accent?: string };
 
 /** The painter a floor names: one the client has, or an admins' recipe; none for a name it doesn't know. */
 function floorPainterOf(paint: FloorPaint | null | undefined): FloorPainter | undefined {
-  const recipe = paint && painterRecipe("floor", paint.painter);
-  return paint && (floorPainters[paint.painter]
-    ?? (recipe ? (brush, plan, scale, colours) => paintSteps(brush, recipe.steps, plan.width, plan.depth, scale, colours) : undefined));
+  if (!paint) {
+    return undefined;
+  }
+
+  const recipe = painterRecipe("floor", paint.painter);
+  return floorPainters[paint.painter]
+    ?? (recipe ? (brush, plan, scale, colours) => paintSteps(brush, recipe.steps, plan.width, plan.depth, scale, colours) : undefined);
 }
 
 function lookFromData(data: RoomLookData): RoomLook {
@@ -172,7 +176,7 @@ export function lookOf(roomId: string, variant?: string | null): RoomLook {
     return base;
   }
 
-  const look: RoomLook = { ...base, sky: changes.sky, wallColour: changes.wallColour, variant };
+  const look: RoomLook = { ...base, sky: changes.sky, wallColour: changes.wallColour, variant: variant ?? undefined };
   const floor = floorPainterOf(changes.floor);
   if (changes.floor && floor) {
     // The variant's floor replaces the room's: its own painter and colours (the room's floor colour where it names none).
