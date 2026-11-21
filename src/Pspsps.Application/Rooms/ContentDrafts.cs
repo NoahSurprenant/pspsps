@@ -17,6 +17,8 @@ public sealed record DraftPainter(string Id, string Surface, IReadOnlyList<Paint
 
 public sealed record DraftWildlife(string Id, IReadOnlyList<PropPart> Parts, WildlifeMotion Motion);
 
+public sealed record DraftPropDesign(string Kind, double Size, IReadOnlyList<PropPart> Parts, IReadOnlyList<PropGrowth>? Growth = null);
+
 /// <summary>
 /// Content waiting for review (ContentDrafts.json, in the shape of the admin export): a pull request changes the file, its
 /// checks run over it, and an admin loads it as drafts, which only go live when published.
@@ -25,7 +27,9 @@ public sealed record ContentFile(
     IReadOnlyList<DraftRoom>? Rooms = null,
     DraftLooks? Looks = null,
     IReadOnlyList<DraftPainter>? Painters = null,
-    IReadOnlyList<DraftWildlife>? Wildlife = null)
+    IReadOnlyList<DraftWildlife>? Wildlife = null,
+    IReadOnlyList<RoomOverlay>? Overlays = null,
+    IReadOnlyList<DraftPropDesign>? PropDesigns = null)
 {
     public static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
@@ -49,6 +53,10 @@ public sealed record ContentFile(
     public IReadOnlyList<DraftPainter> PainterList => Painters ?? [];
 
     public IReadOnlyList<DraftWildlife> WildlifeList => Wildlife ?? [];
+
+    public IReadOnlyList<RoomOverlay> OverlayList => Overlays ?? [];
+
+    public IReadOnlyList<DraftPropDesign> PropDesignList => PropDesigns ?? [];
 }
 
 /// <summary>What loading the content file did: what was saved, what was already so, and what could not be.</summary>
