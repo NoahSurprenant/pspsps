@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Pspsps.Application.Rooms;
 using Pspsps.Domain.Rooms;
 
@@ -302,6 +303,54 @@ public sealed class ContentDraftsTests
             Assert.That(variants.Where(v => !floors.Contains(v.Floor!.Painter)).Select(v => v.Id), Is.Empty);
             Assert.That(variants.SelectMany(v => new LookVariant(v.Sky, v.WallColour, v.Floor).Problems(v.Id, names)), Is.Empty);
         });
+    }
+
+    [Test]
+    public void MarketRow_IsOnTheMap_AndEveryDoorBetweenItsRoomsHasAMatchingOneBack()
+    {
+        var layouts = Content.RoomList.ToDictionary(room => room.Id, room => room.Layout);
+        Assert.Multiple(() =>
+        {
+            Assert.That(IslandMap.Places.Single(place => place.Id == "market-row").Room, Is.EqualTo("market-row"));
+            foreach (var (room, other) in new[] { ("town-square", "market-row"), ("market-row", "pizza-parlor"), ("market-row", "night-club") })
+            {
+                var there = layouts[room].Doors.Single(door => door.ToRoom == other);
+                var back = layouts[other].Doors.Single(door => door.ToRoom == room);
+                Assert.That((there.ToDoor, back.ToDoor), Is.EqualTo((back.Id, there.Id)), $"{room} and {other} name each other's doors");
+            }
+
+            // A shop door in the street is under its own sign: the way back out of a shop stands at the same x along the street.
+            foreach (var shop in new[] { "pizza-parlor", "night-club" })
+            {
+                var street = layouts["market-row"].Doors.Single(door => door.ToRoom == shop);
+                var inside = layouts[shop].Doors.Single(door => door.ToRoom == "market-row");
+                Assert.That(inside.Offset, Is.EqualTo(street.Offset), $"{shop}'s way out is at the street door's offset");
+            }
+        });
+    }
+
+    [Test]
+    public void ADesignThatDriftedFromTheSeededOne_IsCaught()
+    {
+        // The drift check above must be able to fail: a copy with one part moved differs.
+        static string Written(double size, IReadOnlyList<PropPart> parts) => JsonSerializer.Serialize(new { size, parts }, ContentFile.Json);
+        var design = PropDesignSeeder.Starting()[0];
+        var moved = design.Parts.Select((part, i) => i == 0 ? part with { At = [part.At[0] + 0.1, part.At[1], part.At[2]] } : part).ToList();
+
+        Assert.That(Written(design.Size, moved), Is.Not.EqualTo(Written(design.Size, design.Parts)));
+        Assert.That(Written(design.Size + 0.1, design.Parts), Is.Not.EqualTo(Written(design.Size, design.Parts)));
+    }
+
+    /// <summary>Backdrop parts are not part of the prop-placement checks, so this keeps the rooms' decoration off their walks, props and ponds (see <see cref="BackdropClearance"/>).</summary>
+    [TestCase("market-row")]
+    [TestCase("pizza-parlor")]
+    [TestCase("night-club")]
+    public void TheBackdropOf_KeepsClearOfTheWalksThePropsAndThePond(string id)
+    {
+        var layout = Content.RoomList.Single(room => room.Id == id).Layout;
+        var parts = Content.LookList.Single(look => look.Id == id).Look.Backdrop.Parts;
+
+        Assert.That(BackdropClearance.Problems(id, layout, parts), Is.Empty);
     }
 
     [Test]

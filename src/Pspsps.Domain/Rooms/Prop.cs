@@ -46,11 +46,33 @@ public static class PropKinds
     public const string RinkBoard = "rink-board";
     public const string YarnBall = "yarn-ball";
     public const string SnowCat = "snow-cat";
+    public const string MarketStall = "market-stall";
+    public const string PizzaTable = "pizza-table";
+    public const string PizzaOven = "pizza-oven";
+    public const string Stage = "stage";
+    public const string SpeakerStack = "speaker-stack";
+    public const string LightRig = "light-rig";
+    public const string FishBarrel = "fish-barrel";
+    public const string YarnBasket = "yarn-basket";
+    public const string MarketCart = "market-cart";
+    public const string Chalkboard = "chalkboard";
+    public const string DoughTable = "dough-table";
+    public const string WoodStack = "wood-stack";
+    public const string FishTank = "fish-tank";
+    public const string Jukebox = "jukebox";
+    public const string DjBooth = "dj-booth";
+    public const string BarStool = "bar-stool";
+    public const string VelvetRope = "velvet-rope";
+    public const string Podium = "podium";
+    public const string Fountain = "fountain";
 
     public static IReadOnlyList<string> All { get; } =
     [
         Tree, Bench, Lamp, FlowerBed, CafeTable, Counter, Plant, CatTree, Rug, Armchair, Sofa, FloorLamp, Bookshelf, CatBed,
         MapBoard, Piano, PottingBench, RodRack, PearTree, PackingCrate,
-        CatalogueStand, HatShelf, ShopCounter, Mirror, Goal, IcePatch, RinkBoard, YarnBall, SnowCat,
+        Goal, IcePatch, RinkBoard, YarnBall, SnowCat,
+        CatalogueStand, HatShelf, ShopCounter, Mirror,
+        MarketStall, PizzaTable, PizzaOven, Stage, SpeakerStack, LightRig, FishBarrel, YarnBasket, MarketCart, Chalkboard,
+        DoughTable, WoodStack, FishTank, Jukebox, DjBooth, BarStool, VelvetRope, Podium, Fountain,
     ];
 }

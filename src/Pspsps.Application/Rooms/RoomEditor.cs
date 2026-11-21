@@ -164,7 +164,7 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             }
         }
 
-        // Painters first: a look names them, and is only saved once they are there.
+        // Order matters: a look names painters and creatures, and its rooms name variants, and saving a look checks the names exist, so those load first.
         var painters = await db.PainterRecipes.AsNoTracking().ToDictionaryAsync(p => p.Id, cancellationToken);
         foreach (var painter in file.PainterList)
         {

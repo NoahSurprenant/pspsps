@@ -718,6 +718,30 @@ public sealed class RoomEditorHttpTests
     }
 
     [Test]
+    public async Task LoadingTheContentFile_SavesWhatALookNamesBeforeTheLook_SoOneFileCanBringBoth()
+    {
+        var (adminPlayer, _) = await Game.SignInGuestAsync();
+        var editor = Game.Get<IRoomEditor>();
+        var floor = new PaintStep("fill", Colour: "#c0b090");
+        var creature = new DraftWildlife("import-order-bird", [new PropPart("ball", [0, 0.5, 0], "#f5f5f5", Diameter: 0.3)], new WildlifeMotion("wander", 0.5, 1, Reach: 3));
+        var look = new RoomLook("#aaccee", "#c0b090", "#d8c8b0", new LookBackdrop([]), Floor: new LookPaint("import-order-floor"), Wildlife: "import-order-bird");
+        var file = new ContentFile(
+            Looks: new DraftLooks([new DraftLook("import-order-room", look)], [new DraftVariant("import-order-dusk", "#334466", "#554477")]),
+            Painters: [new DraftPainter("import-order-floor", "floor", [floor])],
+            Wildlife: [creature],
+            Rooms: [new DraftRoom("import-order-room", new RoomLayout("Import order", 8, 8, new Position(0, 0), 4) { Look = "import-order-dusk" })]);
+
+        var report = await editor.ImportAsync(file, adminPlayer.Id, CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            // The lone room has no route from the square (a book rule, unrelated to looks), so that is the only problem allowed.
+            Assert.That(report.Problems, Is.EqualTo(new[] { "Every public room needs a walking route from the square." }), "a room painted in a variant from the same file, and a look naming a painter and a creature from it, raise nothing about looks");
+            Assert.That(report.Applied, Has.Some.Contains("painter import-order-floor").And.Some.Contains("wildlife import-order-bird").And.Some.Contains("variant import-order-dusk").And.Some.Contains("look import-order-room"));
+        });
+    }
+
+    [Test]
     public async Task LoadingTheContentFile_ChecksItsRoomsAsASet_SoRoomsThatLeadToEachOtherAreNotProblems()
     {
         var (adminPlayer, _) = await Game.SignInGuestAsync();
