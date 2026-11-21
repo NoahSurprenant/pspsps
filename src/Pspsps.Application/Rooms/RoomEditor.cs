@@ -262,15 +262,20 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             {
                 try
                 {
-                    var found = await SaveDraftAsync(room.Id, room.Layout, adminId, null, cancellationToken);
+                    await SaveDraftAsync(room.Id, room.Layout, adminId, null, cancellationToken);
                     applied.Add($"room {room.Id}: saved as a draft");
-                    problems.AddRange(found.Select(problem => $"room {room.Id}: {problem}"));
                 }
                 catch (DomainException exception)
                 {
                     problems.Add($"room {room.Id}: {exception.Message}");
                 }
             }
+        }
+
+        if (file.RoomList.Count > 0)
+        {
+            // The rooms of one file lead to each other, so they are only right as a set, not one at a time against the live rooms.
+            problems.AddRange(await ProblemsWithAsync(file.RoomList.ToDictionary(r => r.Id, r => r.Layout), cancellationToken));
         }
 
         return new ImportReport(applied, unchanged, problems);

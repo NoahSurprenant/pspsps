@@ -541,4 +541,26 @@ public sealed class RoomEditorHttpTests
             await editor.DiscardDraftAsync("pear-orchard", player, CancellationToken.None);
         }
     }
+
+    [Test]
+    public async Task LoadingTheContentFile_ChecksItsRoomsAsASet_SoRoomsThatLeadToEachOtherAreNotProblems()
+    {
+        var (adminPlayer, _) = await Game.SignInGuestAsync();
+        Game.Admins.Add(adminPlayer.Id);
+        var file = ContentFile.Embedded();
+        var editor = Game.Get<IRoomEditor>();
+        try
+        {
+            var report = await editor.ImportAsync(file, adminPlayer.Id, CancellationToken.None);
+
+            Assert.That(report.Problems, Is.Empty, "the rooms in the file are a valid book together, so loading them reports nothing");
+        }
+        finally
+        {
+            foreach (var room in file.RoomList)
+            {
+                await editor.DiscardDraftAsync(room.Id, adminPlayer.Id, CancellationToken.None);
+            }
+        }
+    }
 }
