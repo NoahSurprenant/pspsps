@@ -214,7 +214,7 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             }
             else if (!liveRooms.Contains(id))
             {
-                await Attempt($"look {id}", () => SaveLookAsync(id, look, adminId, cancellationToken));
+                await Attempt($"look {id}", () => SaveLookAsync(id, look, adminId, cancellationToken), "replaced (room not published)");
             }
             else
             {
@@ -308,12 +308,12 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
 
         return new ImportReport(applied, unchanged, problems, pending);
 
-        async Task Attempt(string what, Func<Task> save)
+        async Task Attempt(string what, Func<Task> save, string done = "saved")
         {
             try
             {
                 await save();
-                applied.Add($"{what}: saved");
+                applied.Add($"{what}: {done}");
             }
             catch (DomainException exception)
             {
