@@ -162,40 +162,7 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             }
         }
 
-        var looks = await db.RoomLooks.AsNoTracking().ToDictionaryAsync(l => l.Id, cancellationToken);
-        foreach (var (id, look) in file.LookList.Select(l => (l.Id, l.Look)))
-        {
-            if (!looks.TryGetValue(id, out var existing))
-            {
-                await Attempt($"look {id}", () => SaveLookAsync(id, look, adminId, cancellationToken));
-            }
-            else if (Same(existing.Look, look))
-            {
-                unchanged.Add($"look {id}");
-            }
-            else
-            {
-                problems.Add($"look {id}: differs from the live look; change it in the admin (it would change a live room).");
-            }
-        }
-
-        var variants = await db.LookVariants.AsNoTracking().ToDictionaryAsync(v => v.Id, cancellationToken);
-        foreach (var variant in file.VariantList)
-        {
-            if (!variants.TryGetValue(variant.Id, out var existing))
-            {
-                await Attempt($"variant {variant.Id}", () => SaveVariantAsync(variant.Id, new LookVariant(variant.Sky, variant.WallColour), adminId, cancellationToken));
-            }
-            else if (existing.Sky == variant.Sky && existing.WallColour == variant.WallColour)
-            {
-                unchanged.Add($"variant {variant.Id}");
-            }
-            else
-            {
-                problems.Add($"variant {variant.Id}: differs from the live variant; change it in the admin.");
-            }
-        }
-
+        // Order matters: a look names painters and creatures, and its rooms name variants, and saving a look checks the names exist, so those load first.
         var painters = await db.PainterRecipes.AsNoTracking().ToDictionaryAsync(p => p.Id, cancellationToken);
         foreach (var painter in file.PainterList)
         {
@@ -227,6 +194,40 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             else
             {
                 problems.Add($"wildlife {creature.Id}: differs from the live recipe; change it in the admin.");
+            }
+        }
+
+        var variants = await db.LookVariants.AsNoTracking().ToDictionaryAsync(v => v.Id, cancellationToken);
+        foreach (var variant in file.VariantList)
+        {
+            if (!variants.TryGetValue(variant.Id, out var existing))
+            {
+                await Attempt($"variant {variant.Id}", () => SaveVariantAsync(variant.Id, new LookVariant(variant.Sky, variant.WallColour), adminId, cancellationToken));
+            }
+            else if (existing.Sky == variant.Sky && existing.WallColour == variant.WallColour)
+            {
+                unchanged.Add($"variant {variant.Id}");
+            }
+            else
+            {
+                problems.Add($"variant {variant.Id}: differs from the live variant; change it in the admin.");
+            }
+        }
+
+        var looks = await db.RoomLooks.AsNoTracking().ToDictionaryAsync(l => l.Id, cancellationToken);
+        foreach (var (id, look) in file.LookList.Select(l => (l.Id, l.Look)))
+        {
+            if (!looks.TryGetValue(id, out var existing))
+            {
+                await Attempt($"look {id}", () => SaveLookAsync(id, look, adminId, cancellationToken));
+            }
+            else if (Same(existing.Look, look))
+            {
+                unchanged.Add($"look {id}");
+            }
+            else
+            {
+                problems.Add($"look {id}: differs from the live look; change it in the admin (it would change a live room).");
             }
         }
 
