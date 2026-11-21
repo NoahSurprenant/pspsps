@@ -162,6 +162,24 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             }
         }
 
+        // Painters first: a look names them, and is only saved once they are there.
+        var painters = await db.PainterRecipes.AsNoTracking().ToDictionaryAsync(p => p.Id, cancellationToken);
+        foreach (var painter in file.PainterList)
+        {
+            if (!painters.TryGetValue(painter.Id, out var existing))
+            {
+                await Attempt($"painter {painter.Id}", () => SavePainterAsync(painter.Id, painter.Surface, painter.Steps, adminId, cancellationToken));
+            }
+            else if (existing.Surface == painter.Surface && Same(existing.Steps, painter.Steps))
+            {
+                unchanged.Add($"painter {painter.Id}");
+            }
+            else
+            {
+                problems.Add($"painter {painter.Id}: differs from the live recipe; change it in the admin.");
+            }
+        }
+
         var looks = await db.RoomLooks.AsNoTracking().ToDictionaryAsync(l => l.Id, cancellationToken);
         foreach (var (id, look) in file.LookList.Select(l => (l.Id, l.Look)))
         {
@@ -196,23 +214,6 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             }
         }
 
-        var painters = await db.PainterRecipes.AsNoTracking().ToDictionaryAsync(p => p.Id, cancellationToken);
-        foreach (var painter in file.PainterList)
-        {
-            if (!painters.TryGetValue(painter.Id, out var existing))
-            {
-                await Attempt($"painter {painter.Id}", () => SavePainterAsync(painter.Id, painter.Surface, painter.Steps, adminId, cancellationToken));
-            }
-            else if (existing.Surface == painter.Surface && Same(existing.Steps, painter.Steps))
-            {
-                unchanged.Add($"painter {painter.Id}");
-            }
-            else
-            {
-                problems.Add($"painter {painter.Id}: differs from the live recipe; change it in the admin.");
-            }
-        }
-
         var creatures = await db.WildlifeRecipes.AsNoTracking().ToDictionaryAsync(w => w.Id, cancellationToken);
         foreach (var creature in file.WildlifeList)
         {
@@ -235,6 +236,13 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
         {
             if (!overlays.TryGetValue((overlay.RoomId, overlay.Id), out var existing))
             {
+                if ((await GetAsync(overlay.RoomId, cancellationToken))?.Published is null)
+                {
+                    // An overlay can only belong to a published room: load the file again once the room is published.
+                    unchanged.Add($"overlay {overlay.RoomId}/{overlay.Id}: waits for its room to be published");
+                    continue;
+                }
+
                 await Attempt($"overlay {overlay.RoomId}/{overlay.Id}", () => SaveOverlayAsync(overlay, adminId, cancellationToken));
             }
             else if (Same(existing, overlay))
