@@ -135,6 +135,33 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
         var problems = new List<string>();
         static bool Same<T>(T a, T b) => JsonSerializer.Serialize(a, ContentFile.Json) == JsonSerializer.Serialize(b, ContentFile.Json);
 
+        var designs = await db.PropDesigns.ToDictionaryAsync(d => d.Kind, cancellationToken);
+        foreach (var design in file.PropDesignList)
+        {
+            if (!designs.TryGetValue(design.Kind, out var existing))
+            {
+                try
+                {
+                    db.PropDesigns.Add(PropDesign.Of(design.Kind, design.Size, design.Parts, time.GetUtcNow(), design.Growth));
+                    Audit(adminId, "prop-design-saved", design.Kind, "");
+                    await SaveAsync(cancellationToken);
+                    applied.Add($"prop design {design.Kind}: saved");
+                }
+                catch (DomainException exception)
+                {
+                    problems.Add($"prop design {design.Kind}: {exception.Message}");
+                }
+            }
+            else if (existing.Size == design.Size && Same(existing.Parts, design.Parts) && Same(existing.Growth, design.Growth ?? []))
+            {
+                unchanged.Add($"prop design {design.Kind}");
+            }
+            else
+            {
+                problems.Add($"prop design {design.Kind}: differs from the live design; change it in the admin.");
+            }
+        }
+
         var looks = await db.RoomLooks.AsNoTracking().ToDictionaryAsync(l => l.Id, cancellationToken);
         foreach (var (id, look) in file.LookList.Select(l => (l.Id, l.Look)))
         {
@@ -200,6 +227,23 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             else
             {
                 problems.Add($"wildlife {creature.Id}: differs from the live recipe; change it in the admin.");
+            }
+        }
+
+        var overlays = (await db.RoomOverlays.AsNoTracking().ToListAsync(cancellationToken)).Select(o => o.ToOverlay()).ToDictionary(o => (o.RoomId, o.Id));
+        foreach (var overlay in file.OverlayList)
+        {
+            if (!overlays.TryGetValue((overlay.RoomId, overlay.Id), out var existing))
+            {
+                await Attempt($"overlay {overlay.RoomId}/{overlay.Id}", () => SaveOverlayAsync(overlay, adminId, cancellationToken));
+            }
+            else if (Same(existing, overlay))
+            {
+                unchanged.Add($"overlay {overlay.RoomId}/{overlay.Id}");
+            }
+            else
+            {
+                problems.Add($"overlay {overlay.RoomId}/{overlay.Id}: differs from the live overlay; change it in the admin (it would change a live room).");
             }
         }
 
