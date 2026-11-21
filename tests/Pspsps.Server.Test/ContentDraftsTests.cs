@@ -236,4 +236,119 @@ public sealed class ContentDraftsTests
         var z = part.At.Length > 2 ? part.At[2] : 0;
         return Math.Sqrt((x * x) + (z * z)) + reach + outline;
     }
+
+    [Test]
+    public void TheMineShack_IsReachedFromThePearOrchard_AndTheOldTunnelsAreIndoorsBehindItsTunnelDoor()
+    {
+        var rooms = Content.RoomList.ToDictionary(room => room.Id, room => room.Layout);
+        Assert.Multiple(() =>
+        {
+            Assert.That(rooms.Keys, Does.Contain("mine").And.Contain("mine-tunnels"));
+            Assert.That(rooms["pear-orchard"].Doors.Select(d => (d.Id, d.ToRoom, d.ToDoor)),
+                Does.Contain(("mine", "mine", "pear-orchard")).And.Contain(("garden", "garden", "pear-orchard")).And.Contain(("riverside", "riverside", "pear-orchard")));
+            Assert.That(rooms["mine"].Doors.Select(d => (d.Id, d.ToRoom, d.ToDoor)),
+                Does.Contain(("pear-orchard", "pear-orchard", "mine")).And.Contain(("tunnels", "mine-tunnels", "shack")));
+            Assert.That(rooms["mine-tunnels"].Doors.Select(d => (d.Id, d.ToRoom, d.ToDoor)), Is.EqualTo(new[] { ("shack", "mine", "tunnels") }));
+            Assert.That(IslandMap.Places.Select(p => p.Room), Does.Not.Contain("mine-tunnels"), "indoor rooms are not on the island map");
+        });
+    }
+
+    [Test]
+    public void ThePearOrchardDraft_IsTheLiveOrchardAndTheMineDoor_AndNothingElse()
+    {
+        var live = RoomLayout.Of(RoomCatalog.All.Single(room => room.Id == "pear-orchard"));
+        var draft = Content.RoomList.Single(room => room.Id == "pear-orchard").Layout;
+        Assert.Multiple(() =>
+        {
+            Assert.That((draft.Name, draft.Width, draft.Depth, draft.Spawn, draft.Capacity, draft.Look, draft.Pond),
+                Is.EqualTo((live.Name, live.Width, live.Depth, live.Spawn, live.Capacity, live.Look, live.Pond)), "re-copy the live orchard layout");
+            Assert.That(draft.Props, Is.EqualTo(live.Props).AsCollection, "re-copy the live orchard layout");
+            Assert.That(draft.Doors.Where(door => door.Id != "mine"), Is.EqualTo(live.Doors).AsCollection, "re-copy the live orchard layout");
+            Assert.That(draft.Doors.Count(door => door.Id == "mine"), Is.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public void TheMineDoors_AreOnOppositeEdges_NoPropStandsOnADoorMatOrTheSpawn_AndTheLooksAreRich()
+    {
+        var rooms = Content.RoomList.ToDictionary(room => room.Id, room => room.Layout);
+        var orchardDoor = rooms["pear-orchard"].Doors.Single(door => door.Id == "mine");
+        var shackDoor = rooms["mine"].Doors.Single(door => door.Id == "pear-orchard");
+        Assert.Multiple(() =>
+        {
+            Assert.That((orchardDoor.Edge, shackDoor.Edge), Is.EqualTo((RoomEdge.West, RoomEdge.East)));
+            foreach (var id in new[] { "mine", "mine-tunnels" })
+            {
+                var room = rooms[id].ToDefinition(id);
+                foreach (var prop in room.Props)
+                {
+                    Assert.That(prop.Spot.DistanceTo(room.Spawn), Is.GreaterThan(prop.Radius), $"{id}: a {prop.Kind} stands on the spawn");
+                    foreach (var door in room.Doors)
+                    {
+                        Assert.That(prop.Spot.DistanceTo(door.Spot), Is.GreaterThan(prop.Radius + door.Radius), $"{id}: a {prop.Kind} stands on the mat of {door.Id}");
+                    }
+                }
+            }
+
+            Assert.That(Content.LookList.Single(look => look.Id == "mine").Look.Backdrop.Parts.Count, Is.GreaterThanOrEqualTo(120), "the mine shack's scenery is thin");
+            Assert.That(Content.LookList.Single(look => look.Id == "mine-tunnels").Look.Backdrop.Parts.Count, Is.GreaterThanOrEqualTo(120), "the old tunnels' scenery is thin");
+        });
+    }
+
+    /// <summary>Backdrop parts are not part of the prop-placement checks, so this keeps the mine rooms' decoration off their walks, props and floor flicker (see <see cref="BackdropClearance"/>).</summary>
+    [TestCase("mine")]
+    [TestCase("mine-tunnels")]
+    public void TheBackdropOfTheMineRooms_KeepsClearOfTheWalksAndTheProps(string id)
+    {
+        var layout = Content.RoomList.Single(room => room.Id == id).Layout;
+        var parts = Content.LookList.Single(look => look.Id == id).Look.Backdrop.Parts;
+
+        Assert.That(BackdropClearance.Problems(id, layout, parts), Is.Empty);
+    }
+
+    /// <summary>The way in and out must be visible and open: nothing stands on a door's mat or where a cat arrives through it, and the old tunnels' north door and the shack's two doors are all there.</summary>
+    [TestCase("mine", "pear-orchard,tunnels")]
+    [TestCase("mine-tunnels", "shack")]
+    public void TheDoorsOfTheMineRooms_AndWhereCatsArriveThroughThem_AreClear(string id, string doorIds)
+    {
+        const double clearance = 0.4;
+        var layout = Content.RoomList.Single(room => room.Id == id).Layout;
+        var parts = Content.LookList.Single(look => look.Id == id).Look.Backdrop.Parts;
+        var doors = layout.ToDefinition(id).Doors;
+        Assert.That(doors.Select(door => door.Id), Is.EquivalentTo(doorIds.Split(',')));
+        var problems = new List<string>();
+        foreach (var door in doors)
+        {
+            foreach (var (what, spot) in new[] { ("the mat", door.Spot), ("the arrival spot", door.Arrival) })
+            {
+                problems.AddRange(layout.Props.Where(prop => prop.Spot.DistanceTo(spot) < prop.Radius + clearance)
+                    .Select(prop => $"{id}: the {prop.Kind} at {prop.Spot.X}, {prop.Spot.Z} is on {what} of {door.Id}"));
+                for (var i = 0; i < parts.Count; i++)
+                {
+                    var part = parts[i];
+                    var height = part.Height ?? part.Diameter ?? 0;
+                    if (part.At[1] - (height / 2) >= 1 || part.At[1] + (height / 2) <= 0.3)
+                    {
+                        continue;
+                    }
+
+                    // Turned parts reach as far as their diagonal.
+                    var halfX = (part.Shape == "box" ? part.Width : part.Diameter).GetValueOrDefault() / 2;
+                    var halfZ = (part.Shape == "box" ? part.Depth : part.Diameter).GetValueOrDefault() / 2;
+                    if (part.Turn is { Length: 3 } turn && (turn[0] != 0 || turn[1] != 0 || turn[2] != 0))
+                    {
+                        halfX = halfZ = Math.Sqrt((halfX * halfX) + (halfZ * halfZ));
+                    }
+
+                    var nearest = new Position(Math.Clamp(spot.X, part.At[0] - halfX, part.At[0] + halfX), Math.Clamp(spot.Z, part.At[2] - halfZ, part.At[2] + halfZ));
+                    if (nearest.DistanceTo(spot) < clearance)
+                    {
+                        problems.Add($"{id}: backdrop part {i + 1} ({part.Shape} at {part.At[0]}, {part.At[2]}) is on {what} of {door.Id}");
+                    }
+                }
+            }
+        }
+
+        Assert.That(problems, Is.Empty);
+    }
 }
