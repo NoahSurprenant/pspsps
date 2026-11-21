@@ -154,44 +154,46 @@ async function drawn(page: Page, things: [string, [number, number, number], numb
   }
 }
 
-// Sizes outermost: Playwright shards by position, and a screen's tests cost about the same as each other but not as another screen's.
-for (const [index, size] of SIZES.entries()) {
-  for (const screen of SCREENS) {
-    const checks = CHECKS[screen.name];
-    test(`${screen.name} at ${size.device} ${size.width}x${size.height}`, async ({ browser }) => {
-      const context = await contextFor(browser, size);
-      let close: (() => Promise<void>) | undefined;
-      try {
-        const page = await context.newPage();
-        const errors = watchErrors(page);
-        close = (await screen.open(page)) ?? undefined;
-        // Check and capture every exit in the whole-room view. The portrait zoom has its own gesture test.
-        if (checks.reachable && size.phone && size.width < size.height) {
-          await pinchRoom(page, "out");
-        }
-        const missing = checks.shows ? await checks.shows(page) : [];
-
-        const dir = join("screenshots", screen.name);
-        await mkdir(dir, { recursive: true });
-        await page.screenshot({ path: join(dir, `${index + 1}-${size.device}-${size.width}x${size.height}.png`) });
-
-        const problems = [
-          ...missing,
-          ...(checks.reachable ? await checks.reachable(page) : []),
-          ...await offScreen(page),
-          ...await offScreenOrOverlapping(page, checks.parts),
-          ...(size.phone ? await smallTapTargets(page) : []),
-          ...(size.phone ? await smallInputs(page) : []),
-          ...await squashedPortraits(page),
-        ];
-        expect(problems, `${screen.name} at ${size.width}x${size.height}`).toEqual([]);
-        expect(errors, "console errors and uncaught exceptions").toEqual([]);
-      } finally {
-        await close?.();
-        await context.close();
+// Playwright shards by position, in runs of equal length, and a test costs by its screen (some open far more) and by its
+// size (a desktop screen is several times a phone). Ordered by diagonal, every run holds each screen at a different size
+// and each size on a different screen, so every shard gets about the same work.
+const cases = SCREENS.flatMap((screen, s) => SIZES.map((size, index) => ({ screen, size, index, diagonal: (s + index) % SIZES.length })))
+  .sort((a, b) => a.diagonal - b.diagonal);
+for (const { screen, size, index } of cases) {
+  const checks = CHECKS[screen.name];
+  test(`${screen.name} at ${size.device} ${size.width}x${size.height}`, async ({ browser }) => {
+    const context = await contextFor(browser, size);
+    let close: (() => Promise<void>) | undefined;
+    try {
+      const page = await context.newPage();
+      const errors = watchErrors(page);
+      close = (await screen.open(page)) ?? undefined;
+      // Check and capture every exit in the whole-room view. The portrait zoom has its own gesture test.
+      if (checks.reachable && size.phone && size.width < size.height) {
+        await pinchRoom(page, "out");
       }
-    });
-  }
+      const missing = checks.shows ? await checks.shows(page) : [];
+
+      const dir = join("screenshots", screen.name);
+      await mkdir(dir, { recursive: true });
+      await page.screenshot({ path: join(dir, `${index + 1}-${size.device}-${size.width}x${size.height}.png`) });
+
+      const problems = [
+        ...missing,
+        ...(checks.reachable ? await checks.reachable(page) : []),
+        ...await offScreen(page),
+        ...await offScreenOrOverlapping(page, checks.parts),
+        ...(size.phone ? await smallTapTargets(page) : []),
+        ...(size.phone ? await smallInputs(page) : []),
+        ...await squashedPortraits(page),
+      ];
+      expect(problems, `${screen.name} at ${size.width}x${size.height}`).toEqual([]);
+      expect(errors, "console errors and uncaught exceptions").toEqual([]);
+    } finally {
+      await close?.();
+      await context.close();
+    }
+  });
 }
 
 /** How far past an edge a box may sit and still count as on screen: sub-pixel rounding of centred parts. */
