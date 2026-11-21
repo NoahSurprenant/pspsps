@@ -553,13 +553,14 @@ public sealed class RoomEditorHttpTests
         var file = new ContentFile(
             Looks: new DraftLooks([new DraftLook("import-order-room", look)], [new DraftVariant("import-order-dusk", "#334466", "#554477")]),
             Painters: [new DraftPainter("import-order-floor", "floor", [floor])],
-            Wildlife: [creature]);
+            Wildlife: [creature],
+            Rooms: [new DraftRoom("import-order-room", new RoomLayout("Import order", 8, 8, new Position(0, 0), 4) { Look = "import-order-dusk" })]);
 
         var report = await editor.ImportAsync(file, adminPlayer.Id, CancellationToken.None);
 
         Assert.Multiple(() =>
         {
-            Assert.That(report.Problems, Is.Empty, "a look that names a painter and a creature from the same file loads");
+            Assert.That(report.Problems, Is.Empty, "a room that is painted in a variant from the same file, and a look that names a painter and a creature from it, load");
             Assert.That(report.Applied, Has.Some.Contains("painter import-order-floor").And.Some.Contains("wildlife import-order-bird").And.Some.Contains("variant import-order-dusk").And.Some.Contains("look import-order-room"));
         });
     }

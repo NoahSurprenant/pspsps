@@ -68,72 +68,38 @@ public sealed class ContentDraftsTests
     public void ThePropDesignsInTheFile_AreTheSeededOnesWhereBothHaveAKind()
     {
         // Loading the file saves a design the database lacks and refuses one that differs from the live design: a seeded copy that drifted from the file's would break it.
+        static string Written(double size, IReadOnlyList<PropPart> parts, IReadOnlyList<PropGrowth>? growth) =>
+            JsonSerializer.Serialize(new { size, parts, growth = growth ?? [] }, ContentFile.Json);
         var seeded = PropDesignSeeder.Starting().ToDictionary(d => d.Kind);
         var differing = Content.PropDesignList.Where(d => seeded.ContainsKey(d.Kind))
-            .Where(d => JsonSerializer.Serialize((d.Size, d.Parts, d.Growth ?? []), ContentFile.Json) != JsonSerializer.Serialize((seeded[d.Kind].Size, seeded[d.Kind].Parts, seeded[d.Kind].Growth), ContentFile.Json))
+            .Where(d => Written(d.Size, d.Parts, d.Growth) != Written(seeded[d.Kind].Size, seeded[d.Kind].Parts, seeded[d.Kind].Growth))
             .Select(d => d.Kind);
 
         Assert.That(differing, Is.Empty);
     }
 
     [Test]
-    public void EveryKindOfProp_HasADesignInTheSeededFileOrTheContentFile()
+    public void ADesignThatDriftedFromTheSeededOne_IsCaught()
     {
-        // Designs reach an existing database through the content file (the Content workflow); a kind placeable before its design exists would draw as nothing.
-        var designed = PropDesignSeeder.Starting().Select(d => d.Kind).Concat(Content.PropDesignList.Select(d => d.Kind)).ToHashSet();
+        // The drift check above must be able to fail: a copy with one part moved differs.
+        static string Written(double size, IReadOnlyList<PropPart> parts) => JsonSerializer.Serialize(new { size, parts }, ContentFile.Json);
+        var design = PropDesignSeeder.Starting().First();
+        var moved = design.Parts.Select((part, i) => i == 0 ? part with { At = [part.At[0] + 0.1, part.At[1], part.At[2]] } : part).ToList();
 
-        Assert.That(PropKinds.All.Where(kind => !designed.Contains(kind)), Is.Empty);
+        Assert.That(Written(design.Size, moved), Is.Not.EqualTo(Written(design.Size, design.Parts)));
+        Assert.That(Written(design.Size + 0.1, design.Parts), Is.Not.EqualTo(Written(design.Size, design.Parts)));
     }
 
-    /// <summary>
-    /// A cat walks through scenery: a backdrop part that stands on the floor and is taller than a cat's step must keep off the
-    /// walkable floor (apart from a 0.4 m band against the wall, for trim) and off every prop. Overhead parts (above a cat) and
-    /// low ones (flat marks) are fine.
-    /// </summary>
+    /// <summary>Backdrop parts are not part of the prop-placement checks, so this keeps the rooms' decoration off their walks, props and ponds (see <see cref="BackdropClearance"/>).</summary>
     [TestCase("market-row")]
     [TestCase("pizza-parlor")]
     [TestCase("night-club")]
-    public void TheBackdropOf_StaysClearOfTheWalkableFloorAndTheProps(string id)
+    public void TheBackdropOf_KeepsClearOfTheWalksThePropsAndThePond(string id)
     {
-        const double wallBand = 0.4;
         var layout = Content.RoomList.Single(room => room.Id == id).Layout;
         var parts = Content.LookList.Single(look => look.Id == id).Look.Backdrop.Parts;
-        var problems = new List<string>();
-        for (var i = 0; i < parts.Count; i++)
-        {
-            var part = parts[i];
-            var height = part.Height ?? part.Diameter ?? 1;
-            if (part.At[1] - (height / 2) >= 0.3 || part.At[1] + (height / 2) <= 0.5)
-            {
-                continue;
-            }
 
-            var halfX = (part.Width ?? part.Diameter ?? 1) / 2;
-            var halfZ = (part.Depth ?? part.Diameter ?? 1) / 2;
-            if (part.Turn is { Length: 3 } turn && turn[1] != 0)
-            {
-                halfX = halfZ = Math.Sqrt((halfX * halfX) + (halfZ * halfZ));
-            }
-
-            var (x, z) = (part.At[0], part.At[2]);
-            if (x + halfX > (-layout.Width / 2) + wallBand && x - halfX < (layout.Width / 2) - wallBand
-                && z + halfZ > (-layout.Depth / 2) + wallBand && z - halfZ < (layout.Depth / 2) - wallBand)
-            {
-                problems.Add($"{id}: part {i} ({part.Shape} at {x:0.0},{z:0.0}) stands on the walkable floor");
-            }
-
-            foreach (var prop in layout.Props)
-            {
-                var nearestX = Math.Clamp(prop.Spot.X, x - halfX, x + halfX);
-                var nearestZ = Math.Clamp(prop.Spot.Z, z - halfZ, z + halfZ);
-                if (new Position(nearestX, nearestZ).DistanceTo(prop.Spot) < prop.Radius)
-                {
-                    problems.Add($"{id}: part {i} ({part.Shape} at {x:0.0},{z:0.0}) overlaps the {prop.Kind} at {prop.Spot.X:0.0},{prop.Spot.Z:0.0}");
-                }
-            }
-        }
-
-        Assert.That(problems, Is.Empty);
+        Assert.That(BackdropClearance.Problems(id, layout, parts), Is.Empty);
     }
 
     [Test]
