@@ -140,6 +140,7 @@ try
     app.MapAuthEndpoints(providers);
     app.MapClientTelemetry();
     app.MapAdminEndpoints();
+    app.MapContentApi();
     app.MapPropDesigns();
     app.MapRoomLooks();
     app.MapHub<GameHub>("/hubs/game").RequireAuthorization(AdminEndpoints.NotBannedPolicy);

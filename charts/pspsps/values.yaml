@@ -27,6 +27,8 @@ image:
 #   POSTGRES_PASSWORD   the database password (letters and digits: it goes into a connection string)
 #   Authentication__Discord__ClientId, Authentication__Discord__ClientSecret     (optional)
 #   Authentication__Google__ClientId, Authentication__Google__ClientSecret       (optional)
+#   Content__ApiToken, Content__ActAs   (optional) a token (32+ characters) for /api/content, which the content workflows call, and the admin
+#                            player it acts as (docs/content.md)
 #   Moderation__AddressKey   (optional) the secret network bans hash addresses with (HMAC-SHA256), at least 32
 #                            random characters: with it, admins can ban a banned player's networks too
 #                            (moderation.addressBans). Keep it the same across restarts: a new key forgets every network.

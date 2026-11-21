@@ -30,6 +30,7 @@ public sealed class GameFactory(string connectionString) : WebApplicationFactory
         // Discord as a configured provider: /auth/login and /auth/link challenge it (a redirect, never a request to it).
         builder.UseSetting("Authentication:Discord:ClientId", "test-client");
         builder.UseSetting("Authentication:Discord:ClientSecret", "test-secret");
+        builder.UseSetting("Content:ApiToken", "a-content-token-for-the-tests-0123456789");
         // The chat filter's word lists: the image ships none.
         builder.UseSetting("ChatFilter:Lists:0:Action", "Mask");
         builder.UseSetting("ChatFilter:Lists:0:Words:0", "darn");
