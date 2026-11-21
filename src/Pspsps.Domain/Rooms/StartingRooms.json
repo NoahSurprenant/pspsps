@@ -1,0 +1,626 @@
+[
+  {
+    "id": "town-square",
+    "layout": {
+      "name": "Town Square",
+      "width": 24,
+      "depth": 16,
+      "spawn": {
+        "x": 0,
+        "z": 4
+      },
+      "capacity": 80,
+      "pond": {
+        "center": {
+          "x": -7,
+          "z": -3
+        },
+        "radius": 2.5
+      },
+      "props": [
+        {
+          "kind": "tree",
+          "spot": {
+            "x": -10.5,
+            "z": 6.6
+          },
+          "radius": 1.4,
+          "facing": 0
+        },
+        {
+          "kind": "map-board",
+          "spot": {
+            "x": 10.2,
+            "z": 4.6
+          },
+          "radius": 1.4,
+          "facing": 0
+        },
+        {
+          "kind": "bench",
+          "spot": {
+            "x": -10.7,
+            "z": -6.7
+          },
+          "radius": 1,
+          "facing": -2.356194490192345
+        },
+        {
+          "kind": "bench",
+          "spot": {
+            "x": 9.8,
+            "z": -1.2
+          },
+          "radius": 1,
+          "facing": 2.058632765454539
+        },
+        {
+          "kind": "bench",
+          "spot": {
+            "x": 0,
+            "z": -7
+          },
+          "radius": 1,
+          "facing": 3.141592653589793
+        },
+        {
+          "kind": "lamp",
+          "spot": {
+            "x": 9.2,
+            "z": 7.4
+          },
+          "radius": 0.35,
+          "facing": 0
+        },
+        {
+          "kind": "lamp",
+          "spot": {
+            "x": -6.7,
+            "z": -7.5
+          },
+          "radius": 0.35,
+          "facing": 0
+        },
+        {
+          "kind": "lamp",
+          "spot": {
+            "x": 9.8,
+            "z": -5.8
+          },
+          "radius": 0.35,
+          "facing": 0
+        },
+        {
+          "kind": "flower-bed",
+          "spot": {
+            "x": 10.4,
+            "z": 1.6
+          },
+          "radius": 0.9,
+          "facing": 0
+        },
+        {
+          "kind": "flower-bed",
+          "spot": {
+            "x": -3.4,
+            "z": -6.7
+          },
+          "radius": 0.9,
+          "facing": 0
+        }
+      ],
+      "doors": [
+        {
+          "id": "cafe",
+          "edge": "North",
+          "offset": 7,
+          "toRoom": "cafe",
+          "toDoor": "town-square"
+        },
+        {
+          "id": "shop",
+          "edge": "North",
+          "offset": -6,
+          "toRoom": "shop",
+          "toDoor": "town-square"
+        },
+        {
+          "id": "garden",
+          "edge": "West",
+          "offset": 3.3,
+          "toRoom": "garden",
+          "toDoor": "town-square"
+        },
+        {
+          "id": "riverside",
+          "edge": "South",
+          "offset": 6.4,
+          "toRoom": "riverside",
+          "toDoor": "town-square"
+        }
+      ]
+    }
+  },
+  {
+    "id": "cafe",
+    "layout": {
+      "name": "Cat Caf\u00E9",
+      "width": 14,
+      "depth": 10,
+      "spawn": {
+        "x": 0,
+        "z": 3
+      },
+      "capacity": 40,
+      "exterior": {
+        "width": 8,
+        "depth": 7,
+        "front": "South"
+      },
+      "props": [
+        {
+          "kind": "counter",
+          "spot": {
+            "x": 4.4,
+            "z": 3
+          },
+          "radius": 1.9,
+          "facing": 0
+        },
+        {
+          "kind": "piano",
+          "spot": {
+            "x": -4.3,
+            "z": -1.3
+          },
+          "radius": 1.2,
+          "facing": 0.3
+        },
+        {
+          "kind": "cafe-table",
+          "spot": {
+            "x": 0.3,
+            "z": -2.8
+          },
+          "radius": 1.2,
+          "facing": -0.2
+        },
+        {
+          "kind": "cafe-table",
+          "spot": {
+            "x": 4.3,
+            "z": -0.4
+          },
+          "radius": 1.2,
+          "facing": 0.5
+        },
+        {
+          "kind": "plant",
+          "spot": {
+            "x": -6.3,
+            "z": 4.3
+          },
+          "radius": 0.5,
+          "facing": 0
+        },
+        {
+          "kind": "plant",
+          "spot": {
+            "x": 1.6,
+            "z": 4.4
+          },
+          "radius": 0.5,
+          "facing": 0
+        },
+        {
+          "kind": "plant",
+          "spot": {
+            "x": 6.4,
+            "z": -4.4
+          },
+          "radius": 0.5,
+          "facing": 0
+        },
+        {
+          "kind": "cat-tree",
+          "spot": {
+            "x": -6.1,
+            "z": -3.9
+          },
+          "radius": 0.8,
+          "facing": 0
+        }
+      ],
+      "doors": [
+        {
+          "id": "town-square",
+          "edge": "North",
+          "offset": -4,
+          "toRoom": "town-square",
+          "toDoor": "cafe"
+        }
+      ]
+    }
+  },
+  {
+    "id": "shop",
+    "layout": {
+      "name": "Cat Shop",
+      "width": 13,
+      "depth": 9,
+      "spawn": {
+        "x": -1.6,
+        "z": 1
+      },
+      "capacity": 40,
+      "exterior": {
+        "width": 7,
+        "depth": 7,
+        "front": "South"
+      },
+      "props": [
+        {
+          "kind": "catalogue-stand",
+          "spot": {
+            "x": 1.4,
+            "z": -0.6
+          },
+          "radius": 0.6,
+          "facing": 0
+        },
+        {
+          "kind": "hat-shelf",
+          "spot": {
+            "x": -1.4,
+            "z": 3.65
+          },
+          "radius": 0.8,
+          "facing": 0
+        },
+        {
+          "kind": "hat-shelf",
+          "spot": {
+            "x": 0.6,
+            "z": 3.65
+          },
+          "radius": 0.8,
+          "facing": 0
+        },
+        {
+          "kind": "shop-counter",
+          "spot": {
+            "x": 4.2,
+            "z": 3.3
+          },
+          "radius": 1.2,
+          "facing": 0
+        },
+        {
+          "kind": "mirror",
+          "spot": {
+            "x": 5.9,
+            "z": 0.4
+          },
+          "radius": 0.55,
+          "facing": 0.6
+        },
+        {
+          "kind": "armchair",
+          "spot": {
+            "x": -5.5,
+            "z": -1.4
+          },
+          "radius": 0.7,
+          "facing": -0.9
+        },
+        {
+          "kind": "plant",
+          "spot": {
+            "x": -6,
+            "z": -3.9
+          },
+          "radius": 0.5,
+          "facing": 0
+        },
+        {
+          "kind": "plant",
+          "spot": {
+            "x": 6,
+            "z": -3.9
+          },
+          "radius": 0.5,
+          "facing": 0
+        },
+        {
+          "kind": "plant",
+          "spot": {
+            "x": 2.2,
+            "z": 4
+          },
+          "radius": 0.45,
+          "facing": 0
+        }
+      ],
+      "doors": [
+        {
+          "id": "town-square",
+          "edge": "North",
+          "offset": -4.9,
+          "toRoom": "town-square",
+          "toDoor": "shop"
+        }
+      ]
+    }
+  },
+  {
+    "id": "garden",
+    "layout": {
+      "name": "Garden Courtyard",
+      "width": 18,
+      "depth": 12,
+      "spawn": {
+        "x": 0,
+        "z": 1
+      },
+      "capacity": 40,
+      "props": [
+        {
+          "kind": "potting-bench",
+          "spot": {
+            "x": -7.6,
+            "z": 2
+          },
+          "radius": 1.3,
+          "facing": 0
+        },
+        {
+          "kind": "tree",
+          "spot": {
+            "x": 6.9,
+            "z": 4.4
+          },
+          "radius": 1.3,
+          "facing": 0
+        },
+        {
+          "kind": "flower-bed",
+          "spot": {
+            "x": -6.8,
+            "z": -0.4
+          },
+          "radius": 1.1,
+          "facing": 0
+        },
+        {
+          "kind": "flower-bed",
+          "spot": {
+            "x": 0.3,
+            "z": -3
+          },
+          "radius": 1.1,
+          "facing": 0
+        },
+        {
+          "kind": "flower-bed",
+          "spot": {
+            "x": 0,
+            "z": 3.5
+          },
+          "radius": 0.9,
+          "facing": 0
+        },
+        {
+          "kind": "bench",
+          "spot": {
+            "x": -7.7,
+            "z": -2.5
+          },
+          "radius": 1,
+          "facing": -3.1193740882630743
+        },
+        {
+          "kind": "bench",
+          "spot": {
+            "x": -3.6,
+            "z": -4.8
+          },
+          "radius": 1,
+          "facing": -2.0032041023654346
+        },
+        {
+          "kind": "lamp",
+          "spot": {
+            "x": 1.2,
+            "z": -4.8
+          },
+          "radius": 0.35,
+          "facing": 0
+        }
+      ],
+      "doors": [
+        {
+          "id": "town-square",
+          "edge": "East",
+          "offset": 1.8,
+          "toRoom": "town-square",
+          "toDoor": "garden"
+        },
+        {
+          "id": "pear-orchard",
+          "edge": "South",
+          "offset": 5.8,
+          "toRoom": "pear-orchard",
+          "toDoor": "garden"
+        }
+      ]
+    }
+  },
+  {
+    "id": "riverside",
+    "layout": {
+      "name": "Riverside Trail",
+      "width": 24,
+      "depth": 14,
+      "spawn": {
+        "x": 0,
+        "z": 3
+      },
+      "capacity": 40,
+      "pond": {
+        "center": {
+          "x": -3,
+          "z": -2
+        },
+        "radius": 2.4
+      },
+      "props": [
+        {
+          "kind": "tree",
+          "spot": {
+            "x": -8.4,
+            "z": -3.8
+          },
+          "radius": 1.35,
+          "facing": 0
+        },
+        {
+          "kind": "rod-rack",
+          "spot": {
+            "x": 4.3,
+            "z": -5.5
+          },
+          "radius": 1.4,
+          "facing": 0
+        },
+        {
+          "kind": "tree",
+          "spot": {
+            "x": 8.3,
+            "z": -2.5
+          },
+          "radius": 1.4,
+          "facing": 0
+        },
+        {
+          "kind": "bench",
+          "spot": {
+            "x": 3.5,
+            "z": -2.5
+          },
+          "radius": 1,
+          "facing": 1.6475682180646747
+        },
+        {
+          "kind": "flower-bed",
+          "spot": {
+            "x": 1.1,
+            "z": -5.7
+          },
+          "radius": 0.9,
+          "facing": 0
+        },
+        {
+          "kind": "lamp",
+          "spot": {
+            "x": 8.2,
+            "z": -5.8
+          },
+          "radius": 0.35,
+          "facing": 0
+        }
+      ],
+      "doors": [
+        {
+          "id": "pear-orchard",
+          "edge": "West",
+          "offset": 3.5,
+          "toRoom": "pear-orchard",
+          "toDoor": "riverside"
+        },
+        {
+          "id": "town-square",
+          "edge": "North",
+          "offset": 6.4,
+          "toRoom": "town-square",
+          "toDoor": "riverside"
+        }
+      ]
+    }
+  },
+  {
+    "id": "pear-orchard",
+    "layout": {
+      "name": "Pear Orchard",
+      "width": 18,
+      "depth": 19,
+      "spawn": {
+        "x": 0,
+        "z": 0
+      },
+      "capacity": 40,
+      "props": [
+        {
+          "kind": "pear-tree",
+          "spot": {
+            "x": -6,
+            "z": 6
+          },
+          "radius": 1.4,
+          "facing": 0
+        },
+        {
+          "kind": "pear-tree",
+          "spot": {
+            "x": -6,
+            "z": 0
+          },
+          "radius": 1.4,
+          "facing": 0
+        },
+        {
+          "kind": "pear-tree",
+          "spot": {
+            "x": -6,
+            "z": -6
+          },
+          "radius": 1.4,
+          "facing": 0
+        },
+        {
+          "kind": "packing-crate",
+          "spot": {
+            "x": 2,
+            "z": -6
+          },
+          "radius": 1.4,
+          "facing": 0
+        },
+        {
+          "kind": "bench",
+          "spot": {
+            "x": -3.6,
+            "z": -4.8
+          },
+          "radius": 1,
+          "facing": -1.35970299357215
+        }
+      ],
+      "doors": [
+        {
+          "id": "garden",
+          "edge": "North",
+          "offset": 5.8,
+          "toRoom": "garden",
+          "toDoor": "pear-orchard"
+        },
+        {
+          "id": "riverside",
+          "edge": "East",
+          "offset": 2.5,
+          "toRoom": "riverside",
+          "toDoor": "pear-orchard"
+        }
+      ]
+    }
+  }
+]
