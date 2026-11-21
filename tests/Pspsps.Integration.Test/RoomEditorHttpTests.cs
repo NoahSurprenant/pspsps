@@ -571,29 +571,26 @@ public sealed class RoomEditorHttpTests
     }
 
     [Test]
-    public async Task AnOverlay_WaitsForItsRoomsRealState_NotForWhetherTheFileHasTheRoom()
+    public async Task AnOverlay_WaitsForItsRoomsRealState_AndAnUnknownRoomIsAMistake()
     {
         var (adminPlayer, _) = await Game.SignInGuestAsync();
         Game.Admins.Add(adminPlayer.Id);
         var editor = Game.Get<IRoomEditor>();
         var window = new OverlayWindow(new DateTimeOffset(2090, 1, 1, 0, 0, 0, TimeSpan.Zero), new DateTimeOffset(2090, 1, 2, 0, 0, 0, TimeSpan.Zero));
         var layout = (await editor.GetAsync("pear-orchard", CancellationToken.None))!.Published!;
-        var broken = layout with { Width = 0 };
         try
         {
             // A room that exists only as a draft in the database, and is not in this file, is a room the overlay can wait for.
             await editor.SaveDraftAsync("import-test-drafted", layout, adminPlayer.Id, null, CancellationToken.None);
             var first = await editor.ImportAsync(new ContentFile(Overlays: [new RoomOverlay("wait", "import-test-drafted", "Waits", window)]), adminPlayer.Id, CancellationToken.None);
-            // A room of the file whose draft could not be saved is not one it waits for.
-            var second = await editor.ImportAsync(
-                new ContentFile([new DraftRoom("import-test-broken", broken)], Overlays: [new RoomOverlay("wait", "import-test-broken", "Waits", window)]), adminPlayer.Id, CancellationToken.None);
+            var second = await editor.ImportAsync(new ContentFile(Overlays: [new RoomOverlay("wait", "import-test-nowhere", "Nowhere", window)]), adminPlayer.Id, CancellationToken.None);
 
             Assert.Multiple(() =>
             {
                 Assert.That(first.Pending, Has.Some.Contains("import-test-drafted/wait"));
                 Assert.That(first.Problems, Is.Empty);
                 Assert.That(second.Pending, Is.Empty);
-                Assert.That(second.Problems, Has.Some.Contains("import-test-broken/wait"));
+                Assert.That(second.Problems, Has.Some.Contains("import-test-nowhere/wait"), "a room that is neither published nor a draft is a mistake");
             });
         }
         finally

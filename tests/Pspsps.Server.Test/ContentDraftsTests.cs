@@ -192,13 +192,14 @@ public sealed class ContentDraftsTests
     public void EveryVariantFloorInTheFile_NamesAPainterTheBrowserCanDraw()
     {
         var floors = LookNames.BuiltIn.Floors.Concat(Content.PainterList.Where(p => p.Surface == PaintSurfaces.Floor).Select(p => p.Id)).ToHashSet();
+        var names = LookNames.BuiltIn.With(Content.PainterList.Select(p => (p.Surface, p.Id)), []);
         var variants = Content.VariantList.Where(v => v.Floor is not null).ToList();
 
         Assert.Multiple(() =>
         {
             Assert.That(variants, Is.Not.Empty, "the frozen rink has a floor of its own");
             Assert.That(variants.Where(v => !floors.Contains(v.Floor!.Painter)).Select(v => v.Id), Is.Empty);
-            Assert.That(variants.SelectMany(v => new LookVariant(v.Sky, v.WallColour, v.Floor).Problems(v.Id)), Is.Empty);
+            Assert.That(variants.SelectMany(v => new LookVariant(v.Sky, v.WallColour, v.Floor).Problems(v.Id, names)), Is.Empty);
         });
     }
 
