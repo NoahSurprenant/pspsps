@@ -309,6 +309,74 @@
           }
         ]
       }
+    },
+    {
+      "id": "riverside",
+      "layout": {
+        "name": "Riverside Trail",
+        "width": 24,
+        "depth": 14,
+        "spawn": { "x": 0, "z": 3 },
+        "capacity": 40,
+        "pond": { "center": { "x": -3, "z": -2 }, "radius": 2.4 },
+        "props": [
+          { "kind": "tree", "spot": { "x": -8.4, "z": -3.8 }, "radius": 1.35, "facing": 0 },
+          { "kind": "rod-rack", "spot": { "x": 4.3, "z": -5.5 }, "radius": 1.4, "facing": 0 },
+          { "kind": "tree", "spot": { "x": 8.3, "z": -2.5 }, "radius": 1.4, "facing": 0 },
+          { "kind": "bench", "spot": { "x": 3.5, "z": -2.5 }, "radius": 1, "facing": 1.6475682180646747 },
+          { "kind": "flower-bed", "spot": { "x": 1.1, "z": -5.7 }, "radius": 0.9, "facing": 0 },
+          { "kind": "lamp", "spot": { "x": 8.2, "z": -5.8 }, "radius": 0.35, "facing": 0 }
+        ],
+        "doors": [
+          { "id": "pear-orchard", "edge": "West", "offset": 3.5, "toRoom": "pear-orchard", "toDoor": "riverside" },
+          { "id": "town-square", "edge": "North", "offset": 6.4, "toRoom": "town-square", "toDoor": "riverside" },
+          { "id": "dojo-courtyard", "edge": "East", "offset": 2, "toRoom": "dojo-courtyard", "toDoor": "riverside" }
+        ]
+      }
+    },
+    {
+      "id": "dojo-courtyard",
+      "layout": {
+        "name": "Dojo Courtyard",
+        "width": 20,
+        "depth": 14,
+        "spawn": { "x": -4, "z": 0 },
+        "capacity": 40,
+        "props": [
+          { "kind": "tree", "spot": { "x": 7.8, "z": -4.8 }, "radius": 1.4, "facing": 0 },
+          { "kind": "tree", "spot": { "x": -7.6, "z": 4.6 }, "radius": 1.4, "facing": 0 },
+          { "kind": "bench", "spot": { "x": 6.5, "z": -0.5 }, "radius": 1, "facing": -1.5707963267948966 },
+          { "kind": "lamp", "spot": { "x": -2.6, "z": 5.4 }, "radius": 0.35, "facing": 0 },
+          { "kind": "lamp", "spot": { "x": 2.6, "z": 5.4 }, "radius": 0.35, "facing": 0 },
+          { "kind": "plant", "spot": { "x": 8.4, "z": 4.2 }, "radius": 0.5, "facing": 0 },
+          { "kind": "flower-bed", "spot": { "x": -2.5, "z": -5.6 }, "radius": 0.9, "facing": 0 }
+        ],
+        "doors": [
+          { "id": "riverside", "edge": "West", "offset": 2, "toRoom": "riverside", "toDoor": "dojo-courtyard" },
+          { "id": "dojo", "edge": "North", "offset": 0, "toRoom": "dojo", "toDoor": "dojo-courtyard" }
+        ]
+      }
+    },
+    {
+      "id": "dojo",
+      "layout": {
+        "name": "Dojo",
+        "width": 14,
+        "depth": 10,
+        "spawn": { "x": 0, "z": -2 },
+        "capacity": 30,
+        "props": [
+          { "kind": "cat-bed", "spot": { "x": -5, "z": 2.8 }, "radius": 0.8, "facing": 0 },
+          { "kind": "cat-bed", "spot": { "x": 5, "z": 2.8 }, "radius": 0.8, "facing": 0 },
+          { "kind": "bookshelf", "spot": { "x": -5.4, "z": -1 }, "radius": 1.2, "facing": 1.5707963267948966 },
+          { "kind": "floor-lamp", "spot": { "x": 5.8, "z": -2.8 }, "radius": 0.4, "facing": 0 },
+          { "kind": "floor-lamp", "spot": { "x": -5.8, "z": -3.6 }, "radius": 0.4, "facing": 0 },
+          { "kind": "plant", "spot": { "x": 5.8, "z": 0.2 }, "radius": 0.5, "facing": 0 }
+        ],
+        "doors": [
+          { "id": "dojo-courtyard", "edge": "South", "offset": 0, "toRoom": "dojo-courtyard", "toDoor": "dojo" }
+        ]
+      }
     }
   ],
   "looks": {
@@ -375,6 +443,84 @@
           },
           "backdrop": {
             "parts": []
+          }
+        }
+      },
+      {
+        "id": "dojo-courtyard",
+        "look": {
+          "sky": "#cfe8ee",
+          "floorColour": "#b9b5a8",
+          "wallColour": "#8d8f8a",
+          "ground": { "colour": "#a9b79a" },
+          "floor": { "painter": "tiles", "colour": "#b9b5a8", "accent": "#9c998c" },
+          "wall": { "painter": "riverside" },
+          "openLandscape": true,
+          "wildlife": "butterfly",
+          "backdrop": {
+            "parts": [
+              { "shape": "box", "width": 44, "height": 9, "depth": 3, "at": [0, 4.5, 11], "colour": "#8d8f8a" },
+              { "shape": "box", "width": 14, "height": 12, "depth": 3, "at": [-14, 6, 9.5], "colour": "#7d807b" },
+              { "shape": "box", "width": 14, "height": 12, "depth": 3, "at": [14, 6, 9.5], "colour": "#7d807b" },
+              { "shape": "box", "width": 3, "height": 8.6, "depth": 0.3, "at": [0, 4.5, 9.4], "colour": "#d4edf6", "outlined": false },
+              { "shape": "box", "width": 0.5, "height": 8.6, "depth": 0.32, "at": [-0.7, 4.5, 9.38], "colour": "#ffffff", "outlined": false },
+              { "shape": "box", "width": 8, "height": 0.12, "depth": 3, "at": [0, 0.06, 8.4], "colour": "#8fd0e8", "outlined": false },
+              { "shape": "ball", "diameter": 2.4, "height": 0.7, "at": [0, 0.35, 9.1], "colour": "#eef9fc", "outlined": false },
+              { "shape": "ball", "diameter": 1.6, "height": 1.1, "at": [-4.5, 0.55, 8.2], "colour": "#9a9c96" },
+              { "shape": "ball", "diameter": 1.2, "height": 0.8, "at": [4.8, 0.4, 8.6], "colour": "#a6a8a1" },
+              { "shape": "ball", "diameter": 7, "height": 4, "at": [-9, 11.5, 9.5], "colour": "#86b27c" },
+              { "shape": "ball", "diameter": 8, "height": 4.5, "at": [9.5, 12, 9.5], "colour": "#92bd86" },
+              { "shape": "box", "width": 8, "height": 0.03, "depth": 5, "at": [-4, 0.02, -1], "colour": "#e0d9c4", "outlined": false },
+              { "shape": "box", "width": 1.1, "height": 0.05, "depth": 1.1, "at": [-7.5, 0.03, 2], "colour": "#a19e92", "outlined": false },
+              { "shape": "box", "width": 1.1, "height": 0.05, "depth": 1.1, "at": [-5.5, 0.03, 2.6], "colour": "#a19e92", "outlined": false },
+              { "shape": "box", "width": 1.1, "height": 0.05, "depth": 1.1, "at": [-3.2, 0.03, 3.2], "colour": "#a19e92", "outlined": false },
+              { "shape": "box", "width": 1.1, "height": 0.05, "depth": 1.1, "at": [-1.2, 0.03, 4], "colour": "#a19e92", "outlined": false },
+              { "shape": "cylinder", "diameter": 0.38, "height": 3.4, "at": [-1.8, 1.7, 4], "colour": "#b8453a" },
+              { "shape": "cylinder", "diameter": 0.38, "height": 3.4, "at": [1.8, 1.7, 4], "colour": "#b8453a" },
+              { "shape": "box", "width": 5.4, "height": 0.28, "depth": 0.55, "at": [0, 3.55, 4], "colour": "#3b3442" },
+              { "shape": "box", "width": 4.2, "height": 0.2, "depth": 0.22, "at": [0, 2.8, 4], "colour": "#b8453a" },
+              { "shape": "box", "width": 0.5, "height": 0.7, "depth": 0.1, "at": [0, 3.1, 4], "colour": "#e8d8b8" },
+              { "shape": "cylinder", "diameter": 0.4, "height": 1.5, "at": [-6.5, 0.75, -3.6], "colour": "#9a7a54" },
+              { "shape": "cylinder", "diameter": 0.46, "height": 0.45, "at": [-6.5, 0.95, -3.6], "colour": "#dcc58f" },
+              { "shape": "cylinder", "diameter": 0.4, "height": 1.5, "at": [-6.5, 0.75, -1.2], "colour": "#9a7a54" },
+              { "shape": "cylinder", "diameter": 0.46, "height": 0.45, "at": [-6.5, 0.95, -1.2], "colour": "#dcc58f" },
+              { "shape": "cylinder", "diameter": 0.4, "height": 1.5, "at": [-4.4, 0.75, -5.6], "colour": "#9a7a54" },
+              { "shape": "cylinder", "diameter": 0.46, "height": 0.45, "at": [-4.4, 0.95, -5.6], "colour": "#dcc58f" }
+            ]
+          }
+        }
+      },
+      {
+        "id": "dojo",
+        "look": {
+          "sky": "#e6dcc8",
+          "floorColour": "#c79a62",
+          "wallColour": "#e8d8b8",
+          "floor": { "painter": "planks", "colour": "#c79a62", "accent": "#a97c48" },
+          "wall": { "painter": "panelled" },
+          "backdrop": {
+            "parts": [
+              { "shape": "box", "width": 12, "height": 0.04, "depth": 6.4, "at": [0, 0.03, 0.4], "colour": "#d9d09a", "outlined": false },
+              { "shape": "box", "width": 5.9, "height": 0.05, "depth": 6.3, "at": [-3, 0.04, 0.4], "colour": "#cfc68c", "outlined": false },
+              { "shape": "box", "width": 5.9, "height": 0.05, "depth": 6.3, "at": [3, 0.04, 0.4], "colour": "#cfc68c", "outlined": false },
+              { "shape": "box", "width": 12.2, "height": 0.06, "depth": 0.12, "at": [0, 0.05, 3.6], "colour": "#3b3442", "outlined": false },
+              { "shape": "box", "width": 12.2, "height": 0.06, "depth": 0.12, "at": [0, 0.05, -2.8], "colour": "#3b3442", "outlined": false },
+              { "shape": "box", "width": 0.12, "height": 0.06, "depth": 6.5, "at": [0, 0.05, 0.4], "colour": "#3b3442", "outlined": false },
+              { "shape": "box", "width": 3.4, "height": 2, "depth": 0.06, "at": [0, 2.6, 4.9], "colour": "#f4ecd8" },
+              { "shape": "box", "width": 0.5, "height": 1.2, "depth": 0.04, "at": [0, 2.6, 4.85], "colour": "#2a2230", "outlined": false },
+              { "shape": "box", "width": 3.7, "height": 0.1, "depth": 0.1, "at": [0, 3.65, 4.9], "colour": "#7a5a44" },
+              { "shape": "box", "width": 12.6, "height": 0.3, "depth": 0.3, "at": [0, 4.2, 4.85], "colour": "#7a5a44" },
+              { "shape": "box", "width": 0.03, "height": 1.2, "depth": 0.03, "at": [-3.6, 3.6, 3.4], "colour": "#3b3442", "outlined": false },
+              { "shape": "cylinder", "diameter": 0.6, "top": 0.4, "height": 0.7, "sides": 16, "at": [-3.6, 2.7, 3.4], "colour": "#e8b45a" },
+              { "shape": "box", "width": 0.03, "height": 1.2, "depth": 0.03, "at": [3.6, 3.6, 3.4], "colour": "#3b3442", "outlined": false },
+              { "shape": "cylinder", "diameter": 0.6, "top": 0.4, "height": 0.7, "sides": 16, "at": [3.6, 2.7, 3.4], "colour": "#e8b45a" },
+              { "shape": "box", "width": 0.03, "height": 1.2, "depth": 0.03, "at": [0, 3.6, -0.5], "colour": "#3b3442", "outlined": false },
+              { "shape": "cylinder", "diameter": 0.6, "top": 0.4, "height": 0.7, "sides": 16, "at": [0, 2.7, -0.5], "colour": "#e8b45a" },
+              { "shape": "box", "width": 0.1, "height": 1.2, "depth": 0.1, "at": [-6.6, 0.6, 4.4], "colour": "#7a5a44" },
+              { "shape": "box", "width": 0.1, "height": 1.2, "depth": 0.1, "at": [6.6, 0.6, 4.4], "colour": "#7a5a44" },
+              { "shape": "box", "width": 0.9, "height": 0.4, "depth": 0.5, "at": [6.4, 0.2, 3.6], "colour": "#9a7a54" },
+              { "shape": "box", "width": 0.4, "height": 0.7, "depth": 0.06, "at": [6.4, 0.75, 3.7], "colour": "#c9d4de" }
+            ]
           }
         }
       }

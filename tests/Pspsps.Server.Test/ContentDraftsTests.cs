@@ -40,6 +40,28 @@ public sealed class ContentDraftsTests
     }
 
     [Test]
+    public void TheDojoCourtyard_IsReachedFromTheSquareThroughRiverside_AndTheDojoOnlyThroughTheCourtyard()
+    {
+        var layouts = RoomCatalog.All.ToDictionary(room => room.Id, RoomLayout.Of);
+        foreach (var room in Content.RoomList)
+        {
+            layouts[room.Id] = room.Layout;
+        }
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(layouts["town-square"].Doors.Select(d => d.ToRoom), Does.Contain("riverside"));
+            Assert.That(layouts["riverside"].Doors.Select(d => d.ToRoom), Does.Contain("dojo-courtyard"));
+            Assert.That(layouts["dojo-courtyard"].Doors.Select(d => d.ToRoom), Is.EquivalentTo(new[] { "riverside", "dojo" }));
+            Assert.That(layouts["dojo"].Doors.Select(d => d.ToRoom), Is.EqualTo(new[] { "dojo-courtyard" }));
+        });
+    }
+
+    [Test]
+    public void TheDojo_IsAnIndoorRoom_SoItIsNotOnTheIslandMap() =>
+        Assert.That(IslandMap.Places.Select(place => place.Room), Does.Not.Contain("dojo"));
+
+    [Test]
     public void EveryPropDesignInTheFile_CanBeDrawn() =>
         Assert.That(Content.PropDesignList.SelectMany(d => PropDesign.Problems(d.Kind, d.Size, d.Parts, d.Growth)), Is.Empty);
 }
