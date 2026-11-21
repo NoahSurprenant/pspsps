@@ -237,6 +237,13 @@
             "offset": 6,
             "toRoom": "boat-shed",
             "toDoor": "cove"
+          },
+          {
+            "id": "ice-rink",
+            "edge": "East",
+            "offset": 0,
+            "toRoom": "ice-rink",
+            "toDoor": "cove"
           }
         ]
       }
@@ -309,6 +316,102 @@
           }
         ]
       }
+    },
+    {
+      "id": "ice-rink",
+      "layout": {
+        "name": "Ice Rink",
+        "width": 16,
+        "depth": 24,
+        "spawn": {
+          "x": 0,
+          "z": 0
+        },
+        "capacity": 60,
+        "props": [
+          {
+            "kind": "goal",
+            "spot": {
+              "x": 0,
+              "z": -10.6
+            },
+            "radius": 1.3,
+            "facing": 0
+          },
+          {
+            "kind": "goal",
+            "spot": {
+              "x": 0,
+              "z": 10.6
+            },
+            "radius": 1.3,
+            "facing": 3.141592653589793
+          },
+          {
+            "kind": "bench",
+            "spot": {
+              "x": -6.9,
+              "z": -4.5
+            },
+            "radius": 1,
+            "facing": -1.5707963267948966
+          },
+          {
+            "kind": "bench",
+            "spot": {
+              "x": -6.9,
+              "z": 4.5
+            },
+            "radius": 1,
+            "facing": -1.5707963267948966
+          },
+          {
+            "kind": "lamp",
+            "spot": {
+              "x": -7.4,
+              "z": -11.2
+            },
+            "radius": 0.35,
+            "facing": 0
+          },
+          {
+            "kind": "lamp",
+            "spot": {
+              "x": 7.4,
+              "z": -11.2
+            },
+            "radius": 0.35,
+            "facing": 0
+          },
+          {
+            "kind": "lamp",
+            "spot": {
+              "x": -7.4,
+              "z": 11.2
+            },
+            "radius": 0.35,
+            "facing": 0
+          },
+          {
+            "kind": "lamp",
+            "spot": {
+              "x": 7.4,
+              "z": 11.2
+            },
+            "radius": 0.35,
+            "facing": 0
+          }
+        ],
+        "doors": [
+          {
+            "id": "cove",
+            "edge": "West",
+            "offset": 0,
+            "toRoom": "cove",
+            "toDoor": "ice-rink"
+          }
+        ]
+      }
     }
   ],
   "looks": {
@@ -377,12 +480,634 @@
             "parts": []
           }
         }
+      },
+      {
+        "id": "ice-rink",
+        "look": {
+          "sky": "#bfe6f5",
+          "floorColour": "#8fcf76",
+          "wallColour": "#cfe6ea",
+          "ground": {
+            "colour": "#a9c587"
+          },
+          "floor": {
+            "painter": "pitch",
+            "colour": "#8fcf76",
+            "accent": "#7cc064"
+          },
+          "openLandscape": true,
+          "backdrop": {
+            "parts": [
+              {
+                "shape": "cylinder",
+                "diameter": 0.55,
+                "height": 3,
+                "at": [
+                  -6,
+                  1.5,
+                  13.8
+                ],
+                "colour": "#c98f5a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 3.8,
+                "height": 3.2,
+                "at": [
+                  -6,
+                  3.2,
+                  13.8
+                ],
+                "colour": "#84ab69"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.55,
+                "height": 3,
+                "at": [
+                  0,
+                  1.5,
+                  13.8
+                ],
+                "colour": "#c98f5a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 3.8,
+                "height": 3.2,
+                "at": [
+                  0,
+                  3.2,
+                  13.8
+                ],
+                "colour": "#84ab69"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.55,
+                "height": 3,
+                "at": [
+                  6,
+                  1.5,
+                  13.8
+                ],
+                "colour": "#c98f5a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 3.8,
+                "height": 3.2,
+                "at": [
+                  6,
+                  3.2,
+                  13.8
+                ],
+                "colour": "#84ab69"
+              }
+            ]
+          }
+        }
       }
     ],
     "variants": []
   },
-  "painters": [],
+  "painters": [
+    {
+      "id": "pitch",
+      "surface": "floor",
+      "steps": [
+        {
+          "op": "fill",
+          "colour": "main"
+        },
+        {
+          "op": "rect",
+          "colour": "accent",
+          "x": 0,
+          "y": 0,
+          "width": 16,
+          "height": 3,
+          "repeat": {
+            "dx": 0,
+            "dy": 6
+          }
+        },
+        {
+          "op": "rect",
+          "colour": "#fdf7f0",
+          "x": 0.5,
+          "y": 0.5,
+          "width": 15,
+          "height": 23,
+          "line": 0.12,
+          "outline": true
+        },
+        {
+          "op": "rect",
+          "colour": "#fdf7f0",
+          "x": 0.5,
+          "y": 11.94,
+          "width": 15,
+          "height": 0.12
+        },
+        {
+          "op": "rect",
+          "colour": "#fdf7f0",
+          "x": 7.8,
+          "y": 11.8,
+          "width": 0.4,
+          "height": 0.4
+        },
+        {
+          "op": "rect",
+          "colour": "#fdf7f0",
+          "x": 3,
+          "y": 0.5,
+          "width": 10,
+          "height": 4,
+          "line": 0.1,
+          "outline": true
+        },
+        {
+          "op": "rect",
+          "colour": "#fdf7f0",
+          "x": 3,
+          "y": 19.5,
+          "width": 10,
+          "height": 4,
+          "line": 0.1,
+          "outline": true
+        },
+        {
+          "op": "rect",
+          "colour": "#fdf7f0",
+          "x": 5.5,
+          "y": 0.5,
+          "width": 5,
+          "height": 1.5,
+          "line": 0.1,
+          "outline": true
+        },
+        {
+          "op": "rect",
+          "colour": "#fdf7f0",
+          "x": 5.5,
+          "y": 22,
+          "width": 5,
+          "height": 1.5,
+          "line": 0.1,
+          "outline": true
+        }
+      ]
+    }
+  ],
   "wildlife": [],
-  "overlays": [],
-  "propDesigns": []
+  "overlays": [
+    {
+      "id": "winter",
+      "roomId": "ice-rink",
+      "name": "Frozen rink",
+      "window": {
+        "starts": "2000-12-01T00:00:00+00:00",
+        "ends": "2000-03-01T00:00:00+00:00",
+        "yearly": true
+      },
+      "adds": [
+        {
+          "kind": "rink-board",
+          "spot": {
+            "x": 6.8,
+            "z": -7.5
+          },
+          "radius": 1.2,
+          "facing": 1.5707963267948966
+        },
+        {
+          "kind": "rink-board",
+          "spot": {
+            "x": 6.8,
+            "z": -5
+          },
+          "radius": 1.2,
+          "facing": 1.5707963267948966
+        },
+        {
+          "kind": "rink-board",
+          "spot": {
+            "x": 6.8,
+            "z": -2.5
+          },
+          "radius": 1.2,
+          "facing": 1.5707963267948966
+        },
+        {
+          "kind": "rink-board",
+          "spot": {
+            "x": 6.8,
+            "z": 0
+          },
+          "radius": 1.2,
+          "facing": 1.5707963267948966
+        },
+        {
+          "kind": "rink-board",
+          "spot": {
+            "x": 6.8,
+            "z": 2.5
+          },
+          "radius": 1.2,
+          "facing": 1.5707963267948966
+        },
+        {
+          "kind": "rink-board",
+          "spot": {
+            "x": 6.8,
+            "z": 5
+          },
+          "radius": 1.2,
+          "facing": 1.5707963267948966
+        },
+        {
+          "kind": "rink-board",
+          "spot": {
+            "x": 6.8,
+            "z": 7.5
+          },
+          "radius": 1.2,
+          "facing": 1.5707963267948966
+        },
+        {
+          "kind": "rink-board",
+          "spot": {
+            "x": -6.8,
+            "z": -7.5
+          },
+          "radius": 1.2,
+          "facing": 1.5707963267948966
+        },
+        {
+          "kind": "rink-board",
+          "spot": {
+            "x": -6.8,
+            "z": 7.5
+          },
+          "radius": 1.2,
+          "facing": 1.5707963267948966
+        },
+        {
+          "kind": "rink-board",
+          "spot": {
+            "x": -2.5,
+            "z": -10.6
+          },
+          "radius": 1.2,
+          "facing": 0
+        },
+        {
+          "kind": "rink-board",
+          "spot": {
+            "x": 0,
+            "z": -10.6
+          },
+          "radius": 1.2,
+          "facing": 0
+        },
+        {
+          "kind": "rink-board",
+          "spot": {
+            "x": 2.5,
+            "z": -10.6
+          },
+          "radius": 1.2,
+          "facing": 0
+        },
+        {
+          "kind": "rink-board",
+          "spot": {
+            "x": -2.5,
+            "z": 10.6
+          },
+          "radius": 1.2,
+          "facing": 0
+        },
+        {
+          "kind": "rink-board",
+          "spot": {
+            "x": 0,
+            "z": 10.6
+          },
+          "radius": 1.2,
+          "facing": 0
+        },
+        {
+          "kind": "rink-board",
+          "spot": {
+            "x": 2.5,
+            "z": 10.6
+          },
+          "radius": 1.2,
+          "facing": 0
+        },
+        {
+          "kind": "ice-patch",
+          "spot": {
+            "x": -2.1,
+            "z": -7.2
+          },
+          "radius": 1.9,
+          "facing": 0
+        },
+        {
+          "kind": "ice-patch",
+          "spot": {
+            "x": 2.1,
+            "z": -7.2
+          },
+          "radius": 1.9,
+          "facing": 0
+        },
+        {
+          "kind": "ice-patch",
+          "spot": {
+            "x": -2.1,
+            "z": -3.1
+          },
+          "radius": 1.9,
+          "facing": 0
+        },
+        {
+          "kind": "ice-patch",
+          "spot": {
+            "x": 2.1,
+            "z": -3.1
+          },
+          "radius": 1.9,
+          "facing": 0
+        },
+        {
+          "kind": "ice-patch",
+          "spot": {
+            "x": -2.1,
+            "z": 3.1
+          },
+          "radius": 1.9,
+          "facing": 0
+        },
+        {
+          "kind": "ice-patch",
+          "spot": {
+            "x": 2.1,
+            "z": 3.1
+          },
+          "radius": 1.9,
+          "facing": 0
+        },
+        {
+          "kind": "ice-patch",
+          "spot": {
+            "x": -2.1,
+            "z": 7.2
+          },
+          "radius": 1.9,
+          "facing": 0
+        },
+        {
+          "kind": "ice-patch",
+          "spot": {
+            "x": 2.1,
+            "z": 7.2
+          },
+          "radius": 1.9,
+          "facing": 0
+        }
+      ],
+      "removes": [
+        {
+          "kind": "goal",
+          "spot": {
+            "x": 0,
+            "z": -10.6
+          },
+          "radius": 1.3,
+          "facing": 0
+        },
+        {
+          "kind": "goal",
+          "spot": {
+            "x": 0,
+            "z": 10.6
+          },
+          "radius": 1.3,
+          "facing": 3.141592653589793
+        }
+      ],
+      "look": "winter"
+    }
+  ],
+  "propDesigns": [
+    {
+      "kind": "goal",
+      "size": 1.3,
+      "parts": [
+        {
+          "shape": "box",
+          "width": 0.1,
+          "height": 1.2,
+          "depth": 0.1,
+          "at": [
+            -1,
+            0.6,
+            -0.4
+          ],
+          "colour": "#fdf7f0"
+        },
+        {
+          "shape": "box",
+          "width": 0.1,
+          "height": 1.2,
+          "depth": 0.1,
+          "at": [
+            1,
+            0.6,
+            -0.4
+          ],
+          "colour": "#fdf7f0"
+        },
+        {
+          "shape": "box",
+          "width": 2.1,
+          "height": 0.1,
+          "depth": 0.1,
+          "at": [
+            0,
+            1.2,
+            -0.4
+          ],
+          "colour": "#fdf7f0"
+        },
+        {
+          "shape": "box",
+          "width": 0.06,
+          "height": 0.7,
+          "depth": 0.06,
+          "at": [
+            -1,
+            0.35,
+            0.5
+          ],
+          "colour": "#c9ccd1"
+        },
+        {
+          "shape": "box",
+          "width": 0.06,
+          "height": 0.7,
+          "depth": 0.06,
+          "at": [
+            1,
+            0.35,
+            0.5
+          ],
+          "colour": "#c9ccd1"
+        },
+        {
+          "shape": "box",
+          "width": 2,
+          "height": 0.7,
+          "depth": 0.03,
+          "at": [
+            0,
+            0.35,
+            0.5
+          ],
+          "colour": "#e4eaee",
+          "outlined": false
+        },
+        {
+          "shape": "box",
+          "width": 0.03,
+          "height": 0.7,
+          "depth": 0.9,
+          "at": [
+            -1,
+            0.35,
+            0.05
+          ],
+          "colour": "#e4eaee",
+          "outlined": false
+        },
+        {
+          "shape": "box",
+          "width": 0.03,
+          "height": 0.7,
+          "depth": 0.9,
+          "at": [
+            1,
+            0.35,
+            0.05
+          ],
+          "colour": "#e4eaee",
+          "outlined": false
+        },
+        {
+          "shape": "box",
+          "width": 2,
+          "height": 0.03,
+          "depth": 0.9,
+          "at": [
+            0,
+            0.7,
+            0.05
+          ],
+          "colour": "#e4eaee",
+          "outlined": false
+        }
+      ]
+    },
+    {
+      "kind": "ice-patch",
+      "size": 1.9,
+      "parts": [
+        {
+          "shape": "cylinder",
+          "diameter": 3.7,
+          "height": 0.03,
+          "at": [
+            0,
+            0.015,
+            0
+          ],
+          "colour": "#d9f1fb",
+          "sides": 12
+        },
+        {
+          "shape": "cylinder",
+          "diameter": 3,
+          "height": 0.036,
+          "at": [
+            0,
+            0.018,
+            0
+          ],
+          "colour": "#eef9fd",
+          "sides": 12,
+          "outlined": false
+        }
+      ]
+    },
+    {
+      "kind": "rink-board",
+      "size": 1.2,
+      "parts": [
+        {
+          "shape": "box",
+          "width": 2,
+          "height": 0.9,
+          "depth": 0.12,
+          "at": [
+            0,
+            0.45,
+            0
+          ],
+          "colour": "#fdf7f0"
+        },
+        {
+          "shape": "box",
+          "width": 2,
+          "height": 0.2,
+          "depth": 0.14,
+          "at": [
+            0,
+            0.1,
+            0
+          ],
+          "colour": "#4f7f86"
+        },
+        {
+          "shape": "box",
+          "width": 2.05,
+          "height": 0.08,
+          "depth": 0.18,
+          "at": [
+            0,
+            0.94,
+            0
+          ],
+          "colour": "#c98f5a"
+        },
+        {
+          "shape": "box",
+          "width": 1.9,
+          "height": 0.5,
+          "depth": 0.04,
+          "at": [
+            0,
+            1.25,
+            0
+          ],
+          "colour": "#d8eef0",
+          "outlined": false
+        }
+      ]
+    }
+  ]
 }
