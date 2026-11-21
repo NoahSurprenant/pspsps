@@ -129,7 +129,13 @@ public sealed class ContentDraftsTests
     }
 
     [Test]
-    public void TheFileIsReadOnce() => Assert.That(ContentFile.Embedded(), Is.SameAs(ContentFile.Embedded()));
+    public void TheFileIsReadOnce()
+    {
+        var first = ContentFile.Embedded();
+        var second = ContentFile.Embedded();
+
+        Assert.That(second, Is.SameAs(first));
+    }
 
     /// <summary>
     /// A cat walks through scenery: a backdrop part that stands on the floor and is taller than a cat's step must keep off the
