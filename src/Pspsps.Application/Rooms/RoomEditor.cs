@@ -17,8 +17,7 @@ public sealed record RoomDetail(
     RoomLayout? Draft,
     IReadOnlyList<RoomOverlay> Overlays,
     int? DraftRevision = null,
-    DateTimeOffset? GoLiveAt = null,
-    IReadOnlyList<string>? PendingOverlays = null);
+    DateTimeOffset? GoLiveAt = null);
 
 /// <summary>Everything admins author, in the shape the files in the repository hold it, to commit and review.</summary>
 public sealed record ContentExport(
@@ -134,7 +133,6 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
         var applied = new List<string>();
         var unchanged = new List<string>();
         var problems = new List<string>();
-        var pending = new List<string>();
         static bool Same<T>(T a, T b) => JsonSerializer.Serialize(a, ContentFile.Json) == JsonSerializer.Serialize(b, ContentFile.Json);
 
         var designs = await db.PropDesigns.ToDictionaryAsync(d => d.Kind, cancellationToken);
@@ -296,7 +294,7 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             problems.AddRange(await ProblemsWithAsync(file.RoomList.ToDictionary(r => r.Id, r => r.Layout), cancellationToken));
         }
 
-        return new ImportReport(applied, unchanged, problems, pending);
+        return new ImportReport(applied, unchanged, problems);
 
         async Task Attempt(string what, Func<Task> save, string done = "saved")
         {

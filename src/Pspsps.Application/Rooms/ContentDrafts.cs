@@ -64,5 +64,5 @@ public sealed record ContentFile(
     public IReadOnlyList<DraftPropDesign> PropDesignList => PropDesigns ?? [];
 }
 
-/// <summary>What loading the content file did: what was saved, what was already so, what could not be, and what waits (an overlay for its room to be published).</summary>
-public sealed record ImportReport(IReadOnlyList<string> Applied, IReadOnlyList<string> Unchanged, IReadOnlyList<string> Problems, IReadOnlyList<string> Pending);
+/// <summary>What loading the content file did: what was saved, what was already so, and what could not be.</summary>
+public sealed record ImportReport(IReadOnlyList<string> Applied, IReadOnlyList<string> Unchanged, IReadOnlyList<string> Problems);
