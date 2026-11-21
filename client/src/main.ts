@@ -153,6 +153,8 @@ declare global {
       animation(playerId: string): CatAnimation | undefined;
       /** Where a spot on the floor is drawn on the canvas, in CSS pixels, to click it; undefined with no room showing. */
       screenPoint(x: number, z: number): { x: number; y: number } | undefined;
+      /** Where a cat in the room is drawn on the floor now, as it walks (not where it is walking to). */
+      catDrawnAt(playerId: string): { x: number; z: number } | undefined;
       /** Where a cat in the room is on the page, to click it. */
       catOnScreen(playerId: string): { x: number; y: number } | undefined;
       /** What a cat in the room is drawn wearing (its fur, hat and collar), once the cat is drawn. */
@@ -180,6 +182,7 @@ window.pspsps = {
   fishing: () => fishing.state,
   animation: (playerId) => scene?.animationOf(playerId),
   screenPoint: (x, z) => scene?.screenPoint(x, z),
+  catDrawnAt: (playerId) => scene?.positionOf(playerId),
   catOnScreen: (playerId) => scene?.screenPositionOf(playerId),
   wearing: (playerId) => scene?.wearingOf(playerId),
   home: () => room?.snapshot.home ?? undefined,
