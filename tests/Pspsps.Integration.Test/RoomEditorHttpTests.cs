@@ -550,8 +550,8 @@ public sealed class RoomEditorHttpTests
             await editor.SavePainterAsync("import-test-ice", PaintSurfaces.Floor, steps, adminPlayer.Id, CancellationToken.None);
             await editor.SaveVariantAsync("import-test-frozen", new LookVariant("#cfe3f0", "#e8eef4", new LookPaint("import-test-ice")), adminPlayer.Id, CancellationToken.None);
 
-            var deleted = Assert.ThrowsAsync<DomainException>(() => editor.DeletePainterAsync("import-test-ice", adminPlayer.Id, CancellationToken.None));
-            var changed = Assert.ThrowsAsync<DomainException>(() => editor.SavePainterAsync("import-test-ice", PaintSurfaces.Wall, steps, adminPlayer.Id, CancellationToken.None));
+            var deleted = Assert.ThrowsAsync<Pspsps.Domain.DomainException>(() => editor.DeletePainterAsync("import-test-ice", adminPlayer.Id, CancellationToken.None));
+            var changed = Assert.ThrowsAsync<Pspsps.Domain.DomainException>(() => editor.SavePainterAsync("import-test-ice", PaintSurfaces.Wall, steps, adminPlayer.Id, CancellationToken.None));
             await editor.DeleteVariantAsync("import-test-frozen", adminPlayer.Id, CancellationToken.None);
             await editor.DeletePainterAsync("import-test-ice", adminPlayer.Id, CancellationToken.None);
 
