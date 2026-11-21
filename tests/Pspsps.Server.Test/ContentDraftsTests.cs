@@ -83,7 +83,7 @@ public sealed class ContentDraftsTests
     {
         // The drift check above must be able to fail: a copy with one part moved differs.
         static string Written(double size, IReadOnlyList<PropPart> parts) => JsonSerializer.Serialize(new { size, parts }, ContentFile.Json);
-        var design = PropDesignSeeder.Starting().First();
+        var design = PropDesignSeeder.Starting()[0];
         var moved = design.Parts.Select((part, i) => i == 0 ? part with { At = [part.At[0] + 0.1, part.At[1], part.At[2]] } : part).ToList();
 
         Assert.That(Written(design.Size, moved), Is.Not.EqualTo(Written(design.Size, design.Parts)));
