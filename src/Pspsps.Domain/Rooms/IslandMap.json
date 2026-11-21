@@ -11,5 +11,8 @@
   { "id": "market-row", "name": "Market Row", "category": "shops", "landmark": "market", "x": 10, "z": 11, "room": "market-row", "blurb": "Stalls of hats, toys and treats." },
   { "id": "old-mill", "name": "Old Mill", "category": "shops", "landmark": "mill", "x": 22, "z": 24, "room": null, "blurb": "Fresh bread from the mill bakery." },
   { "id": "whisker-woods", "name": "Whisker Woods", "category": "pets", "landmark": "woods", "x": -36, "z": -12, "room": null, "blurb": "Wild friends live among the trees." },
-  { "id": "nap-hollow", "name": "Nap Hollow", "category": "pets", "landmark": "hollow", "x": -22, "z": -34, "room": null, "blurb": "A warm hollow where kittens sleep." }
+  { "id": "nap-hollow", "name": "Nap Hollow", "category": "pets", "landmark": "hollow", "x": -22, "z": -34, "room": null, "blurb": "A warm hollow where kittens sleep." },
+  { "id": "dojo-courtyard", "name": "Dojo Courtyard", "category": "places", "landmark": "dojo", "x": 16, "z": -32, "room": null, "blurb": "A training yard behind a waterfall. The dojo hall is through the door." },
+  { "id": "ice-rink", "name": "Ice Rink", "category": "games", "landmark": "rink", "x": 34, "z": -16, "room": null, "blurb": "Skates in winter, a soccer pitch the rest of the year." },
+  { "id": "mine", "name": "Mine Shack", "category": "games", "landmark": "mine", "x": -38, "z": 8, "room": null, "blurb": "A little hut at the mouth of the old tunnels." }
 ]
