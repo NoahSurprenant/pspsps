@@ -603,7 +603,7 @@ public sealed class RoomEditorHttpTests
     }
 
     [Test]
-    public async Task OnlyARoomThatIsNotPublished_HasOverlaysWaitingInTheFile()
+    public async Task AnOverlayInTheFile_OfARoomThatIsNotPublished_IsSavedNotWaiting()
     {
         var (adminPlayer, _) = await Game.SignInGuestAsync();
         Game.Admins.Add(adminPlayer.Id);
@@ -616,12 +616,13 @@ public sealed class RoomEditorHttpTests
 
             Assert.Multiple(() =>
             {
-                Assert.That(rink!.PendingOverlays, Does.Contain("winter"));
+                Assert.That(rink!.PendingOverlays, Is.Empty);
                 Assert.That(cafe!.PendingOverlays, Is.Empty);
             });
         }
         finally
         {
+            await editor.DeleteOverlayAsync("ice-rink", "winter", adminPlayer.Id, CancellationToken.None);
             foreach (var room in ContentFile.Embedded().RoomList)
             {
                 await editor.DiscardDraftAsync(room.Id, adminPlayer.Id, CancellationToken.None);
