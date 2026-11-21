@@ -125,6 +125,8 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U postgres" --health-interval 2s --health-timeout 5s --health-retries 30
     steps:
+      - name: Runner size
+        run: nproc; free -m; lscpu | grep -E "Model name|^CPU\(s\)"
       - uses: actions/checkout@v7
       - run: docker build -t pspsps:e2e .
       - name: Start the game
