@@ -40,7 +40,7 @@ public sealed class BackdropClearanceTests
     [Test]
     public void ACylinderThatFlaresWider_IsMeasuredByItsWiderEnd()
     {
-        var narrow = new PropPart("cylinder", [5.6, 0.5, 0.5], "#fff", Diameter: 0.4, Height: 1);
+        var narrow = new PropPart("cylinder", [6.5, 0.5, 0.5], "#fff", Diameter: 0.4, Height: 1);
         var flared = narrow with { Top = 2 };
 
         Assert.Multiple(() =>
