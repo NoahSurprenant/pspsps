@@ -103,10 +103,6 @@ public sealed class ContentDraftsTests
     public void TheDojoCourtyard_IsTheOnlyDojoPlaceOnTheIslandMap()
     {
         var places = IslandMap.Places.Where(place => place.Room is not null && place.Room.StartsWith("dojo", StringComparison.Ordinal)).ToList();
-        if (places.Count == 0)
-        {
-            Assert.Ignore("The island map has no dojo place yet: its place is added with the map's other new places, and this then asserts it names the courtyard's room and nothing else of the dojo.");
-        }
 
         Assert.That(places.Select(place => place.Room), Is.EqualTo(new[] { "dojo-courtyard" }));
     }
