@@ -1,11 +1,8 @@
-import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import mapSource from "../../src/Pspsps.Domain/Rooms/IslandMap.json?raw";
+import scene from "./islandScene.ts?raw";
 
-const places = JSON.parse(readFileSync("../src/Pspsps.Domain/Rooms/IslandMap.json", "utf8")) as {
-  id: string;
-  landmark: string;
-}[];
-const scene = readFileSync("src/islandScene.ts", "utf8");
+const places = JSON.parse(mapSource) as { id: string; landmark: string }[];
 
 describe("island landmarks", () => {
   it("has a drawer for every landmark named in the map", () => {
