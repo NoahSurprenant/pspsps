@@ -24,41 +24,46 @@ type DrawingHold = { holds: number; release(): void };
  * the held pages' drawing or animation, only act on the page that is joining.
  */
 export async function holdDrawing<T>(pages: Page[], during: () => Promise<T>): Promise<T> {
-  try {
-    await Promise.all(pages.map((page) => page.evaluate(() => {
-      const win = window as unknown as { drawingHold?: DrawingHold };
-      if (win.drawingHold) {
-        win.drawingHold.holds++;
-        return;
-      }
+  // Every install is waited for, whether or not another failed (a page that closed or moved on): none is left running to
+  // install a hold after the release, and only the pages that took a hold are released.
+  const installs = await Promise.allSettled(pages.map((page) => page.evaluate(() => {
+    const win = window as unknown as { drawingHold?: DrawingHold };
+    if (win.drawingHold) {
+      win.drawingHold.holds++;
+      return;
+    }
 
-      const realRequest = window.requestAnimationFrame;
-      const realCancel = window.cancelAnimationFrame;
-      // Held frames get negative ids, so they never meet an id the browser gave.
-      const held = new Map<number, FrameRequestCallback>();
-      let next = -1;
-      window.requestAnimationFrame = (frame) => {
-        held.set(next, frame);
-        return next--;
-      };
-      window.cancelAnimationFrame = (id) => {
-        if (!held.delete(id)) realCancel.call(window, id);
-      };
-      win.drawingHold = {
-        holds: 1,
-        release() {
-          if (--this.holds > 0) return;
-          window.requestAnimationFrame = realRequest;
-          window.cancelAnimationFrame = realCancel;
-          for (const frame of held.values()) realRequest.call(window, frame);
-          held.clear();
-          delete win.drawingHold;
-        },
-      };
-    })));
+    const realRequest = window.requestAnimationFrame;
+    const realCancel = window.cancelAnimationFrame;
+    // Held frames get negative ids, so they never meet an id the browser gave.
+    const held = new Map<number, FrameRequestCallback>();
+    let next = -1;
+    window.requestAnimationFrame = (frame) => {
+      held.set(next, frame);
+      return next--;
+    };
+    window.cancelAnimationFrame = (id) => {
+      if (!held.delete(id)) realCancel.call(window, id);
+    };
+    win.drawingHold = {
+      holds: 1,
+      release() {
+        if (--this.holds > 0) return;
+        window.requestAnimationFrame = realRequest;
+        window.cancelAnimationFrame = realCancel;
+        for (const frame of held.values()) realRequest.call(window, frame);
+        held.clear();
+        delete win.drawingHold;
+      },
+    };
+  })));
+  const held = pages.filter((_, i) => installs[i]?.status === "fulfilled");
+  try {
+    const failed = installs.find((install): install is PromiseRejectedResult => install.status === "rejected");
+    if (failed) throw failed.reason;
     return await during();
   } finally {
-    await Promise.allSettled(pages.map((page) =>
+    await Promise.allSettled(held.map((page) =>
       page.evaluate(() => (window as unknown as { drawingHold?: DrawingHold }).drawingHold?.release())));
   }
 }
