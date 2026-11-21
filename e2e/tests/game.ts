@@ -224,6 +224,7 @@ declare global {
       fishing(): "idle" | "casting" | "waiting" | "bite" | "reeling";
       animation(playerId: string): string | undefined;
       screenPoint(x: number, z: number): { x: number; y: number } | undefined;
+      catDrawnAt(playerId: string): { x: number; z: number } | undefined;
       catOnScreen(playerId: string): { x: number; y: number } | undefined;
       wearing(playerId: string): { fur: string; hat: string | undefined; collar: string | undefined } | undefined;
       home(): { ownerId: string; visitors: string; furniture: { id: string; itemId: string; x: number; z: number }[] } | undefined;
@@ -270,6 +271,13 @@ export function pixelsNear(png: Buffer, rgb: [number, number, number], step = 7)
 export async function clickCat(page: Page, playerId: string): Promise<void> {
   // A cat takes taps once its model is drawn.
   await expect.poll(() => page.evaluate((id) => window.pspsps?.animation(id), playerId)).toBeDefined();
+  // Still on screen is not enough: a page that has stopped drawing for a moment shows a walking cat still. It is
+  // standing once it is drawn where the room says it is going.
+  await expect.poll(() => page.evaluate((id) => {
+    const goal = window.pspsps?.room()?.cats.get(id);
+    const drawn = window.pspsps?.catDrawnAt(id);
+    return goal !== undefined && drawn !== undefined && Math.hypot(goal.x - drawn.x, goal.z - drawn.z) < 0.05;
+  }, playerId)).toBe(true);
   let last: string | undefined;
   await expect.poll(async () => {
     const at = await page.evaluate((id) => window.pspsps?.catOnScreen(id), playerId);
