@@ -10,7 +10,7 @@ namespace Pspsps.Server.Moderation;
 /// <summary>What the admin page does to rooms (<c>/api/admin/rooms</c>): admins only, and changes only from the admin page itself.</summary>
 public static class RoomEditorEndpoints
 {
-    private static readonly System.Text.Json.JsonSerializerOptions Export = new(System.Text.Json.JsonSerializerDefaults.Web)
+    internal static readonly System.Text.Json.JsonSerializerOptions Export = new(System.Text.Json.JsonSerializerDefaults.Web)
     {
         WriteIndented = true,
         Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() },

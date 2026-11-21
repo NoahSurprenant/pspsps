@@ -425,6 +425,61 @@ public sealed class RoomEditorHttpTests
     }
 
     [Test]
+    public async Task TheContentApi_NeedsItsTokenAndAnAdminToActAs_AndReachesNothingElse()
+    {
+        const string token = "a-content-token-for-the-tests-0123456789";
+        var (adminPlayer, cookie) = await Game.SignInGuestAsync();
+        Game.Admins.Add(adminPlayer.Id);
+        var config = Game.Get<Microsoft.Extensions.Configuration.IConfiguration>();
+        using var client = Game.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = false });
+
+        async Task<HttpStatusCode> StatusAsync(string path, string? bearer, string? withCookie = null)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, path);
+            if (bearer is not null)
+            {
+                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", bearer);
+            }
+
+            if (withCookie is not null)
+            {
+                request.Headers.Add("Cookie", withCookie);
+            }
+
+            using var response = await client.SendAsync(request);
+            return response.StatusCode;
+        }
+
+        try
+        {
+            var off = await StatusAsync("/api/content/export", token);
+            config["Content:ActAs"] = adminPlayer.Id.ToString();
+            var none = await StatusAsync("/api/content/export", null);
+            var wrong = await StatusAsync("/api/content/export", "not-the-token-not-the-token-not-the-token");
+            var cookieOnly = await StatusAsync("/api/content/export", null, cookie);
+            var allowed = await StatusAsync("/api/content/export", token);
+            var list = await StatusAsync("/api/content/rooms", token);
+            config["Content:ActAs"] = Guid.NewGuid().ToString();
+            var notAdmin = await StatusAsync("/api/content/export", token);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(off, Is.EqualTo(HttpStatusCode.NotFound), "off until the player to act as is set");
+                Assert.That(none, Is.EqualTo(HttpStatusCode.Forbidden));
+                Assert.That(wrong, Is.EqualTo(HttpStatusCode.Forbidden));
+                Assert.That(cookieOnly, Is.EqualTo(HttpStatusCode.Forbidden), "a signed-in admin's cookie is not the token");
+                Assert.That(allowed, Is.EqualTo(HttpStatusCode.OK));
+                Assert.That(list, Is.EqualTo(HttpStatusCode.OK));
+                Assert.That(notAdmin, Is.EqualTo(HttpStatusCode.Forbidden), "it only acts as an admin");
+            });
+        }
+        finally
+        {
+            config["Content:ActAs"] = null;
+        }
+    }
+
+    [Test]
     public async Task LoadingTheContentFile_AddsANewPropDesignAndOverlay_AndLeavesLiveOnesAlone()
     {
         var (adminPlayer, _) = await Game.SignInGuestAsync();
