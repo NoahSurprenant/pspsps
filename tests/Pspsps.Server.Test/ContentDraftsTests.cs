@@ -42,4 +42,21 @@ public sealed class ContentDraftsTests
     [Test]
     public void EveryPropDesignInTheFile_CanBeDrawn() =>
         Assert.That(Content.PropDesignList.SelectMany(d => PropDesign.Problems(d.Kind, d.Size, d.Parts, d.Growth)), Is.Empty);
+
+    [Test]
+    public void TheCafeDraft_KeepsEverythingTheLiveCafeHas_AndAddsTheStairsToTheBookRoom()
+    {
+        var live = RoomLayout.Of(RoomCatalog.All.Single(room => room.Id == "cafe"));
+        var draft = Content.RoomList.Single(room => room.Id == "cafe").Layout;
+        var book = Content.RoomList.Single(room => room.Id == "book-room").Layout;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(draft.Props, Is.EquivalentTo(live.Props));
+            Assert.That(draft.Doors.Select(d => d.Id), Is.SupersetOf(live.Doors.Select(d => d.Id)));
+            Assert.That(draft.Doors.Single(d => d.Id == "book-room").ToRoom, Is.EqualTo("book-room"));
+            Assert.That(book.Doors.Single().ToRoom, Is.EqualTo("cafe"));
+            Assert.That(IslandMap.Places.Select(p => p.Room), Does.Not.Contain("book-room"));
+        });
+    }
 }

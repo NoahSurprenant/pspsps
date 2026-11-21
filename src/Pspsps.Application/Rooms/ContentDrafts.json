@@ -309,6 +309,55 @@
           }
         ]
       }
+    },
+    {
+      "id": "cafe",
+      "layout": {
+        "name": "Cat Café",
+        "width": 14,
+        "depth": 10,
+        "spawn": { "x": 0, "z": 3 },
+        "capacity": 40,
+        "props": [
+          { "kind": "counter", "spot": { "x": 4.4, "z": 3 }, "radius": 1.9, "facing": 0 },
+          { "kind": "piano", "spot": { "x": -4.3, "z": -1.3 }, "radius": 1.2, "facing": 0.3 },
+          { "kind": "cafe-table", "spot": { "x": 0.3, "z": -2.8 }, "radius": 1.2, "facing": -0.2 },
+          { "kind": "cafe-table", "spot": { "x": 4.3, "z": -0.4 }, "radius": 1.2, "facing": 0.5 },
+          { "kind": "plant", "spot": { "x": -6.3, "z": 4.3 }, "radius": 0.5, "facing": 0 },
+          { "kind": "plant", "spot": { "x": 1.6, "z": 4.4 }, "radius": 0.5, "facing": 0 },
+          { "kind": "plant", "spot": { "x": 6.4, "z": -4.4 }, "radius": 0.5, "facing": 0 },
+          { "kind": "cat-tree", "spot": { "x": -6.1, "z": -3.9 }, "radius": 0.8, "facing": 0 }
+        ],
+        "doors": [
+          { "id": "town-square", "edge": "North", "offset": -4, "toRoom": "town-square", "toDoor": "cafe" },
+          { "id": "book-room", "edge": "West", "offset": 1.8, "toRoom": "book-room", "toDoor": "cafe" }
+        ]
+      }
+    },
+    {
+      "id": "book-room",
+      "layout": {
+        "name": "Book Room",
+        "width": 12,
+        "depth": 9,
+        "spawn": { "x": 0, "z": 1 },
+        "capacity": 24,
+        "props": [
+          { "kind": "bookshelf", "spot": { "x": -3.5, "z": -3.6 }, "radius": 1, "facing": 0 },
+          { "kind": "bookshelf", "spot": { "x": -0.8, "z": -3.6 }, "radius": 1, "facing": 0 },
+          { "kind": "bookshelf", "spot": { "x": 1.9, "z": -3.6 }, "radius": 1, "facing": 0 },
+          { "kind": "bookshelf", "spot": { "x": 5.2, "z": -1.2 }, "radius": 1, "facing": -1.5707963267948966 },
+          { "kind": "rug", "spot": { "x": -0.5, "z": 1.2 }, "radius": 2, "facing": 0 },
+          { "kind": "armchair", "spot": { "x": -2.4, "z": 1.2 }, "radius": 0.8, "facing": 1.5707963267948966 },
+          { "kind": "armchair", "spot": { "x": 1.4, "z": 1.2 }, "radius": 0.8, "facing": -1.5707963267948966 },
+          { "kind": "cat-bed", "spot": { "x": -4.7, "z": 2.8 }, "radius": 0.8, "facing": 0.4 },
+          { "kind": "floor-lamp", "spot": { "x": -3.9, "z": 0.2 }, "radius": 0.4, "facing": 0 },
+          { "kind": "plant", "spot": { "x": 5.1, "z": 2.8 }, "radius": 0.5, "facing": 0 }
+        ],
+        "doors": [
+          { "id": "cafe", "edge": "East", "offset": 1.8, "toRoom": "cafe", "toDoor": "book-room" }
+        ]
+      }
     }
   ],
   "looks": {
@@ -376,6 +425,17 @@
           "backdrop": {
             "parts": []
           }
+        }
+      },
+      {
+        "id": "book-room",
+        "look": {
+          "sky": "#e8d8c0",
+          "floorColour": "#a9783f",
+          "wallColour": "#c9a27a",
+          "floor": { "painter": "planks", "colour": "#a9783f", "accent": "#8a5f30" },
+          "wall": { "painter": "panelled" },
+          "backdrop": { "parts": [] }
         }
       }
     ],
