@@ -37,3 +37,13 @@ export function frameLimiter(limit: () => number | undefined): (now: number) => 
     return true;
   };
 }
+
+/** Seconds since the previous drawn frame (0 for the first, at most a quarter second so a stalled tab doesn't leap). */
+export function frameClock(): (now: number) => number {
+  let last: number | undefined;
+  return (now) => {
+    const seconds = last === undefined ? 0 : Math.min(0.25, (now - last) / 1000);
+    last = now;
+    return seconds;
+  };
+}

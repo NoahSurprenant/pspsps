@@ -41,7 +41,7 @@ import { besideProp, buildParts, ink, propAt, propParts, type Part } from "./pro
 import { CatLook } from "./look";
 import catModelUrl from "./models/cat.glb?url";
 import type { CatView, DoorView, Emote, OutfitView, PropView, RoomSnapshot } from "./types";
-import { frameLimiter } from "./frameLimit";
+import { frameClock, frameLimiter } from "./frameLimit";
 
 const walkSpeed = 4; // metres per second
 const sky = Color4.FromHexString("#bfe3f2ff");
@@ -93,6 +93,7 @@ interface CatOnScreen {
 export class RoomScene {
   private scene: Scene;
   private gui: AdvancedDynamicTexture | undefined;
+  private frameSeconds = 0;
   private readonly cats = new Map<string, CatOnScreen>();
   // The cat model, read into the scene showing.
   private model: Promise<AssetContainer | undefined> = Promise.resolve(undefined);
@@ -141,8 +142,11 @@ export class RoomScene {
     this.portraits = new Portraits(this.engine, this.loadModel);
     // One loop for the page; it draws whichever room is showing.
     const due = frameLimiter(maxFps);
+    const clock = frameClock();
     this.engine.runRenderLoop(() => {
-      if (due(performance.now())) {
+      const now = performance.now();
+      if (due(now)) {
+        this.frameSeconds = clock(now);
         this.renderFrame();
       }
     });
@@ -417,7 +421,7 @@ export class RoomScene {
     };
     const animateWildlife = wildlife(this.scene, room, look.wildlife);
     this.scene.onBeforeRenderObservable.add(() => {
-      const seconds = this.engine.getDeltaTime() / 1000;
+      const seconds = this.frameSeconds;
       this.step(seconds);
       animateWildlife?.(seconds);
       aim();
