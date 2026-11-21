@@ -15,6 +15,9 @@ internal static class BackdropClearance
     /// <summary>A part whose underside is higher than this (about a cat's height) is overhead: cats walk under it.</summary>
     private const double OverheadFrom = 1;
 
+    /// <summary>How deep a standing part may stand into the floor from its edge (about the depth of furniture against a wall): further in it is on the walkable floor, where only props belong.</summary>
+    private const double WallBand = 1;
+
     /// <summary>How far a standing part may reach into a prop's circle, as a share of the radius (capped at one metre of it): trim may touch a prop's rim, not its middle.</summary>
     private const double PropCoreShare = 0.5;
 
@@ -42,13 +45,18 @@ internal static class BackdropClearance
         {
             var solid = solids[i];
             var label = $"{id}: backdrop part {i + 1} ({parts[i].Shape} at {parts[i].At[0]}, {parts[i].At[2]})";
-            if (!solid.TouchesTheFloor(layout.Width, layout.Depth))
+            if (!solid.Reaches(-layout.Width / 2, layout.Width / 2, -layout.Depth / 2, layout.Depth / 2))
             {
                 continue;
             }
 
             if (solid.Top > StandingAbove && solid.Bottom < OverheadFrom)
             {
+                if (solid.Reaches((-layout.Width / 2) + WallBand, (layout.Width / 2) - WallBand, (-layout.Depth / 2) + WallBand, (layout.Depth / 2) - WallBand))
+                {
+                    problems.Add($"{label} stands on the walkable floor, further than {WallBand} m from the walls");
+                }
+
                 problems.AddRange(layout.Props
                     .Where(prop => solid.DistanceTo(prop.Spot) < Math.Min(prop.Radius, 1) * PropCoreShare)
                     .Select(prop => $"{label} stands on the {prop.Kind} at ({prop.Spot.X}, {prop.Spot.Z})"));
@@ -98,8 +106,10 @@ internal static class BackdropClearance
         public static Solid Of(PropPart part)
         {
             var (x, y, z) = (part.At[0], part.At[1], part.At[2]);
-            var width = part.Shape == "box" ? part.Width.GetValueOrDefault() : part.Diameter.GetValueOrDefault();
-            var depth = part.Shape == "box" ? part.Depth.GetValueOrDefault() : part.Diameter.GetValueOrDefault();
+            // A cylinder that widens upwards (or a cone the other way) takes up its wider end's footprint.
+            var across = Math.Max(part.Diameter.GetValueOrDefault(), part.Top.GetValueOrDefault());
+            var width = part.Shape == "box" ? part.Width.GetValueOrDefault() : across;
+            var depth = part.Shape == "box" ? part.Depth.GetValueOrDefault() : across;
             var height = part.Height ?? part.Diameter ?? 0;
             var half = new[] { width / 2, height / 2, depth / 2 };
             var turn = part.Turn is { Length: 3 } ? part.Turn : [0, 0, 0];
@@ -107,12 +117,15 @@ internal static class BackdropClearance
             // The browser turns a part about Y, then X, then Z (yaw, pitch, roll); the box that holds it has half-sizes of |R| * half.
             var rotation = Multiply(Multiply(AboutY(turn[1]), AboutX(turn[0])), AboutZ(turn[2]));
             var reach = Enumerable.Range(0, 3).Select(row => Enumerable.Range(0, 3).Sum(col => Math.Abs(rotation[row][col]) * half[col])).ToArray();
+            // Turning about Y leaves a round part round; leaning it (about X or Z) does not.
             var round = part.Shape != "box" && turn[0] == 0 && turn[2] == 0;
             return new Solid(x - reach[0], x + reach[0], y - reach[1], y + reach[1], z - reach[2], z + reach[2], round, new Position(x, z), width / 2);
         }
 
-        /// <summary>Whether any of it is above the floor, which is centred on the origin.</summary>
-        public bool TouchesTheFloor(double width, double depth) => X1 > -width / 2 && X0 < width / 2 && Z1 > -depth / 2 && Z0 < depth / 2;
+        /// <summary>Whether any of it stands over the rectangle (x0..x1, z0..z1) of the floor; a round part is measured by its circle, not its box.</summary>
+        public bool Reaches(double x0, double x1, double z0, double z1) => Round
+            ? Math.Sqrt(Math.Pow(Math.Max(Math.Max(x0 - Middle.X, Middle.X - x1), 0), 2) + Math.Pow(Math.Max(Math.Max(z0 - Middle.Z, Middle.Z - z1), 0), 2)) < Radius
+            : X1 > x0 && X0 < x1 && Z1 > z0 && Z0 < z1;
 
         public double DistanceTo(Position spot) => Round
             ? Math.Max(0, spot.DistanceTo(Middle) - Radius)

@@ -2156,13 +2156,13 @@
                 "at": [
                   4.5,
                   0.27,
-                  -5.9
+                  -6.5
                 ],
                 "colour": "#7a5a44"
               },
               {
                 "shape": "cylinder",
-                "diameter": 0.4,
+                "diameter": 0.28,
                 "height": 0.08,
                 "turn": [
                   0,
@@ -2171,14 +2171,14 @@
                 ],
                 "at": [
                   3.7,
-                  0.22,
+                  0.15,
                   -4.9
                 ],
                 "colour": "#3a3540"
               },
               {
                 "shape": "cylinder",
-                "diameter": 0.4,
+                "diameter": 0.28,
                 "height": 0.08,
                 "turn": [
                   0,
@@ -2187,14 +2187,14 @@
                 ],
                 "at": [
                   3.7,
-                  0.22,
+                  0.15,
                   -4.1
                 ],
                 "colour": "#3a3540"
               },
               {
                 "shape": "cylinder",
-                "diameter": 0.4,
+                "diameter": 0.28,
                 "height": 0.08,
                 "turn": [
                   0,
@@ -2203,14 +2203,14 @@
                 ],
                 "at": [
                   5.3,
-                  0.22,
+                  0.15,
                   -4.9
                 ],
                 "colour": "#3a3540"
               },
               {
                 "shape": "cylinder",
-                "diameter": 0.4,
+                "diameter": 0.28,
                 "height": 0.08,
                 "turn": [
                   0,
@@ -2219,7 +2219,7 @@
                 ],
                 "at": [
                   5.3,
-                  0.22,
+                  0.15,
                   -4.1
                 ],
                 "colour": "#3a3540"
@@ -2321,13 +2321,13 @@
               {
                 "shape": "cylinder",
                 "diameter": 0.18,
-                "height": 0.35,
+                "height": 0.28,
                 "top": 0,
                 "sides": 5,
                 "outlined": false,
                 "at": [
                   3.3212617637222923,
-                  0.17,
+                  0.14,
                   1.2309752537081824
                 ],
                 "colour": "#7fb36a"
@@ -2335,13 +2335,13 @@
               {
                 "shape": "cylinder",
                 "diameter": 0.18,
-                "height": 0.35,
+                "height": 0.28,
                 "top": 0,
                 "sides": 5,
                 "outlined": false,
                 "at": [
                   5.701633610158057,
-                  0.17,
+                  0.14,
                   -3.4959427156932392
                 ],
                 "colour": "#6aa05a"
@@ -2349,13 +2349,13 @@
               {
                 "shape": "cylinder",
                 "diameter": 0.18,
-                "height": 0.35,
+                "height": 0.28,
                 "top": 0,
                 "sides": 5,
                 "outlined": false,
                 "at": [
                   -2.263833984389824,
-                  0.17,
+                  0.14,
                   2.094816240153655
                 ],
                 "colour": "#7fb36a"
@@ -2363,13 +2363,13 @@
               {
                 "shape": "cylinder",
                 "diameter": 0.18,
-                "height": 0.35,
+                "height": 0.28,
                 "top": 0,
                 "sides": 5,
                 "outlined": false,
                 "at": [
                   3.5648223937325287,
-                  0.17,
+                  0.14,
                   -5.753352358263616
                 ],
                 "colour": "#6aa05a"
@@ -2377,13 +2377,13 @@
               {
                 "shape": "cylinder",
                 "diameter": 0.18,
-                "height": 0.35,
+                "height": 0.28,
                 "top": 0,
                 "sides": 5,
                 "outlined": false,
                 "at": [
                   3.3103719951167587,
-                  0.17,
+                  0.14,
                   -0.7852520484408609
                 ],
                 "colour": "#7fb36a"
@@ -2391,13 +2391,13 @@
               {
                 "shape": "cylinder",
                 "diameter": 0.18,
-                "height": 0.35,
+                "height": 0.28,
                 "top": 0,
                 "sides": 5,
                 "outlined": false,
                 "at": [
                   7.603232781683669,
-                  0.17,
+                  0.14,
                   3.2889078382816663
                 ],
                 "colour": "#6aa05a"
@@ -2405,13 +2405,13 @@
               {
                 "shape": "cylinder",
                 "diameter": 0.18,
-                "height": 0.35,
+                "height": 0.28,
                 "top": 0,
                 "sides": 5,
                 "outlined": false,
                 "at": [
                   -6.788943000039525,
-                  0.17,
+                  0.14,
                   -0.24333444286293116
                 ],
                 "colour": "#7fb36a"
@@ -2419,13 +2419,13 @@
               {
                 "shape": "cylinder",
                 "diameter": 0.18,
-                "height": 0.35,
+                "height": 0.28,
                 "top": 0,
                 "sides": 5,
                 "outlined": false,
                 "at": [
                   7.617028204080196,
-                  0.17,
+                  0.14,
                   1.862017317238271
                 ],
                 "colour": "#6aa05a"
@@ -2433,13 +2433,13 @@
               {
                 "shape": "cylinder",
                 "diameter": 0.18,
-                "height": 0.35,
+                "height": 0.28,
                 "top": 0,
                 "sides": 5,
                 "outlined": false,
                 "at": [
                   7.415918963223657,
-                  0.17,
+                  0.14,
                   4.500009933346886
                 ],
                 "colour": "#7fb36a"
@@ -2447,13 +2447,13 @@
               {
                 "shape": "cylinder",
                 "diameter": 0.18,
-                "height": 0.35,
+                "height": 0.28,
                 "top": 0,
                 "sides": 5,
                 "outlined": false,
                 "at": [
                   -2.2995753583030663,
-                  0.17,
+                  0.14,
                   -2.375364666420671
                 ],
                 "colour": "#6aa05a"
@@ -2461,13 +2461,13 @@
               {
                 "shape": "cylinder",
                 "diameter": 0.18,
-                "height": 0.35,
+                "height": 0.28,
                 "top": 0,
                 "sides": 5,
                 "outlined": false,
                 "at": [
                   6.069077201685438,
-                  0.17,
+                  0.14,
                   -2.412980848556842
                 ],
                 "colour": "#7fb36a"
@@ -2475,13 +2475,13 @@
               {
                 "shape": "cylinder",
                 "diameter": 0.18,
-                "height": 0.35,
+                "height": 0.28,
                 "top": 0,
                 "sides": 5,
                 "outlined": false,
                 "at": [
                   -6.253682542244756,
-                  0.17,
+                  0.14,
                   -2.8283250050751145
                 ],
                 "colour": "#6aa05a"
@@ -2489,13 +2489,13 @@
               {
                 "shape": "cylinder",
                 "diameter": 0.18,
-                "height": 0.35,
+                "height": 0.28,
                 "top": 0,
                 "sides": 5,
                 "outlined": false,
                 "at": [
                   -1.2875404461694604,
-                  0.17,
+                  0.14,
                   -2.86151918008063
                 ],
                 "colour": "#7fb36a"
@@ -2503,13 +2503,13 @@
               {
                 "shape": "cylinder",
                 "diameter": 0.18,
-                "height": 0.35,
+                "height": 0.28,
                 "top": 0,
                 "sides": 5,
                 "outlined": false,
                 "at": [
                   4.126899585652584,
-                  0.17,
+                  0.14,
                   4.134224041986384
                 ],
                 "colour": "#6aa05a"
@@ -2517,13 +2517,13 @@
               {
                 "shape": "cylinder",
                 "diameter": 0.18,
-                "height": 0.35,
+                "height": 0.28,
                 "top": 0,
                 "sides": 5,
                 "outlined": false,
                 "at": [
                   -7.944789502278338,
-                  0.17,
+                  0.14,
                   -3.1181098613506704
                 ],
                 "colour": "#7fb36a"
@@ -2531,13 +2531,13 @@
               {
                 "shape": "cylinder",
                 "diameter": 0.18,
-                "height": 0.35,
+                "height": 0.28,
                 "top": 0,
                 "sides": 5,
                 "outlined": false,
                 "at": [
                   -1.4140255192360032,
-                  0.17,
+                  0.14,
                   -4.084601199666318
                 ],
                 "colour": "#6aa05a"
@@ -2545,13 +2545,13 @@
               {
                 "shape": "cylinder",
                 "diameter": 0.18,
-                "height": 0.35,
+                "height": 0.28,
                 "top": 0,
                 "sides": 5,
                 "outlined": false,
                 "at": [
                   7.361455812287264,
-                  0.17,
+                  0.14,
                   -5.741441925308408
                 ],
                 "colour": "#7fb36a"
@@ -2559,13 +2559,13 @@
               {
                 "shape": "cylinder",
                 "diameter": 0.18,
-                "height": 0.35,
+                "height": 0.28,
                 "top": 0,
                 "sides": 5,
                 "outlined": false,
                 "at": [
                   -2.4216579876009643,
-                  0.17,
+                  0.146,
                   -2.2705317396067697
                 ],
                 "colour": "#6aa05a"
@@ -2573,13 +2573,13 @@
               {
                 "shape": "cylinder",
                 "diameter": 0.18,
-                "height": 0.35,
+                "height": 0.28,
                 "top": 0,
                 "sides": 5,
                 "outlined": false,
                 "at": [
                   0.26738739258953714,
-                  0.17,
+                  0.14,
                   -4.413395165099481
                 ],
                 "colour": "#7fb36a"
@@ -2587,13 +2587,13 @@
               {
                 "shape": "cylinder",
                 "diameter": 0.18,
-                "height": 0.35,
+                "height": 0.28,
                 "top": 0,
                 "sides": 5,
                 "outlined": false,
                 "at": [
                   -1.6988097404589926,
-                  0.17,
+                  0.14,
                   -2.9968719295211477
                 ],
                 "colour": "#6aa05a"
@@ -2601,13 +2601,13 @@
               {
                 "shape": "cylinder",
                 "diameter": 0.18,
-                "height": 0.35,
+                "height": 0.28,
                 "top": 0,
                 "sides": 5,
                 "outlined": false,
                 "at": [
                   -2.439779192879694,
-                  0.17,
+                  0.14,
                   -1.3125964860024846
                 ],
                 "colour": "#7fb36a"
@@ -2615,13 +2615,13 @@
               {
                 "shape": "cylinder",
                 "diameter": 0.18,
-                "height": 0.35,
+                "height": 0.28,
                 "top": 0,
                 "sides": 5,
                 "outlined": false,
                 "at": [
                   -3.0137103656370705,
-                  0.17,
+                  0.14,
                   -0.02007684149782918
                 ],
                 "colour": "#6aa05a"
@@ -2629,13 +2629,13 @@
               {
                 "shape": "cylinder",
                 "diameter": 0.18,
-                "height": 0.35,
+                "height": 0.28,
                 "top": 0,
                 "sides": 5,
                 "outlined": false,
                 "at": [
                   2.0527874189674797,
-                  0.17,
+                  0.14,
                   -3.6012329423805856
                 ],
                 "colour": "#7fb36a"
@@ -2643,13 +2643,13 @@
               {
                 "shape": "cylinder",
                 "diameter": 0.18,
-                "height": 0.35,
+                "height": 0.28,
                 "top": 0,
                 "sides": 5,
                 "outlined": false,
                 "at": [
                   7.316906114256433,
-                  0.17,
+                  0.14,
                   -0.9059584614382867
                 ],
                 "colour": "#6aa05a"
@@ -2657,13 +2657,13 @@
               {
                 "shape": "cylinder",
                 "diameter": 0.18,
-                "height": 0.35,
+                "height": 0.28,
                 "top": 0,
                 "sides": 5,
                 "outlined": false,
                 "at": [
                   7.9123068362997415,
-                  0.17,
+                  0.14,
                   -1.6393348735009017
                 ],
                 "colour": "#7fb36a"
@@ -2671,13 +2671,13 @@
               {
                 "shape": "cylinder",
                 "diameter": 0.18,
-                "height": 0.35,
+                "height": 0.28,
                 "top": 0,
                 "sides": 5,
                 "outlined": false,
                 "at": [
                   3.7481716055181664,
-                  0.17,
+                  0.14,
                   -3.386550704104151
                 ],
                 "colour": "#6aa05a"
@@ -2685,11 +2685,11 @@
               {
                 "shape": "ball",
                 "diameter": 0.2,
-                "height": 0.2,
+                "height": 0.1,
                 "outlined": false,
                 "at": [
                   -5.2,
-                  0.55,
+                  0.07,
                   -1.2
                 ],
                 "colour": "#f2a7c3"
@@ -2697,11 +2697,11 @@
               {
                 "shape": "ball",
                 "diameter": 0.2,
-                "height": 0.2,
+                "height": 0.1,
                 "outlined": false,
                 "at": [
                   -4.4,
-                  0.55,
+                  0.07,
                   -2.3
                 ],
                 "colour": "#e8c960"
@@ -2709,11 +2709,11 @@
               {
                 "shape": "ball",
                 "diameter": 0.2,
-                "height": 0.2,
+                "height": 0.1,
                 "outlined": false,
                 "at": [
                   -5.6,
-                  0.55,
+                  0.07,
                   -2.4
                 ],
                 "colour": "#f4e9d8"
@@ -2721,11 +2721,11 @@
               {
                 "shape": "ball",
                 "diameter": 0.2,
-                "height": 0.2,
+                "height": 0.1,
                 "outlined": false,
                 "at": [
                   -4,
-                  0.55,
+                  0.07,
                   -1.2
                 ],
                 "colour": "#c8a2f0"
@@ -5825,11 +5825,11 @@
                 "shape": "box",
                 "width": 0.1,
                 "height": 0.08,
-                "depth": 9.5,
+                "depth": 10.5,
                 "at": [
                   -0.6,
                   0.07,
-                  0.2
+                  -0.3
                 ],
                 "colour": "#6b6f78"
               },
@@ -5837,13 +5837,26 @@
                 "shape": "box",
                 "width": 0.1,
                 "height": 0.08,
-                "depth": 9.5,
+                "depth": 10.5,
                 "at": [
                   0.6,
                   0.07,
-                  0.2
+                  -0.3
                 ],
                 "colour": "#6b6f78"
+              },
+              {
+                "shape": "box",
+                "width": 1.3,
+                "height": 0.05,
+                "depth": 0.18,
+                "outlined": false,
+                "at": [
+                  0,
+                  0.03,
+                  -5
+                ],
+                "colour": "#7a5a44"
               },
               {
                 "shape": "box",
@@ -5970,7 +5983,7 @@
                 "at": [
                   0,
                   0.25,
-                  -4.9
+                  -5.6
                 ],
                 "colour": "#7a5a44"
               },
@@ -6016,7 +6029,7 @@
                 "at": [
                   0,
                   0.55,
-                  -4.2
+                  -5.5
                 ],
                 "colour": "#7a5a44"
               },
@@ -6027,7 +6040,7 @@
                 "at": [
                   -0.2,
                   0.9,
-                  -4.2
+                  -5.5
                 ],
                 "colour": "#8fd0e8"
               },
@@ -6038,7 +6051,7 @@
                 "at": [
                   0.25,
                   0.88,
-                  -4.1
+                  -5.4
                 ],
                 "colour": "#c8a2f0"
               },
@@ -6049,13 +6062,13 @@
                 "at": [
                   0,
                   0.95,
-                  -4.4
+                  -5.7
                 ],
                 "colour": "#d9b24a"
               },
               {
                 "shape": "cylinder",
-                "diameter": 0.4,
+                "diameter": 0.3,
                 "height": 0.08,
                 "turn": [
                   0,
@@ -6064,14 +6077,14 @@
                 ],
                 "at": [
                   -0.5,
-                  0.22,
-                  -4.5
+                  0.17,
+                  -5.8
                 ],
                 "colour": "#3a3540"
               },
               {
                 "shape": "cylinder",
-                "diameter": 0.4,
+                "diameter": 0.3,
                 "height": 0.08,
                 "turn": [
                   0,
@@ -6080,14 +6093,14 @@
                 ],
                 "at": [
                   -0.5,
-                  0.22,
-                  -3.9
+                  0.17,
+                  -5.2
                 ],
                 "colour": "#3a3540"
               },
               {
                 "shape": "cylinder",
-                "diameter": 0.4,
+                "diameter": 0.3,
                 "height": 0.08,
                 "turn": [
                   0,
@@ -6096,14 +6109,14 @@
                 ],
                 "at": [
                   0.5,
-                  0.22,
-                  -4.5
+                  0.17,
+                  -5.8
                 ],
                 "colour": "#3a3540"
               },
               {
                 "shape": "cylinder",
-                "diameter": 0.4,
+                "diameter": 0.3,
                 "height": 0.08,
                 "turn": [
                   0,
@@ -6112,8 +6125,8 @@
                 ],
                 "at": [
                   0.5,
-                  0.22,
-                  -3.9
+                  0.17,
+                  -5.2
                 ],
                 "colour": "#3a3540"
               },
@@ -6253,10 +6266,10 @@
               {
                 "shape": "ball",
                 "diameter": 1.3,
-                "height": 0.42,
+                "height": 0.28,
                 "at": [
                   -7.4,
-                  0.15,
+                  0.1,
                   -2.4
                 ],
                 "colour": "#5a5262"
@@ -6275,10 +6288,10 @@
               {
                 "shape": "ball",
                 "diameter": 1.1,
-                "height": 0.42,
+                "height": 0.28,
                 "at": [
                   7.5,
-                  0.15,
+                  0.1,
                   1.4
                 ],
                 "colour": "#5a5262"
@@ -6297,10 +6310,10 @@
               {
                 "shape": "ball",
                 "diameter": 0.9,
-                "height": 0.42,
+                "height": 0.28,
                 "at": [
                   -7.2,
-                  0.15,
+                  0.1,
                   2.9
                 ],
                 "colour": "#5a5262"
@@ -6319,10 +6332,10 @@
               {
                 "shape": "ball",
                 "diameter": 1.2,
-                "height": 0.42,
+                "height": 0.28,
                 "at": [
                   7.5,
-                  0.15,
+                  0.1,
                   -5.8
                 ],
                 "colour": "#5a5262"
@@ -6341,10 +6354,10 @@
               {
                 "shape": "ball",
                 "diameter": 1,
-                "height": 0.42,
+                "height": 0.28,
                 "at": [
                   -7.5,
-                  0.15,
+                  0.1,
                   -5.6
                 ],
                 "colour": "#5a5262"
@@ -6415,10 +6428,10 @@
               {
                 "shape": "cylinder",
                 "diameter": 0.12,
-                "height": 0.3,
+                "height": 0.18,
                 "at": [
                   -7.5,
-                  0.15,
+                  0.09,
                   -1.6
                 ],
                 "colour": "#f4e9d8"
@@ -6426,11 +6439,11 @@
               {
                 "shape": "ball",
                 "diameter": 0.4,
-                "height": 0.22,
+                "height": 0.16,
                 "outlined": false,
                 "at": [
                   -7.5,
-                  0.35,
+                  0.2,
                   -1.6
                 ],
                 "colour": "#9fe8c8"
@@ -6438,10 +6451,10 @@
               {
                 "shape": "cylinder",
                 "diameter": 0.12,
-                "height": 0.3,
+                "height": 0.18,
                 "at": [
                   -6.8,
-                  0.15,
+                  0.09,
                   -0.8
                 ],
                 "colour": "#f4e9d8"
@@ -6449,11 +6462,11 @@
               {
                 "shape": "ball",
                 "diameter": 0.4,
-                "height": 0.22,
+                "height": 0.16,
                 "outlined": false,
                 "at": [
                   -6.8,
-                  0.35,
+                  0.2,
                   -0.8
                 ],
                 "colour": "#9fe8c8"
@@ -6461,10 +6474,10 @@
               {
                 "shape": "cylinder",
                 "diameter": 0.12,
-                "height": 0.3,
+                "height": 0.18,
                 "at": [
                   7.6,
-                  0.15,
+                  0.09,
                   -0.6
                 ],
                 "colour": "#f4e9d8"
@@ -6472,11 +6485,11 @@
               {
                 "shape": "ball",
                 "diameter": 0.4,
-                "height": 0.22,
+                "height": 0.16,
                 "outlined": false,
                 "at": [
                   7.6,
-                  0.35,
+                  0.2,
                   -0.6
                 ],
                 "colour": "#9fe8c8"
@@ -6484,10 +6497,10 @@
               {
                 "shape": "cylinder",
                 "diameter": 0.12,
-                "height": 0.3,
+                "height": 0.18,
                 "at": [
                   6.9,
-                  0.15,
+                  0.09,
                   0.2
                 ],
                 "colour": "#f4e9d8"
@@ -6495,11 +6508,11 @@
               {
                 "shape": "ball",
                 "diameter": 0.4,
-                "height": 0.22,
+                "height": 0.16,
                 "outlined": false,
                 "at": [
                   6.9,
-                  0.35,
+                  0.2,
                   0.2
                 ],
                 "colour": "#9fe8c8"
