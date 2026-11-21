@@ -349,7 +349,7 @@
           { "kind": "lamp", "spot": { "x": -3.4, "z": 6.3 }, "radius": 0.35, "facing": 0 },
           { "kind": "lamp", "spot": { "x": 3.4, "z": 6.3 }, "radius": 0.35, "facing": 0 },
           { "kind": "lamp", "spot": { "x": -8.4, "z": -0.2 }, "radius": 0.35, "facing": 0 },
-          { "kind": "plant", "spot": { "x": 8.8, "z": 2.8 }, "radius": 0.5, "facing": 0 },
+          { "kind": "plant", "spot": { "x": 8.9, "z": -0.6 }, "radius": 0.5, "facing": 0 },
           { "kind": "plant", "spot": { "x": -6, "z": 6.3 }, "radius": 0.5, "facing": 0 },
           { "kind": "flower-bed", "spot": { "x": -2.5, "z": -5.6 }, "radius": 0.9, "facing": 0 },
           { "kind": "rod-rack", "spot": { "x": 0.4, "z": -5.8 }, "radius": 1.2, "facing": 0 },
