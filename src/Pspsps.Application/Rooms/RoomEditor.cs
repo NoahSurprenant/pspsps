@@ -343,9 +343,7 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             versions.FirstOrDefault(v => v.State == RoomVersionState.Draft)?.Layout,
             [.. overlays.Select(o => o.ToOverlay()).OrderBy(o => o.Id, StringComparer.Ordinal)],
             versions.FirstOrDefault(v => v.State == RoomVersionState.Draft)?.Revision,
-            versions.FirstOrDefault(v => v.State == RoomVersionState.Draft)?.GoLiveAt,
-            // An overlay of a published room is saved by the next load; only a room that is not published yet makes its overlays wait.
-            versions.Any(v => v.State == RoomVersionState.Published) ? [] : [.. ContentFile.Embedded().OverlayList.Where(o => o.RoomId == roomId && overlays.All(saved => saved.Id != o.Id)).Select(o => o.Id)]);
+            versions.FirstOrDefault(v => v.State == RoomVersionState.Draft)?.GoLiveAt);
     }
 
     public async Task<IReadOnlyList<string>> SaveDraftAsync(string roomId, RoomLayout layout, Guid adminId, int? expectedRevision, CancellationToken cancellationToken)
