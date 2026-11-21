@@ -41,6 +41,7 @@ import { besideProp, buildParts, ink, propAt, propParts, type Part } from "./pro
 import { CatLook } from "./look";
 import catModelUrl from "./models/cat.glb?url";
 import type { CatView, DoorView, Emote, OutfitView, PropView, RoomSnapshot } from "./types";
+import { frameLimiter } from "./frameLimit";
 
 const walkSpeed = 4; // metres per second
 const sky = Color4.FromHexString("#bfe3f2ff");
@@ -138,7 +139,12 @@ export class RoomScene {
     this.scene.clearColor = sky;
     this.portraits = new Portraits(this.engine, this.loadModel);
     // One loop for the page; it draws whichever room is showing.
-    this.engine.runRenderLoop(() => this.renderFrame());
+    const due = frameLimiter();
+    this.engine.runRenderLoop(() => {
+      if (due(performance.now())) {
+        this.renderFrame();
+      }
+    });
   }
 
   /** Draws one frame of whatever is showing. Until a room shows there is no camera: the canvas keeps its sky. */
