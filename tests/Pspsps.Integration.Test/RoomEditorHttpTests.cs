@@ -762,4 +762,45 @@ public sealed class RoomEditorHttpTests
             }
         }
     }
+
+    [Test]
+    public async Task LoadingTheContentFile_UpdatesTheLookOfARoomThatIsNotPublished_SoUnfinishedWorkCanKeepChanging()
+    {
+        var (adminPlayer, _) = await Game.SignInGuestAsync();
+        var editor = Game.Get<IRoomEditor>();
+        static ContentFile FileWith(string sky) => new(Looks: new DraftLooks([new DraftLook("unpublished-look-room", new RoomLook(sky, "#c0b090", "#d8c8b0", new LookBackdrop([])))]));
+
+        var first = await editor.ImportAsync(FileWith("#aaccee"), adminPlayer.Id, CancellationToken.None);
+        var changed = await editor.ImportAsync(FileWith("#112233"), adminPlayer.Id, CancellationToken.None);
+        var again = await editor.ImportAsync(FileWith("#112233"), adminPlayer.Id, CancellationToken.None);
+
+        await using var scope = Game.Services.CreateAsyncScope();
+        var stored = await scope.ServiceProvider.GetRequiredService<IApplicationDbContext>().RoomLooks.AsNoTracking().SingleAsync(l => l.Id == "unpublished-look-room");
+        Assert.Multiple(() =>
+        {
+            Assert.That(first.Applied, Has.Some.Contains("look unpublished-look-room"));
+            Assert.That(changed.Problems, Is.Empty, "no player can see the room yet, so a different look in the file replaces the stored one");
+            Assert.That(changed.Applied, Has.Some.Contains("look unpublished-look-room: replaced (room not published)"));
+            Assert.That(stored.Look.Sky, Is.EqualTo("#112233"));
+            Assert.That(again.Unchanged, Has.Some.Contains("look unpublished-look-room"));
+        });
+    }
+
+    [Test]
+    public async Task LoadingTheContentFile_LeavesTheLookOfAPublishedRoomAlone_AndSaysSo()
+    {
+        var (adminPlayer, _) = await Game.SignInGuestAsync();
+        var editor = Game.Get<IRoomEditor>();
+
+        var report = await editor.ImportAsync(new ContentFile(Looks: new DraftLooks([new DraftLook("garden", new RoomLook("#010203", "#c0b090", "#d8c8b0", new LookBackdrop([])))])), adminPlayer.Id, CancellationToken.None);
+
+        await using var scope = Game.Services.CreateAsyncScope();
+        var stored = await scope.ServiceProvider.GetRequiredService<IApplicationDbContext>().RoomLooks.AsNoTracking().SingleAsync(l => l.Id == "garden");
+        Assert.Multiple(() =>
+        {
+            Assert.That(report.Problems, Has.Some.Contains("look garden: differs from the live look"));
+            Assert.That(report.Applied, Has.None.Contains("look garden"));
+            Assert.That(stored.Look.Sky, Is.Not.EqualTo("#010203"), "the garden is published, so its look is not replaced from a file");
+        });
+    }
 }
