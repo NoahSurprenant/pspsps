@@ -16,8 +16,12 @@ type DrawingHold = { holds: number; release(): void };
  * Holds the drawing of <pages> (the animation frames they ask for are kept, not run) while <during> runs, then lets them
  * go on. Pages already in a room draw in software WebGL on the same runner CPUs as a page that is joining, and a third
  * page then stalls for seconds building its 3D scene: the joined pages stand still until it has its room. Holds nest,
- * and a frame cancelled while held (or after, by the id it was given) is not run. Letting go never hides what
- * <during> threw: a page that closed or moved on has nothing left to release.
+ * and a frame cancelled while held is not run (one cancelled after letting go, by the id it was held under, still runs
+ * once). Letting go never hides what <during> threw: a page that closed or moved on has nothing left to release.
+ *
+ * The held pages run no frame callbacks at all, so everything driven by them (cats' interpolation, applying snapshots,
+ * timers made of frames) stops and then catches up in a jump on release: <during> must not assert anything about
+ * the held pages' drawing or animation, only act on the page that is joining.
  */
 export async function holdDrawing<T>(pages: Page[], during: () => Promise<T>): Promise<T> {
   try {
@@ -28,25 +32,25 @@ export async function holdDrawing<T>(pages: Page[], during: () => Promise<T>): P
         return;
       }
 
-      const realRequest = window.requestAnimationFrame.bind(window);
-      const realCancel = window.cancelAnimationFrame.bind(window);
+      const realRequest = window.requestAnimationFrame;
+      const realCancel = window.cancelAnimationFrame;
       // Held frames get negative ids, so they never meet an id the browser gave.
       const held = new Map<number, FrameRequestCallback>();
-      const given = new Map<number, number>();
       let next = -1;
       window.requestAnimationFrame = (frame) => {
         held.set(next, frame);
         return next--;
       };
       window.cancelAnimationFrame = (id) => {
-        if (!held.delete(id)) realCancel(given.get(id) ?? id);
+        if (!held.delete(id)) realCancel.call(window, id);
       };
       win.drawingHold = {
         holds: 1,
         release() {
           if (--this.holds > 0) return;
           window.requestAnimationFrame = realRequest;
-          for (const [id, frame] of held) given.set(id, realRequest(frame));
+          window.cancelAnimationFrame = realCancel;
+          for (const frame of held.values()) realRequest.call(window, frame);
           held.clear();
           delete win.drawingHold;
         },
