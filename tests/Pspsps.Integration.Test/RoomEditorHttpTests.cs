@@ -543,6 +543,28 @@ public sealed class RoomEditorHttpTests
     }
 
     [Test]
+    public async Task LoadingTheContentFile_SavesWhatALookNamesBeforeTheLook_SoOneFileCanBringBoth()
+    {
+        var (adminPlayer, _) = await Game.SignInGuestAsync();
+        var editor = Game.Get<IRoomEditor>();
+        var floor = new PaintStep("fill", Colour: "#c0b090");
+        var creature = new DraftWildlife("import-order-bird", [new PropPart("ball", [0, 0.5, 0], "#f5f5f5", Diameter: 0.3)], new WildlifeMotion("wander", 0.5, 1, Reach: 3));
+        var look = new RoomLook("#aaccee", "#c0b090", "#d8c8b0", new LookBackdrop([]), Floor: new LookPaint("import-order-floor"), Wildlife: "import-order-bird");
+        var file = new ContentFile(
+            Looks: new DraftLooks([new DraftLook("import-order-room", look)], [new DraftVariant("import-order-dusk", "#334466", "#554477")]),
+            Painters: [new DraftPainter("import-order-floor", "floor", [floor])],
+            Wildlife: [creature]);
+
+        var report = await editor.ImportAsync(file, adminPlayer.Id, CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(report.Problems, Is.Empty, "a look that names a painter and a creature from the same file loads");
+            Assert.That(report.Applied, Has.Some.Contains("painter import-order-floor").And.Some.Contains("wildlife import-order-bird").And.Some.Contains("variant import-order-dusk").And.Some.Contains("look import-order-room"));
+        });
+    }
+
+    [Test]
     public async Task LoadingTheContentFile_ChecksItsRoomsAsASet_SoRoomsThatLeadToEachOtherAreNotProblems()
     {
         var (adminPlayer, _) = await Game.SignInGuestAsync();

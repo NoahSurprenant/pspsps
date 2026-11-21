@@ -642,5 +642,20 @@
   {"shape":"cylinder","diameter":1,"height":0.5,"at":[0,0.25,0],"colour":"#3a2f55","sides":20},
   {"shape":"cylinder","diameter":1.04,"height":0.05,"at":[0,0.3,0],"colour":"#ff4fa3","sides":20,"outlined":false},
   {"shape":"cylinder","diameter":0.95,"height":0.04,"at":[0,0.52,0],"colour":"#4fd1ff","sides":20}
+ ]},
+ {"kind": "fountain", "size": 1.35, "parts": [
+  {"shape":"cylinder","diameter":2.4,"height":0.45,"at":[0,0.225,0],"colour":"#c9ccd1","sides":28},
+  {"shape":"cylinder","diameter":2.1,"height":0.08,"at":[0,0.42,0],"colour":"#7ec8e3","sides":28,"outlined":false},
+  {"shape":"cylinder","diameter":0.55,"height":0.9,"at":[0,0.9,0],"colour":"#b4b8be","top":0.4,"sides":12},
+  {"shape":"cylinder","diameter":1.2,"height":0.14,"at":[0,1.38,0],"colour":"#c9ccd1","sides":20},
+  {"shape":"cylinder","diameter":1,"height":0.05,"at":[0,1.46,0],"colour":"#7ec8e3","sides":20,"outlined":false},
+  {"shape":"ball","diameter":0.3,"at":[0,1.62,0],"colour":"#bfe6f5"},
+  {"shape":"ball","diameter":0.14,"at":[0.3,1.5,0.1],"colour":"#bfe6f5"},
+  {"shape":"ball","diameter":0.14,"at":[-0.3,1.5,-0.1],"colour":"#bfe6f5"},
+  {"shape":"ball","diameter":0.12,"at":[0.8,0.5,0],"colour":"#bfe6f5"},
+  {"shape":"ball","diameter":0.12,"at":[-0.8,0.5,0.3],"colour":"#bfe6f5"},
+  {"shape":"ball","diameter":0.12,"at":[0.2,0.5,-0.8],"colour":"#bfe6f5"},
+  {"shape":"ball","diameter":0.14,"height":0.04,"at":[0.55,0.5,0.55],"colour":"#f2c14e"},
+  {"shape":"ball","diameter":0.14,"height":0.04,"at":[-0.6,0.5,-0.5],"colour":"#f2c14e"}
  ]}
 ]

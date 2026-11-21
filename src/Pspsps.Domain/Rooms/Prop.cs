@@ -59,6 +59,7 @@ public static class PropKinds
     public const string BarStool = "bar-stool";
     public const string VelvetRope = "velvet-rope";
     public const string Podium = "podium";
+    public const string Fountain = "fountain";
 
     public static IReadOnlyList<string> All { get; } =
     [
@@ -66,6 +67,6 @@ public static class PropKinds
         MapBoard, Piano, PottingBench, RodRack, PearTree, PackingCrate,
         CatalogueStand, HatShelf, ShopCounter, Mirror,
         MarketStall, PizzaTable, PizzaOven, Stage, SpeakerStack, LightRig, FishBarrel, YarnBasket, MarketCart, Chalkboard,
-        DoughTable, WoodStack, FishTank, Jukebox, DjBooth, BarStool, VelvetRope, Podium,
+        DoughTable, WoodStack, FishTank, Jukebox, DjBooth, BarStool, VelvetRope, Podium, Fountain,
     ];
 }

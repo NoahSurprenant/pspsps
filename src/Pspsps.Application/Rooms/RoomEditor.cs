@@ -162,7 +162,7 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             }
         }
 
-        // Painters first: a look can use a recipe from this same file.
+        // Everything a look can name (painters, creatures) and the variants rooms use come before the looks, so a file that brings both loads.
         var painters = await db.PainterRecipes.AsNoTracking().ToDictionaryAsync(p => p.Id, cancellationToken);
         foreach (var painter in file.PainterList)
         {
@@ -180,20 +180,20 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             }
         }
 
-        var looks = await db.RoomLooks.AsNoTracking().ToDictionaryAsync(l => l.Id, cancellationToken);
-        foreach (var (id, look) in file.LookList.Select(l => (l.Id, l.Look)))
+        var creatures = await db.WildlifeRecipes.AsNoTracking().ToDictionaryAsync(w => w.Id, cancellationToken);
+        foreach (var creature in file.WildlifeList)
         {
-            if (!looks.TryGetValue(id, out var existing))
+            if (!creatures.TryGetValue(creature.Id, out var existing))
             {
-                await Attempt($"look {id}", () => SaveLookAsync(id, look, adminId, cancellationToken));
+                await Attempt($"wildlife {creature.Id}", () => SaveWildlifeAsync(creature.Id, creature.Parts, creature.Motion, adminId, cancellationToken));
             }
-            else if (Same(existing.Look, look))
+            else if (Same(existing.Parts, creature.Parts) && Same(existing.Motion, creature.Motion))
             {
-                unchanged.Add($"look {id}");
+                unchanged.Add($"wildlife {creature.Id}");
             }
             else
             {
-                problems.Add($"look {id}: differs from the live look; change it in the admin (it would change a live room).");
+                problems.Add($"wildlife {creature.Id}: differs from the live recipe; change it in the admin.");
             }
         }
 
@@ -214,20 +214,20 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             }
         }
 
-        var creatures = await db.WildlifeRecipes.AsNoTracking().ToDictionaryAsync(w => w.Id, cancellationToken);
-        foreach (var creature in file.WildlifeList)
+        var looks = await db.RoomLooks.AsNoTracking().ToDictionaryAsync(l => l.Id, cancellationToken);
+        foreach (var (id, look) in file.LookList.Select(l => (l.Id, l.Look)))
         {
-            if (!creatures.TryGetValue(creature.Id, out var existing))
+            if (!looks.TryGetValue(id, out var existing))
             {
-                await Attempt($"wildlife {creature.Id}", () => SaveWildlifeAsync(creature.Id, creature.Parts, creature.Motion, adminId, cancellationToken));
+                await Attempt($"look {id}", () => SaveLookAsync(id, look, adminId, cancellationToken));
             }
-            else if (Same(existing.Parts, creature.Parts) && Same(existing.Motion, creature.Motion))
+            else if (Same(existing.Look, look))
             {
-                unchanged.Add($"wildlife {creature.Id}");
+                unchanged.Add($"look {id}");
             }
             else
             {
-                problems.Add($"wildlife {creature.Id}: differs from the live recipe; change it in the admin.");
+                problems.Add($"look {id}: differs from the live look; change it in the admin (it would change a live room).");
             }
         }
 

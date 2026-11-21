@@ -324,8 +324,8 @@
         "width": 28,
         "depth": 12,
         "spawn": {
-          "x": 0,
-          "z": -1
+          "x": 0.5,
+          "z": -2.6
         },
         "capacity": 60,
         "props": [
@@ -422,15 +422,6 @@
           {
             "kind": "yarn-basket",
             "spot": {
-              "x": -7.4,
-              "z": -4.7
-            },
-            "radius": 0.72,
-            "facing": 0
-          },
-          {
-            "kind": "yarn-basket",
-            "spot": {
               "x": -11.2,
               "z": -4.7
             },
@@ -485,7 +476,7 @@
           {
             "kind": "bench",
             "spot": {
-              "x": 3.2,
+              "x": 3.4,
               "z": -4.7
             },
             "radius": 1,
@@ -494,8 +485,8 @@
           {
             "kind": "bench",
             "spot": {
-              "x": -3.2,
-              "z": -4.7
+              "x": -2.7,
+              "z": -4.8
             },
             "radius": 1,
             "facing": 3.141592653589793
@@ -552,6 +543,69 @@
               "z": 4.5
             },
             "radius": 1.4,
+            "facing": 0
+          },
+          {
+            "kind": "fountain",
+            "spot": {
+              "x": 0.5,
+              "z": 1.4
+            },
+            "radius": 1.35,
+            "facing": 0
+          },
+          {
+            "kind": "flower-bed",
+            "spot": {
+              "x": -6.2,
+              "z": 0.6
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "flower-bed",
+            "spot": {
+              "x": 6.2,
+              "z": 1.4
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "bench",
+            "spot": {
+              "x": -5.4,
+              "z": -1.8
+            },
+            "radius": 1,
+            "facing": -1.5707963267948966
+          },
+          {
+            "kind": "bench",
+            "spot": {
+              "x": 5.8,
+              "z": -2.9
+            },
+            "radius": 1,
+            "facing": 1.5707963267948966
+          },
+          {
+            "kind": "market-cart",
+            "spot": {
+              "x": -5.4,
+              "z": -4.3
+            },
+            "radius": 1.46,
+            "facing": 0
+          },
+          {
+            "kind": "yarn-basket",
+            "spot": {
+              "x": 5.8,
+              "z": -4.7
+            },
+            "radius": 0.72,
             "facing": 0
           }
         ],
@@ -623,7 +677,7 @@
             "kind": "jukebox",
             "spot": {
               "x": -6.3,
-              "z": 2.9
+              "z": 1.4
             },
             "radius": 0.7,
             "facing": -1.5707963267948966
@@ -632,7 +686,7 @@
             "kind": "fish-tank",
             "spot": {
               "x": -6.1,
-              "z": 0.3
+              "z": -0.6
             },
             "radius": 0.87,
             "facing": -1.5707963267948966
@@ -640,8 +694,8 @@
           {
             "kind": "pizza-table",
             "spot": {
-              "x": -3.2,
-              "z": -2.5
+              "x": -3,
+              "z": -3
             },
             "radius": 1.2,
             "facing": 0
@@ -676,8 +730,8 @@
           {
             "kind": "pizza-table",
             "spot": {
-              "x": -3.4,
-              "z": 0.1
+              "x": -3.6,
+              "z": -0.5
             },
             "radius": 1.2,
             "facing": 0
@@ -721,8 +775,8 @@
           {
             "kind": "plant",
             "spot": {
-              "x": -6.5,
-              "z": -1.8
+              "x": 6.5,
+              "z": -0.4
             },
             "radius": 0.5,
             "facing": 0
@@ -741,7 +795,7 @@
           {
             "id": "market-row",
             "edge": "North",
-            "offset": -4,
+            "offset": -5,
             "toRoom": "market-row",
             "toDoor": "pizza-parlor"
           }
@@ -927,7 +981,7 @@
           {
             "id": "market-row",
             "edge": "North",
-            "offset": 5.5,
+            "offset": 5,
             "toRoom": "market-row",
             "toDoor": "night-club"
           }
@@ -1013,9 +1067,7 @@
             "painter": "street"
           },
           "floor": {
-            "painter": "tiles",
-            "colour": "#d6c7a8",
-            "accent": "#b9a888"
+            "painter": "cobbles"
           },
           "wall": {
             "painter": "town-square"
@@ -2169,7 +2221,7 @@
                 "at": [
                   -13.5,
                   2.6,
-                  5.2
+                  5.75
                 ],
                 "colour": "#7a5a44",
                 "sides": 8
@@ -2182,7 +2234,7 @@
                 "at": [
                   -13,
                   4.6,
-                  5.2
+                  5.75
                 ],
                 "colour": "#cc4a3a"
               },
@@ -2192,7 +2244,7 @@
                 "at": [
                   -13.5,
                   5.3,
-                  5.2
+                  5.75
                 ],
                 "colour": "#cc9a3a"
               },
@@ -2203,7 +2255,7 @@
                 "at": [
                   13.5,
                   2.6,
-                  5.2
+                  5.75
                 ],
                 "colour": "#7a5a44",
                 "sides": 8
@@ -2216,7 +2268,7 @@
                 "at": [
                   13,
                   4.6,
-                  5.2
+                  5.75
                 ],
                 "colour": "#4f9fcf"
               },
@@ -2226,7 +2278,7 @@
                 "at": [
                   13.5,
                   5.3,
-                  5.2
+                  5.75
                 ],
                 "colour": "#cc9a3a"
               },
@@ -3806,6 +3858,42 @@
     "variants": []
   },
   "painters": [
+    {
+      "id": "cobbles",
+      "surface": "floor",
+      "steps": [
+        {
+          "op": "fill",
+          "colour": "#cdbf9f"
+        },
+        {
+          "op": "rect",
+          "colour": "#dccfb1",
+          "x": 0.04,
+          "y": 0.04,
+          "width": 0.42,
+          "height": 0.42,
+          "repeat": {
+            "dx": 0.5,
+            "dy": 0.5,
+            "shift": 0.25
+          }
+        },
+        {
+          "op": "rect",
+          "colour": "#b8a886",
+          "shade": -0.1,
+          "x": 0.3,
+          "y": 0.3,
+          "width": 0.12,
+          "height": 0.12,
+          "repeat": {
+            "dx": 1,
+            "dy": 1
+          }
+        }
+      ]
+    },
     {
       "id": "dance-floor",
       "surface": "floor",
@@ -6804,6 +6892,157 @@
           ],
           "colour": "#4fd1ff",
           "sides": 20
+        }
+      ]
+    },
+    {
+      "kind": "fountain",
+      "size": 1.35,
+      "parts": [
+        {
+          "shape": "cylinder",
+          "diameter": 2.4,
+          "height": 0.45,
+          "at": [
+            0,
+            0.225,
+            0
+          ],
+          "colour": "#c9ccd1",
+          "sides": 28
+        },
+        {
+          "shape": "cylinder",
+          "diameter": 2.1,
+          "height": 0.08,
+          "at": [
+            0,
+            0.42,
+            0
+          ],
+          "colour": "#7ec8e3",
+          "sides": 28,
+          "outlined": false
+        },
+        {
+          "shape": "cylinder",
+          "diameter": 0.55,
+          "height": 0.9,
+          "at": [
+            0,
+            0.9,
+            0
+          ],
+          "colour": "#b4b8be",
+          "top": 0.4,
+          "sides": 12
+        },
+        {
+          "shape": "cylinder",
+          "diameter": 1.2,
+          "height": 0.14,
+          "at": [
+            0,
+            1.38,
+            0
+          ],
+          "colour": "#c9ccd1",
+          "sides": 20
+        },
+        {
+          "shape": "cylinder",
+          "diameter": 1,
+          "height": 0.05,
+          "at": [
+            0,
+            1.46,
+            0
+          ],
+          "colour": "#7ec8e3",
+          "sides": 20,
+          "outlined": false
+        },
+        {
+          "shape": "ball",
+          "diameter": 0.3,
+          "at": [
+            0,
+            1.62,
+            0
+          ],
+          "colour": "#bfe6f5"
+        },
+        {
+          "shape": "ball",
+          "diameter": 0.14,
+          "at": [
+            0.3,
+            1.5,
+            0.1
+          ],
+          "colour": "#bfe6f5"
+        },
+        {
+          "shape": "ball",
+          "diameter": 0.14,
+          "at": [
+            -0.3,
+            1.5,
+            -0.1
+          ],
+          "colour": "#bfe6f5"
+        },
+        {
+          "shape": "ball",
+          "diameter": 0.12,
+          "at": [
+            0.8,
+            0.5,
+            0
+          ],
+          "colour": "#bfe6f5"
+        },
+        {
+          "shape": "ball",
+          "diameter": 0.12,
+          "at": [
+            -0.8,
+            0.5,
+            0.3
+          ],
+          "colour": "#bfe6f5"
+        },
+        {
+          "shape": "ball",
+          "diameter": 0.12,
+          "at": [
+            0.2,
+            0.5,
+            -0.8
+          ],
+          "colour": "#bfe6f5"
+        },
+        {
+          "shape": "ball",
+          "diameter": 0.14,
+          "height": 0.04,
+          "at": [
+            0.55,
+            0.5,
+            0.55
+          ],
+          "colour": "#f2c14e"
+        },
+        {
+          "shape": "ball",
+          "diameter": 0.14,
+          "height": 0.04,
+          "at": [
+            -0.6,
+            0.5,
+            -0.5
+          ],
+          "colour": "#f2c14e"
         }
       ]
     }
