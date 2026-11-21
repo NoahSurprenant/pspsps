@@ -81,13 +81,38 @@ export async function goThroughDoor(page: Page, roomId: string, roomName: string
     await pinchRoom(page, "out");
     mat = await doorMat(page, roomId);
   }
-  if (typeof mat === "string") throw new Error(mat);
-  if (touch) {
-    await page.touchscreen.tap(mat.x, mat.y);
-  } else {
-    await page.mouse.click(mat.x, mat.y);
+  // A click that lands as the cat is still arriving, or on the cat, doesn't walk it: so it clicks again where the mat is
+  // drawn now, and each miss is attached (screenshot and where everything was) to show why.
+  for (let attempt = 1; ; attempt++) {
+    if (typeof mat === "string") throw new Error(mat);
+    if (touch) {
+      await page.touchscreen.tap(mat.x, mat.y);
+    } else {
+      await page.mouse.click(mat.x, mat.y);
+    }
+    try {
+      await expect(page).toHaveTitle(`${roomName} · pspsps`, { timeout: attempt < 3 ? 8_000 : 15_000 });
+      break;
+    } catch (error) {
+      await attachMiss(page, roomId, attempt, mat);
+      if (attempt >= 3) throw error;
+      mat = await doorMat(page, roomId);
+    }
   }
   await expectRoom(page, roomName);
+}
+
+async function attachMiss(page: Page, roomId: string, attempt: number, clicked: unknown): Promise<void> {
+  const where = await page.evaluate(() => ({
+    title: document.title,
+    room: window.pspsps?.room()?.snapshot.roomName,
+    cats: [...(window.pspsps?.room()?.cats.keys() ?? [])].map((id) => ({ id, ...window.pspsps?.catOnScreen(id) })),
+  }));
+  const info = base.info();
+  await info.attach(`door-to-${roomId}-miss-${attempt}.png`, { body: await page.screenshot(), contentType: "image/png" });
+  await info.attach(`door-to-${roomId}-miss-${attempt}.json`, {
+    body: JSON.stringify({ clicked, ...where }, null, 2), contentType: "application/json",
+  });
 }
 
 /** Pinches on the game canvas using touch input in Chromium. */
