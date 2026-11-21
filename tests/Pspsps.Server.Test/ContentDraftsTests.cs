@@ -100,15 +100,15 @@ public sealed class ContentDraftsTests
     }
 
     [Test]
-    public void TheDojoCourtyard_IfItIsOnTheIslandMap_IsTheOnlyDojoPlace()
+    public void TheDojoCourtyard_IsTheOnlyDojoPlaceOnTheIslandMap()
     {
         var places = IslandMap.Places.Where(place => place.Room is not null && place.Room.StartsWith("dojo", StringComparison.Ordinal)).ToList();
-
-        // Until the map names the courtyard's room there is nothing to check.
-        if (places.Count > 0)
+        if (places.Count == 0)
         {
-            Assert.That(places.Select(place => place.Room), Is.EqualTo(new[] { "dojo-courtyard" }));
+            Assert.Ignore("The island map has no dojo place yet: its place is added with the map's other new places, and this then asserts it names the courtyard's room and nothing else of the dojo.");
         }
+
+        Assert.That(places.Select(place => place.Room), Is.EqualTo(new[] { "dojo-courtyard" }));
     }
 
     [Test]
@@ -133,55 +133,15 @@ public sealed class ContentDraftsTests
         Assert.That(problems, Is.Empty);
     }
 
-    /// <summary>Backdrop parts are not part of the prop-placement checks, so this keeps the dojo rooms' standing decoration off their props and ponds.</summary>
+    /// <summary>Backdrop parts are not part of the prop-placement checks, so this keeps the dojo rooms' decoration off their walks, props and ponds (see <see cref="BackdropClearance"/>).</summary>
     [TestCase("dojo-courtyard")]
     [TestCase("dojo")]
-    public void TheBackdropOfTheDojoRooms_KeepsClearOfThePropsAndThePond(string id)
+    public void TheBackdropOfTheDojoRooms_KeepsClearOfTheWalksThePropsAndThePond(string id)
     {
         var layout = Content.RoomList.Single(room => room.Id == id).Layout;
         var parts = Content.LookList.Single(look => look.Id == id).Look.Backdrop.Parts;
-        var problems = new List<string>();
-        foreach (var (part, index) in parts.Select((part, index) => (part, index)))
-        {
-            var (x, y, z) = (part.At[0], part.At[1], part.At[2]);
-            if (Math.Abs(x) > layout.Width / 2 || Math.Abs(z) > layout.Depth / 2)
-            {
-                continue; // beyond the floor: scenery, not in anyone's way
-            }
 
-            var height = part.Height ?? part.Diameter ?? 0;
-            var bottom = y - height / 2;
-            double halfWidth, halfDepth;
-            if (part.Shape == "box")
-            {
-                (halfWidth, halfDepth) = (part.Width.GetValueOrDefault() / 2, part.Depth.GetValueOrDefault() / 2);
-                if (part.Turn is { Length: > 1 } && part.Turn[1] != 0)
-                {
-                    halfWidth = halfDepth = Math.Sqrt(halfWidth * halfWidth + halfDepth * halfDepth);
-                }
-            }
-            else
-            {
-                halfWidth = halfDepth = part.Diameter.GetValueOrDefault() / 2;
-            }
-
-            double DistanceFrom(Position spot) =>
-                Math.Sqrt(Math.Pow(Math.Max(Math.Abs(spot.X - x) - halfWidth, 0), 2) + Math.Pow(Math.Max(Math.Abs(spot.Z - z) - halfDepth, 0), 2));
-
-            if (height >= 0.3 && bottom < 1)
-            {
-                problems.AddRange(layout.Props
-                    .Where(prop => DistanceFrom(prop.Spot) < Math.Min(prop.Radius, 1) * 0.5)
-                    .Select(prop => $"{id}: backdrop part {index + 1} ({part.Shape} at {x}, {z}) stands on the {prop.Kind} at ({prop.Spot.X}, {prop.Spot.Z})"));
-            }
-
-            if (layout.Pond is { } pond && bottom < 0.5 && DistanceFrom(pond.Center) < pond.Radius + 0.1)
-            {
-                problems.Add($"{id}: backdrop part {index + 1} ({part.Shape} at {x}, {z}) is in the pond");
-            }
-        }
-
-        Assert.That(problems, Is.Empty);
+        Assert.That(BackdropClearance.Problems(id, layout, parts), Is.Empty);
     }
 
     [Test]
