@@ -2795,6 +2795,1162 @@
                   7.6
                 ],
                 "colour": "#a8a294"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.22,
+                "height": 0.14,
+                "at": [
+                  1.598218053019707,
+                  0.07,
+                  -1.9423574821289433
+                ],
+                "colour": "#a8a294"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.33999999999999997,
+                "height": 0.18000000000000002,
+                "at": [
+                  -3.11696303054549,
+                  0.07,
+                  -1.4113862453547243
+                ],
+                "colour": "#8f897c"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.45999999999999996,
+                "height": 0.14,
+                "at": [
+                  5.422868272765944,
+                  0.07,
+                  4.908249179557082
+                ],
+                "colour": "#b9b3a4"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.22,
+                "height": 0.18000000000000002,
+                "at": [
+                  -7.156240075992532,
+                  0.07,
+                  4.149432408460152
+                ],
+                "colour": "#a8a294"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.33999999999999997,
+                "height": 0.14,
+                "at": [
+                  -7.769769429867048,
+                  0.07,
+                  -1.2115489718092363
+                ],
+                "colour": "#8f897c"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.45999999999999996,
+                "height": 0.18000000000000002,
+                "at": [
+                  -6.37428255694652,
+                  0.07,
+                  -5.487508141429866
+                ],
+                "colour": "#b9b3a4"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.22,
+                "height": 0.14,
+                "at": [
+                  9.130174814132122,
+                  0.07,
+                  -3.6399285575095233
+                ],
+                "colour": "#a8a294"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.33999999999999997,
+                "height": 0.18000000000000002,
+                "at": [
+                  2.4355003422291475,
+                  0.07,
+                  -4.624713370168914
+                ],
+                "colour": "#8f897c"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.45999999999999996,
+                "height": 0.14,
+                "at": [
+                  -0.7892360532606197,
+                  0.07,
+                  1.207906904028686
+                ],
+                "colour": "#b9b3a4"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.22,
+                "height": 0.18000000000000002,
+                "at": [
+                  -6.66457057030153,
+                  0.07,
+                  5.484321970019639
+                ],
+                "colour": "#a8a294"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.33999999999999997,
+                "height": 0.14,
+                "at": [
+                  7.07600324688293,
+                  0.07,
+                  5.0774681901454315
+                ],
+                "colour": "#8f897c"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.45999999999999996,
+                "height": 0.18000000000000002,
+                "at": [
+                  7.0880646651089485,
+                  0.07,
+                  5.300910017360426
+                ],
+                "colour": "#b9b3a4"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.22,
+                "height": 0.14,
+                "at": [
+                  4.804752053136355,
+                  0.07,
+                  -2.9195194665433464
+                ],
+                "colour": "#a8a294"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.33999999999999997,
+                "height": 0.18000000000000002,
+                "at": [
+                  -9.00704655154005,
+                  0.07,
+                  -3.2721789422315446
+                ],
+                "colour": "#8f897c"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.45999999999999996,
+                "height": 0.14,
+                "at": [
+                  -7.8008669518869675,
+                  0.07,
+                  -6.479412213889608
+                ],
+                "colour": "#b9b3a4"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.22,
+                "height": 0.18000000000000002,
+                "at": [
+                  2.149857638101027,
+                  0.07,
+                  -3.4921083515473215
+                ],
+                "colour": "#a8a294"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.33999999999999997,
+                "height": 0.14,
+                "at": [
+                  3.4504658828724484,
+                  0.07,
+                  -3.4053687671690103
+                ],
+                "colour": "#8f897c"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.45999999999999996,
+                "height": 0.18000000000000002,
+                "at": [
+                  7.030399654167891,
+                  0.07,
+                  -3.4428891958402885
+                ],
+                "colour": "#b9b3a4"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.22,
+                "height": 0.14,
+                "at": [
+                  -2.319411274939501,
+                  0.07,
+                  5.1256047387726635
+                ],
+                "colour": "#a8a294"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.33999999999999997,
+                "height": 0.18000000000000002,
+                "at": [
+                  -7.021943095429774,
+                  0.07,
+                  -0.13961214927938403
+                ],
+                "colour": "#8f897c"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.45999999999999996,
+                "height": 0.14,
+                "at": [
+                  -9.145356159259265,
+                  0.07,
+                  5.368880830644109
+                ],
+                "colour": "#b9b3a4"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.22,
+                "height": 0.18000000000000002,
+                "at": [
+                  2.519555361065807,
+                  0.07,
+                  5.487521447235496
+                ],
+                "colour": "#a8a294"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.05,
+                "height": 0.2,
+                "top": 0,
+                "sides": 4,
+                "outlined": false,
+                "at": [
+                  -8.062205027957543,
+                  0.1,
+                  -2.8399260196555063
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.2,
+                "height": 0.14,
+                "outlined": false,
+                "at": [
+                  -8.062205027957543,
+                  0.22,
+                  -2.8399260196555063
+                ],
+                "colour": "#f2a7c3"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.05,
+                "height": 0.2,
+                "top": 0,
+                "sides": 4,
+                "outlined": false,
+                "at": [
+                  -7.761358735832087,
+                  0.1,
+                  -2.7437679899128935
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.2,
+                "height": 0.14,
+                "outlined": false,
+                "at": [
+                  -7.761358735832087,
+                  0.22,
+                  -2.7437679899128935
+                ],
+                "colour": "#f4e9d8"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.05,
+                "height": 0.2,
+                "top": 0,
+                "sides": 4,
+                "outlined": false,
+                "at": [
+                  -7.082494027718201,
+                  0.1,
+                  -3.1488741131727
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.2,
+                "height": 0.14,
+                "outlined": false,
+                "at": [
+                  -7.082494027718201,
+                  0.22,
+                  -3.1488741131727
+                ],
+                "colour": "#f2a7c3"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.05,
+                "height": 0.2,
+                "top": 0,
+                "sides": 4,
+                "outlined": false,
+                "at": [
+                  -7.620711548868898,
+                  0.1,
+                  -3.7881125418879615
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.2,
+                "height": 0.14,
+                "outlined": false,
+                "at": [
+                  -7.620711548868898,
+                  0.22,
+                  -3.7881125418879615
+                ],
+                "colour": "#f4e9d8"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.05,
+                "height": 0.2,
+                "top": 0,
+                "sides": 4,
+                "outlined": false,
+                "at": [
+                  -7.72391765696179,
+                  0.1,
+                  -3.309824877516285
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.2,
+                "height": 0.14,
+                "outlined": false,
+                "at": [
+                  -7.72391765696179,
+                  0.22,
+                  -3.309824877516285
+                ],
+                "colour": "#f2a7c3"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.05,
+                "height": 0.2,
+                "top": 0,
+                "sides": 4,
+                "outlined": false,
+                "at": [
+                  -8.005778249402427,
+                  0.1,
+                  -3.0228071051290293
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.2,
+                "height": 0.14,
+                "outlined": false,
+                "at": [
+                  -8.005778249402427,
+                  0.226,
+                  -3.0228071051290293
+                ],
+                "colour": "#f4e9d8"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.05,
+                "height": 0.2,
+                "top": 0,
+                "sides": 4,
+                "outlined": false,
+                "at": [
+                  -6.838734733191661,
+                  0.1,
+                  -3.1002916961909697
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.2,
+                "height": 0.14,
+                "outlined": false,
+                "at": [
+                  -6.838734733191661,
+                  0.22,
+                  -3.1002916961909697
+                ],
+                "colour": "#f2a7c3"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.05,
+                "height": 0.2,
+                "top": 0,
+                "sides": 4,
+                "outlined": false,
+                "at": [
+                  6.596737009331926,
+                  0.1,
+                  2.545823432433337
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.2,
+                "height": 0.14,
+                "outlined": false,
+                "at": [
+                  6.596737009331926,
+                  0.22,
+                  2.545823432433337
+                ],
+                "colour": "#e8c960"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.05,
+                "height": 0.2,
+                "top": 0,
+                "sides": 4,
+                "outlined": false,
+                "at": [
+                  5.898551451972942,
+                  0.1,
+                  3.786641462746375
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.2,
+                "height": 0.14,
+                "outlined": false,
+                "at": [
+                  5.898551451972942,
+                  0.22,
+                  3.786641462746375
+                ],
+                "colour": "#c8a2f0"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.05,
+                "height": 0.2,
+                "top": 0,
+                "sides": 4,
+                "outlined": false,
+                "at": [
+                  5.935368486417163,
+                  0.1,
+                  3.463006499206185
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.2,
+                "height": 0.14,
+                "outlined": false,
+                "at": [
+                  5.935368486417163,
+                  0.22,
+                  3.463006499206185
+                ],
+                "colour": "#e8c960"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.05,
+                "height": 0.2,
+                "top": 0,
+                "sides": 4,
+                "outlined": false,
+                "at": [
+                  7.307441346443929,
+                  0.1,
+                  2.55188530909451
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.2,
+                "height": 0.14,
+                "outlined": false,
+                "at": [
+                  7.307441346443929,
+                  0.22,
+                  2.55188530909451
+                ],
+                "colour": "#c8a2f0"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.05,
+                "height": 0.2,
+                "top": 0,
+                "sides": 4,
+                "outlined": false,
+                "at": [
+                  7.289644223260527,
+                  0.1,
+                  3.7059135975343707
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.2,
+                "height": 0.14,
+                "outlined": false,
+                "at": [
+                  7.289644223260527,
+                  0.22,
+                  3.7059135975343707
+                ],
+                "colour": "#e8c960"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.05,
+                "height": 0.2,
+                "top": 0,
+                "sides": 4,
+                "outlined": false,
+                "at": [
+                  7.486929120210432,
+                  0.1,
+                  3.8360070707909797
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.2,
+                "height": 0.14,
+                "outlined": false,
+                "at": [
+                  7.486929120210432,
+                  0.22,
+                  3.8360070707909797
+                ],
+                "colour": "#c8a2f0"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.05,
+                "height": 0.2,
+                "top": 0,
+                "sides": 4,
+                "outlined": false,
+                "at": [
+                  7.0767927222777125,
+                  0.1,
+                  3.087442583398634
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.2,
+                "height": 0.14,
+                "outlined": false,
+                "at": [
+                  7.0767927222777125,
+                  0.22,
+                  3.087442583398634
+                ],
+                "colour": "#e8c960"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.05,
+                "height": 0.2,
+                "top": 0,
+                "sides": 4,
+                "outlined": false,
+                "at": [
+                  -2.8532153389198776,
+                  0.1,
+                  -2.881267620521257
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.2,
+                "height": 0.14,
+                "outlined": false,
+                "at": [
+                  -2.8532153389198776,
+                  0.22,
+                  -2.881267620521257
+                ],
+                "colour": "#c8a2f0"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.05,
+                "height": 0.2,
+                "top": 0,
+                "sides": 4,
+                "outlined": false,
+                "at": [
+                  -1.7120118438322152,
+                  0.1,
+                  -3.342379446254289
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.2,
+                "height": 0.14,
+                "outlined": false,
+                "at": [
+                  -1.7120118438322152,
+                  0.22,
+                  -3.342379446254289
+                ],
+                "colour": "#f2a7c3"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.05,
+                "height": 0.2,
+                "top": 0,
+                "sides": 4,
+                "outlined": false,
+                "at": [
+                  -2.8774541089206256,
+                  0.1,
+                  -3.3331622669627716
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.2,
+                "height": 0.14,
+                "outlined": false,
+                "at": [
+                  -2.8774541089206256,
+                  0.22,
+                  -3.3331622669627716
+                ],
+                "colour": "#c8a2f0"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.05,
+                "height": 0.2,
+                "top": 0,
+                "sides": 4,
+                "outlined": false,
+                "at": [
+                  -1.7034267985277933,
+                  0.1,
+                  -3.1177133329295152
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.2,
+                "height": 0.14,
+                "outlined": false,
+                "at": [
+                  -1.7034267985277933,
+                  0.22,
+                  -3.1177133329295152
+                ],
+                "colour": "#f2a7c3"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.05,
+                "height": 0.2,
+                "top": 0,
+                "sides": 4,
+                "outlined": false,
+                "at": [
+                  -2.6674112738889693,
+                  0.1,
+                  -3.0298846403741675
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.2,
+                "height": 0.14,
+                "outlined": false,
+                "at": [
+                  -2.6674112738889693,
+                  0.226,
+                  -3.0298846403741675
+                ],
+                "colour": "#c8a2f0"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.05,
+                "height": 0.2,
+                "top": 0,
+                "sides": 4,
+                "outlined": false,
+                "at": [
+                  -1.9771938453787907,
+                  0.1,
+                  -3.430968329930198
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.2,
+                "height": 0.14,
+                "outlined": false,
+                "at": [
+                  -1.9771938453787907,
+                  0.22,
+                  -3.430968329930198
+                ],
+                "colour": "#f2a7c3"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.05,
+                "height": 0.2,
+                "top": 0,
+                "sides": 4,
+                "outlined": false,
+                "at": [
+                  -1.9946414616399637,
+                  0.1,
+                  -3.3081467200108556
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.2,
+                "height": 0.14,
+                "outlined": false,
+                "at": [
+                  -1.9946414616399637,
+                  0.226,
+                  -3.3081467200108556
+                ],
+                "colour": "#c8a2f0"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.05,
+                "height": 0.2,
+                "top": 0,
+                "sides": 4,
+                "outlined": false,
+                "at": [
+                  1.8575272854219782,
+                  0.1,
+                  3.3364002900367606
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.2,
+                "height": 0.14,
+                "outlined": false,
+                "at": [
+                  1.8575272854219782,
+                  0.22,
+                  3.3364002900367606
+                ],
+                "colour": "#f4e9d8"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.05,
+                "height": 0.2,
+                "top": 0,
+                "sides": 4,
+                "outlined": false,
+                "at": [
+                  3.273867404355606,
+                  0.1,
+                  4.291806114740579
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.2,
+                "height": 0.14,
+                "outlined": false,
+                "at": [
+                  3.273867404355606,
+                  0.22,
+                  4.291806114740579
+                ],
+                "colour": "#e8c960"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.05,
+                "height": 0.2,
+                "top": 0,
+                "sides": 4,
+                "outlined": false,
+                "at": [
+                  2.638333429181172,
+                  0.1,
+                  4.12106774841485
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.2,
+                "height": 0.14,
+                "outlined": false,
+                "at": [
+                  2.638333429181172,
+                  0.22,
+                  4.12106774841485
+                ],
+                "colour": "#f4e9d8"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.05,
+                "height": 0.2,
+                "top": 0,
+                "sides": 4,
+                "outlined": false,
+                "at": [
+                  3.1529754964881462,
+                  0.1,
+                  3.1793540371020113
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.2,
+                "height": 0.14,
+                "outlined": false,
+                "at": [
+                  3.1529754964881462,
+                  0.22,
+                  3.1793540371020113
+                ],
+                "colour": "#e8c960"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.05,
+                "height": 0.2,
+                "top": 0,
+                "sides": 4,
+                "outlined": false,
+                "at": [
+                  2.6613877373567725,
+                  0.1,
+                  3.089545809658964
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.2,
+                "height": 0.14,
+                "outlined": false,
+                "at": [
+                  2.6613877373567725,
+                  0.22,
+                  3.089545809658964
+                ],
+                "colour": "#f4e9d8"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.05,
+                "height": 0.2,
+                "top": 0,
+                "sides": 4,
+                "outlined": false,
+                "at": [
+                  2.3954009205547164,
+                  0.1,
+                  3.6803224824277323
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.2,
+                "height": 0.14,
+                "outlined": false,
+                "at": [
+                  2.3954009205547164,
+                  0.22,
+                  3.6803224824277323
+                ],
+                "colour": "#e8c960"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.05,
+                "height": 0.2,
+                "top": 0,
+                "sides": 4,
+                "outlined": false,
+                "at": [
+                  2.888522780867537,
+                  0.1,
+                  4.224071809427846
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.2,
+                "height": 0.14,
+                "outlined": false,
+                "at": [
+                  2.888522780867537,
+                  0.22,
+                  4.224071809427846
+                ],
+                "colour": "#f4e9d8"
+              },
+              {
+                "shape": "box",
+                "width": 1.4,
+                "height": 0.03,
+                "depth": 0.5,
+                "outlined": false,
+                "turn": [
+                  0,
+                  0.4,
+                  0
+                ],
+                "at": [
+                  -1.2,
+                  0.012,
+                  -3.6
+                ],
+                "colour": "#7f8f68"
+              },
+              {
+                "shape": "box",
+                "width": 1.2,
+                "height": 0.03,
+                "depth": 0.6,
+                "outlined": false,
+                "turn": [
+                  0,
+                  0.4,
+                  0
+                ],
+                "at": [
+                  3.4,
+                  0.012,
+                  2.9
+                ],
+                "colour": "#7f8f68"
+              },
+              {
+                "shape": "box",
+                "width": 1,
+                "height": 0.03,
+                "depth": 0.5,
+                "outlined": false,
+                "turn": [
+                  0,
+                  0.4,
+                  0
+                ],
+                "at": [
+                  -6.2,
+                  0.012,
+                  2.4
+                ],
+                "colour": "#7f8f68"
+              },
+              {
+                "shape": "box",
+                "width": 1.3,
+                "height": 0.03,
+                "depth": 0.5,
+                "outlined": false,
+                "turn": [
+                  0,
+                  0.4,
+                  0
+                ],
+                "at": [
+                  6.6,
+                  0.012,
+                  -2.6
+                ],
+                "colour": "#7f8f68"
+              },
+              {
+                "shape": "box",
+                "width": 1.5,
+                "height": 0.03,
+                "depth": 0.4,
+                "outlined": false,
+                "turn": [
+                  0,
+                  0.4,
+                  0
+                ],
+                "at": [
+                  0.6,
+                  0.012,
+                  -5.4
+                ],
+                "colour": "#7f8f68"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.12,
+                "height": 0.08,
+                "outlined": false,
+                "at": [
+                  -2.2,
+                  0.05,
+                  -2.2
+                ],
+                "colour": "#8fd0e8"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.1,
+                "height": 0.07,
+                "outlined": false,
+                "at": [
+                  -2.0500000000000003,
+                  0.05,
+                  -2.1
+                ],
+                "colour": "#d9b24a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.12,
+                "height": 0.08,
+                "outlined": false,
+                "at": [
+                  1.8,
+                  0.05,
+                  -3.8
+                ],
+                "colour": "#8fd0e8"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.1,
+                "height": 0.07,
+                "outlined": false,
+                "at": [
+                  1.95,
+                  0.05,
+                  -3.6999999999999997
+                ],
+                "colour": "#d9b24a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.12,
+                "height": 0.08,
+                "outlined": false,
+                "at": [
+                  -4.2,
+                  0.05,
+                  3.6
+                ],
+                "colour": "#8fd0e8"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.1,
+                "height": 0.07,
+                "outlined": false,
+                "at": [
+                  -4.05,
+                  0.05,
+                  3.7
+                ],
+                "colour": "#d9b24a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.12,
+                "height": 0.08,
+                "outlined": false,
+                "at": [
+                  5.8,
+                  0.05,
+                  -1.2
+                ],
+                "colour": "#8fd0e8"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.1,
+                "height": 0.07,
+                "outlined": false,
+                "at": [
+                  5.95,
+                  0.05,
+                  -1.0999999999999999
+                ],
+                "colour": "#d9b24a"
               }
             ]
           }
@@ -4101,6 +5257,390 @@
               },
               {
                 "shape": "cylinder",
+                "diameter": 0.42,
+                "height": 0.9,
+                "top": 0,
+                "sides": 6,
+                "turn": [
+                  0,
+                  0,
+                  0.7
+                ],
+                "at": [
+                  -7.7,
+                  1.75,
+                  -4.6
+                ],
+                "colour": "#8fd0e8"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.3,
+                "height": 0.6,
+                "top": 0,
+                "sides": 6,
+                "turn": [
+                  0,
+                  0,
+                  0.5
+                ],
+                "at": [
+                  -7.7,
+                  1.6,
+                  -4.199999999999999
+                ],
+                "colour": "#f2a7c3"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.42,
+                "height": 1.2,
+                "top": 0,
+                "sides": 6,
+                "turn": [
+                  0,
+                  0,
+                  -0.7
+                ],
+                "at": [
+                  7.7,
+                  1.9,
+                  -3.6
+                ],
+                "colour": "#9fe8c8"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.3,
+                "height": 0.6,
+                "top": 0,
+                "sides": 6,
+                "turn": [
+                  0,
+                  0,
+                  -0.5
+                ],
+                "at": [
+                  7.7,
+                  1.6,
+                  -3.2
+                ],
+                "colour": "#c8a2f0"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.42,
+                "height": 1.2,
+                "top": 0,
+                "sides": 6,
+                "turn": [
+                  0,
+                  0,
+                  0.7
+                ],
+                "at": [
+                  -7.7,
+                  1.9,
+                  -1.8
+                ],
+                "colour": "#c8a2f0"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.3,
+                "height": 0.6,
+                "top": 0,
+                "sides": 6,
+                "turn": [
+                  0,
+                  0,
+                  0.5
+                ],
+                "at": [
+                  -7.7,
+                  1.6,
+                  -1.4
+                ],
+                "colour": "#9fe8c8"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.42,
+                "height": 0.9,
+                "top": 0,
+                "sides": 6,
+                "turn": [
+                  0,
+                  0,
+                  -0.7
+                ],
+                "at": [
+                  7.7,
+                  1.75,
+                  0.4
+                ],
+                "colour": "#f2a7c3"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.3,
+                "height": 0.6,
+                "top": 0,
+                "sides": 6,
+                "turn": [
+                  0,
+                  0,
+                  -0.5
+                ],
+                "at": [
+                  7.7,
+                  1.6,
+                  0.8
+                ],
+                "colour": "#8fd0e8"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.42,
+                "height": 1.2,
+                "top": 0,
+                "sides": 6,
+                "turn": [
+                  0,
+                  0,
+                  0.7
+                ],
+                "at": [
+                  -7.7,
+                  1.9,
+                  1.2
+                ],
+                "colour": "#9fe8c8"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.3,
+                "height": 0.6,
+                "top": 0,
+                "sides": 6,
+                "turn": [
+                  0,
+                  0,
+                  0.5
+                ],
+                "at": [
+                  -7.7,
+                  1.6,
+                  1.6
+                ],
+                "colour": "#c8a2f0"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.42,
+                "height": 0.9,
+                "top": 0,
+                "sides": 6,
+                "turn": [
+                  0,
+                  0,
+                  -0.7
+                ],
+                "at": [
+                  7.7,
+                  1.75,
+                  2.4
+                ],
+                "colour": "#8fd0e8"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.3,
+                "height": 0.6,
+                "top": 0,
+                "sides": 6,
+                "turn": [
+                  0,
+                  0,
+                  -0.5
+                ],
+                "at": [
+                  7.7,
+                  1.6,
+                  2.8
+                ],
+                "colour": "#f2a7c3"
+              },
+              {
+                "shape": "box",
+                "width": 1.5,
+                "height": 0.03,
+                "depth": 1.1,
+                "outlined": false,
+                "turn": [
+                  0,
+                  0.5,
+                  0
+                ],
+                "at": [
+                  -3.8,
+                  0.03,
+                  -0.8
+                ],
+                "colour": "#4a5a7a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.3,
+                "height": 0.16,
+                "outlined": false,
+                "at": [
+                  -4,
+                  0.1,
+                  -0.8
+                ],
+                "colour": "#9fe8c8"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.22,
+                "height": 0.12,
+                "outlined": false,
+                "at": [
+                  -3.5,
+                  0.08,
+                  -0.6000000000000001
+                ],
+                "colour": "#8fd0e8"
+              },
+              {
+                "shape": "box",
+                "width": 1.5,
+                "height": 0.03,
+                "depth": 1.1,
+                "outlined": false,
+                "turn": [
+                  0,
+                  0.5,
+                  0
+                ],
+                "at": [
+                  3.6,
+                  0.03,
+                  -2.2
+                ],
+                "colour": "#4a5a7a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.3,
+                "height": 0.16,
+                "outlined": false,
+                "at": [
+                  3.4,
+                  0.1,
+                  -2.2
+                ],
+                "colour": "#9fe8c8"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.22,
+                "height": 0.12,
+                "outlined": false,
+                "at": [
+                  3.9,
+                  0.08,
+                  -2
+                ],
+                "colour": "#8fd0e8"
+              },
+              {
+                "shape": "box",
+                "width": 1.5,
+                "height": 0.03,
+                "depth": 1.1,
+                "outlined": false,
+                "turn": [
+                  0,
+                  0.5,
+                  0
+                ],
+                "at": [
+                  -1.8,
+                  0.042,
+                  3.4
+                ],
+                "colour": "#4a5a7a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.3,
+                "height": 0.16,
+                "outlined": false,
+                "at": [
+                  -2,
+                  0.1,
+                  3.4
+                ],
+                "colour": "#9fe8c8"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.22,
+                "height": 0.12,
+                "outlined": false,
+                "at": [
+                  -1.5,
+                  0.08,
+                  3.6
+                ],
+                "colour": "#8fd0e8"
+              },
+              {
+                "shape": "box",
+                "width": 1.5,
+                "height": 0.03,
+                "depth": 1.1,
+                "outlined": false,
+                "turn": [
+                  0,
+                  0.5,
+                  0
+                ],
+                "at": [
+                  2.2,
+                  0.042,
+                  3
+                ],
+                "colour": "#4a5a7a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.3,
+                "height": 0.16,
+                "outlined": false,
+                "at": [
+                  2,
+                  0.1,
+                  3
+                ],
+                "colour": "#9fe8c8"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.22,
+                "height": 0.12,
+                "outlined": false,
+                "at": [
+                  2.5,
+                  0.08,
+                  3.2
+                ],
+                "colour": "#8fd0e8"
+              },
+              {
+                "shape": "cylinder",
                 "diameter": 0.06,
                 "height": 0.9,
                 "top": 0.55,
@@ -4582,9 +6122,9 @@
                 "diameter": 0.22,
                 "height": 0.18,
                 "at": [
-                  -2.8610245171287207,
+                  -3.0286845099314506,
                   0.1,
-                  -4.5792945368119025
+                  -4.775418813422052
                 ],
                 "colour": "#d9b24a"
               },
@@ -4593,9 +6133,9 @@
                 "diameter": 0.3,
                 "height": 0.18,
                 "at": [
-                  -3.2710402635256948,
-                  0.1,
-                  -4.530281807263513
+                  -3.085329579229154,
+                  0.106,
+                  -4.800678578298855
                 ],
                 "colour": "#c0c4cc"
               },
@@ -4604,9 +6144,9 @@
                 "diameter": 0.38,
                 "height": 0.18,
                 "at": [
-                  -2.528446237150787,
+                  -2.7398206251393162,
                   0.1,
-                  -3.946930844963962
+                  -4.373935037373535
                 ],
                 "colour": "#8fd0e8"
               },
@@ -4615,9 +6155,9 @@
                 "diameter": 0.22,
                 "height": 0.18,
                 "at": [
-                  -3.622281745738481,
-                  0.1,
-                  -4.016975469988294
+                  -2.90156418266779,
+                  0.106,
+                  -4.3919135731607275
                 ],
                 "colour": "#d9b24a"
               },
@@ -4626,9 +6166,9 @@
                 "diameter": 0.3,
                 "height": 0.18,
                 "at": [
-                  -3.675632124336265,
-                  0.1,
-                  -4.511835289705468
+                  -2.5885654831251896,
+                  0.106,
+                  -4.565056163801372
                 ],
                 "colour": "#c0c4cc"
               },
@@ -4637,9 +6177,9 @@
                 "diameter": 0.38,
                 "height": 0.18,
                 "at": [
-                  4.84571456026552,
+                  5.801406653784871,
                   0.1,
-                  -4.906539213055065
+                  -4.968777378261452
                 ],
                 "colour": "#8fd0e8"
               },
@@ -4648,9 +6188,9 @@
                 "diameter": 0.22,
                 "height": 0.18,
                 "at": [
-                  6.193928244707141,
+                  5.078138079716889,
                   0.1,
-                  -4.735993405308571
+                  -4.349970648693839
                 ],
                 "colour": "#d9b24a"
               },
@@ -4659,9 +6199,9 @@
                 "diameter": 0.3,
                 "height": 0.18,
                 "at": [
-                  5.611782638454709,
-                  0.1,
-                  -4.826896618784823
+                  4.924409870209364,
+                  0.106,
+                  -4.132483543424161
                 ],
                 "colour": "#c0c4cc"
               },
@@ -4670,9 +6210,9 @@
                 "diameter": 0.38,
                 "height": 0.18,
                 "at": [
-                  5.331370777977338,
+                  5.065447560169478,
                   0.1,
-                  -4.288500901166583
+                  -4.717142173702429
                 ],
                 "colour": "#8fd0e8"
               },

@@ -111,4 +111,50 @@ public sealed class ContentDraftsTests
 
         Assert.That(BackdropClearance.Problems(id, layout, parts), Is.Empty);
     }
+
+    /// <summary>The way in and out must be visible and open: nothing stands on a door's mat or where a cat arrives through it, and the old tunnels' north door and the shack's two doors are all there.</summary>
+    [TestCase("mine", "pear-orchard,tunnels")]
+    [TestCase("mine-tunnels", "shack")]
+    public void TheDoorsOfTheMineRooms_AndWhereCatsArriveThroughThem_AreClear(string id, string doorIds)
+    {
+        const double clearance = 0.4;
+        var layout = Content.RoomList.Single(room => room.Id == id).Layout;
+        var parts = Content.LookList.Single(look => look.Id == id).Look.Backdrop.Parts;
+        var doors = layout.ToDefinition(id).Doors;
+        Assert.That(doors.Select(door => door.Id), Is.EquivalentTo(doorIds.Split(',')));
+        var problems = new List<string>();
+        foreach (var door in doors)
+        {
+            foreach (var (what, spot) in new[] { ("the mat", door.Spot), ("the arrival spot", door.Arrival) })
+            {
+                problems.AddRange(layout.Props.Where(prop => prop.Spot.DistanceTo(spot) < prop.Radius + clearance)
+                    .Select(prop => $"{id}: the {prop.Kind} at {prop.Spot.X}, {prop.Spot.Z} is on {what} of {door.Id}"));
+                for (var i = 0; i < parts.Count; i++)
+                {
+                    var part = parts[i];
+                    var height = part.Height ?? part.Diameter ?? 0;
+                    if (part.At[1] - (height / 2) >= 1 || part.At[1] + (height / 2) <= 0.3)
+                    {
+                        continue;
+                    }
+
+                    // Turned parts reach as far as their diagonal.
+                    var halfX = (part.Shape == "box" ? part.Width : part.Diameter).GetValueOrDefault() / 2;
+                    var halfZ = (part.Shape == "box" ? part.Depth : part.Diameter).GetValueOrDefault() / 2;
+                    if (part.Turn is { Length: 3 } turn && (turn[0] != 0 || turn[1] != 0 || turn[2] != 0))
+                    {
+                        halfX = halfZ = Math.Sqrt((halfX * halfX) + (halfZ * halfZ));
+                    }
+
+                    var nearest = new Position(Math.Clamp(spot.X, part.At[0] - halfX, part.At[0] + halfX), Math.Clamp(spot.Z, part.At[2] - halfZ, part.At[2] + halfZ));
+                    if (nearest.DistanceTo(spot) < clearance)
+                    {
+                        problems.Add($"{id}: backdrop part {i + 1} ({part.Shape} at {part.At[0]}, {part.At[2]}) is on {what} of {door.Id}");
+                    }
+                }
+            }
+        }
+
+        Assert.That(problems, Is.Empty);
+    }
 }
