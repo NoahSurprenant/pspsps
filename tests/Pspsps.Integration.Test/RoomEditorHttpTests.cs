@@ -780,7 +780,7 @@ public sealed class RoomEditorHttpTests
         {
             Assert.That(first.Applied, Has.Some.Contains("look unpublished-look-room"));
             Assert.That(changed.Problems, Is.Empty, "no player can see the room yet, so a different look in the file replaces the stored one");
-            Assert.That(changed.Applied, Has.Some.Contains("look unpublished-look-room"));
+            Assert.That(changed.Applied, Has.Some.Contains("look unpublished-look-room: replaced (room not published)"));
             Assert.That(stored.Look.Sky, Is.EqualTo("#112233"));
             Assert.That(again.Unchanged, Has.Some.Contains("look unpublished-look-room"));
         });
