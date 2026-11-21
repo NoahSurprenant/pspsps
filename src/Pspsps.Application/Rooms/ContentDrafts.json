@@ -371,7 +371,7 @@
               "x": 12.5,
               "z": 0.2
             },
-            "radius": 1.42,
+            "radius": 1.46,
             "facing": 0
           },
           {
@@ -407,13 +407,13 @@
               "x": 11.2,
               "z": -4.7
             },
-            "radius": 0.68,
+            "radius": 0.72,
             "facing": 0
           },
           {
             "kind": "packing-crate",
             "spot": {
-              "x": 12.8,
+              "x": 13,
               "z": -4.6
             },
             "radius": 0.9,
@@ -425,7 +425,7 @@
               "x": -7.4,
               "z": -4.7
             },
-            "radius": 0.68,
+            "radius": 0.72,
             "facing": 0
           },
           {
@@ -434,13 +434,13 @@
               "x": -11.2,
               "z": -4.7
             },
-            "radius": 0.68,
+            "radius": 0.72,
             "facing": 0
           },
           {
             "kind": "packing-crate",
             "spot": {
-              "x": -12.8,
+              "x": -13,
               "z": -4.6
             },
             "radius": 0.9,
@@ -452,7 +452,7 @@
               "x": -7.2,
               "z": 3.2
             },
-            "radius": 0.66,
+            "radius": 0.62,
             "facing": -0.3
           },
           {
@@ -461,7 +461,7 @@
               "x": 7.2,
               "z": 3.2
             },
-            "radius": 0.66,
+            "radius": 0.62,
             "facing": 0.3
           },
           {
@@ -607,7 +607,7 @@
               "x": 0.8,
               "z": 3.45
             },
-            "radius": 1.51,
+            "radius": 1.53,
             "facing": 0
           },
           {
@@ -616,7 +616,7 @@
               "x": -1.5,
               "z": 4.3
             },
-            "radius": 0.6,
+            "radius": 0.56,
             "facing": 0
           },
           {
@@ -634,7 +634,7 @@
               "x": -6.1,
               "z": 0.3
             },
-            "radius": 0.88,
+            "radius": 0.87,
             "facing": -1.5707963267948966
           },
           {
@@ -733,7 +733,7 @@
               "x": 2.4,
               "z": 1.2
             },
-            "radius": 0.66,
+            "radius": 0.62,
             "facing": 0.2
           }
         ],
@@ -764,9 +764,9 @@
             "kind": "stage",
             "spot": {
               "x": -2.5,
-              "z": 2.9
+              "z": 2.7
             },
-            "radius": 2.59,
+            "radius": 2.73,
             "facing": 0
           },
           {
@@ -811,7 +811,7 @@
               "x": -6.4,
               "z": -0.8
             },
-            "radius": 1.36,
+            "radius": 1.39,
             "facing": -1.5707963267948966
           },
           {
@@ -910,7 +910,7 @@
               "x": 7.3,
               "z": 3.3
             },
-            "radius": 0.69,
+            "radius": 0.68,
             "facing": 1.5707963267948966
           },
           {
@@ -4524,7 +4524,7 @@
     },
     {
       "kind": "pizza-oven",
-      "size": 1.51,
+      "size": 1.53,
       "parts": [
         {
           "shape": "box",
@@ -4698,7 +4698,7 @@
     },
     {
       "kind": "stage",
-      "size": 2.59,
+      "size": 2.73,
       "parts": [
         {
           "shape": "box",
@@ -5294,7 +5294,7 @@
     },
     {
       "kind": "yarn-basket",
-      "size": 0.68,
+      "size": 0.72,
       "parts": [
         {
           "shape": "cylinder",
@@ -5383,7 +5383,7 @@
     },
     {
       "kind": "market-cart",
-      "size": 1.42,
+      "size": 1.46,
       "parts": [
         {
           "shape": "box",
@@ -5615,7 +5615,7 @@
     },
     {
       "kind": "chalkboard",
-      "size": 0.66,
+      "size": 0.62,
       "parts": [
         {
           "shape": "box",
@@ -5918,7 +5918,7 @@
     },
     {
       "kind": "wood-stack",
-      "size": 0.6,
+      "size": 0.56,
       "parts": [
         {
           "shape": "cylinder",
@@ -6026,7 +6026,7 @@
     },
     {
       "kind": "fish-tank",
-      "size": 0.88,
+      "size": 0.87,
       "parts": [
         {
           "shape": "box",
@@ -6346,7 +6346,7 @@
     },
     {
       "kind": "dj-booth",
-      "size": 1.36,
+      "size": 1.39,
       "parts": [
         {
           "shape": "box",
@@ -6680,7 +6680,7 @@
     },
     {
       "kind": "velvet-rope",
-      "size": 0.69,
+      "size": 0.68,
       "parts": [
         {
           "shape": "cylinder",
