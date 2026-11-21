@@ -94,16 +94,26 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: gameplay
+          - name: gameplay-1
             suite: gameplay
+            shard: "1/2"
+          - name: gameplay-2
+            suite: gameplay
+            shard: "2/2"
           - name: accessibility
             suite: accessibility
           - name: layout-1
             suite: layout
-            shard: "1/2"
+            shard: "1/4"
           - name: layout-2
             suite: layout
-            shard: "2/2"
+            shard: "2/4"
+          - name: layout-3
+            suite: layout
+            shard: "3/4"
+          - name: layout-4
+            suite: layout
+            shard: "4/4"
     # The shipped image, run against PostgreSQL, driven by Chromium (software WebGL).
     services:
       postgres:
