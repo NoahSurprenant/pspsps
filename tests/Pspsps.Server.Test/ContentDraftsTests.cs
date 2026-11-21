@@ -50,13 +50,83 @@ public sealed class ContentDraftsTests
         var draft = Content.RoomList.Single(room => room.Id == "cafe").Layout;
         var book = Content.RoomList.Single(room => room.Id == "book-room").Layout;
 
+        const string Drift = "the café draft has drifted from the live café: re-copy the live café layout (StartingRooms.json) into ContentDrafts.json and add only the door";
         Assert.Multiple(() =>
         {
-            Assert.That(draft.Props, Is.EquivalentTo(live.Props));
-            Assert.That(draft.Doors.Select(d => d.Id), Is.SupersetOf(live.Doors.Select(d => d.Id)));
+            Assert.That(draft.Name, Is.EqualTo(live.Name), Drift);
+            Assert.That(draft.Width, Is.EqualTo(live.Width), Drift);
+            Assert.That(draft.Depth, Is.EqualTo(live.Depth), Drift);
+            Assert.That(draft.Spawn, Is.EqualTo(live.Spawn), Drift);
+            Assert.That(draft.Capacity, Is.EqualTo(live.Capacity), Drift);
+            Assert.That(draft.Look, Is.EqualTo(live.Look), Drift);
+            Assert.That(draft.Pond, Is.EqualTo(live.Pond), Drift);
+            Assert.That(draft.Props, Is.EquivalentTo(live.Props), Drift);
+            Assert.That(draft.Doors.Where(d => d.Id != "book-room"), Is.EquivalentTo(live.Doors), Drift);
             Assert.That(draft.Doors.Single(d => d.Id == "book-room").ToRoom, Is.EqualTo("book-room"));
             Assert.That(book.Doors.Single().ToRoom, Is.EqualTo("cafe"));
             Assert.That(IslandMap.Places.Select(p => p.Room), Does.Not.Contain("book-room"));
+        });
+    }
+
+    // A kind must be in PropKinds.All for a room to place it (PropPlacement), so a new kind goes there together with its
+    // design: in PropDesigns.json (a new database) and in ContentDrafts.json's propDesigns (a database that exists).
+    [Test]
+    public void EveryKindOfPropTheServerPlaces_HasADesign_InTheStartingOnesOrInTheFile()
+    {
+        var designed = PropDesignSeeder.Starting().Select(d => d.Kind).Concat(Content.PropDesignList.Select(d => d.Kind)).ToHashSet();
+
+        Assert.That(PropKinds.All.Where(kind => !designed.Contains(kind)), Is.Empty);
+    }
+
+    private static readonly string[] BookRoomKinds = ["book-stack", "globe", "yarn-basket", "window-seat"];
+
+    [Test]
+    public void TheBookRoomsNewDesigns_AreInTheFileAsTheyAreInTheStartingOnes_SoEitherWayOfLoadingGivesTheSameGame()
+    {
+        var starting = PropDesignSeeder.Starting().ToDictionary(d => d.Kind);
+        var text = (object value) => System.Text.Json.JsonSerializer.Serialize(value, ContentFile.Json);
+
+        Assert.Multiple(() =>
+        {
+            foreach (var kind in BookRoomKinds)
+            {
+                var drafted = Content.PropDesignList.SingleOrDefault(d => d.Kind == kind);
+                Assert.That(drafted, Is.Not.Null, kind);
+                Assert.That(drafted!.Size, Is.EqualTo(starting[kind].Size), kind);
+                Assert.That(text(drafted.Parts), Is.EqualTo(text(starting[kind].Parts)), kind);
+            }
+        });
+    }
+
+    // The browser draws a design scaled to the prop's circle (its size), outline included; a part that reaches past the
+    // size would spill out of the circle the placement rules keep clear. A bound that is never too small: a part
+    // turned about the vertical keeps its footprint's reach, a tilted one its whole diagonal.
+    [Test]
+    public void TheBookRoomsNewDesigns_DrawInsideTheirSize()
+    {
+        Assert.Multiple(() =>
+        {
+            foreach (var design in Content.PropDesignList.Where(d => BookRoomKinds.Contains(d.Kind)))
+            {
+                foreach (var (part, index) in design.Parts.Select((p, i) => (p, i)))
+                {
+                    var tilted = part.Turn is { } turn && (turn[0] != 0 || turn[2] != 0);
+                    var reach = part.Shape switch
+                    {
+                        "box" => tilted
+                            ? Math.Sqrt(Math.Pow(part.Width!.Value, 2) + Math.Pow(part.Height!.Value, 2) + Math.Pow(part.Depth!.Value, 2)) / 2
+                            : Math.Sqrt(Math.Pow(part.Width!.Value, 2) + Math.Pow(part.Depth!.Value, 2)) / 2,
+                        "cylinder" => tilted || part.Turn is not null && part.Turn[0] != 0
+                            ? Math.Sqrt(Math.Pow(part.Diameter!.Value, 2) + Math.Pow(part.Height!.Value, 2)) / 2
+                            : part.Diameter!.Value / 2,
+                        _ => part.Diameter!.Value / 2,
+                    };
+                    var outline = part.Outlined == false ? 0 : 0.05;
+                    var total = Math.Sqrt((part.At[0] * part.At[0]) + (part.At[2] * part.At[2])) + reach + outline;
+
+                    Assert.That(total, Is.LessThanOrEqualTo(design.Size + 1e-6), $"{design.Kind}, part {index + 1}");
+                }
+            }
         });
     }
 }
