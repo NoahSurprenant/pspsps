@@ -458,6 +458,51 @@
             },
             "radius": 0.5,
             "facing": 0
+          },
+          {
+            "kind": "flower-bed",
+            "spot": {
+              "x": -4.8,
+              "z": -1.8
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "packing-crate",
+            "spot": {
+              "x": -8.4,
+              "z": 0.8
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "plant",
+            "spot": {
+              "x": 8.4,
+              "z": 5.5
+            },
+            "radius": 0.5,
+            "facing": 0
+          },
+          {
+            "kind": "plant",
+            "spot": {
+              "x": 8.4,
+              "z": -5.6
+            },
+            "radius": 0.5,
+            "facing": 0
+          },
+          {
+            "kind": "lamp",
+            "spot": {
+              "x": 8.4,
+              "z": -3
+            },
+            "radius": 0.35,
+            "facing": 0
           }
         ],
         "doors": [
@@ -561,6 +606,42 @@
             },
             "radius": 0.8,
             "facing": 0
+          },
+          {
+            "kind": "plant",
+            "spot": {
+              "x": -7.2,
+              "z": -1.2
+            },
+            "radius": 0.5,
+            "facing": 0
+          },
+          {
+            "kind": "plant",
+            "spot": {
+              "x": 7.2,
+              "z": -0.2
+            },
+            "radius": 0.5,
+            "facing": 0
+          },
+          {
+            "kind": "lamp",
+            "spot": {
+              "x": 3.2,
+              "z": 5.2
+            },
+            "radius": 0.35,
+            "facing": 0
+          },
+          {
+            "kind": "lamp",
+            "spot": {
+              "x": -3.2,
+              "z": 5.2
+            },
+            "radius": 0.35,
+            "facing": 0
           }
         ],
         "doors": [
@@ -660,199 +741,1241 @@
           "backdrop": {
             "parts": [
               {
-                "shape": "ball",
-                "diameter": 14,
-                "height": 8,
+                "shape": "box",
+                "width": 40,
+                "height": 9,
+                "depth": 4,
                 "at": [
-                  -10,
-                  2,
-                  14
+                  0,
+                  4.5,
+                  24
                 ],
-                "colour": "#8a8478"
-              },
-              {
-                "shape": "ball",
-                "diameter": 12,
-                "height": 7,
-                "at": [
-                  11,
-                  1.5,
-                  15
-                ],
-                "colour": "#7d796c"
+                "colour": "#5f5c57"
               },
               {
                 "shape": "box",
-                "width": 32,
+                "width": 36,
                 "height": 6,
                 "depth": 4,
                 "at": [
                   0,
                   3,
-                  18
+                  19
                 ],
                 "colour": "#6f6b62"
               },
               {
                 "shape": "ball",
-                "diameter": 8,
+                "diameter": 16,
+                "height": 9,
+                "at": [
+                  -12,
+                  2,
+                  15
+                ],
+                "colour": "#8a8478"
+              },
+              {
+                "shape": "ball",
+                "diameter": 13,
+                "height": 8,
+                "at": [
+                  12,
+                  1.5,
+                  16
+                ],
+                "colour": "#7d796c"
+              },
+              {
+                "shape": "ball",
+                "diameter": 9,
                 "height": 5,
                 "at": [
                   0,
                   2,
-                  12
+                  12.5
                 ],
                 "colour": "#928c7e"
               },
               {
-                "shape": "box",
-                "width": 4,
+                "shape": "ball",
+                "diameter": 7,
+                "height": 4,
+                "at": [
+                  -3,
+                  3.5,
+                  14
+                ],
+                "colour": "#9b9587"
+              },
+              {
+                "shape": "ball",
+                "diameter": 6,
+                "height": 3.5,
+                "at": [
+                  16,
+                  0.5,
+                  9
+                ],
+                "colour": "#85807a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 6,
+                "height": 3.5,
+                "at": [
+                  -17,
+                  0.5,
+                  5
+                ],
+                "colour": "#85807a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 3,
+                "height": 2.0999999999999996,
+                "at": [
+                  -13,
+                  0.75,
+                  9
+                ],
+                "colour": "#8f897c"
+              },
+              {
+                "shape": "ball",
+                "diameter": 3.4,
+                "height": 2.38,
+                "at": [
+                  14,
+                  0.85,
+                  8
+                ],
+                "colour": "#8f897c"
+              },
+              {
+                "shape": "ball",
+                "diameter": 2.6,
+                "height": 1.8199999999999998,
+                "at": [
+                  -15,
+                  0.65,
+                  -2
+                ],
+                "colour": "#8f897c"
+              },
+              {
+                "shape": "ball",
+                "diameter": 2.4,
+                "height": 1.68,
+                "at": [
+                  16,
+                  0.6,
+                  -3
+                ],
+                "colour": "#8f897c"
+              },
+              {
+                "shape": "ball",
+                "diameter": 2.2,
+                "height": 1.54,
+                "at": [
+                  -14,
+                  0.55,
+                  -8
+                ],
+                "colour": "#8f897c"
+              },
+              {
+                "shape": "ball",
+                "diameter": 2.8,
+                "height": 1.9599999999999997,
+                "at": [
+                  15,
+                  0.7,
+                  -9
+                ],
+                "colour": "#8f897c"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.3,
+                "height": 1.2,
+                "at": [
+                  -16,
+                  3.6,
+                  15
+                ],
+                "colour": "#6b4f3a"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 2.2,
                 "height": 3.2,
-                "depth": 0.4,
+                "top": 0,
+                "sides": 7,
+                "at": [
+                  -16,
+                  5.4,
+                  15
+                ],
+                "colour": "#4f7a5a"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.3,
+                "height": 1.2,
+                "at": [
+                  -9,
+                  3.6,
+                  16
+                ],
+                "colour": "#6b4f3a"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 2.2,
+                "height": 3.2,
+                "top": 0,
+                "sides": 7,
+                "at": [
+                  -9,
+                  5.4,
+                  16
+                ],
+                "colour": "#4f7a5a"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.3,
+                "height": 1.2,
+                "at": [
+                  9,
+                  3.6,
+                  17
+                ],
+                "colour": "#6b4f3a"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 2.2,
+                "height": 3.2,
+                "top": 0,
+                "sides": 7,
+                "at": [
+                  9,
+                  5.4,
+                  17
+                ],
+                "colour": "#4f7a5a"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.3,
+                "height": 1.2,
+                "at": [
+                  15,
+                  3.6,
+                  15
+                ],
+                "colour": "#6b4f3a"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 2.2,
+                "height": 3.2,
+                "top": 0,
+                "sides": 7,
+                "at": [
+                  15,
+                  5.4,
+                  15
+                ],
+                "colour": "#4f7a5a"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.3,
+                "height": 1.2,
+                "at": [
+                  -2,
+                  3.6,
+                  19
+                ],
+                "colour": "#6b4f3a"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 2.2,
+                "height": 3.2,
+                "top": 0,
+                "sides": 7,
+                "at": [
+                  -2,
+                  5.4,
+                  19
+                ],
+                "colour": "#4f7a5a"
+              },
+              {
+                "shape": "box",
+                "width": 5.6,
+                "height": 4.2,
+                "depth": 0.5,
+                "at": [
+                  0,
+                  2.1,
+                  7.9
+                ],
+                "colour": "#78746a"
+              },
+              {
+                "shape": "box",
+                "width": 3.8,
+                "height": 3.2,
+                "depth": 0.5,
                 "outlined": false,
                 "at": [
                   0,
                   1.6,
-                  7.6
+                  7.75
                 ],
-                "colour": "#1d1a22"
+                "colour": "#14111a"
               },
               {
                 "shape": "box",
-                "width": 0.35,
-                "height": 3.4,
-                "depth": 0.45,
-                "at": [
-                  -2.1,
-                  1.7,
-                  7.45
-                ],
-                "colour": "#7a5a44"
-              },
-              {
-                "shape": "box",
-                "width": 0.35,
-                "height": 3.4,
-                "depth": 0.45,
-                "at": [
-                  2.1,
-                  1.7,
-                  7.45
-                ],
-                "colour": "#7a5a44"
-              },
-              {
-                "shape": "box",
-                "width": 4.8,
-                "height": 0.4,
+                "width": 0.4,
+                "height": 3.5,
                 "depth": 0.5,
                 "at": [
-                  0,
-                  3.4,
-                  7.45
+                  -2.1,
+                  1.75,
+                  7.5
                 ],
                 "colour": "#7a5a44"
               },
               {
                 "shape": "box",
-                "width": 4,
-                "height": 2.6,
-                "depth": 3,
+                "width": 0.4,
+                "height": 3.5,
+                "depth": 0.5,
                 "at": [
-                  -7,
-                  1.3,
-                  10
+                  2.1,
+                  1.75,
+                  7.5
+                ],
+                "colour": "#7a5a44"
+              },
+              {
+                "shape": "box",
+                "width": 4.9,
+                "height": 0.45,
+                "depth": 0.55,
+                "at": [
+                  0,
+                  3.55,
+                  7.5
+                ],
+                "colour": "#7a5a44"
+              },
+              {
+                "shape": "box",
+                "width": 0.25,
+                "height": 0.25,
+                "depth": 0.6,
+                "turn": [
+                  0,
+                  0,
+                  0.78
+                ],
+                "at": [
+                  -1.6,
+                  3.1,
+                  7.5
+                ],
+                "colour": "#7a5a44"
+              },
+              {
+                "shape": "box",
+                "width": 0.25,
+                "height": 0.25,
+                "depth": 0.6,
+                "turn": [
+                  0,
+                  0,
+                  -0.78
+                ],
+                "at": [
+                  1.6,
+                  3.1,
+                  7.5
+                ],
+                "colour": "#7a5a44"
+              },
+              {
+                "shape": "box",
+                "width": 0.05,
+                "height": 0.5,
+                "depth": 0.05,
+                "outlined": false,
+                "at": [
+                  0,
+                  3.1,
+                  7.2
+                ],
+                "colour": "#3a3540"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.4,
+                "height": 0.5,
+                "outlined": false,
+                "at": [
+                  0,
+                  2.8,
+                  7.2
+                ],
+                "colour": "#ffd98a"
+              },
+              {
+                "shape": "box",
+                "width": 4.4,
+                "height": 0.03,
+                "depth": 1.8,
+                "outlined": false,
+                "at": [
+                  0,
+                  0.03,
+                  6.3
+                ],
+                "colour": "#a07850"
+              },
+              {
+                "shape": "box",
+                "width": 1.8,
+                "height": 0.9,
+                "depth": 0.12,
+                "at": [
+                  2.9,
+                  1.7,
+                  7.2
                 ],
                 "colour": "#c98f5a"
               },
               {
                 "shape": "box",
-                "width": 2.8,
-                "height": 0.2,
-                "depth": 3.8,
-                "turn": [
-                  0,
-                  0,
-                  0.45
-                ],
-                "at": [
-                  -8.1,
-                  3,
-                  10
-                ],
-                "colour": "#4f7f86"
-              },
-              {
-                "shape": "box",
-                "width": 2.8,
-                "height": 0.2,
-                "depth": 3.8,
-                "turn": [
-                  0,
-                  0,
-                  -0.45
-                ],
-                "at": [
-                  -5.9,
-                  3,
-                  10
-                ],
-                "colour": "#4f7f86"
-              },
-              {
-                "shape": "box",
-                "width": 0.9,
-                "height": 1.6,
+                "width": 0.1,
+                "height": 1,
                 "depth": 0.1,
                 "at": [
-                  -7,
+                  2.1,
+                  1,
+                  7.2
+                ],
+                "colour": "#7a5a44"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.35,
+                "height": 0.3,
+                "at": [
+                  2.9,
+                  1.7,
+                  7.1
+                ],
+                "colour": "#f2a7c3"
+              },
+              {
+                "shape": "box",
+                "width": 5.6,
+                "height": 3.2,
+                "depth": 4,
+                "at": [
+                  -6.8,
+                  1.6,
+                  10.4
+                ],
+                "colour": "#c98f5a"
+              },
+              {
+                "shape": "box",
+                "width": 5.8,
+                "height": 0.16,
+                "depth": 4.2,
+                "at": [
+                  -6.8,
+                  0.08,
+                  10.4
+                ],
+                "colour": "#7a5a44"
+              },
+              {
+                "shape": "box",
+                "width": 5.62,
+                "height": 0.06,
+                "depth": 4.02,
+                "outlined": false,
+                "at": [
+                  -6.8,
+                  0.5,
+                  10.4
+                ],
+                "colour": "#b27d4c"
+              },
+              {
+                "shape": "box",
+                "width": 5.62,
+                "height": 0.06,
+                "depth": 4.02,
+                "outlined": false,
+                "at": [
+                  -6.8,
+                  1,
+                  10.4
+                ],
+                "colour": "#b27d4c"
+              },
+              {
+                "shape": "box",
+                "width": 5.62,
+                "height": 0.06,
+                "depth": 4.02,
+                "outlined": false,
+                "at": [
+                  -6.8,
+                  1.5,
+                  10.4
+                ],
+                "colour": "#b27d4c"
+              },
+              {
+                "shape": "box",
+                "width": 5.62,
+                "height": 0.06,
+                "depth": 4.02,
+                "outlined": false,
+                "at": [
+                  -6.8,
+                  2,
+                  10.4
+                ],
+                "colour": "#b27d4c"
+              },
+              {
+                "shape": "box",
+                "width": 5.62,
+                "height": 0.06,
+                "depth": 4.02,
+                "outlined": false,
+                "at": [
+                  -6.8,
+                  2.5,
+                  10.4
+                ],
+                "colour": "#b27d4c"
+              },
+              {
+                "shape": "box",
+                "width": 5.62,
+                "height": 0.06,
+                "depth": 4.02,
+                "outlined": false,
+                "at": [
+                  -6.8,
+                  3,
+                  10.4
+                ],
+                "colour": "#b27d4c"
+              },
+              {
+                "shape": "box",
+                "width": 3.6,
+                "height": 0.25,
+                "depth": 4.8,
+                "turn": [
+                  0,
+                  0,
+                  0.5
+                ],
+                "at": [
+                  -8.35,
+                  3.7,
+                  10.4
+                ],
+                "colour": "#4f7f86"
+              },
+              {
+                "shape": "box",
+                "width": 3.6,
+                "height": 0.25,
+                "depth": 4.8,
+                "turn": [
+                  0,
+                  0,
+                  -0.5
+                ],
+                "at": [
+                  -5.25,
+                  3.7,
+                  10.4
+                ],
+                "colour": "#4f7f86"
+              },
+              {
+                "shape": "box",
+                "width": 0.3,
+                "height": 0.3,
+                "depth": 4.9,
+                "at": [
+                  -6.8,
+                  4.45,
+                  10.4
+                ],
+                "colour": "#3d6a72"
+              },
+              {
+                "shape": "box",
+                "width": 1.1,
+                "height": 2,
+                "depth": 0.12,
+                "at": [
+                  -6.8,
+                  1,
+                  8.350000000000001
+                ],
+                "colour": "#7a5a44"
+              },
+              {
+                "shape": "box",
+                "width": 0.28,
+                "height": 0.28,
+                "depth": 0.1,
+                "at": [
+                  -6.8,
+                  0.2,
+                  8.280000000000001
+                ],
+                "colour": "#2a2230"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.18,
+                "height": 0.18,
+                "at": [
+                  -6.45,
+                  1,
+                  8.27
+                ],
+                "colour": "#e8c960"
+              },
+              {
+                "shape": "box",
+                "width": 1.2,
+                "height": 1,
+                "depth": 0.1,
+                "at": [
+                  -4.9,
+                  1.7,
+                  8.350000000000001
+                ],
+                "colour": "#f4e9d8"
+              },
+              {
+                "shape": "box",
+                "width": 1.3,
+                "height": 0.1,
+                "depth": 0.2,
+                "at": [
+                  -4.9,
+                  1.15,
+                  8.3
+                ],
+                "colour": "#7a5a44"
+              },
+              {
+                "shape": "box",
+                "width": 0.05,
+                "height": 1,
+                "depth": 0.12,
+                "at": [
+                  -4.9,
+                  1.7,
+                  8.280000000000001
+                ],
+                "colour": "#7a5a44"
+              },
+              {
+                "shape": "box",
+                "width": 1.2,
+                "height": 1,
+                "depth": 0.1,
+                "outlined": false,
+                "at": [
+                  -8.7,
+                  1.7,
+                  8.350000000000001
+                ],
+                "colour": "#ffe9a8"
+              },
+              {
+                "shape": "box",
+                "width": 1.3,
+                "height": 0.1,
+                "depth": 0.2,
+                "at": [
+                  -8.7,
+                  1.15,
+                  8.3
+                ],
+                "colour": "#7a5a44"
+              },
+              {
+                "shape": "box",
+                "width": 1.8,
+                "height": 0.15,
+                "depth": 1,
+                "at": [
+                  -6.8,
+                  0.2,
+                  7.800000000000001
+                ],
+                "colour": "#a07850"
+              },
+              {
+                "shape": "box",
+                "width": 0.14,
+                "height": 1.6,
+                "depth": 0.14,
+                "at": [
+                  -9.3,
+                  1.4,
+                  7.5
+                ],
+                "colour": "#7a5a44"
+              },
+              {
+                "shape": "box",
+                "width": 0.14,
+                "height": 1.6,
+                "depth": 0.14,
+                "at": [
+                  -4.3,
+                  1.4,
+                  7.5
+                ],
+                "colour": "#7a5a44"
+              },
+              {
+                "shape": "box",
+                "width": 1.9,
+                "height": 0.5,
+                "depth": 0.1,
+                "at": [
+                  -10.2,
+                  2.2,
+                  8.2
+                ],
+                "colour": "#4f7f86"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.7,
+                "height": 1.6,
+                "at": [
+                  -4.699999999999999,
+                  4.6,
+                  11.6
+                ],
+                "colour": "#8a8478"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.6,
+                "height": 0.5,
+                "outlined": false,
+                "at": [
+                  -4.6,
+                  5.8,
+                  11.6
+                ],
+                "colour": "#e6e3e8"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.8,
+                "height": 0.6,
+                "outlined": false,
+                "at": [
+                  -4.3,
+                  6.5,
+                  11.6
+                ],
+                "colour": "#efedf0"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.8,
+                "height": 1,
+                "at": [
+                  -10,
+                  0.5,
+                  8.3
+                ],
+                "colour": "#8a5a3a"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.82,
+                "height": 0.08,
+                "outlined": false,
+                "at": [
+                  -10,
+                  0.7,
+                  8.3
+                ],
+                "colour": "#3a3540"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.8,
+                "height": 1,
+                "at": [
+                  -9.2,
+                  0.5,
+                  8.1
+                ],
+                "colour": "#8a5a3a"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.82,
+                "height": 0.08,
+                "outlined": false,
+                "at": [
+                  -9.2,
+                  0.7,
+                  8.1
+                ],
+                "colour": "#3a3540"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.9,
+                "height": 0.8,
+                "at": [
+                  -3.6,
+                  0.4,
+                  8.2
+                ],
+                "colour": "#d8c8a0"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.8,
+                "height": 0.7,
+                "at": [
+                  -3.1,
+                  0.35,
+                  8.5
+                ],
+                "colour": "#cdbb92"
+              },
+              {
+                "shape": "box",
+                "width": 0.08,
+                "height": 1.5,
+                "depth": 0.08,
+                "turn": [
+                  0,
+                  0,
+                  0.25
+                ],
+                "at": [
+                  -4.2,
                   0.8,
-                  8.45
+                  7.4
                 ],
                 "colour": "#7a5a44"
               },
               {
                 "shape": "box",
                 "width": 0.7,
-                "height": 0.6,
-                "depth": 0.1,
-                "at": [
-                  -5.6,
-                  1.5,
-                  8.45
+                "height": 0.08,
+                "depth": 0.08,
+                "turn": [
+                  0,
+                  0,
+                  0.25
                 ],
-                "colour": "#f4e9d8"
+                "at": [
+                  -4.35,
+                  1.55,
+                  7.4
+                ],
+                "colour": "#6b6f78"
               },
               {
-                "shape": "cylinder",
-                "diameter": 0.5,
-                "height": 1,
+                "shape": "box",
+                "width": 1.7,
+                "height": 0.03,
+                "depth": 1.2,
+                "outlined": false,
                 "at": [
-                  -5.5,
-                  3.4,
-                  10.8
+                  8.2,
+                  0.02,
+                  0
                 ],
-                "colour": "#7d796c"
+                "colour": "#b89868"
               },
               {
-                "shape": "ball",
-                "diameter": 0.3,
-                "height": 0.3,
+                "shape": "box",
+                "width": 1.2,
+                "height": 0.03,
+                "depth": 0.9,
+                "outlined": false,
                 "at": [
-                  -7,
-                  1.7,
-                  8.4
+                  7.6,
+                  0.025,
+                  -0.6
                 ],
-                "colour": "#e8c960"
+                "colour": "#c4a676"
+              },
+              {
+                "shape": "box",
+                "width": 1.7,
+                "height": 0.03,
+                "depth": 1.2,
+                "outlined": false,
+                "at": [
+                  6.999999999999999,
+                  0.02,
+                  0.12622064772118446
+                ],
+                "colour": "#b89868"
+              },
+              {
+                "shape": "box",
+                "width": 1.2,
+                "height": 0.03,
+                "depth": 0.9,
+                "outlined": false,
+                "at": [
+                  6.3999999999999995,
+                  0.025,
+                  -0.5
+                ],
+                "colour": "#c4a676"
+              },
+              {
+                "shape": "box",
+                "width": 1.7,
+                "height": 0.03,
+                "depth": 1.2,
+                "outlined": false,
+                "at": [
+                  5.799999999999999,
+                  0.02,
+                  0.13639461402385225
+                ],
+                "colour": "#b89868"
+              },
+              {
+                "shape": "box",
+                "width": 1.2,
+                "height": 0.03,
+                "depth": 0.9,
+                "outlined": false,
+                "at": [
+                  5.199999999999999,
+                  0.025,
+                  -0.39999999999999997
+                ],
+                "colour": "#c4a676"
+              },
+              {
+                "shape": "box",
+                "width": 1.7,
+                "height": 0.03,
+                "depth": 1.2,
+                "outlined": false,
+                "at": [
+                  4.6,
+                  0.02,
+                  0.021168001208980082
+                ],
+                "colour": "#b89868"
+              },
+              {
+                "shape": "box",
+                "width": 1.2,
+                "height": 0.03,
+                "depth": 0.9,
+                "outlined": false,
+                "at": [
+                  4,
+                  0.025,
+                  -0.29999999999999993
+                ],
+                "colour": "#c4a676"
+              },
+              {
+                "shape": "box",
+                "width": 1.7,
+                "height": 0.03,
+                "depth": 1.2,
+                "outlined": false,
+                "at": [
+                  3.3999999999999995,
+                  0.02,
+                  -0.11352037429618922
+                ],
+                "colour": "#b89868"
+              },
+              {
+                "shape": "box",
+                "width": 1.2,
+                "height": 0.03,
+                "depth": 0.9,
+                "outlined": false,
+                "at": [
+                  2.8,
+                  0.025,
+                  -0.19999999999999996
+                ],
+                "colour": "#c4a676"
+              },
+              {
+                "shape": "box",
+                "width": 1.7,
+                "height": 0.03,
+                "depth": 1.2,
+                "outlined": false,
+                "at": [
+                  2.1999999999999993,
+                  0.02,
+                  -0.14383864119947076
+                ],
+                "colour": "#b89868"
+              },
+              {
+                "shape": "box",
+                "width": 1.2,
+                "height": 0.03,
+                "depth": 0.9,
+                "outlined": false,
+                "at": [
+                  1.5999999999999996,
+                  0.025,
+                  -0.09999999999999998
+                ],
+                "colour": "#c4a676"
+              },
+              {
+                "shape": "box",
+                "width": 1.7,
+                "height": 0.03,
+                "depth": 1.2,
+                "outlined": false,
+                "at": [
+                  1,
+                  0.02,
+                  -0.04191232472983888
+                ],
+                "colour": "#b89868"
+              },
+              {
+                "shape": "box",
+                "width": 1.2,
+                "height": 0.03,
+                "depth": 0.9,
+                "outlined": false,
+                "at": [
+                  0.40000000000000036,
+                  0.025,
+                  1.1102230246251565e-16
+                ],
+                "colour": "#c4a676"
+              },
+              {
+                "shape": "box",
+                "width": 1.5,
+                "height": 0.03,
+                "depth": 1.3,
+                "outlined": false,
+                "at": [
+                  -0.6,
+                  0.02,
+                  1.8
+                ],
+                "colour": "#b89868"
+              },
+              {
+                "shape": "box",
+                "width": 1.5,
+                "height": 0.03,
+                "depth": 1.3,
+                "outlined": false,
+                "at": [
+                  -0.09999999999999998,
+                  0.02,
+                  2.8
+                ],
+                "colour": "#b89868"
+              },
+              {
+                "shape": "box",
+                "width": 1.5,
+                "height": 0.03,
+                "depth": 1.3,
+                "outlined": false,
+                "at": [
+                  -0.6,
+                  0.02,
+                  3.8
+                ],
+                "colour": "#b89868"
+              },
+              {
+                "shape": "box",
+                "width": 1.5,
+                "height": 0.03,
+                "depth": 1.3,
+                "outlined": false,
+                "at": [
+                  -0.09999999999999998,
+                  0.02,
+                  4.8
+                ],
+                "colour": "#b89868"
+              },
+              {
+                "shape": "box",
+                "width": 1.5,
+                "height": 0.03,
+                "depth": 1.3,
+                "outlined": false,
+                "at": [
+                  -0.6,
+                  0.02,
+                  5.8
+                ],
+                "colour": "#b89868"
+              },
+              {
+                "shape": "box",
+                "width": 0.14,
+                "height": 0.9,
+                "depth": 0.14,
+                "at": [
+                  -9.6,
+                  0.45,
+                  -6
+                ],
+                "colour": "#7a5a44"
+              },
+              {
+                "shape": "box",
+                "width": 0.14,
+                "height": 0.9,
+                "depth": 0.14,
+                "at": [
+                  -9.6,
+                  0.45,
+                  -5
+                ],
+                "colour": "#7a5a44"
+              },
+              {
+                "shape": "box",
+                "width": 0.14,
+                "height": 0.9,
+                "depth": 0.14,
+                "at": [
+                  -9.6,
+                  0.45,
+                  -4
+                ],
+                "colour": "#7a5a44"
+              },
+              {
+                "shape": "box",
+                "width": 0.14,
+                "height": 0.9,
+                "depth": 0.14,
+                "at": [
+                  -9.6,
+                  0.45,
+                  -3
+                ],
+                "colour": "#7a5a44"
+              },
+              {
+                "shape": "box",
+                "width": 0.14,
+                "height": 0.9,
+                "depth": 0.14,
+                "at": [
+                  -9.6,
+                  0.45,
+                  -2
+                ],
+                "colour": "#7a5a44"
+              },
+              {
+                "shape": "box",
+                "width": 0.14,
+                "height": 0.9,
+                "depth": 0.14,
+                "at": [
+                  -9.6,
+                  0.45,
+                  -1
+                ],
+                "colour": "#7a5a44"
+              },
+              {
+                "shape": "box",
+                "width": 0.14,
+                "height": 0.9,
+                "depth": 0.14,
+                "at": [
+                  -9.6,
+                  0.45,
+                  0
+                ],
+                "colour": "#7a5a44"
+              },
+              {
+                "shape": "box",
+                "width": 0.08,
+                "height": 0.12,
+                "depth": 6.2,
+                "at": [
+                  -9.6,
+                  0.7,
+                  -3
+                ],
+                "colour": "#9a7a58"
+              },
+              {
+                "shape": "box",
+                "width": 0.08,
+                "height": 0.12,
+                "depth": 6.2,
+                "at": [
+                  -9.6,
+                  0.4,
+                  -3
+                ],
+                "colour": "#9a7a58"
               },
               {
                 "shape": "box",
                 "width": 0.1,
-                "height": 0.06,
+                "height": 0.08,
                 "depth": 12.5,
                 "at": [
                   4.1,
-                  0.06,
+                  0.07,
                   0.5
                 ],
                 "colour": "#6b6f78"
@@ -860,11 +1983,11 @@
               {
                 "shape": "box",
                 "width": 0.1,
-                "height": 0.06,
+                "height": 0.08,
                 "depth": 12.5,
                 "at": [
                   4.9,
-                  0.06,
+                  0.07,
                   0.5
                 ],
                 "colour": "#6b6f78"
@@ -1026,6 +2149,18 @@
                 "colour": "#7a5a44"
               },
               {
+                "shape": "box",
+                "width": 1.1,
+                "height": 0.5,
+                "depth": 0.2,
+                "at": [
+                  4.5,
+                  0.3,
+                  -5.9
+                ],
+                "colour": "#7a5a44"
+              },
+              {
                 "shape": "cylinder",
                 "diameter": 0.4,
                 "height": 0.08,
@@ -1091,8 +2226,514 @@
               },
               {
                 "shape": "ball",
+                "diameter": 0.25,
+                "height": 0.2,
+                "at": [
+                  3.900076698418742,
+                  0.12,
+                  -2.0109296761969713
+                ],
+                "colour": "#d9b24a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.35,
+                "height": 0.2,
+                "at": [
+                  4.304932157511326,
+                  0.12,
+                  -3.005228707150197
+                ],
+                "colour": "#c0c4cc"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.45,
+                "height": 0.2,
+                "at": [
+                  4.921118926639258,
+                  0.12,
+                  -2.5541999739847148
+                ],
+                "colour": "#8fd0e8"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.25,
+                "height": 0.2,
+                "at": [
+                  4.361037238901964,
+                  0.12,
+                  -2.2471257746904745
+                ],
+                "colour": "#d9b24a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.35,
+                "height": 0.2,
+                "at": [
+                  4.957104777198799,
+                  0.12,
+                  -2.5400096197798896
+                ],
+                "colour": "#c0c4cc"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.45,
+                "height": 1.2,
+                "top": 0,
+                "sides": 6,
+                "at": [
+                  -1.9,
+                  0.6,
+                  7.9
+                ],
+                "colour": "#8fd0e8"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.45,
+                "height": 0.9,
+                "top": 0,
+                "sides": 6,
+                "at": [
+                  1.9,
+                  0.45,
+                  7.9
+                ],
+                "colour": "#c8a2f0"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.45,
+                "height": 0.7,
+                "top": 0,
+                "sides": 6,
+                "at": [
+                  -7.4,
+                  0.35,
+                  2.2
+                ],
+                "colour": "#8fd0e8"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.18,
+                "height": 0.35,
+                "top": 0,
+                "sides": 5,
+                "outlined": false,
+                "at": [
+                  3.3212617637222923,
+                  0.17,
+                  1.2309752537081824
+                ],
+                "colour": "#7fb36a"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.18,
+                "height": 0.35,
+                "top": 0,
+                "sides": 5,
+                "outlined": false,
+                "at": [
+                  5.701633610158057,
+                  0.17,
+                  -3.4959427156932392
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.18,
+                "height": 0.35,
+                "top": 0,
+                "sides": 5,
+                "outlined": false,
+                "at": [
+                  -2.263833984389824,
+                  0.17,
+                  2.094816240153655
+                ],
+                "colour": "#7fb36a"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.18,
+                "height": 0.35,
+                "top": 0,
+                "sides": 5,
+                "outlined": false,
+                "at": [
+                  3.5648223937325287,
+                  0.17,
+                  -5.753352358263616
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.18,
+                "height": 0.35,
+                "top": 0,
+                "sides": 5,
+                "outlined": false,
+                "at": [
+                  3.3103719951167587,
+                  0.17,
+                  -0.7852520484408609
+                ],
+                "colour": "#7fb36a"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.18,
+                "height": 0.35,
+                "top": 0,
+                "sides": 5,
+                "outlined": false,
+                "at": [
+                  7.603232781683669,
+                  0.17,
+                  3.2889078382816663
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.18,
+                "height": 0.35,
+                "top": 0,
+                "sides": 5,
+                "outlined": false,
+                "at": [
+                  -6.788943000039525,
+                  0.17,
+                  -0.24333444286293116
+                ],
+                "colour": "#7fb36a"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.18,
+                "height": 0.35,
+                "top": 0,
+                "sides": 5,
+                "outlined": false,
+                "at": [
+                  7.617028204080196,
+                  0.17,
+                  1.862017317238271
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.18,
+                "height": 0.35,
+                "top": 0,
+                "sides": 5,
+                "outlined": false,
+                "at": [
+                  2.5875762354524703,
+                  0.17,
+                  0.5291928331037941
+                ],
+                "colour": "#7fb36a"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.18,
+                "height": 0.35,
+                "top": 0,
+                "sides": 5,
+                "outlined": false,
+                "at": [
+                  7.415918963223657,
+                  0.17,
+                  4.500009933346886
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.18,
+                "height": 0.35,
+                "top": 0,
+                "sides": 5,
+                "outlined": false,
+                "at": [
+                  -2.2995753583030663,
+                  0.17,
+                  -2.375364666420671
+                ],
+                "colour": "#7fb36a"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.18,
+                "height": 0.35,
+                "top": 0,
+                "sides": 5,
+                "outlined": false,
+                "at": [
+                  6.069077201685438,
+                  0.17,
+                  -2.412980848556842
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.18,
+                "height": 0.35,
+                "top": 0,
+                "sides": 5,
+                "outlined": false,
+                "at": [
+                  -6.253682542244756,
+                  0.17,
+                  -2.8283250050751145
+                ],
+                "colour": "#7fb36a"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.18,
+                "height": 0.35,
+                "top": 0,
+                "sides": 5,
+                "outlined": false,
+                "at": [
+                  -1.2875404461694604,
+                  0.17,
+                  -2.86151918008063
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.18,
+                "height": 0.35,
+                "top": 0,
+                "sides": 5,
+                "outlined": false,
+                "at": [
+                  7.8707105772899055,
+                  0.17,
+                  0.28844834095260463
+                ],
+                "colour": "#7fb36a"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.18,
+                "height": 0.35,
+                "top": 0,
+                "sides": 5,
+                "outlined": false,
+                "at": [
+                  4.126899585652584,
+                  0.17,
+                  4.134224041986384
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.18,
+                "height": 0.35,
+                "top": 0,
+                "sides": 5,
+                "outlined": false,
+                "at": [
+                  -7.944789502278338,
+                  0.17,
+                  -3.1181098613506704
+                ],
+                "colour": "#7fb36a"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.18,
+                "height": 0.35,
+                "top": 0,
+                "sides": 5,
+                "outlined": false,
+                "at": [
+                  1.0913404189475546,
+                  0.17,
+                  -0.2943858323126971
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.18,
+                "height": 0.35,
+                "top": 0,
+                "sides": 5,
+                "outlined": false,
+                "at": [
+                  -1.4140255192360032,
+                  0.17,
+                  -4.084601199666318
+                ],
+                "colour": "#7fb36a"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.18,
+                "height": 0.35,
+                "top": 0,
+                "sides": 5,
+                "outlined": false,
+                "at": [
+                  7.361455812287264,
+                  0.17,
+                  -5.741441925308408
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.18,
+                "height": 0.35,
+                "top": 0,
+                "sides": 5,
+                "outlined": false,
+                "at": [
+                  -2.4216579876009643,
+                  0.17,
+                  -2.2705317396067697
+                ],
+                "colour": "#7fb36a"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.18,
+                "height": 0.35,
+                "top": 0,
+                "sides": 5,
+                "outlined": false,
+                "at": [
+                  2.9595786435341367,
+                  0.17,
+                  4.692174585485912
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.18,
+                "height": 0.35,
+                "top": 0,
+                "sides": 5,
+                "outlined": false,
+                "at": [
+                  0.26738739258953714,
+                  0.17,
+                  -4.413395165099481
+                ],
+                "colour": "#7fb36a"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.18,
+                "height": 0.35,
+                "top": 0,
+                "sides": 5,
+                "outlined": false,
+                "at": [
+                  -1.6988097404589926,
+                  0.17,
+                  -2.9968719295211477
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.18,
+                "height": 0.35,
+                "top": 0,
+                "sides": 5,
+                "outlined": false,
+                "at": [
+                  -2.439779192879694,
+                  0.17,
+                  -1.3125964860024846
+                ],
+                "colour": "#7fb36a"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.18,
+                "height": 0.35,
+                "top": 0,
+                "sides": 5,
+                "outlined": false,
+                "at": [
+                  -3.0137103656370705,
+                  0.17,
+                  -0.02007684149782918
+                ],
+                "colour": "#6aa05a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.2,
+                "height": 0.2,
+                "outlined": false,
+                "at": [
+                  -5.2,
+                  0.55,
+                  -1.2
+                ],
+                "colour": "#f2a7c3"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.2,
+                "height": 0.2,
+                "outlined": false,
+                "at": [
+                  -4.4,
+                  0.55,
+                  -2.3
+                ],
+                "colour": "#e8c960"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.2,
+                "height": 0.2,
+                "outlined": false,
+                "at": [
+                  -5.6,
+                  0.55,
+                  -2.4
+                ],
+                "colour": "#f4e9d8"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.2,
+                "height": 0.2,
+                "outlined": false,
+                "at": [
+                  -4,
+                  0.55,
+                  -1.2
+                ],
+                "colour": "#c8a2f0"
+              },
+              {
+                "shape": "ball",
                 "diameter": 1.2,
-                "height": 0.8,
+                "height": 0.84,
                 "at": [
                   9.3,
                   0.3,
@@ -1106,7 +2747,7 @@
                 "height": 0.7,
                 "at": [
                   -9.3,
-                  0.3,
+                  0.25,
                   1.5
                 ],
                 "colour": "#9a9486"
@@ -1114,7 +2755,7 @@
               {
                 "shape": "ball",
                 "diameter": 1.4,
-                "height": 0.9,
+                "height": 0.9799999999999999,
                 "at": [
                   8.8,
                   0.35,
@@ -1125,11 +2766,33 @@
               {
                 "shape": "ball",
                 "diameter": 0.7,
-                "height": 0.5,
+                "height": 0.48999999999999994,
                 "at": [
                   -9,
-                  0.2,
+                  0.175,
                   -3
+                ],
+                "colour": "#a8a294"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.9,
+                "height": 0.63,
+                "at": [
+                  2,
+                  0.225,
+                  -6.2
+                ],
+                "colour": "#9a9486"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.7,
+                "height": 0.48999999999999994,
+                "at": [
+                  -1.8,
+                  0.175,
+                  6.5
                 ],
                 "colour": "#a8a294"
               }
@@ -1156,128 +2819,983 @@
           "backdrop": {
             "parts": [
               {
-                "shape": "box",
-                "width": 0.3,
-                "height": 4.2,
-                "depth": 0.3,
+                "shape": "ball",
+                "diameter": 3,
+                "height": 3.3000000000000003,
                 "at": [
-                  -7.7,
-                  2.1,
-                  -2
+                  -8.6,
+                  1.35,
+                  4.5
                 ],
-                "colour": "#7a5a44"
+                "colour": "#5a5262"
               },
               {
-                "shape": "box",
-                "width": 0.3,
-                "height": 4.2,
-                "depth": 0.3,
+                "shape": "ball",
+                "diameter": 1.7999999999999998,
+                "height": 1.7999999999999998,
                 "at": [
-                  7.7,
-                  2.1,
-                  -2
+                  -8.299999999999999,
+                  3,
+                  4.5
                 ],
-                "colour": "#7a5a44"
+                "colour": "#4d4655"
               },
               {
-                "shape": "box",
-                "width": 16,
-                "height": 0.3,
-                "depth": 0.3,
+                "shape": "ball",
+                "diameter": 3.4,
+                "height": 3.74,
+                "at": [
+                  8.6,
+                  1.53,
+                  4.8
+                ],
+                "colour": "#5a5262"
+              },
+              {
+                "shape": "ball",
+                "diameter": 2.04,
+                "height": 2.04,
+                "at": [
+                  8.9,
+                  3.4,
+                  4.8
+                ],
+                "colour": "#4d4655"
+              },
+              {
+                "shape": "ball",
+                "diameter": 2.6,
+                "height": 2.8600000000000003,
+                "at": [
+                  -8.8,
+                  1.1700000000000002,
+                  0.2
+                ],
+                "colour": "#5a5262"
+              },
+              {
+                "shape": "ball",
+                "diameter": 1.56,
+                "height": 1.56,
+                "at": [
+                  -8.5,
+                  2.6,
+                  0.2
+                ],
+                "colour": "#4d4655"
+              },
+              {
+                "shape": "ball",
+                "diameter": 2.8,
+                "height": 3.08,
+                "at": [
+                  8.9,
+                  1.26,
+                  0
+                ],
+                "colour": "#5a5262"
+              },
+              {
+                "shape": "ball",
+                "diameter": 1.68,
+                "height": 1.68,
+                "at": [
+                  9.200000000000001,
+                  2.8,
+                  0
+                ],
+                "colour": "#4d4655"
+              },
+              {
+                "shape": "ball",
+                "diameter": 2.8,
+                "height": 3.08,
+                "at": [
+                  -8.6,
+                  1.26,
+                  -4
+                ],
+                "colour": "#5a5262"
+              },
+              {
+                "shape": "ball",
+                "diameter": 1.68,
+                "height": 1.68,
+                "at": [
+                  -8.299999999999999,
+                  2.8,
+                  -4
+                ],
+                "colour": "#4d4655"
+              },
+              {
+                "shape": "ball",
+                "diameter": 3,
+                "height": 3.3000000000000003,
+                "at": [
+                  8.7,
+                  1.35,
+                  -4.2
+                ],
+                "colour": "#5a5262"
+              },
+              {
+                "shape": "ball",
+                "diameter": 1.7999999999999998,
+                "height": 1.7999999999999998,
+                "at": [
+                  9,
+                  3,
+                  -4.2
+                ],
+                "colour": "#4d4655"
+              },
+              {
+                "shape": "ball",
+                "diameter": 3,
+                "height": 3.3000000000000003,
+                "at": [
+                  -4.5,
+                  1.35,
+                  6.7
+                ],
+                "colour": "#5a5262"
+              },
+              {
+                "shape": "ball",
+                "diameter": 1.7999999999999998,
+                "height": 1.7999999999999998,
+                "at": [
+                  -4.2,
+                  3,
+                  6.7
+                ],
+                "colour": "#4d4655"
+              },
+              {
+                "shape": "ball",
+                "diameter": 3.2,
+                "height": 3.5200000000000005,
+                "at": [
+                  4.8,
+                  1.4400000000000002,
+                  6.9
+                ],
+                "colour": "#5a5262"
+              },
+              {
+                "shape": "ball",
+                "diameter": 1.92,
+                "height": 1.92,
+                "at": [
+                  5.1,
+                  3.2,
+                  6.9
+                ],
+                "colour": "#4d4655"
+              },
+              {
+                "shape": "ball",
+                "diameter": 4,
+                "height": 4.4,
                 "at": [
                   0,
-                  4.2,
-                  -2
+                  1.8,
+                  7.4
+                ],
+                "colour": "#5a5262"
+              },
+              {
+                "shape": "ball",
+                "diameter": 2.4,
+                "height": 2.4,
+                "at": [
+                  0.3,
+                  4,
+                  7.4
+                ],
+                "colour": "#4d4655"
+              },
+              {
+                "shape": "box",
+                "width": 0.35,
+                "height": 4.4,
+                "depth": 0.35,
+                "at": [
+                  -7.6,
+                  2.2,
+                  -4
                 ],
                 "colour": "#7a5a44"
               },
               {
                 "shape": "box",
-                "width": 0.3,
-                "height": 4.2,
-                "depth": 0.3,
+                "width": 0.35,
+                "height": 4.4,
+                "depth": 0.35,
                 "at": [
-                  -7.7,
-                  2.1,
+                  7.6,
+                  2.2,
+                  -4
+                ],
+                "colour": "#7a5a44"
+              },
+              {
+                "shape": "box",
+                "width": 0.35,
+                "height": 4.4,
+                "depth": 0.35,
+                "at": [
+                  -7.6,
+                  2.2,
+                  -1
+                ],
+                "colour": "#7a5a44"
+              },
+              {
+                "shape": "box",
+                "width": 0.35,
+                "height": 4.4,
+                "depth": 0.35,
+                "at": [
+                  7.6,
+                  2.2,
+                  -1
+                ],
+                "colour": "#7a5a44"
+              },
+              {
+                "shape": "box",
+                "width": 0.35,
+                "height": 4.4,
+                "depth": 0.35,
+                "at": [
+                  -7.6,
+                  2.2,
                   2
                 ],
                 "colour": "#7a5a44"
               },
               {
                 "shape": "box",
-                "width": 0.3,
-                "height": 4.2,
-                "depth": 0.3,
+                "width": 0.35,
+                "height": 4.4,
+                "depth": 0.35,
                 "at": [
-                  7.7,
-                  2.1,
+                  7.6,
+                  2.2,
                   2
                 ],
                 "colour": "#7a5a44"
               },
               {
                 "shape": "box",
-                "width": 16,
-                "height": 0.3,
-                "depth": 0.3,
+                "width": 0.35,
+                "height": 4.4,
+                "depth": 0.35,
+                "at": [
+                  -7.6,
+                  2.2,
+                  5
+                ],
+                "colour": "#7a5a44"
+              },
+              {
+                "shape": "box",
+                "width": 0.35,
+                "height": 4.4,
+                "depth": 0.35,
+                "at": [
+                  7.6,
+                  2.2,
+                  5
+                ],
+                "colour": "#7a5a44"
+              },
+              {
+                "shape": "box",
+                "width": 15.8,
+                "height": 0.35,
+                "depth": 0.35,
                 "at": [
                   0,
-                  4.2,
+                  4.35,
                   2
                 ],
                 "colour": "#7a5a44"
+              },
+              {
+                "shape": "box",
+                "width": 0.3,
+                "height": 0.3,
+                "depth": 1.6,
+                "turn": [
+                  0.8,
+                  0,
+                  0
+                ],
+                "at": [
+                  -6.9,
+                  3.9,
+                  2
+                ],
+                "colour": "#7a5a44"
+              },
+              {
+                "shape": "box",
+                "width": 0.3,
+                "height": 0.3,
+                "depth": 1.6,
+                "turn": [
+                  -0.8,
+                  0,
+                  0
+                ],
+                "at": [
+                  6.9,
+                  3.9,
+                  2
+                ],
+                "colour": "#7a5a44"
+              },
+              {
+                "shape": "box",
+                "width": 15.8,
+                "height": 0.35,
+                "depth": 0.35,
+                "at": [
+                  0,
+                  4.35,
+                  5
+                ],
+                "colour": "#7a5a44"
+              },
+              {
+                "shape": "box",
+                "width": 0.3,
+                "height": 0.3,
+                "depth": 1.6,
+                "turn": [
+                  0.8,
+                  0,
+                  0
+                ],
+                "at": [
+                  -6.9,
+                  3.9,
+                  5
+                ],
+                "colour": "#7a5a44"
+              },
+              {
+                "shape": "box",
+                "width": 0.3,
+                "height": 0.3,
+                "depth": 1.6,
+                "turn": [
+                  -0.8,
+                  0,
+                  0
+                ],
+                "at": [
+                  6.9,
+                  3.9,
+                  5
+                ],
+                "colour": "#7a5a44"
+              },
+              {
+                "shape": "box",
+                "width": 15.8,
+                "height": 0.12,
+                "depth": 0.12,
+                "at": [
+                  0,
+                  3.2,
+                  -4
+                ],
+                "colour": "#6b5440"
+              },
+              {
+                "shape": "box",
+                "width": 0.04,
+                "height": 0.8,
+                "depth": 0.04,
+                "outlined": false,
+                "at": [
+                  -3,
+                  3.9,
+                  2
+                ],
+                "colour": "#3a3540"
               },
               {
                 "shape": "cylinder",
-                "diameter": 0.5,
-                "height": 1.6,
+                "diameter": 0.3,
+                "height": 0.4,
+                "at": [
+                  -3,
+                  3.35,
+                  2
+                ],
+                "colour": "#3a3540"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.32,
+                "height": 0.34,
+                "outlined": false,
+                "at": [
+                  -3,
+                  3.35,
+                  2
+                ],
+                "colour": "#ffd98a"
+              },
+              {
+                "shape": "box",
+                "width": 2.4,
+                "height": 0.03,
+                "depth": 2.4,
+                "outlined": false,
+                "at": [
+                  -3,
+                  0.03,
+                  1.5
+                ],
+                "colour": "#6b5d62"
+              },
+              {
+                "shape": "box",
+                "width": 0.04,
+                "height": 0.8,
+                "depth": 0.04,
+                "outlined": false,
+                "at": [
+                  3,
+                  3.9,
+                  2
+                ],
+                "colour": "#3a3540"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.3,
+                "height": 0.4,
+                "at": [
+                  3,
+                  3.35,
+                  2
+                ],
+                "colour": "#3a3540"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.32,
+                "height": 0.34,
+                "outlined": false,
+                "at": [
+                  3,
+                  3.35,
+                  2
+                ],
+                "colour": "#ffd98a"
+              },
+              {
+                "shape": "box",
+                "width": 2.4,
+                "height": 0.03,
+                "depth": 2.4,
+                "outlined": false,
+                "at": [
+                  3,
+                  0.03,
+                  1.5
+                ],
+                "colour": "#6b5d62"
+              },
+              {
+                "shape": "box",
+                "width": 0.04,
+                "height": 0.8,
+                "depth": 0.04,
+                "outlined": false,
+                "at": [
+                  0,
+                  3.9,
+                  5
+                ],
+                "colour": "#3a3540"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.3,
+                "height": 0.4,
+                "at": [
+                  0,
+                  3.35,
+                  5
+                ],
+                "colour": "#3a3540"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.32,
+                "height": 0.34,
+                "outlined": false,
+                "at": [
+                  0,
+                  3.35,
+                  5
+                ],
+                "colour": "#ffd98a"
+              },
+              {
+                "shape": "box",
+                "width": 2.4,
+                "height": 0.03,
+                "depth": 2.4,
+                "outlined": false,
+                "at": [
+                  0,
+                  0.03,
+                  4.5
+                ],
+                "colour": "#6b5d62"
+              },
+              {
+                "shape": "box",
+                "width": 0.04,
+                "height": 0.8,
+                "depth": 0.04,
+                "outlined": false,
+                "at": [
+                  -5,
+                  3.9,
+                  5
+                ],
+                "colour": "#3a3540"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.3,
+                "height": 0.4,
+                "at": [
+                  -5,
+                  3.35,
+                  5
+                ],
+                "colour": "#3a3540"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.32,
+                "height": 0.34,
+                "outlined": false,
+                "at": [
+                  -5,
+                  3.35,
+                  5
+                ],
+                "colour": "#ffd98a"
+              },
+              {
+                "shape": "box",
+                "width": 2.4,
+                "height": 0.03,
+                "depth": 2.4,
+                "outlined": false,
+                "at": [
+                  -5,
+                  0.03,
+                  4.5
+                ],
+                "colour": "#6b5d62"
+              },
+              {
+                "shape": "box",
+                "width": 0.04,
+                "height": 0.8,
+                "depth": 0.04,
+                "outlined": false,
+                "at": [
+                  5,
+                  3.9,
+                  5
+                ],
+                "colour": "#3a3540"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.3,
+                "height": 0.4,
+                "at": [
+                  5,
+                  3.35,
+                  5
+                ],
+                "colour": "#3a3540"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.32,
+                "height": 0.34,
+                "outlined": false,
+                "at": [
+                  5,
+                  3.35,
+                  5
+                ],
+                "colour": "#ffd98a"
+              },
+              {
+                "shape": "box",
+                "width": 2.4,
+                "height": 0.03,
+                "depth": 2.4,
+                "outlined": false,
+                "at": [
+                  5,
+                  0.03,
+                  4.5
+                ],
+                "colour": "#6b5d62"
+              },
+              {
+                "shape": "box",
+                "width": 0.1,
+                "height": 0.4,
+                "depth": 0.3,
+                "at": [
+                  -7.35,
+                  2.6,
+                  -2.5
+                ],
+                "colour": "#3a3540"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.3,
+                "height": 0.34,
+                "outlined": false,
+                "at": [
+                  -7.129499999999999,
+                  2.6,
+                  -2.5
+                ],
+                "colour": "#ffd98a"
+              },
+              {
+                "shape": "box",
+                "width": 0.1,
+                "height": 0.4,
+                "depth": 0.3,
+                "at": [
+                  7.35,
+                  2.6,
+                  -2.5
+                ],
+                "colour": "#3a3540"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.3,
+                "height": 0.34,
+                "outlined": false,
+                "at": [
+                  7.129499999999999,
+                  2.6,
+                  -2.5
+                ],
+                "colour": "#ffd98a"
+              },
+              {
+                "shape": "box",
+                "width": 0.1,
+                "height": 0.4,
+                "depth": 0.3,
+                "at": [
+                  -7.35,
+                  2.6,
+                  0.5
+                ],
+                "colour": "#3a3540"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.3,
+                "height": 0.34,
+                "outlined": false,
+                "at": [
+                  -7.129499999999999,
+                  2.6,
+                  0.5
+                ],
+                "colour": "#ffd98a"
+              },
+              {
+                "shape": "box",
+                "width": 0.1,
+                "height": 0.4,
+                "depth": 0.3,
+                "at": [
+                  7.35,
+                  2.6,
+                  0.5
+                ],
+                "colour": "#3a3540"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.3,
+                "height": 0.34,
+                "outlined": false,
+                "at": [
+                  7.129499999999999,
+                  2.6,
+                  0.5
+                ],
+                "colour": "#ffd98a"
+              },
+              {
+                "shape": "box",
+                "width": 3.6,
+                "height": 0.03,
+                "depth": 3,
+                "outlined": false,
+                "at": [
+                  -6,
+                  0.04,
+                  4.6
+                ],
+                "colour": "#3b5a7a"
+              },
+              {
+                "shape": "box",
+                "width": 3.6,
+                "height": 0.03,
+                "depth": 3,
+                "outlined": false,
+                "at": [
+                  6,
+                  0.04,
+                  4.6
+                ],
+                "colour": "#5a3b7a"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.8,
+                "height": 2.8,
                 "top": 0,
                 "sides": 6,
                 "turn": [
                   0,
                   0,
-                  0.12
+                  0.06
                 ],
                 "at": [
-                  -6.8,
-                  0.8,
-                  5.2
+                  -6,
+                  1.4,
+                  4.8
                 ],
                 "colour": "#8fd0e8"
               },
               {
                 "shape": "cylinder",
+                "diameter": 0.6,
+                "height": 1.9,
+                "top": 0,
+                "sides": 6,
+                "turn": [
+                  0,
+                  0,
+                  0.25
+                ],
+                "at": [
+                  -6.8,
+                  0.95,
+                  4.5
+                ],
+                "colour": "#c8a2f0"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.6,
+                "height": 2.1,
+                "top": 0,
+                "sides": 6,
+                "turn": [
+                  0,
+                  0,
+                  -0.22
+                ],
+                "at": [
+                  -5.2,
+                  1.05,
+                  4.6
+                ],
+                "colour": "#f2a7c3"
+              },
+              {
+                "shape": "cylinder",
                 "diameter": 0.5,
+                "height": 1.1,
+                "top": 0,
+                "sides": 6,
+                "turn": [
+                  0,
+                  0,
+                  0.05
+                ],
+                "at": [
+                  -6.3,
+                  0.55,
+                  3.8
+                ],
+                "colour": "#9fe8c8"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.4,
+                "height": 0.8,
+                "top": 0,
+                "sides": 6,
+                "turn": [
+                  0,
+                  0,
+                  -0.1
+                ],
+                "at": [
+                  -5.6,
+                  0.4,
+                  3.6999999999999997
+                ],
+                "colour": "#8fd0e8"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.4,
                 "height": 1,
                 "top": 0,
                 "sides": 6,
                 "turn": [
                   0,
                   0,
-                  -0.2
+                  -0.3
                 ],
                 "at": [
-                  -6.1,
+                  -4.5,
                   0.5,
-                  5
+                  4.2
                 ],
                 "colour": "#c8a2f0"
               },
               {
                 "shape": "cylinder",
-                "diameter": 0.5,
-                "height": 0.9,
+                "diameter": 0.8,
+                "height": 2.8,
                 "top": 0,
                 "sides": 6,
                 "turn": [
                   0,
                   0,
-                  0
+                  0.06
                 ],
                 "at": [
-                  -7.3,
-                  0.45,
+                  6.2,
+                  1.4,
+                  4.8
+                ],
+                "colour": "#c8a2f0"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.6,
+                "height": 1.9,
+                "top": 0,
+                "sides": 6,
+                "turn": [
+                  0,
+                  0,
+                  0.25
+                ],
+                "at": [
+                  5.4,
+                  0.95,
+                  4.5
+                ],
+                "colour": "#f2a7c3"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.6,
+                "height": 2.1,
+                "top": 0,
+                "sides": 6,
+                "turn": [
+                  0,
+                  0,
+                  -0.22
+                ],
+                "at": [
+                  7,
+                  1.05,
                   4.6
+                ],
+                "colour": "#9fe8c8"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.5,
+                "height": 1.1,
+                "top": 0,
+                "sides": 6,
+                "turn": [
+                  0,
+                  0,
+                  0.05
+                ],
+                "at": [
+                  5.9,
+                  0.55,
+                  3.8
+                ],
+                "colour": "#8fd0e8"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.4,
+                "height": 0.8,
+                "top": 0,
+                "sides": 6,
+                "turn": [
+                  0,
+                  0,
+                  -0.1
+                ],
+                "at": [
+                  6.6000000000000005,
+                  0.4,
+                  3.6999999999999997
+                ],
+                "colour": "#c8a2f0"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.4,
+                "height": 1,
+                "top": 0,
+                "sides": 6,
+                "turn": [
+                  0,
+                  0,
+                  -0.3
+                ],
+                "at": [
+                  7.7,
+                  0.5,
+                  4.2
                 ],
                 "colour": "#f2a7c3"
               },
@@ -1290,66 +3808,66 @@
                 "turn": [
                   0,
                   0,
-                  -0.1
+                  0.05
                 ],
                 "at": [
-                  6.9,
+                  -7.3,
                   0.9,
-                  5.2
+                  -0.2
+                ],
+                "colour": "#f2a7c3"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.35,
+                "height": 0.6,
+                "top": 0,
+                "sides": 6,
+                "turn": [
+                  0,
+                  0,
+                  -0.2
+                ],
+                "at": [
+                  -6.95,
+                  0.3,
+                  -0.4
+                ],
+                "colour": "#9fe8c8"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.5,
+                "height": 1.4,
+                "top": 0,
+                "sides": 6,
+                "turn": [
+                  0,
+                  0,
+                  -0.05
+                ],
+                "at": [
+                  7.3,
+                  0.7,
+                  -1.8
                 ],
                 "colour": "#c8a2f0"
               },
               {
                 "shape": "cylinder",
-                "diameter": 0.5,
-                "height": 1.1,
+                "diameter": 0.35,
+                "height": 0.6,
                 "top": 0,
                 "sides": 6,
                 "turn": [
                   0,
                   0,
-                  0.2
+                  -0.2
                 ],
                 "at": [
-                  6.2,
-                  0.55,
-                  5
-                ],
-                "colour": "#8fd0e8"
-              },
-              {
-                "shape": "cylinder",
-                "diameter": 0.5,
-                "height": 0.8,
-                "top": 0,
-                "sides": 6,
-                "turn": [
-                  0,
-                  0,
-                  0
-                ],
-                "at": [
-                  7.2,
-                  0.4,
-                  4.5
-                ],
-                "colour": "#8fd0e8"
-              },
-              {
-                "shape": "cylinder",
-                "diameter": 0.5,
-                "height": 1.2,
-                "top": 0,
-                "sides": 6,
-                "turn": [
-                  0,
-                  0,
-                  0.15
-                ],
-                "at": [
-                  -7.2,
-                  0.6,
-                  -1
+                  7.6499999999999995,
+                  0.3,
+                  -2
                 ],
                 "colour": "#f2a7c3"
               },
@@ -1362,47 +3880,393 @@
                 "turn": [
                   0,
                   0,
-                  -0.15
+                  -0.15000000000000002
                 ],
                 "at": [
-                  7.3,
+                  -7.1,
                   0.5,
-                  -0.5
+                  -3.2
+                ],
+                "colour": "#8fd0e8"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.35,
+                "height": 0.6,
+                "top": 0,
+                "sides": 6,
+                "turn": [
+                  0,
+                  0,
+                  -0.2
+                ],
+                "at": [
+                  -6.75,
+                  0.3,
+                  -3.4000000000000004
                 ],
                 "colour": "#c8a2f0"
               },
               {
-                "shape": "ball",
-                "diameter": 0.35,
-                "height": 0.4,
-                "outlined": false,
-                "at": [
-                  -7.4,
-                  2.6,
-                  5.8
+                "shape": "cylinder",
+                "diameter": 0.5,
+                "height": 1,
+                "top": 0,
+                "sides": 6,
+                "turn": [
+                  0,
+                  0,
+                  0.15000000000000002
                 ],
-                "colour": "#ffd98a"
+                "at": [
+                  7,
+                  0.5,
+                  2.8
+                ],
+                "colour": "#9fe8c8"
               },
               {
-                "shape": "ball",
+                "shape": "cylinder",
                 "diameter": 0.35,
-                "height": 0.4,
+                "height": 0.6,
+                "top": 0,
+                "sides": 6,
+                "turn": [
+                  0,
+                  0,
+                  -0.2
+                ],
+                "at": [
+                  7.35,
+                  0.3,
+                  2.5999999999999996
+                ],
+                "colour": "#8fd0e8"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.5,
+                "height": 1.4,
+                "top": 0,
+                "sides": 6,
+                "turn": [
+                  0,
+                  0,
+                  -0.05
+                ],
+                "at": [
+                  -3.5,
+                  0.7,
+                  6.2
+                ],
+                "colour": "#c8a2f0"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.35,
+                "height": 0.6,
+                "top": 0,
+                "sides": 6,
+                "turn": [
+                  0,
+                  0,
+                  -0.2
+                ],
+                "at": [
+                  -3.15,
+                  0.3,
+                  6
+                ],
+                "colour": "#f2a7c3"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.5,
+                "height": 1,
+                "top": 0,
+                "sides": 6,
+                "turn": [
+                  0,
+                  0,
+                  -0.15000000000000002
+                ],
+                "at": [
+                  3.6,
+                  0.5,
+                  6.3
+                ],
+                "colour": "#8fd0e8"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.35,
+                "height": 0.6,
+                "top": 0,
+                "sides": 6,
+                "turn": [
+                  0,
+                  0,
+                  -0.2
+                ],
+                "at": [
+                  3.95,
+                  0.3,
+                  6.1
+                ],
+                "colour": "#c8a2f0"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.5,
+                "height": 1.8,
+                "top": 0,
+                "sides": 6,
+                "turn": [
+                  0,
+                  0,
+                  0.05
+                ],
+                "at": [
+                  0,
+                  0.9,
+                  6.5
+                ],
+                "colour": "#f2a7c3"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.35,
+                "height": 0.6,
+                "top": 0,
+                "sides": 6,
+                "turn": [
+                  0,
+                  0,
+                  -0.2
+                ],
+                "at": [
+                  0.35,
+                  0.3,
+                  6.3
+                ],
+                "colour": "#9fe8c8"
+              },
+              {
+                "shape": "box",
+                "width": 2,
+                "height": 0.03,
+                "depth": 2,
                 "outlined": false,
                 "at": [
-                  7.4,
-                  2.6,
-                  5.8
+                  -7,
+                  0.04,
+                  -0.2
                 ],
-                "colour": "#ffd98a"
+                "colour": "#5a3b7a"
+              },
+              {
+                "shape": "box",
+                "width": 2,
+                "height": 0.03,
+                "depth": 2,
+                "outlined": false,
+                "at": [
+                  7,
+                  0.04,
+                  -1.8
+                ],
+                "colour": "#3b5a7a"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.06,
+                "height": 0.9,
+                "top": 0.55,
+                "sides": 6,
+                "at": [
+                  -7,
+                  5.2,
+                  6.2
+                ],
+                "colour": "#5a5262"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.06,
+                "height": 1.5,
+                "top": 0.55,
+                "sides": 6,
+                "at": [
+                  -5.92,
+                  5.2,
+                  5.9
+                ],
+                "colour": "#5a5262"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.06,
+                "height": 2.1,
+                "top": 0.55,
+                "sides": 6,
+                "at": [
+                  -4.84,
+                  5.2,
+                  6.2
+                ],
+                "colour": "#5a5262"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.06,
+                "height": 0.9,
+                "top": 0.55,
+                "sides": 6,
+                "at": [
+                  -3.76,
+                  5.2,
+                  5.9
+                ],
+                "colour": "#5a5262"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.06,
+                "height": 1.5,
+                "top": 0.55,
+                "sides": 6,
+                "at": [
+                  -2.6799999999999997,
+                  5.2,
+                  6.2
+                ],
+                "colour": "#5a5262"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.06,
+                "height": 2.1,
+                "top": 0.55,
+                "sides": 6,
+                "at": [
+                  -1.5999999999999996,
+                  5.2,
+                  5.9
+                ],
+                "colour": "#5a5262"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.06,
+                "height": 0.9,
+                "top": 0.55,
+                "sides": 6,
+                "at": [
+                  -0.5199999999999996,
+                  5.2,
+                  6.2
+                ],
+                "colour": "#5a5262"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.06,
+                "height": 1.5,
+                "top": 0.55,
+                "sides": 6,
+                "at": [
+                  0.5600000000000005,
+                  5.2,
+                  5.9
+                ],
+                "colour": "#5a5262"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.06,
+                "height": 2.1,
+                "top": 0.55,
+                "sides": 6,
+                "at": [
+                  1.6400000000000006,
+                  5.2,
+                  6.2
+                ],
+                "colour": "#5a5262"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.06,
+                "height": 0.9,
+                "top": 0.55,
+                "sides": 6,
+                "at": [
+                  2.7200000000000006,
+                  5.2,
+                  5.9
+                ],
+                "colour": "#5a5262"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.06,
+                "height": 1.5,
+                "top": 0.55,
+                "sides": 6,
+                "at": [
+                  3.8000000000000007,
+                  5.2,
+                  6.2
+                ],
+                "colour": "#5a5262"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.06,
+                "height": 2.1,
+                "top": 0.55,
+                "sides": 6,
+                "at": [
+                  4.880000000000001,
+                  5.2,
+                  5.9
+                ],
+                "colour": "#5a5262"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.06,
+                "height": 0.9,
+                "top": 0.55,
+                "sides": 6,
+                "at": [
+                  5.960000000000001,
+                  5.2,
+                  6.2
+                ],
+                "colour": "#5a5262"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.06,
+                "height": 1.5,
+                "top": 0.55,
+                "sides": 6,
+                "at": [
+                  7.040000000000001,
+                  5.2,
+                  5.9
+                ],
+                "colour": "#5a5262"
               },
               {
                 "shape": "box",
                 "width": 0.1,
-                "height": 0.06,
+                "height": 0.08,
                 "depth": 9.5,
                 "at": [
                   -0.6,
-                  0.06,
+                  0.07,
                   0.2
                 ],
                 "colour": "#6b6f78"
@@ -1410,11 +4274,11 @@
               {
                 "shape": "box",
                 "width": 0.1,
-                "height": 0.06,
+                "height": 0.08,
                 "depth": 9.5,
                 "at": [
                   0.6,
-                  0.06,
+                  0.07,
                   0.2
                 ],
                 "colour": "#6b6f78"
@@ -1538,6 +4402,52 @@
               },
               {
                 "shape": "box",
+                "width": 1.3,
+                "height": 0.4,
+                "depth": 0.2,
+                "at": [
+                  0,
+                  0.25,
+                  -4.9
+                ],
+                "colour": "#7a5a44"
+              },
+              {
+                "shape": "box",
+                "width": 0.1,
+                "height": 0.08,
+                "depth": 3.4,
+                "turn": [
+                  0,
+                  0.45,
+                  0
+                ],
+                "at": [
+                  -2.3,
+                  0.07,
+                  -3.4
+                ],
+                "colour": "#6b6f78"
+              },
+              {
+                "shape": "box",
+                "width": 0.1,
+                "height": 0.08,
+                "depth": 3.4,
+                "turn": [
+                  0,
+                  0.45,
+                  0
+                ],
+                "at": [
+                  -1.5,
+                  0.07,
+                  -3.5
+                ],
+                "colour": "#6b6f78"
+              },
+              {
+                "shape": "box",
                 "width": 1.2,
                 "height": 0.5,
                 "depth": 0.9,
@@ -1571,6 +4481,17 @@
                 "colour": "#c8a2f0"
               },
               {
+                "shape": "ball",
+                "diameter": 0.3,
+                "height": 0.25,
+                "at": [
+                  0,
+                  0.95,
+                  -4.4
+                ],
+                "colour": "#d9b24a"
+              },
+              {
                 "shape": "cylinder",
                 "diameter": 0.4,
                 "height": 0.08,
@@ -1633,6 +4554,340 @@
                   -3.9
                 ],
                 "colour": "#3a3540"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.22,
+                "height": 0.18,
+                "at": [
+                  -2.8175300072028904,
+                  0.1,
+                  -4.720123294238059
+                ],
+                "colour": "#d9b24a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.3,
+                "height": 0.18,
+                "at": [
+                  -2.349608345399428,
+                  0.1,
+                  -4.450595846143829
+                ],
+                "colour": "#c0c4cc"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.38,
+                "height": 0.18,
+                "at": [
+                  -2.4191815191037866,
+                  0.1,
+                  -4.2378436830071005
+                ],
+                "colour": "#8fd0e8"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.22,
+                "height": 0.18,
+                "at": [
+                  -2.7850404004496707,
+                  0.1,
+                  -4.380507768215848
+                ],
+                "colour": "#d9b24a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.3,
+                "height": 0.18,
+                "at": [
+                  -2.9920805383436755,
+                  0.1,
+                  -4.173205956617932
+                ],
+                "colour": "#c0c4cc"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.38,
+                "height": 0.18,
+                "at": [
+                  6.103316163226644,
+                  0.1,
+                  -4.5239334873500905
+                ],
+                "colour": "#8fd0e8"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.22,
+                "height": 0.18,
+                "at": [
+                  5.733170809379393,
+                  0.1,
+                  -4.698655070410415
+                ],
+                "colour": "#d9b24a"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.3,
+                "height": 0.18,
+                "at": [
+                  5.53897548287128,
+                  0.1,
+                  -4.5792945368119025
+                ],
+                "colour": "#c0c4cc"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.38,
+                "height": 0.18,
+                "at": [
+                  5.128959736474306,
+                  0.1,
+                  -4.530281807263513
+                ],
+                "colour": "#8fd0e8"
+              },
+              {
+                "shape": "box",
+                "width": 0.08,
+                "height": 1.4,
+                "depth": 0.08,
+                "turn": [
+                  0,
+                  0,
+                  0.3
+                ],
+                "at": [
+                  -6.2,
+                  0.75,
+                  -5.5
+                ],
+                "colour": "#7a5a44"
+              },
+              {
+                "shape": "box",
+                "width": 0.7,
+                "height": 0.08,
+                "depth": 0.08,
+                "turn": [
+                  0,
+                  0,
+                  0.3
+                ],
+                "at": [
+                  -6.35,
+                  1.4,
+                  -5.5
+                ],
+                "colour": "#6b6f78"
+              },
+              {
+                "shape": "box",
+                "width": 0.35,
+                "height": 0.03,
+                "depth": 0.35,
+                "outlined": false,
+                "at": [
+                  2.2,
+                  0.04,
+                  -1
+                ],
+                "colour": "#8d8399"
+              },
+              {
+                "shape": "box",
+                "width": 0.35,
+                "height": 0.03,
+                "depth": 0.35,
+                "outlined": false,
+                "at": [
+                  2.9,
+                  0.04,
+                  -0.3
+                ],
+                "colour": "#8d8399"
+              },
+              {
+                "shape": "box",
+                "width": 0.35,
+                "height": 0.03,
+                "depth": 0.35,
+                "outlined": false,
+                "at": [
+                  3.6,
+                  0.04,
+                  -1
+                ],
+                "colour": "#8d8399"
+              },
+              {
+                "shape": "box",
+                "width": 0.35,
+                "height": 0.03,
+                "depth": 0.35,
+                "outlined": false,
+                "at": [
+                  4.3,
+                  0.04,
+                  -0.3
+                ],
+                "colour": "#8d8399"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.12,
+                "height": 0.3,
+                "at": [
+                  -7.5,
+                  0.15,
+                  -1.6
+                ],
+                "colour": "#f4e9d8"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.4,
+                "height": 0.22,
+                "outlined": false,
+                "at": [
+                  -7.5,
+                  0.35,
+                  -1.6
+                ],
+                "colour": "#9fe8c8"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.12,
+                "height": 0.3,
+                "at": [
+                  -6.8,
+                  0.15,
+                  -0.8
+                ],
+                "colour": "#f4e9d8"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.4,
+                "height": 0.22,
+                "outlined": false,
+                "at": [
+                  -6.8,
+                  0.35,
+                  -0.8
+                ],
+                "colour": "#9fe8c8"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.12,
+                "height": 0.3,
+                "at": [
+                  7.6,
+                  0.15,
+                  -0.6
+                ],
+                "colour": "#f4e9d8"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.4,
+                "height": 0.22,
+                "outlined": false,
+                "at": [
+                  7.6,
+                  0.35,
+                  -0.6
+                ],
+                "colour": "#9fe8c8"
+              },
+              {
+                "shape": "cylinder",
+                "diameter": 0.12,
+                "height": 0.3,
+                "at": [
+                  6.9,
+                  0.15,
+                  0.2
+                ],
+                "colour": "#f4e9d8"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.4,
+                "height": 0.22,
+                "outlined": false,
+                "at": [
+                  6.9,
+                  0.35,
+                  0.2
+                ],
+                "colour": "#9fe8c8"
+              },
+              {
+                "shape": "box",
+                "width": 2.6,
+                "height": 0.7,
+                "depth": 0.12,
+                "at": [
+                  0,
+                  3.6,
+                  6
+                ],
+                "colour": "#7a5a44"
+              },
+              {
+                "shape": "box",
+                "width": 2.3,
+                "height": 0.45,
+                "depth": 0.05,
+                "at": [
+                  0,
+                  3.6,
+                  5.93
+                ],
+                "colour": "#f4e9d8"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.2,
+                "height": 0.2,
+                "at": [
+                  -0.8,
+                  3.6,
+                  5.9
+                ],
+                "colour": "#2a2230"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.12,
+                "height": 0.12,
+                "at": [
+                  -0.6,
+                  3.78,
+                  5.9
+                ],
+                "colour": "#2a2230"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.12,
+                "height": 0.12,
+                "at": [
+                  -1,
+                  3.78,
+                  5.9
+                ],
+                "colour": "#2a2230"
               }
             ]
           }
