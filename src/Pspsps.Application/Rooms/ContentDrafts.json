@@ -1,6 +1,377 @@
 {
-  "rooms": [],
-  "looks": { "rooms": [], "variants": [] },
+  "rooms": [
+    {
+      "id": "town-square",
+      "layout": {
+        "name": "Town Square",
+        "width": 24,
+        "depth": 16,
+        "spawn": {
+          "x": 0,
+          "z": 4
+        },
+        "capacity": 80,
+        "pond": {
+          "center": {
+            "x": -7,
+            "z": -3
+          },
+          "radius": 2.5
+        },
+        "props": [
+          {
+            "kind": "tree",
+            "spot": {
+              "x": -10.5,
+              "z": 6.6
+            },
+            "radius": 1.4,
+            "facing": 0
+          },
+          {
+            "kind": "map-board",
+            "spot": {
+              "x": 10.2,
+              "z": 4.6
+            },
+            "radius": 1.4,
+            "facing": 0
+          },
+          {
+            "kind": "bench",
+            "spot": {
+              "x": -10.7,
+              "z": -6.7
+            },
+            "radius": 1,
+            "facing": -2.356194490192345
+          },
+          {
+            "kind": "bench",
+            "spot": {
+              "x": 9.8,
+              "z": -1.2
+            },
+            "radius": 1,
+            "facing": 2.058632765454539
+          },
+          {
+            "kind": "bench",
+            "spot": {
+              "x": 0,
+              "z": -7
+            },
+            "radius": 1,
+            "facing": 3.141592653589793
+          },
+          {
+            "kind": "lamp",
+            "spot": {
+              "x": 9.2,
+              "z": 7.4
+            },
+            "radius": 0.35,
+            "facing": 0
+          },
+          {
+            "kind": "lamp",
+            "spot": {
+              "x": -6.7,
+              "z": -7.5
+            },
+            "radius": 0.35,
+            "facing": 0
+          },
+          {
+            "kind": "lamp",
+            "spot": {
+              "x": 9.8,
+              "z": -5.8
+            },
+            "radius": 0.35,
+            "facing": 0
+          },
+          {
+            "kind": "flower-bed",
+            "spot": {
+              "x": 10.4,
+              "z": 1.6
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "flower-bed",
+            "spot": {
+              "x": -3.4,
+              "z": -6.7
+            },
+            "radius": 0.9,
+            "facing": 0
+          }
+        ],
+        "doors": [
+          {
+            "id": "cafe",
+            "edge": "North",
+            "offset": 7,
+            "toRoom": "cafe",
+            "toDoor": "town-square"
+          },
+          {
+            "id": "shop",
+            "edge": "North",
+            "offset": -6,
+            "toRoom": "shop",
+            "toDoor": "town-square"
+          },
+          {
+            "id": "garden",
+            "edge": "West",
+            "offset": 3.3,
+            "toRoom": "garden",
+            "toDoor": "town-square"
+          },
+          {
+            "id": "riverside",
+            "edge": "South",
+            "offset": 6.4,
+            "toRoom": "riverside",
+            "toDoor": "town-square"
+          },
+          {
+            "id": "cove",
+            "edge": "East",
+            "offset": -3.5,
+            "toRoom": "cove",
+            "toDoor": "town-square"
+          }
+        ]
+      }
+    },
+    {
+      "id": "cove",
+      "layout": {
+        "name": "Sunny Cove",
+        "width": 22,
+        "depth": 14,
+        "spawn": {
+          "x": 0,
+          "z": 1
+        },
+        "capacity": 60,
+        "pond": {
+          "center": {
+            "x": 5,
+            "z": -3.5
+          },
+          "radius": 2.5
+        },
+        "props": [
+          {
+            "kind": "tree",
+            "spot": {
+              "x": -9.5,
+              "z": -5.5
+            },
+            "radius": 1.4,
+            "facing": 0
+          },
+          {
+            "kind": "bench",
+            "spot": {
+              "x": -5.5,
+              "z": -5.6
+            },
+            "radius": 1,
+            "facing": 3.141592653589793
+          },
+          {
+            "kind": "bench",
+            "spot": {
+              "x": 1.5,
+              "z": 5.8
+            },
+            "radius": 1,
+            "facing": 0
+          },
+          {
+            "kind": "flower-bed",
+            "spot": {
+              "x": -2.5,
+              "z": -6
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "rod-rack",
+            "spot": {
+              "x": 8.5,
+              "z": 2.5
+            },
+            "radius": 1.2,
+            "facing": 0
+          },
+          {
+            "kind": "packing-crate",
+            "spot": {
+              "x": 9.2,
+              "z": 5.3
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "lamp",
+            "spot": {
+              "x": -9,
+              "z": 3.8
+            },
+            "radius": 0.35,
+            "facing": 0
+          },
+          {
+            "kind": "lamp",
+            "spot": {
+              "x": 9.6,
+              "z": -6
+            },
+            "radius": 0.35,
+            "facing": 0
+          }
+        ],
+        "doors": [
+          {
+            "id": "town-square",
+            "edge": "West",
+            "offset": 0,
+            "toRoom": "town-square",
+            "toDoor": "cove"
+          },
+          {
+            "id": "boat-shed",
+            "edge": "South",
+            "offset": -6,
+            "toRoom": "boat-shed",
+            "toDoor": "cove"
+          }
+        ]
+      }
+    },
+    {
+      "id": "boat-shed",
+      "layout": {
+        "name": "Boat Shed",
+        "width": 12,
+        "depth": 9,
+        "spawn": {
+          "x": 0,
+          "z": 1
+        },
+        "capacity": 30,
+        "props": [
+          {
+            "kind": "counter",
+            "spot": {
+              "x": -3.5,
+              "z": 3
+            },
+            "radius": 1.6,
+            "facing": 0
+          },
+          {
+            "kind": "rod-rack",
+            "spot": {
+              "x": 4.3,
+              "z": -2.6
+            },
+            "radius": 1.2,
+            "facing": 0
+          },
+          {
+            "kind": "packing-crate",
+            "spot": {
+              "x": 4.8,
+              "z": 2.6
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "cat-bed",
+            "spot": {
+              "x": -4.6,
+              "z": -2.6
+            },
+            "radius": 0.8,
+            "facing": 0
+          },
+          {
+            "kind": "plant",
+            "spot": {
+              "x": 5.3,
+              "z": -3.9
+            },
+            "radius": 0.5,
+            "facing": 0
+          }
+        ],
+        "doors": [
+          {
+            "id": "cove",
+            "edge": "North",
+            "offset": 0,
+            "toRoom": "cove",
+            "toDoor": "boat-shed"
+          }
+        ]
+      }
+    }
+  ],
+  "looks": {
+    "rooms": [
+      {
+        "id": "cove",
+        "look": {
+          "sky": "#aee0f0",
+          "floorColour": "#ecd9a6",
+          "wallColour": "#cfe6ea",
+          "floor": {
+            "painter": "riverside",
+            "colour": "#ecd9a6",
+            "accent": "#d8c18a"
+          },
+          "wall": {
+            "painter": "riverside"
+          },
+          "openLandscape": true,
+          "wildlife": "fish",
+          "backdrop": {
+            "parts": []
+          }
+        }
+      },
+      {
+        "id": "boat-shed",
+        "look": {
+          "sky": "#d8e6ee",
+          "floorColour": "#b98c5e",
+          "wallColour": "#8fb3bf",
+          "floor": {
+            "painter": "planks"
+          },
+          "wall": {
+            "painter": "panelled"
+          },
+          "backdrop": {
+            "parts": []
+          }
+        }
+      }
+    ],
+    "variants": []
+  },
   "painters": [],
   "wildlife": [],
   "overlays": [],
