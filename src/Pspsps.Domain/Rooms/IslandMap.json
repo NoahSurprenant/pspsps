@@ -8,7 +8,7 @@
   { "id": "cove", "name": "Sunny Cove", "category": "games", "landmark": "cove", "x": 26, "z": 2, "room": "cove", "blurb": "A boardwalk, a pond and a boat shed." },
   { "id": "scratching-peaks", "name": "Scratching Peaks", "category": "games", "landmark": "mountain", "x": -6, "z": 32, "room": null, "blurb": "Climb the scratching posts to the top." },
   { "id": "yarn-meadow", "name": "Yarn Meadow", "category": "games", "landmark": "meadow", "x": -30, "z": 22, "room": null, "blurb": "Chase the rolling yarn." },
-  { "id": "market-row", "name": "Market Row", "category": "shops", "landmark": "market", "x": 10, "z": 11, "room": null, "blurb": "Stalls of hats, toys and treats." },
+  { "id": "market-row", "name": "Market Row", "category": "shops", "landmark": "market", "x": 10, "z": 11, "room": "market-row", "blurb": "Stalls of hats, toys and treats." },
   { "id": "old-mill", "name": "Old Mill", "category": "shops", "landmark": "mill", "x": 22, "z": 24, "room": null, "blurb": "Fresh bread from the mill bakery." },
   { "id": "whisker-woods", "name": "Whisker Woods", "category": "pets", "landmark": "woods", "x": -36, "z": -12, "room": null, "blurb": "Wild friends live among the trees." },
   { "id": "nap-hollow", "name": "Nap Hollow", "category": "pets", "landmark": "hollow", "x": -22, "z": -34, "room": null, "blurb": "A warm hollow where kittens sleep." },
