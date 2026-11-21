@@ -20,14 +20,14 @@ public sealed class RoomBookTests
             {
                 Assert.That(again.Doors, Is.EqualTo(room.Doors), room.Id);
                 Assert.That(again.Props, Is.EqualTo(room.Props), room.Id);
-                Assert.That((again.Name, again.Width, again.Depth, again.Spawn, again.Capacity, again.Pond, again.Exterior),
-                    Is.EqualTo((room.Name, room.Width, room.Depth, room.Spawn, room.Capacity, room.Pond, room.Exterior)), room.Id);
+                Assert.That((again.Name, again.Width, again.Depth, again.Spawn, again.Capacity, again.Pond),
+                    Is.EqualTo((room.Name, room.Width, room.Depth, room.Spawn, room.Capacity, room.Pond)), room.Id);
             });
         }
     }
 
     [Test]
-    public void TheStartingRoomsAsABook_AreTheCatalogueWithTheirPlacesOnTheMap()
+    public void TheStartingRoomsAsABook_AreTheCatalogue()
     {
         var book = RoomBook.Create(Seed(), []);
 
@@ -35,10 +35,6 @@ public sealed class RoomBookTests
         {
             Assert.That(book.Rooms.Select(room => room.Id), Is.EquivalentTo(RoomCatalog.All.Select(room => room.Id)));
             Assert.That(book.Rooms[0].Id, Is.EqualTo(RoomBook.StartingRoom));
-            foreach (var room in RoomCatalog.All)
-            {
-                Assert.That(book.Find(room.Id)!.MapCentre, Is.EqualTo(room.MapCentre), room.Id);
-            }
         });
     }
 
@@ -67,15 +63,6 @@ public sealed class RoomBookTests
             "cafe/town-square: leads to attic, which there is no such room.",
             "shop/town-square: leads to town-square/chimney, which there is no such door.",
         }));
-    }
-
-    [Test]
-    public void ARoomThatWouldOverlapAnotherOnTheMap_IsAProblem()
-    {
-        var layouts = Seed();
-        layouts["cafe"] = layouts["cafe"] with { Exterior = new Storefront(22, 7, RoomEdge.South) };
-
-        Assert.That(RoomBook.Problems(layouts, []), Has.Count.EqualTo(1).And.Some.Matches<string>(p => p.Contains("overlaps", StringComparison.Ordinal)));
     }
 
     [Test]

@@ -25,48 +25,21 @@ public sealed class RoomPlanTests
         Assert.That(arrival.Z, Is.EqualTo(z).Within(1e-9));
     }
 
-    [TestCase(19, 2.51)] // A one-centimetre lateral error at a threshold.
-    [TestCase(19.02, 2.5)] // A one-centimetre gap after walking around the block.
-    public void ALoopMustCloseFromBothDirections(double depth, double offset)
+    [Test]
+    public void DoorsNeedNotLineUpOnAnyMap_BecauseTheMapIsNotMadeFromThem()
     {
-        var orchard = RoomCatalog.Find("pear-orchard")! with { Depth = depth };
-        orchard = orchard.WithDoors(
+        var orchard = RoomCatalog.Find("pear-orchard")!.WithDoors(
             ("garden", RoomEdge.North, 5.8, "garden", "pear-orchard"),
-            ("riverside", RoomEdge.East, offset, "riverside", "pear-orchard"));
-        Assert.That(() => Replan(orchard), Throws.InvalidOperationException.With.Message.Contains("does not close"));
+            ("riverside", RoomEdge.West, 2.5, "riverside", "pear-orchard"));
+        Assert.That(() => Replan(orchard), Throws.Nothing);
     }
 
     [Test]
-    public void ABuildingCannotExtendIntoItsNeighbour()
+    public void ARoomNobodyCanWalkTo_IsAProblem()
     {
-        var cafe = RoomCatalog.Find("cafe")! with { Exterior = new(22, 7, RoomEdge.South) };
-        Assert.That(() => Replan(cafe), Throws.InvalidOperationException.With.Message.Contains("overlaps"));
-    }
-
-    [Test]
-    public void TheStorefrontMustFaceTheSquare()
-    {
-        var cafe = RoomCatalog.Find("cafe")! with { Exterior = new(8, 7, RoomEdge.North) };
-        Assert.That(() => Replan(cafe), Throws.InvalidOperationException.With.Message.Contains("Mismatched thresholds"));
-    }
-
-    [Test]
-    public void EnlargingOrTurningAnInteriorLeavesTheStreetUnchanged()
-    {
-        var cafe = RoomCatalog.Find("cafe")! with { Width = 60, Depth = 48 };
-        cafe = cafe.WithDoors(("town-square", RoomEdge.West, 13, "town-square", "cafe"));
-        var enlarged = Replan(cafe);
-        foreach (var room in enlarged)
-        {
-            var original = RoomCatalog.Find(room.Id)!;
-            Assert.That(room.MapCentre, Is.EqualTo(original.MapCentre));
-            Assert.That((room.MapWidth, room.MapDepth), Is.EqualTo((original.MapWidth, original.MapDepth)));
-            foreach (var door in room.Doors)
-            {
-                Assert.That(room.MapExit(door), Is.EqualTo(original.MapExit(original.GetDoor(door.Id))));
-            }
-        }
-        Assert.That(cafe.GetDoor("town-square").Spot, Is.EqualTo(new Position(-29, 13)));
+        var island = new RoomDefinition("island", "Island", 10, 10, new(0, 0), 10);
+        Assert.That(() => RoomPlan.Join([.. RoomCatalog.All, island]),
+            Throws.InvalidOperationException.With.Message.Contains("walking route"));
     }
 
     private static IReadOnlyList<RoomDefinition> Replan(RoomDefinition replacement) =>
@@ -85,46 +58,5 @@ public sealed class RoomPlanTests
         Assert.That(() => tooNarrow.WithDoors(exit), Throws.TypeOf<ArgumentOutOfRangeException>());
         Assert.That(() => small.WithDoors(exit, ("other", RoomEdge.South, 2.5d, "other", "test")),
             Throws.TypeOf<ArgumentException>());
-    }
-
-    [Test]
-    public void PublicRoomFootprints_DoNotOverlap()
-    {
-        var rooms = RoomCatalog.All;
-        for (var i = 0; i < rooms.Count; i++)
-        {
-            var a = rooms[i];
-            foreach (var b in rooms.Skip(i + 1))
-            {
-                var overlapX = 1e-6 + Math.Abs(a.MapCentre.X - b.MapCentre.X) < (a.MapWidth + b.MapWidth) / 2;
-                var overlapZ = 1e-6 + Math.Abs(a.MapCentre.Z - b.MapCentre.Z) < (a.MapDepth + b.MapDepth) / 2;
-                Assert.That(overlapX && overlapZ, Is.False, $"{a.Id} overlaps {b.Id} on the map.");
-            }
-        }
-    }
-
-    [Test]
-    public void AnExitFacesItsDestination_OnTheWorldMap()
-    {
-        var rooms = RoomCatalog.All.ToDictionary(room => room.Id);
-        foreach (var room in rooms.Values)
-        {
-            foreach (var door in room.Doors)
-            {
-                var target = rooms[door.ToRoom];
-                var exit = room.MapExit(door);
-                var back = target.GetDoor(door.ToDoor!);
-                Assert.That(target.MapExit(back).DistanceTo(exit), Is.LessThan(1e-6), $"{room.Id}/{door.Id} leaves a gap.");
-                var clearance = room.MapEdge(door) switch
-                {
-                    RoomEdge.North => (target.MapCentre.Z - exit.Z) - target.MapDepth / 2,
-                    RoomEdge.East => (target.MapCentre.X - exit.X) - target.MapWidth / 2,
-                    RoomEdge.South => (exit.Z - target.MapCentre.Z) - target.MapDepth / 2,
-                    RoomEdge.West => (exit.X - target.MapCentre.X) - target.MapWidth / 2,
-                    _ => throw new InvalidOperationException($"No edge on {room.Id}/{door.Id}."),
-                };
-                Assert.That(clearance, Is.EqualTo(0).Within(1e-6), $"{room.Id}/{door.Id} must face {target.Id}.");
-            }
-        }
     }
 }

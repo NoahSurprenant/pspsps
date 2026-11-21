@@ -32,7 +32,6 @@ public sealed class RoomContentTests
                 Assert.That(layout.ToDefinition(room.Id).Props, Is.EqualTo(room.Props), room.Id);
                 Assert.That(layout.Doors, Is.EqualTo(RoomLayout.Of(room).Doors), room.Id);
                 Assert.That(layout.Pond, Is.EqualTo(room.Pond), room.Id);
-                Assert.That(layout.Exterior, Is.EqualTo(room.Exterior), room.Id);
             }
         });
     }

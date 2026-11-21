@@ -171,141 +171,117 @@ button:disabled {
   background: linear-gradient(to right, transparent 30%, currentColor 30% 39%, transparent 39% 62%, currentColor 62% 71%, transparent 71%);
 }
 
+.sheet.map-sheet {
+  width: min(44rem, calc(100% - 1rem));
+}
+
 .world-map {
-  position: relative;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  grid-auto-rows: 1fr;
-  gap: 0.55rem 0.25rem;
-  padding: 0.6rem 0.25rem;
+  gap: 0.5rem;
+}
+
+.map-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.map-tab[aria-pressed="true"] {
+  background: #ffcf91;
+}
+
+.map-picture {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
   border: 2px solid var(--ink);
   border-radius: 0.85rem;
-  background:
-    radial-gradient(ellipse at 35% 100%, #a7d5df 0 24%, transparent 25%),
-    radial-gradient(ellipse at 5% 85%, #b0cd8f 0 29%, transparent 30%),
-    #d5e5ba;
+  background: #7cc4dc;
 }
 
-.world-map.map-with-plan {
-  display: block;
-  padding: 0;
-}
-
-.map-footprint,
-.map-route {
+.map-canvas {
   position: absolute;
-  pointer-events: none;
-}
-
-.map-route {
-  height: 0.42rem;
-  border-radius: 1rem;
-  transform-origin: left center;
-  background: #edd9ac;
-}
-
-.map-route.map-threshold {
-  z-index: 1;
-  width: 0.42rem;
-  margin-left: -0.21rem;
-  background: #735741;
-}
-
-.map-footprint {
-  box-sizing: border-box;
-  transform: translate(-50%, -50%);
-  border: 1px solid #81936e;
-  border-radius: 0.45rem;
-  background: #b7cd99;
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
 
 .map-place {
-  z-index: 1;
-  min-width: 0;
-  padding: 0.25rem 0.12rem;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  justify-items: center;
-  align-content: center;
-  gap: 0.25rem;
-  border-radius: 0.6rem;
-  line-height: 1.1;
-  font-size: 0.8rem;
-}
-
-.map-place > span:last-child {
-  width: 100%;
-  text-align: center;
-}
-
-.map-place[aria-current] {
-  background: #ffcf91;
-  opacity: 1;
-  color: var(--ink);
-}
-
-.map-with-plan .map-place {
   position: absolute;
   transform: translate(-50%, -50%);
+  display: grid;
+  justify-items: center;
+  gap: 0.1rem;
   min-width: 2.75rem;
+  min-height: 2.75rem;
+  align-content: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--ink);
+  font-size: 0.72rem;
+  line-height: 1.1;
 }
 
-.map-with-plan .map-place[data-place="pear-orchard"],
-.map-with-plan .map-place[data-place="garden"],
-.map-with-plan .map-place[data-place="riverside"] {
-  min-width: 4.35rem;
-}
-
-@media (max-width: 420px) {
-  .sheet.map-sheet {
-    max-width: calc(100% - 1rem);
-    padding-inline: 0.6rem;
-  }
-
-  .map-with-plan .map-landmark {
-    display: none;
-  }
-}
-
-.map-landmark {
-  width: 1.65rem;
-  height: 1.12rem;
+.map-dot {
   box-sizing: border-box;
+  width: 1.5rem;
+  height: 1.5rem;
   border: 2px solid var(--ink);
-  border-radius: 0.3rem;
-  background: #dbb690;
-}
-
-[data-place="shop"] .map-landmark,
-[data-place="cafe"] .map-landmark {
-  background:
-    repeating-linear-gradient(90deg, var(--roof) 0 0.25rem, #ffefcf 0.25rem 0.45rem) top / 100% 45% no-repeat,
-    linear-gradient(#80593e, #80593e) center bottom / 25% 60% no-repeat,
-    #ecd4b5;
-}
-
-[data-place="shop"] { --roof: #b487a5; }
-[data-place="cafe"] { --roof: #df9b57; }
-
-[data-place="town-square"] .map-landmark {
   border-radius: 50%;
-  background: radial-gradient(ellipse at center, #6cb6d1 0 40%, #eedbb0 44% 65%, #90bc76 70%);
+  background: var(--paper);
+  box-shadow: 0 2px 0 var(--ink);
 }
 
-[data-place="garden"] .map-landmark {
-  border-radius: 0.9rem 0.9rem 0.2rem 0.2rem;
-  background: radial-gradient(circle at 25% 58%, #ffb4b4 0 12%, transparent 14%),
-    radial-gradient(circle at 75% 42%, #fff0a8 0 13%, transparent 15%), #91b871;
+.map-place[aria-current] .map-dot {
+  background: #ffcf91;
 }
 
-[data-place="pear-orchard"] .map-landmark {
-  border-radius: 50% 50% 35% 35%;
-  background: radial-gradient(ellipse at 35% 55%, #f2d478 0 18%, transparent 20%), #88b071;
+.map-place.map-closed .map-dot {
+  border-style: dashed;
+  background: #e4ded4;
 }
 
-[data-place="riverside"] .map-landmark {
-  border-radius: 60% 40% 55% 45%;
-  background: repeating-linear-gradient(-14deg, #6cb6d1 0 0.24rem, #a0d8e1 0.25rem 0.34rem);
+.map-place.selected .map-dot {
+  background: var(--accent);
+}
+
+.map-place.map-dim .map-dot {
+  opacity: 0.4;
+}
+
+.map-place.map-dim:not(.selected, :hover, :focus-visible) .map-name {
+  display: none;
+}
+
+.map-name {
+  display: none;
+  padding: 0 0.3rem;
+  border-radius: 0.5rem;
+  background: rgb(255 250 242 / 90%);
+  white-space: nowrap;
+}
+
+.map-place.selected .map-name,
+.map-place:hover .map-name,
+.map-place:focus-visible .map-name {
+  display: block;
+}
+
+@media (min-width: 40rem) {
+  .map-name {
+    display: block;
+  }
+}
+
+.map-caption {
+  margin: 0;
+  min-height: 1.3em;
+}
+
+.map-go {
+  justify-self: start;
 }
 
 /* The bottom of the screen, one column from the top down: a toast, fishing, the emotes and the chat. Stacked by the
@@ -1067,4 +1043,11 @@ button:disabled {
 
 button.danger {
   background: #f3b3ad;
+}
+
+@media (max-width: 22rem) {
+  .map-dot {
+    width: 0.85rem;
+    height: 0.85rem;
+  }
 }

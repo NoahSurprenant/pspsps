@@ -26,7 +26,7 @@ export interface RoomLook {
   /** Whether the floor's painter wants the room's props (the orchard paints round its trees). */
   floorNeedsProps: boolean;
   /** Paints the back wall's front, round <doorways>: the doors with a doorway in the wall (doors.ts, hasDoorway). */
-  paintWall?(brush: Brush, width: number, height: number, scale: number, doorways: readonly DoorView[], map?: Floorplan["worldMap"]): void;
+  paintWall?(brush: Brush, width: number, height: number, scale: number, doorways: readonly DoorView[]): void;
   /** Open countryside: no back wall, and a path through the north edge as well. */
   openLandscape: boolean;
   /** A creature that lives in the room, drawn by wildlife.ts. */
@@ -60,7 +60,7 @@ export interface LooksData {
 const plaza = { x: 0, z: 3.4 };
 
 type FloorPainter = (brush: Brush, plan: Floorplan, scale: number, colours: PaintColours) => void;
-type WallPainter = (brush: Brush, width: number, height: number, scale: number, doors: readonly DoorView[], map: Floorplan["worldMap"], colours: PaintColours) => void;
+type WallPainter = (brush: Brush, width: number, height: number, scale: number, doors: readonly DoorView[], colours: PaintColours) => void;
 
 /** The floor painters a look may name. */
 export const floorPainters: Record<string, FloorPainter> = {
@@ -78,14 +78,14 @@ export const floorPainters: Record<string, FloorPainter> = {
 
 /** The back-wall painters a look may name. */
 export const wallPainters: Record<string, WallPainter> = {
-  "town-square": (brush, width, height, scale, doors, map) => paintTownSquareWall(brush, width, height, scale, doors, map),
+  "town-square": (brush, width, height, scale, doors) => paintTownSquareWall(brush, width, height, scale, doors),
   cafe: (brush, width, height, scale, doors) => paintCafeWall(brush, width, height, scale, doors),
   shop: (brush, width, height, scale, doors) => paintShopWall(brush, width, height, scale, doors),
   garden: (brush, width, height, scale) => paintGardenWall(brush, width, height, scale),
   riverside: (brush, width, height, scale) => paintRiversideWall(brush, width, height, scale),
   home: (brush, width, height, scale, doors) => paintHomeWall(brush, width, height, scale, doors),
-  panelled: (brush, width, height, scale, _doors, _map, colours) => paintPanelledWall(brush, width, height, scale, colours),
-  bricks: (brush, width, height, scale, _doors, _map, colours) => paintBrickWall(brush, width, height, scale, colours),
+  panelled: (brush, width, height, scale, _doors, colours) => paintPanelledWall(brush, width, height, scale, colours),
+  bricks: (brush, width, height, scale, _doors, colours) => paintBrickWall(brush, width, height, scale, colours),
 };
 
 /** The ground painters a look may name. */
@@ -112,7 +112,7 @@ function lookFromData(data: RoomLookData): RoomLook {
   const floor = data.floor && (floorPainters[data.floor.painter]
     ?? (floorRecipe && ((brush, plan, scale, colours) => paintSteps(brush, floorRecipe.steps, plan.width, plan.depth, scale, colours))));
   const wall = data.wall && (wallPainters[data.wall.painter]
-    ?? (wallRecipe && ((brush, width, height, scale, _doors, _map, colours) => paintSteps(brush, wallRecipe.steps, width, height, scale, colours))));
+    ?? (wallRecipe && ((brush, width, height, scale, _doors, colours) => paintSteps(brush, wallRecipe.steps, width, height, scale, colours))));
   const ground = data.ground?.painter ? groundPainters[data.ground.painter] : undefined;
   const generate = data.backdrop.generator ? backdropGenerators[data.backdrop.generator] : undefined;
   const floorColours = { colour: data.floor?.colour ?? data.floorColour, accent: data.floor?.accent };
@@ -124,7 +124,7 @@ function lookFromData(data: RoomLookData): RoomLook {
     ground: data.ground ? { colour: data.ground.colour, paint: ground } : undefined,
     paintFloor: floor ? (brush, plan, scale) => floor(brush, plan, scale, floorColours) : undefined,
     floorNeedsProps: data.floor?.painter === "pear-orchard",
-    paintWall: wall ? (brush, width, height, scale, doors, map) => wall(brush, width, height, scale, doors, map, wallColours) : undefined,
+    paintWall: wall ? (brush, width, height, scale, doors) => wall(brush, width, height, scale, doors, wallColours) : undefined,
     openLandscape: data.openLandscape ?? false,
     wildlife: data.wildlife || undefined,
     backdrop: (plan, wallHeight) => [...(generate ? generate(plan, wallHeight) : []), ...data.backdrop.parts],
@@ -167,7 +167,7 @@ export function lookOf(roomId: string, variant?: string | null): RoomLook {
 function townBackdrop(plan: Floorplan, wallHeight: number): Part[] {
   const parts: Part[] = [];
   const front = plan.depth / 2 + 0.3;
-  for (const [i, house] of townHouses(plan.worldMap).entries()) {
+  for (const [i, house] of townHouses().entries()) {
     const depth = house.depth ?? 3.5;
     const width = house.to - house.from - 0.1;
     const middle = (house.from + house.to) / 2;

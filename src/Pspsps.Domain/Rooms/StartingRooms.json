@@ -152,11 +152,6 @@
         "z": 3
       },
       "capacity": 40,
-      "exterior": {
-        "width": 8,
-        "depth": 7,
-        "front": "South"
-      },
       "props": [
         {
           "kind": "counter",
@@ -253,11 +248,6 @@
         "z": 1
       },
       "capacity": 40,
-      "exterior": {
-        "width": 7,
-        "depth": 7,
-        "front": "South"
-      },
       "props": [
         {
           "kind": "catalogue-stand",
