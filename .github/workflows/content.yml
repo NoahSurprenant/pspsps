@@ -57,7 +57,12 @@ jobs:
       - name: Run
         run: |
           set -euo pipefail
-          call() { curl --silent --show-error --fail-with-body --max-time 120 -H "Authorization: Bearer $CONTENT_TOKEN" "$@"; }
+          call() {
+            local out; out=$(mktemp)
+            local code; code=$(curl --silent --show-error --max-time 120 -o "$out" -w '%{http_code}' -H "Authorization: Bearer $CONTENT_TOKEN" "$@") || { echo "::error::curl failed"; return 1; }
+            if [ "$code" -ge 400 ]; then echo "::error::HTTP $code: $(head -c 400 "$out")"; return 1; fi
+            cat "$out"
+          }
           case "$ACTION" in
             list)
               call "$GAME_URL/api/content/rooms" | tee rooms.json | jq .
