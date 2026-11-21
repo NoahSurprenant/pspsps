@@ -37,7 +37,12 @@ public sealed record ContentFile(
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
-    public static ContentFile Embedded()
+    private static readonly Lazy<ContentFile> EmbeddedFile = new(Read);
+
+    /// <summary>The file the build embeds, read once (it never changes while the server runs).</summary>
+    public static ContentFile Embedded() => EmbeddedFile.Value;
+
+    private static ContentFile Read()
     {
         using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("ContentDrafts.json")
             ?? throw new InvalidOperationException("ContentDrafts.json is not embedded.");

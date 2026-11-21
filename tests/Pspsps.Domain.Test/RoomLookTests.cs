@@ -67,6 +67,21 @@ public sealed class RoomLookTests
     }
 
     [Test]
+    public void AVariantFloor_NamesAFloorPainterTheEntryKnows_LikeALooksFloor()
+    {
+        var floor = new LookPaint("rink-ice", "#d9f0fa");
+        var known = LookNames.BuiltIn.With([(PaintSurfaces.Floor, "rink-ice")], []);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(() => LookVariantEntry.Of("frozen", new LookVariant("#112233", "#445566", floor), Now), Throws.TypeOf<DomainException>(), "unknown to the built-in names");
+            Assert.That(() => LookVariantEntry.Of("frozen", new LookVariant("#112233", "#445566", new LookPaint("brick")), Now, known), Throws.TypeOf<DomainException>());
+            Assert.That(LookVariantEntry.Of("frozen", new LookVariant("#112233", "#445566", floor), Now, known).ToVariant().Floor, Is.EqualTo(floor));
+            Assert.That(LookVariantEntry.Of("frozen", new LookVariant("#112233", "#445566", new LookPaint("tiles")), Now).Floor?.Painter, Is.EqualTo("tiles"));
+        });
+    }
+
+    [Test]
     public void AVariant_NeedsANameAndTwoColours()
     {
         Assert.Multiple(() =>

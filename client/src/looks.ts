@@ -31,8 +31,8 @@ export interface RoomLook {
   openLandscape: boolean;
   /** A creature that lives in the room, drawn by wildlife.ts. */
   wildlife?: string;
-  /** The seasonal variant wearing the look, when it is not the room's own: part of what a painted floor is kept under. */
-  variant?: string;
+  /** The seasonal variant whose own floor replaces the room's (set only then): what that painted floor is kept under, apart from the room's own. */
+  floorVariant?: string;
   /** What stands behind the back wall (and round the room), in the room's own space. */
   backdrop(plan: Floorplan, wallHeight: number): Part[];
 }
@@ -176,13 +176,19 @@ export function lookOf(roomId: string, variant?: string | null): RoomLook {
     return base;
   }
 
-  const look: RoomLook = { ...base, sky: changes.sky, wallColour: changes.wallColour, variant: variant ?? undefined };
+  const look: RoomLook = { ...base, sky: changes.sky, wallColour: changes.wallColour };
   const floor = floorPainterOf(changes.floor);
+  if (changes.floor && !floor) {
+    // A variant whose floor names a painter this client does not have: the room keeps its own floor, and says so.
+    console.warn(`The look ${variant} has a floor painter this client does not know (${changes.floor.painter}); the room keeps its own floor.`);
+  }
+
   if (changes.floor && floor) {
     // The variant's floor replaces the room's: its own painter and colours (the room's floor colour where it names none).
     const colours = { colour: changes.floor.colour ?? base.floorColour, accent: changes.floor.accent };
     look.paintFloor = (brush, plan, scale) => floor(brush, plan, scale, colours);
     look.floorNeedsProps = changes.floor.painter === "pear-orchard";
+    look.floorVariant = variant ?? undefined;
   }
 
   return look;

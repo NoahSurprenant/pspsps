@@ -234,39 +234,6 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             }
         }
 
-        var overlays = (await db.RoomOverlays.AsNoTracking().ToListAsync(cancellationToken)).Select(o => o.ToOverlay()).ToDictionary(o => (o.RoomId, o.Id));
-        var publishedRooms = (await db.RoomVersions.AsNoTracking().Where(v => v.State == RoomVersionState.Published).Select(v => v.RoomId).ToListAsync(cancellationToken)).ToHashSet();
-        foreach (var overlay in file.OverlayList)
-        {
-            if (!overlays.TryGetValue((overlay.RoomId, overlay.Id), out var existing))
-            {
-                if (!publishedRooms.Contains(overlay.RoomId))
-                {
-                    // An overlay can only belong to a published room: a room of this file is still a draft, so it waits; any other room is a mistake.
-                    if (file.RoomList.Any(r => r.Id == overlay.RoomId))
-                    {
-                        pending.Add($"overlay {overlay.RoomId}/{overlay.Id}: waits until room {overlay.RoomId} is published, then load the file again");
-                    }
-                    else
-                    {
-                        problems.Add($"overlay {overlay.RoomId}/{overlay.Id}: there is no published room {overlay.RoomId}, and the file does not have it either");
-                    }
-
-                    continue;
-                }
-
-                await Attempt($"overlay {overlay.RoomId}/{overlay.Id}", () => SaveOverlayAsync(overlay, adminId, cancellationToken));
-            }
-            else if (Same(existing, overlay))
-            {
-                unchanged.Add($"overlay {overlay.RoomId}/{overlay.Id}");
-            }
-            else
-            {
-                problems.Add($"overlay {overlay.RoomId}/{overlay.Id}: differs from the live overlay; change it in the admin (it would change a live room).");
-            }
-        }
-
         foreach (var room in file.RoomList)
         {
             var detail = await GetAsync(room.Id, cancellationToken);
@@ -289,6 +256,42 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
                 {
                     problems.Add($"room {room.Id}: {exception.Message}");
                 }
+            }
+        }
+
+        var overlays = (await db.RoomOverlays.AsNoTracking().ToListAsync(cancellationToken)).Select(o => o.ToOverlay()).ToDictionary(o => (o.RoomId, o.Id));
+        // After the rooms, so a draft this file just saved counts: what an overlay waits for is read from the rooms' real state.
+        var states = (await db.RoomVersions.AsNoTracking().Where(v => v.State == RoomVersionState.Published || v.State == RoomVersionState.Draft).Select(v => new { v.RoomId, v.State }).ToListAsync(cancellationToken))
+            .GroupBy(v => v.RoomId).ToDictionary(g => g.Key, g => g.Select(v => v.State).ToHashSet());
+        var publishedRooms = states.Where(r => r.Value.Contains(RoomVersionState.Published)).Select(r => r.Key).ToHashSet();
+        foreach (var overlay in file.OverlayList)
+        {
+            if (!overlays.TryGetValue((overlay.RoomId, overlay.Id), out var existing))
+            {
+                if (!publishedRooms.Contains(overlay.RoomId))
+                {
+                    // An overlay can only belong to a published room: a room of this file is still a draft, so it waits; any other room is a mistake.
+                    if (states.ContainsKey(overlay.RoomId))
+                    {
+                        pending.Add($"overlay {overlay.RoomId}/{overlay.Id}: waits until room {overlay.RoomId} is published, then load the file again");
+                    }
+                    else
+                    {
+                        problems.Add($"overlay {overlay.RoomId}/{overlay.Id}: there is no published or draft room {overlay.RoomId}");
+                    }
+
+                    continue;
+                }
+
+                await Attempt($"overlay {overlay.RoomId}/{overlay.Id}", () => SaveOverlayAsync(overlay, adminId, cancellationToken));
+            }
+            else if (Same(existing, overlay))
+            {
+                unchanged.Add($"overlay {overlay.RoomId}/{overlay.Id}");
+            }
+            else
+            {
+                problems.Add($"overlay {overlay.RoomId}/{overlay.Id}: differs from the live overlay; change it in the admin (it would change a live room).");
             }
         }
 
@@ -348,7 +351,8 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             [.. overlays.Select(o => o.ToOverlay()).OrderBy(o => o.Id, StringComparer.Ordinal)],
             versions.FirstOrDefault(v => v.State == RoomVersionState.Draft)?.Revision,
             versions.FirstOrDefault(v => v.State == RoomVersionState.Draft)?.GoLiveAt,
-            [.. ContentFile.Embedded().OverlayList.Where(o => o.RoomId == roomId && overlays.All(saved => saved.Id != o.Id)).Select(o => o.Id)]);
+            // An overlay of a published room is saved by the next load; only a room that is not published yet makes its overlays wait.
+            versions.Any(v => v.State == RoomVersionState.Published) ? [] : [.. ContentFile.Embedded().OverlayList.Where(o => o.RoomId == roomId && overlays.All(saved => saved.Id != o.Id)).Select(o => o.Id)]);
     }
 
     public async Task<IReadOnlyList<string>> SaveDraftAsync(string roomId, RoomLayout layout, Guid adminId, int? expectedRevision, CancellationToken cancellationToken)
@@ -540,19 +544,15 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
     {
         ArgumentNullException.ThrowIfNull(variant);
         var now = time.GetUtcNow();
-        if (variant.Floor is { } floor && !(await LookNamesAsync(cancellationToken)).Floors.Contains(floor.Painter))
-        {
-            throw new DomainException($"{name}: '{floor.Painter}' is not a floor painter.");
-        }
-
+        var names = await LookNamesAsync(cancellationToken);
         var entry = await db.LookVariants.FirstOrDefaultAsync(v => v.Id == name, cancellationToken);
         if (entry is null)
         {
-            db.LookVariants.Add(LookVariantEntry.Of(name, variant, now));
+            db.LookVariants.Add(LookVariantEntry.Of(name, variant, now, names));
         }
         else
         {
-            entry.Replace(variant, now);
+            entry.Replace(variant, now, names);
         }
 
         Audit(adminId, "variant-saved", name, string.Empty);
@@ -584,7 +584,7 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
         }
         else
         {
-            if (entry.Surface != surface && await UsedByLooksAsync(look => look.Floor?.Painter == name || look.Wall?.Painter == name, cancellationToken) is { Count: > 0 } users)
+            if (entry.Surface != surface && await PainterUsersAsync(name, cancellationToken) is { Count: > 0 } users)
             {
                 throw new DomainException($"The painter {name} is in use by {string.Join(", ", users)}: it cannot change what it paints.");
             }
@@ -600,7 +600,7 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
     {
         var entry = await db.PainterRecipes.FirstOrDefaultAsync(r => r.Id == name, cancellationToken)
             ?? throw new DomainException($"There is no painter {name}.");
-        if (await UsedByLooksAsync(look => look.Floor?.Painter == name || look.Wall?.Painter == name, cancellationToken) is { Count: > 0 } users)
+        if (await PainterUsersAsync(name, cancellationToken) is { Count: > 0 } users)
         {
             throw new DomainException($"The painter {name} is in use by {string.Join(", ", users)}.");
         }
@@ -645,6 +645,14 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
         LookNames.BuiltIn.With(
             (await db.PainterRecipes.AsNoTracking().Select(r => new { r.Surface, r.Id }).ToListAsync(cancellationToken)).Select(r => (r.Surface, r.Id)),
             await db.WildlifeRecipes.AsNoTracking().Select(r => r.Id).ToListAsync(cancellationToken));
+
+    /// <summary>The looks and the seasonal variants that paint with a painter (a variant's own floor too), by name.</summary>
+    private async Task<List<string>> PainterUsersAsync(string name, CancellationToken cancellationToken)
+    {
+        var users = await UsedByLooksAsync(look => look.Floor?.Painter == name || look.Wall?.Painter == name, cancellationToken);
+        users.AddRange(await db.LookVariants.AsNoTracking().Where(v => v.FloorPainter == name).Select(v => "variant " + v.Id).ToListAsync(cancellationToken));
+        return users;
+    }
 
     private async Task<List<string>> UsedByLooksAsync(Func<RoomLook, bool> uses, CancellationToken cancellationToken) =>
         [.. (await db.RoomLooks.AsNoTracking().ToListAsync(cancellationToken)).Where(entry => uses(entry.Look)).Select(entry => entry.Id)];

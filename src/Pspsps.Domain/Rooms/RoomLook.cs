@@ -113,8 +113,9 @@ public sealed partial record RoomLook(
 /// <summary>What an overlay's named look changes of any room: its sky and back wall's colours, and, when it has one, a floor of its own (a frozen rink) in place of the room's.</summary>
 public sealed record LookVariant(string Sky, string WallColour, LookPaint? Floor = null)
 {
-    public IReadOnlyList<string> Problems(string name)
+    public IReadOnlyList<string> Problems(string name, LookNames? names = null)
     {
+        names ??= LookNames.BuiltIn;
         var problems = new List<string>();
         if (string.IsNullOrWhiteSpace(name) || !Regex.IsMatch(name, "^[a-z0-9]+(-[a-z0-9]+)*$", RegexOptions.None, TimeSpan.FromSeconds(1)))
         {
@@ -133,6 +134,10 @@ public sealed record LookVariant(string Sky, string WallColour, LookPaint? Floor
                 || (Floor.Accent is not null && !Regex.IsMatch(Floor.Accent, "^#[0-9a-fA-F]{6}$", RegexOptions.None, TimeSpan.FromSeconds(1)))))
         {
             problems.Add($"{name}: its floor names a painter, and its colours are hex colours.");
+        }
+        else if (Floor is not null && !names.Floors.Contains(Floor.Painter))
+        {
+            problems.Add($"{name}: '{Floor.Painter}' is not a floor painter ({string.Join(", ", names.Floors)}).");
         }
 
         return problems;
@@ -200,17 +205,17 @@ public sealed class LookVariantEntry
 
     public DateTimeOffset UpdatedAt { get; private set; }
 
-    public static LookVariantEntry Of(string name, LookVariant variant, DateTimeOffset now)
+    public static LookVariantEntry Of(string name, LookVariant variant, DateTimeOffset now, LookNames? names = null)
     {
         var entry = new LookVariantEntry { Id = name };
-        entry.Replace(variant, now);
+        entry.Replace(variant, now, names);
         return entry;
     }
 
-    public void Replace(LookVariant variant, DateTimeOffset now)
+    public void Replace(LookVariant variant, DateTimeOffset now, LookNames? names = null)
     {
         ArgumentNullException.ThrowIfNull(variant);
-        var problems = variant.Problems(Id);
+        var problems = variant.Problems(Id, names);
         if (problems.Count > 0)
         {
             throw new DomainException(string.Join(" ", problems));
