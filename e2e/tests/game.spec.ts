@@ -3,7 +3,7 @@ import type { Page } from "@playwright/test";
 import {
   animation, catEyes, cats, clickCat, emotes, enterWorld, expect, fishFor, goHome, goThroughDoor, hubGuest, newPlayer,
   pixelsNear, pondBlue, roomBarButtons, tapFloor, test, watchErrors, expectRoom, openCatalogue, partyHatPink, portrait, focusByTab,
-  enterWorldSignedIn, signInAsAdmin, fakeNetwork, pinchRoom,
+  enterWorldSignedIn, holdDrawing, signInAsAdmin, fakeNetwork, pinchRoom,
 } from "./game";
 
 test("read the square map, grow daisies, and pick and pack a pear", async ({ page }) => {
@@ -647,7 +647,7 @@ test("a cat walks the garden loop and travels to a room's spawn from the world m
   const map = page.getByRole("dialog", { name: "World map" });
   await expect(map.getByRole("button", { name: "Town Square, you are here" })).toHaveAttribute("aria-current", "location");
   // Every outdoor place of the island is on the map; a building's inside is not. Places not built yet can't be entered.
-  await expect(map.locator(".map-place[data-place]")).toHaveCount(13);
+  await expect(map.locator(".map-place[data-place]")).toHaveCount(16);
   await expect(map.locator('[data-place="cafe"], [data-place="shop"]')).toHaveCount(0);
   await expect(map.getByRole("button", { name: "Old Mill, coming soon" })).toBeVisible();
   await map.getByRole("button", { name: "Games", exact: true }).click();
@@ -989,7 +989,7 @@ test("an admin mutes and warns a cat from its card, bans another, whose tab is s
     const felixId = await enterWorld(felix.page, "Siamese");
     await tapFloor(felix.page, 4, 2);
     await expect.poll(async () => (await cats(admin))[felixId]?.x ?? 0).toBeGreaterThan(3.5);
-    const garfieldId = await enterWorld(garfield.page, "Siamese");
+    const garfieldId = await holdDrawing([admin, felix.page], () => enterWorld(garfield.page, "Siamese"));
     const name = (page: typeof admin) =>
       page.evaluate(async () => ((await (await fetch("/api/me")).json()) as { displayName: string }).displayName);
     const [felixName, garfieldName] = [await name(felix.page), await name(garfield.page)];
