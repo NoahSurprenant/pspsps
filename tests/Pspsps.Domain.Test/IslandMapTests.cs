@@ -54,7 +54,7 @@ public sealed class IslandMapTests
         {
             Assert.That(IslandMap.Places[0].Room, Is.EqualTo(RoomBook.StartingRoom));
             Assert.That(withRooms, Is.Unique);
-            foreach (var id in new[] { "town-square", "garden", "riverside", "pear-orchard" })
+            foreach (var id in new[] { "town-square", "garden", "riverside", "pear-orchard", "mine" })
             {
                 Assert.That(withRooms, Does.Contain(id));
             }
