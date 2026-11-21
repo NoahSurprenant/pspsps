@@ -9,6 +9,56 @@ export async function drawLess(context: BrowserContext): Promise<void> {
   });
 }
 
+/** What a held page keeps while its drawing is held: the frames asked for, and how many holds there are (they nest). */
+type DrawingHold = { holds: number; release(): void };
+
+/**
+ * Holds the drawing of <pages> (the animation frames they ask for are kept, not run) while <during> runs, then lets them
+ * go on. Pages already in a room draw in software WebGL on the same runner CPUs as a page that is joining, and a third
+ * page then stalls for seconds building its 3D scene: the joined pages stand still until it has its room. Holds nest,
+ * and a frame cancelled while held (or after, by the id it was given) is not run. Letting go never hides what
+ * <during> threw: a page that closed or moved on has nothing left to release.
+ */
+export async function holdDrawing<T>(pages: Page[], during: () => Promise<T>): Promise<T> {
+  try {
+    await Promise.all(pages.map((page) => page.evaluate(() => {
+      const win = window as unknown as { drawingHold?: DrawingHold };
+      if (win.drawingHold) {
+        win.drawingHold.holds++;
+        return;
+      }
+
+      const realRequest = window.requestAnimationFrame.bind(window);
+      const realCancel = window.cancelAnimationFrame.bind(window);
+      // Held frames get negative ids, so they never meet an id the browser gave.
+      const held = new Map<number, FrameRequestCallback>();
+      const given = new Map<number, number>();
+      let next = -1;
+      window.requestAnimationFrame = (frame) => {
+        held.set(next, frame);
+        return next--;
+      };
+      window.cancelAnimationFrame = (id) => {
+        if (!held.delete(id)) realCancel(given.get(id) ?? id);
+      };
+      win.drawingHold = {
+        holds: 1,
+        release() {
+          if (--this.holds > 0) return;
+          window.requestAnimationFrame = realRequest;
+          for (const [id, frame] of held) given.set(id, realRequest(frame));
+          held.clear();
+          delete win.drawingHold;
+        },
+      };
+    })));
+    return await during();
+  } finally {
+    await Promise.allSettled(pages.map((page) =>
+      page.evaluate(() => (window as unknown as { drawingHold?: DrawingHold }).drawingHold?.release())));
+  }
+}
+
 /** A page that fails its test on any console error or uncaught exception (the "No camera defined" kind). */
 export const test = base.extend<{ page: Page }>({
   page: async ({ page }, use) => {
