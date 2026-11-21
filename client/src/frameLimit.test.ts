@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FRAME_RATE_KEY, frameLimiter, maxFps, savedFrameRate } from "./frameLimit";
+import { FRAME_RATE_KEY, frameClock, frameLimiter, maxFps, savedFrameRate } from "./frameLimit";
 
 const drawn = (fps: number | undefined, displayHz: number) => {
   const draw = frameLimiter(() => fps);
@@ -52,5 +52,29 @@ describe("savedFrameRate", () => {
   it("is automatic with none saved or one it doesn't know", () => {
     expect(savedFrameRate(storage(null))).toBe("auto");
     expect(savedFrameRate(storage("999"))).toBe("auto");
+  });
+});
+
+describe("frameClock", () => {
+  it("walks the same distance a second whatever the frame rate", () => {
+    const metresIn = (fps: number | undefined) => {
+      const draw = frameLimiter(() => fps);
+      const tick = frameClock();
+      let metres = 0;
+      for (let i = 0; i < 60; i++) {
+        const now = i * (1000 / 60);
+        if (draw(now)) {
+          metres += 4 * tick(now);
+        }
+      }
+      return metres;
+    };
+    expect(metresIn(30)).toBeCloseTo(metresIn(undefined), 0);
+  });
+
+  it("gives no time on the first frame and caps a long pause", () => {
+    const tick = frameClock();
+    expect(tick(5000)).toBe(0);
+    expect(tick(60000)).toBe(0.25);
   });
 });
