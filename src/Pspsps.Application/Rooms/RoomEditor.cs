@@ -162,6 +162,24 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             }
         }
 
+        // Painters first: a look can use a recipe from this same file.
+        var painters = await db.PainterRecipes.AsNoTracking().ToDictionaryAsync(p => p.Id, cancellationToken);
+        foreach (var painter in file.PainterList)
+        {
+            if (!painters.TryGetValue(painter.Id, out var existing))
+            {
+                await Attempt($"painter {painter.Id}", () => SavePainterAsync(painter.Id, painter.Surface, painter.Steps, adminId, cancellationToken));
+            }
+            else if (existing.Surface == painter.Surface && Same(existing.Steps, painter.Steps))
+            {
+                unchanged.Add($"painter {painter.Id}");
+            }
+            else
+            {
+                problems.Add($"painter {painter.Id}: differs from the live recipe; change it in the admin.");
+            }
+        }
+
         var looks = await db.RoomLooks.AsNoTracking().ToDictionaryAsync(l => l.Id, cancellationToken);
         foreach (var (id, look) in file.LookList.Select(l => (l.Id, l.Look)))
         {
@@ -193,23 +211,6 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             else
             {
                 problems.Add($"variant {variant.Id}: differs from the live variant; change it in the admin.");
-            }
-        }
-
-        var painters = await db.PainterRecipes.AsNoTracking().ToDictionaryAsync(p => p.Id, cancellationToken);
-        foreach (var painter in file.PainterList)
-        {
-            if (!painters.TryGetValue(painter.Id, out var existing))
-            {
-                await Attempt($"painter {painter.Id}", () => SavePainterAsync(painter.Id, painter.Surface, painter.Steps, adminId, cancellationToken));
-            }
-            else if (existing.Surface == painter.Surface && Same(existing.Steps, painter.Steps))
-            {
-                unchanged.Add($"painter {painter.Id}");
-            }
-            else
-            {
-                problems.Add($"painter {painter.Id}: differs from the live recipe; change it in the admin.");
             }
         }
 
