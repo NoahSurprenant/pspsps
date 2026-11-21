@@ -90,15 +90,6 @@
             },
             "radius": 0.9,
             "facing": 0
-          },
-          {
-            "kind": "bench",
-            "spot": {
-              "x": 3.2,
-              "z": -6.9
-            },
-            "radius": 1,
-            "facing": 3.141592653589793
           }
         ],
         "doors": [
