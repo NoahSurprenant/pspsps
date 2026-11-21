@@ -2,7 +2,7 @@ name: Content
 
 # Runs the room editor's export, import and publish against the live game with no browser, so an agent (or the owner) can
 # do them from the Actions tab or `gh workflow run content.yml -f action=...`. It calls /api/content with a bearer token
-# (docs/content.md): the repository secret CONTENT_TOKEN, the repository variable GAME_URL (https://host, no slash; https://cats.gurnt.com when unset).
+# (docs/content.md): the repository secret CONTENT_TOKEN, the in-cluster runner pspsps-k8s calls the game's Service, as Cloudflare answers GitHub-hosted runners with 403.
 #   list     the rooms, with which have a draft
 #   export   the live content as JSON, kept as an artifact (and printed in the log summary's size line)
 #   import   loads ContentDrafts.json from the image that is deployed (merge the change and let it deploy first) as drafts
@@ -38,10 +38,10 @@ concurrency:
 
 jobs:
   content:
-    runs-on: ubuntu-latest
+    runs-on: pspsps-k8s
     timeout-minutes: 5
     env:
-      GAME_URL: ${{ vars.GAME_URL || 'https://cats.gurnt.com' }}
+      GAME_URL: http://pspsps.pspsps.svc.cluster.local
       CONTENT_TOKEN: ${{ secrets.CONTENT_TOKEN }}
       ACTION: ${{ inputs.action }}
       ROOM: ${{ inputs.room }}
