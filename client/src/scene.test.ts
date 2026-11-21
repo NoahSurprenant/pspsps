@@ -193,7 +193,7 @@ describe("RoomScene", () => {
     const shoal = scene.getMeshByName("wildlife");
     expect(shoal?.isPickable).toBe(false);
     if (!shoal) throw new Error("no fish");
-    vi.spyOn(engine, "getDeltaTime").mockReturnValue(50);
+    (view as unknown as { frameSeconds: number }).frameSeconds = 0.05;
     const start = shoal.position.clone();
     for (let i = 0; i < 80; i++) {
       scene.onBeforeRenderObservable.notifyObservers(scene);
