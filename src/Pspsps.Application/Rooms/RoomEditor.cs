@@ -777,7 +777,7 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
     }
 
     /// <summary>Only the overlays of rooms in the book: one of a room that is still a draft is not checked until that room is.</summary>
-    private static List<RoomOverlay> OverlaysOfRooms(IReadOnlyDictionary<string, RoomLayout> layouts, IEnumerable<RoomOverlay> overlays) =>
+    private static List<RoomOverlay> OverlaysOfRooms(Dictionary<string, RoomLayout> layouts, IEnumerable<RoomOverlay> overlays) =>
         [.. overlays.Where(overlay => layouts.ContainsKey(overlay.RoomId))];
 
     private static void ThrowIfProblems(IReadOnlyList<string> problems)
