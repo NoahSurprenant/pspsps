@@ -31,6 +31,8 @@ export interface RoomLook {
   openLandscape: boolean;
   /** A creature that lives in the room, drawn by wildlife.ts. */
   wildlife?: string;
+  /** The seasonal variant whose own floor replaces the room's (set only then): what that painted floor is kept under, apart from the room's own. */
+  floorVariant?: string;
   /** What stands behind the back wall (and round the room), in the room's own space. */
   backdrop(plan: Floorplan, wallHeight: number): Part[];
 }
@@ -48,9 +50,12 @@ export interface RoomLookData {
   backdrop: { generator?: string; parts: Part[] };
 }
 
+/** A seasonal look as the server keeps it: colours, and optionally a floor of its own (a frozen pond or rink). */
+export interface VariantData { id: string; sky: string; wallColour: string; floor?: { painter: string; colour?: string; accent?: string } | null }
+
 export interface LooksData {
   rooms: { id: string; look: RoomLookData }[];
-  variants: { id: string; sky: string; wallColour: string }[];
+  variants: VariantData[];
   /** Painters and creatures the admins made as data; missing from an older server. */
   painters?: PainterRecipe[];
   wildlife?: WildlifeRecipe[];
@@ -104,13 +109,24 @@ const plain: RoomLook = {
 const rooms = new Map<string, RoomLook>();
 
 /** What a seasonal overlay changes of a room's look, by name: its colours only, so any room can wear any of them. */
-const variants = new Map<string, { sky: string; wallColour: string }>();
+const variants = new Map<string, VariantData>();
+
+type FloorPaint = { painter: string; colour?: string; accent?: string };
+
+/** The painter a floor names: one the client has, or an admins' recipe; none for a name it doesn't know. */
+function floorPainterOf(paint: FloorPaint | null | undefined): FloorPainter | undefined {
+  if (!paint) {
+    return undefined;
+  }
+
+  const recipe = painterRecipe("floor", paint.painter);
+  return floorPainters[paint.painter]
+    ?? (recipe ? (brush, plan, scale, colours) => paintSteps(brush, recipe.steps, plan.width, plan.depth, scale, colours) : undefined);
+}
 
 function lookFromData(data: RoomLookData): RoomLook {
-  const floorRecipe = data.floor && painterRecipe("floor", data.floor.painter);
   const wallRecipe = data.wall && painterRecipe("wall", data.wall.painter);
-  const floor = data.floor && (floorPainters[data.floor.painter]
-    ?? (floorRecipe && ((brush, plan, scale, colours) => paintSteps(brush, floorRecipe.steps, plan.width, plan.depth, scale, colours))));
+  const floor = floorPainterOf(data.floor);
   const wall = data.wall && (wallPainters[data.wall.painter]
     ?? (wallRecipe && ((brush, width, height, scale, _doors, colours) => paintSteps(brush, wallRecipe.steps, width, height, scale, colours))));
   const ground = data.ground?.painter ? groundPainters[data.ground.painter] : undefined;
@@ -138,8 +154,8 @@ export function setLooks(data: LooksData): void {
   for (const { id, look } of data.rooms) {
     rooms.set(id, lookFromData(look));
   }
-  for (const { id, sky, wallColour } of data.variants) {
-    variants.set(id, { sky, wallColour });
+  for (const variant of data.variants) {
+    variants.set(variant.id, variant);
   }
   setOpenLandscapes(data.rooms.filter(({ look }) => look.openLandscape).map(({ id }) => id));
 }
@@ -156,7 +172,26 @@ export async function loadLooks(): Promise<void> {
 export function lookOf(roomId: string, variant?: string | null): RoomLook {
   const base = rooms.get(roomId) ?? plain;
   const changes = variant ? variants.get(variant) : undefined;
-  return changes ? { ...base, ...changes } : base;
+  if (!changes) {
+    return base;
+  }
+
+  const look: RoomLook = { ...base, sky: changes.sky, wallColour: changes.wallColour };
+  const floor = floorPainterOf(changes.floor);
+  if (changes.floor && !floor) {
+    // A variant whose floor names a painter this client does not have: the room keeps its own floor, and says so.
+    console.warn(`The look ${variant} has a floor painter this client does not know (${changes.floor.painter}); the room keeps its own floor.`);
+  }
+
+  if (changes.floor && floor) {
+    // The variant's floor replaces the room's: its own painter and colours (the room's floor colour where it names none).
+    const colours = { colour: changes.floor.colour ?? base.floorColour, accent: changes.floor.accent };
+    look.paintFloor = (brush, plan, scale) => floor(brush, plan, scale, colours);
+    look.floorNeedsProps = changes.floor.painter === "pear-orchard";
+    look.floorVariant = variant ?? undefined;
+  }
+
+  return look;
 }
 
 /**

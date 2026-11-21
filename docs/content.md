@@ -7,8 +7,9 @@ The database is the truth for rooms, looks, recipes, overlays and prop designs. 
 1. Edit `src/Pspsps.Application/Rooms/ContentDrafts.json` (the shape of the admin export) in a pull request. CI checks
    that its rooms form a valid book with the starting rooms, that every look can be drawn, and that prop designs are valid.
 2. After the merge deploys, load it: the admin page's **Load the reviewed content as drafts**, or the workflow below.
-   Rooms become drafts, never live; new looks, recipes and prop designs are saved; a new overlay is saved (overlays go
-   live in their own time window). Anything that differs from what is live is reported as a problem and left alone.
+   Rooms become drafts, never live; new looks, recipes and prop designs are saved; a new overlay of a published room is saved (overlays go
+   live in their own time window); an overlay of a room that is still a draft is reported as waiting, so load the
+   file again once the room is published, and an overlay of a room that is neither published nor in the file is a problem. Anything that differs from what is live is reported as a problem and left alone.
 3. Review the drafts in the editor, then publish (now, or scheduled).
 
 ## Without a browser: the Content workflow

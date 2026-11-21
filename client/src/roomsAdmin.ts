@@ -24,12 +24,12 @@ export function recipeBody(kind: "painters" | "wildlife", entry: Record<string, 
   return kind === "painters" ? { surface: entry.surface, steps: entry.steps } : { parts: entry.parts, motion: entry.motion };
 }
 
-export interface ImportReport { applied: string[]; unchanged: string[]; problems: string[] }
+export interface ImportReport { applied: string[]; unchanged: string[]; problems: string[]; pending?: string[] }
 
 /** What loading the repository's content file did, in words for the admin. */
 export function importText(report: ImportReport | null): string {
   if (report === null) return "Nothing came back.";
-  const lines = [...report.applied, ...report.problems.map((problem) => `Not applied: ${problem}`)];
+  const lines = [...report.applied, ...(report.pending ?? []).map((wait) => `Waiting: ${wait}`), ...report.problems.map((problem) => `Not applied: ${problem}`)];
   return lines.length > 0 ? lines.join("\n") : `Nothing to load: ${report.unchanged.length} items already match.`;
 }
 
@@ -108,6 +108,8 @@ export interface RoomDetail {
   published: unknown | null;
   draft: unknown | null;
   overlays: { id: string }[];
+  /** Overlays of this room in the reviewed content file that are not saved yet (they wait for the room to be published); previewable. */
+  pendingOverlays?: string[];
   draftRevision?: number | null;
   goLiveAt?: string | null;
 }
@@ -451,6 +453,10 @@ export function roomsSection(say: (message: string) => void): HTMLElement {
             say(`${existing.id} is gone.`);
             await refresh();
           }))))),
+      ...((detail?.pendingOverlays ?? []).length > 0
+        ? [el("ul", { className: "list" }, ...(detail?.pendingOverlays ?? []).map((id) =>
+          el("li", { text: `${id} (in the reviewed file, saved once the room is published) ` }, button("Preview", () => look(id)))))]
+        : []),
       picker.element,
       overlay,
       button("Save overlay", () => void run(async () => {

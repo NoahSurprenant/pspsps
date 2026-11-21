@@ -10,7 +10,7 @@ interface Draft { id: string; layout: { name: string; doors: { id: string; toRoo
 
 test("every draft room loads, previews without errors, and is pictured on a contact sheet", async ({ page, context, browser, baseURL }) => {
   test.setTimeout(180_000);
-  const file = JSON.parse(await readFile("../src/Pspsps.Application/Rooms/ContentDrafts.json", "utf8")) as { rooms?: Draft[] };
+  const file = JSON.parse(await readFile("../src/Pspsps.Application/Rooms/ContentDrafts.json", "utf8")) as { rooms?: Draft[]; overlays?: { id: string; roomId: string; name: string }[] };
   const drafts = file.rooms ?? [];
   test.skip(drafts.length === 0, "ContentDrafts.json has no rooms");
 
@@ -39,6 +39,15 @@ test("every draft room loads, previews without errors, and is pictured on a cont
     await expect(canvas).toBeVisible();
     await page.waitForTimeout(1500);
     pictures.push({ name: draft.layout.name, png: await canvas.screenshot() });
+
+    // The room's seasonal overlays waiting in the file (they can only be saved once the room is published), each pictured
+    // with its look on, so a winter rink is judged as well as the pitch it is the rest of the year.
+    for (const overlay of (file.overlays ?? []).filter((o) => o.roomId === draft.id)) {
+      await page.locator("li", { hasText: `${overlay.id} (in the reviewed file` }).getByRole("button", { name: "Preview" }).click();
+      await expect(page.getByText(`${draft.id} with ${overlay.id} on`)).toBeVisible();
+      await page.waitForTimeout(1500);
+      pictures.push({ name: `${draft.layout.name}: ${overlay.name}`, png: await canvas.screenshot() });
+    }
   }
 
   await mkdir("screenshots", { recursive: true });

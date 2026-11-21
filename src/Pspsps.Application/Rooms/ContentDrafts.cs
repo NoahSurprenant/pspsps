@@ -9,7 +9,7 @@ public sealed record DraftRoom(string Id, RoomLayout Layout);
 
 public sealed record DraftLook(string Id, RoomLook Look);
 
-public sealed record DraftVariant(string Id, string Sky, string WallColour);
+public sealed record DraftVariant(string Id, string Sky, string WallColour, LookPaint? Floor = null);
 
 public sealed record DraftLooks(IReadOnlyList<DraftLook>? Rooms = null, IReadOnlyList<DraftVariant>? Variants = null);
 
@@ -37,7 +37,12 @@ public sealed record ContentFile(
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
-    public static ContentFile Embedded()
+    private static readonly Lazy<ContentFile> EmbeddedFile = new(Read);
+
+    /// <summary>The file the build embeds, read once (it never changes while the server runs).</summary>
+    public static ContentFile Embedded() => EmbeddedFile.Value;
+
+    private static ContentFile Read()
     {
         using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("ContentDrafts.json")
             ?? throw new InvalidOperationException("ContentDrafts.json is not embedded.");
@@ -59,5 +64,5 @@ public sealed record ContentFile(
     public IReadOnlyList<DraftPropDesign> PropDesignList => PropDesigns ?? [];
 }
 
-/// <summary>What loading the content file did: what was saved, what was already so, and what could not be.</summary>
-public sealed record ImportReport(IReadOnlyList<string> Applied, IReadOnlyList<string> Unchanged, IReadOnlyList<string> Problems);
+/// <summary>What loading the content file did: what was saved, what was already so, what could not be, and what waits (an overlay for its room to be published).</summary>
+public sealed record ImportReport(IReadOnlyList<string> Applied, IReadOnlyList<string> Unchanged, IReadOnlyList<string> Problems, IReadOnlyList<string> Pending);
