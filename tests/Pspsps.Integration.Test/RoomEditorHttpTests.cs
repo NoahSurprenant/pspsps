@@ -589,7 +589,6 @@ public sealed class RoomEditorHttpTests
             {
                 Assert.That(first.Applied, Has.Some.Contains("overlay import-test-drafted/wait"), "no player can see the room yet, so its overlay is saved now");
                 Assert.That(first.Problems, Is.Empty);
-                Assert.That(first.Pending, Is.Empty);
                 Assert.That(second.Problems, Has.Some.Contains("import-test-nowhere/wait"), "a room that is neither published nor a draft is a mistake");
                 Assert.That(other, Has.None.Contains("import-test-drafted"), "the overlay of a draft room does not make the checks of other rooms complain");
             });
@@ -616,8 +615,8 @@ public sealed class RoomEditorHttpTests
 
             Assert.Multiple(() =>
             {
-                Assert.That(rink!.PendingOverlays, Is.Empty);
-                Assert.That(cafe!.PendingOverlays, Is.Empty);
+                Assert.That(rink!.Overlays.Select(o => o.Id), Does.Contain("winter"));
+                Assert.That(cafe!.Overlays, Is.Empty);
             });
         }
         finally
@@ -677,7 +676,6 @@ public sealed class RoomEditorHttpTests
             Assert.Multiple(() =>
             {
                 Assert.That(report.Applied, Has.Some.Contains("overlay import-test-room/wait"), "the room is a draft from this same file, and its overlay is saved with it");
-                Assert.That(report.Pending, Is.Empty);
                 Assert.That(report.Problems, Has.Some.Contains("import-test-rooom/typo"));
                 Assert.That(report.Problems, Has.None.Contains("import-test-room/wait"));
                 Assert.That(report.Unchanged, Has.None.Contains("overlay"), "a skipped overlay is not reported as unchanged");

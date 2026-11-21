@@ -91,7 +91,6 @@ describe("saving over a draft", () => {
   it("says what loading the content file did", () => {
     expect(importText({ applied: ["room a: saved as a draft"], unchanged: [], problems: ["look b: differs"] })).toBe("room a: saved as a draft\nNot applied: look b: differs");
     expect(importText({ applied: [], unchanged: ["room a"], problems: [] })).toBe("Nothing to load: 1 items already match.");
-    expect(importText({ applied: [], unchanged: [], problems: [], pending: ["overlay a/b: waits"] })).toBe("Waiting: overlay a/b: waits");
     expect(importText(null)).toBe("Nothing came back.");
   });
 });
