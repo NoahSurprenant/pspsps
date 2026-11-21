@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { createServer, connect, type Server, type Socket } from "node:net";
 import { fileURLToPath } from "node:url";
 import { test, expect, type Browser, type Page } from "@playwright/test";
-import { adminCookie, cats, enterWorld, expectRoom, hubGuest, moderate, tapFloor, watchErrors } from "../tests/game";
+import { adminCookie, cats, enterWorld, expectRoom, goThroughDoor, hubGuest, moderate, tapFloor, watchErrors } from "../tests/game";
 
 // Two server pods of one game, as plain containers clustered through Redis (pods.sh, started by CI's two-pod job): each
 // player's browser talks to one pod, and only the backplane and the grains join them. Runs in that job only
@@ -21,6 +21,17 @@ async function playerOn(browser: Browser, baseURL: string) {
 /** What the page's room has said, oldest first. */
 function chat(page: Page): Promise<string[]> {
   return page.evaluate(() => window.pspsps?.room()?.chat.map((line) => line.text) ?? []);
+}
+
+/**
+ * A tab whose way back into Town Square was refused while its pod stopped is landed in the next place on its way out (a
+ * neighbour, by design): it walks back through that room's door to Town Square.
+ */
+async function backInTownSquare(page: Page): Promise<void> {
+  await expect.poll(() => page.evaluate(() => window.pspsps?.room()?.snapshot.roomName)).toBeTruthy();
+  if ((await page.evaluate(() => window.pspsps?.room()?.snapshot.roomName)) !== "Town Square") {
+    await goThroughDoor(page, "town-square", "Town Square");
+  }
 }
 
 async function say(page: Page, text: string): Promise<void> {
@@ -169,6 +180,8 @@ test("a rolling update: pod A is replaced by a new pod while the game goes on", 
     // Both tabs are back (their chat boxes are there again: they aren't while the room reloads) before chat is polled.
     await expect(felix.page.getByPlaceholder("Say something…")).toBeVisible({ timeout: 40_000 });
     await expect(tom.page.getByPlaceholder("Say something…")).toBeVisible({ timeout: 40_000 });
+    await backInTownSquare(tom.page);
+    await backInTownSquare(felix.page);
     await expect.poll(async () => {
       await trySay(felix.page, `back ${Date.now()}`);
       return (await chat(tom.page)).some((line) => line.startsWith("back "));
