@@ -1044,3 +1044,10 @@ button:disabled {
 button.danger {
   background: #f3b3ad;
 }
+
+@media (max-width: 22rem) {
+  .map-dot {
+    width: 0.85rem;
+    height: 0.85rem;
+  }
+}
