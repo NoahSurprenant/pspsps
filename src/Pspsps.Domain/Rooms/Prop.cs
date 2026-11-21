@@ -41,6 +41,10 @@ public static class PropKinds
     public const string HatShelf = "hat-shelf";
     public const string ShopCounter = "shop-counter";
     public const string Mirror = "mirror";
+    public const string BookStack = "book-stack";
+    public const string Globe = "globe";
+    public const string YarnNook = "yarn-nook";
+    public const string WindowSeat = "window-seat";
     public const string MarketStall = "market-stall";
     public const string PizzaTable = "pizza-table";
     public const string PizzaOven = "pizza-oven";
@@ -65,7 +69,7 @@ public static class PropKinds
     [
         Tree, Bench, Lamp, FlowerBed, CafeTable, Counter, Plant, CatTree, Rug, Armchair, Sofa, FloorLamp, Bookshelf, CatBed,
         MapBoard, Piano, PottingBench, RodRack, PearTree, PackingCrate,
-        CatalogueStand, HatShelf, ShopCounter, Mirror,
+        CatalogueStand, HatShelf, ShopCounter, Mirror, BookStack, Globe, YarnNook, WindowSeat,
         MarketStall, PizzaTable, PizzaOven, Stage, SpeakerStack, LightRig, FishBarrel, YarnBasket, MarketCart, Chalkboard,
         DoughTable, WoodStack, FishTank, Jukebox, DjBooth, BarStool, VelvetRope, Podium, Fountain,
     ];
