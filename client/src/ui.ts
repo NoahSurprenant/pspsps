@@ -817,7 +817,7 @@ function frameRateChooser(frame: FrameRateChoice): HTMLElement {
   choice.addEventListener("change", () => frame.change(choice.value as FrameRate));
   const label = el("label", { text: "Frame rate" });
   label.htmlFor = choice.id;
-  return el("p", { className: "frame-rate" }, label, " ", choice);
+  return el("p", { className: "frame-rate" }, label, choice);
 }
 
 /** The owner's controls in their own home: Decorate, and who can visit. */
