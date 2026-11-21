@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import seed from "../../src/Pspsps.Application/Rooms/RoomLooks.json?raw";
 import serverLook from "../../src/Pspsps.Domain/Rooms/RoomLook.cs?raw";
 import { openLandscape } from "./doors";
@@ -113,6 +113,34 @@ describe("looks as data", () => {
     expect(look.paintWall).toBeDefined();
     expect(look.floorNeedsProps).toBe(false);
     expect(look.backdrop({ width: 10, depth: 8, pond: null, doors: [] }, 4)).toEqual(newRoom.backdrop.parts);
+  });
+
+  it("lets a variant carry a floor of its own, kept apart from the room's own floor", () => {
+    setLooks({
+      rooms: [{ id: "loft", look: newRoom }],
+      variants: [{ id: "frozen", sky: "#d8ecf7", wallColour: "#e8f0f5", floor: { painter: "tiles", colour: "#cfe9f6" } }, { id: "dusk", sky: "#223355", wallColour: "#445566" }],
+    });
+
+    const [plain, frozen, dusk] = [lookOf("loft"), lookOf("loft", "frozen"), lookOf("loft", "dusk")];
+
+    expect(frozen.paintFloor).toBeDefined();
+    expect(frozen.paintFloor).not.toBe(plain.paintFloor);
+    expect(frozen.floorVariant).toBe("frozen");
+    expect(dusk.paintFloor).toBe(plain.paintFloor);
+    expect(plain.floorVariant).toBeUndefined();
+    expect(dusk.floorVariant).toBeUndefined();
+  });
+
+  it("keeps the room's floor, and says so, when a variant's floor painter is unknown", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    setLooks({ rooms: [{ id: "loft", look: newRoom }], variants: [{ id: "frozen", sky: "#d8ecf7", wallColour: "#e8f0f5", floor: { painter: "marble" } }] });
+
+    const frozen = lookOf("loft", "frozen");
+
+    expect(frozen.paintFloor).toBe(lookOf("loft").paintFloor);
+    expect(frozen.floorVariant).toBeUndefined();
+    expect(warn).toHaveBeenCalledOnce();
+    warn.mockRestore();
   });
 
   it("ignores a painter it doesn't know, painting the plain floor instead of failing", () => {

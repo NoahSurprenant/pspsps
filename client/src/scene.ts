@@ -277,7 +277,7 @@ export class RoomScene {
     const plan: Floorplan = { width: room.width, depth: room.depth, pond: room.pond, doors: room.doors, props: look.floorNeedsProps ? room.props : undefined };
     const floor = CreateGround("floor", { width: room.width, height: room.depth }, this.scene);
     floor.material = look.paintFloor
-      ? painted(this.scene, "floor", `${room.roomId}/floor/${JSON.stringify(plan)}`, textureSize(room.width, room.depth, floorPixelsPerMetre),
+      ? painted(this.scene, "floor", `${room.roomId}/floor/${look.floorVariant ?? ""}/${JSON.stringify(plan)}`, textureSize(room.width, room.depth, floorPixelsPerMetre),
         (brush, scale) => look.paintFloor?.(brush, plan, scale))
       : flat(this.scene, "floor", look.floorColour);
     // The floor's dark edge: a little larger and just below it. Not renderOutline, whose pass, from far off (a narrow

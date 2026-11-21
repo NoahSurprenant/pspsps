@@ -358,6 +358,21 @@ namespace Pspsps.Infrastructure.Migrations
 
             modelBuilder.Entity("Pspsps.Domain.Rooms.LookVariantEntry", b =>
                 {
+                    b.Property<string>("FloorAccent")
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)")
+                        .HasColumnName("floor_accent");
+
+                    b.Property<string>("FloorColour")
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)")
+                        .HasColumnName("floor_colour");
+
+                    b.Property<string>("FloorPainter")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("floor_painter");
+
                     b.Property<string>("Id")
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)")

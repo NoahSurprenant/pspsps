@@ -94,6 +94,10 @@ internal sealed class LookVariantConfiguration : IEntityTypeConfiguration<LookVa
         builder.Property(v => v.Id).HasMaxLength(32);
         builder.Property(v => v.Sky).HasMaxLength(7);
         builder.Property(v => v.WallColour).HasMaxLength(7);
+        builder.Property(v => v.FloorPainter).HasMaxLength(32);
+        builder.Property(v => v.FloorColour).HasMaxLength(7);
+        builder.Property(v => v.FloorAccent).HasMaxLength(7);
+        builder.Ignore(v => v.Floor);
     }
 }
 

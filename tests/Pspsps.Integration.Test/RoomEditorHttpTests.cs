@@ -510,6 +510,181 @@ public sealed class RoomEditorHttpTests
     }
 
     [Test]
+    public async Task ALookVariant_CanCarryAFloorOfItsOwn_ThatMustNameAFloorPainter()
+    {
+        var (adminPlayer, _) = await Game.SignInGuestAsync();
+        var editor = Game.Get<IRoomEditor>();
+        var good = new DraftVariant("import-test-frozen", "#cfe3f0", "#e8eef4", new LookPaint("tiles", "#d9f0fa", "#bfe2f2"));
+        var bad = new DraftVariant("import-test-marble", "#cfe3f0", "#e8eef4", new LookPaint("marble"));
+        try
+        {
+            var first = await editor.ImportAsync(new ContentFile(Looks: new DraftLooks(Variants: [good, bad])), adminPlayer.Id, CancellationToken.None);
+            var again = await editor.ImportAsync(new ContentFile(Looks: new DraftLooks(Variants: [good])), adminPlayer.Id, CancellationToken.None);
+            await using var db = Db();
+            var kept = await db.LookVariants.AsNoTracking().SingleAsync(v => v.Id == "import-test-frozen");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(first.Applied, Has.Some.Contains("variant import-test-frozen"));
+                Assert.That(first.Problems, Has.Count.EqualTo(1).And.Some.Contains("marble"));
+                Assert.That(again.Unchanged, Has.Some.Contains("variant import-test-frozen"), "the floor is part of what is compared");
+                Assert.That(kept.Floor, Is.EqualTo(new LookPaint("tiles", "#d9f0fa", "#bfe2f2")));
+            });
+        }
+        finally
+        {
+            await using var db = Db();
+            db.LookVariants.RemoveRange(db.LookVariants.Where(v => v.Id.StartsWith("import-test-")));
+            await db.SaveChangesAsync();
+        }
+    }
+
+    [Test]
+    public async Task APainter_ThatAVariantsFloorUses_IsNotDeletedOrChangedToAWall()
+    {
+        var (adminPlayer, _) = await Game.SignInGuestAsync();
+        var editor = Game.Get<IRoomEditor>();
+        var steps = new[] { new PaintStep("fill", Colour: "main") };
+        try
+        {
+            await editor.SavePainterAsync("import-test-ice", PaintSurfaces.Floor, steps, adminPlayer.Id, CancellationToken.None);
+            await editor.SaveVariantAsync("import-test-frozen", new LookVariant("#cfe3f0", "#e8eef4", new LookPaint("import-test-ice")), adminPlayer.Id, CancellationToken.None);
+
+            var deleted = Assert.ThrowsAsync<Pspsps.Domain.DomainException>(() => editor.DeletePainterAsync("import-test-ice", adminPlayer.Id, CancellationToken.None));
+            var changed = Assert.ThrowsAsync<Pspsps.Domain.DomainException>(() => editor.SavePainterAsync("import-test-ice", PaintSurfaces.Wall, steps, adminPlayer.Id, CancellationToken.None));
+            await editor.DeleteVariantAsync("import-test-frozen", adminPlayer.Id, CancellationToken.None);
+            await editor.DeletePainterAsync("import-test-ice", adminPlayer.Id, CancellationToken.None);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(deleted!.Message, Does.Contain("variant import-test-frozen"));
+                Assert.That(changed!.Message, Does.Contain("variant import-test-frozen"));
+            });
+        }
+        finally
+        {
+            await using var db = Db();
+            db.LookVariants.RemoveRange(db.LookVariants.Where(v => v.Id.StartsWith("import-test-")));
+            db.PainterRecipes.RemoveRange(db.PainterRecipes.Where(r => r.Id.StartsWith("import-test-")));
+            await db.SaveChangesAsync();
+        }
+    }
+
+    [Test]
+    public async Task AnOverlay_WaitsForItsRoomsRealState_AndAnUnknownRoomIsAMistake()
+    {
+        var (adminPlayer, _) = await Game.SignInGuestAsync();
+        Game.Admins.Add(adminPlayer.Id);
+        var editor = Game.Get<IRoomEditor>();
+        var window = new OverlayWindow(new DateTimeOffset(2090, 1, 1, 0, 0, 0, TimeSpan.Zero), new DateTimeOffset(2090, 1, 2, 0, 0, 0, TimeSpan.Zero));
+        var layout = (await editor.GetAsync("pear-orchard", CancellationToken.None))!.Published!;
+        try
+        {
+            // A room that exists only as a draft in the database, and is not in this file, is a room the overlay can wait for.
+            await editor.SaveDraftAsync("import-test-drafted", layout, adminPlayer.Id, null, CancellationToken.None);
+            var first = await editor.ImportAsync(new ContentFile(Overlays: [new RoomOverlay("wait", "import-test-drafted", "Waits", window)]), adminPlayer.Id, CancellationToken.None);
+            var second = await editor.ImportAsync(new ContentFile(Overlays: [new RoomOverlay("wait", "import-test-nowhere", "Nowhere", window)]), adminPlayer.Id, CancellationToken.None);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(first.Pending, Has.Some.Contains("import-test-drafted/wait"));
+                Assert.That(first.Problems, Is.Empty);
+                Assert.That(second.Pending, Is.Empty);
+                Assert.That(second.Problems, Has.Some.Contains("import-test-nowhere/wait"), "a room that is neither published nor a draft is a mistake");
+            });
+        }
+        finally
+        {
+            await editor.DiscardDraftAsync("import-test-drafted", adminPlayer.Id, CancellationToken.None);
+        }
+    }
+
+    [Test]
+    public async Task OnlyARoomThatIsNotPublished_HasOverlaysWaitingInTheFile()
+    {
+        var (adminPlayer, _) = await Game.SignInGuestAsync();
+        Game.Admins.Add(adminPlayer.Id);
+        var editor = Game.Get<IRoomEditor>();
+        try
+        {
+            await editor.ImportAsync(ContentFile.Embedded(), adminPlayer.Id, CancellationToken.None);
+            var rink = await editor.GetAsync("ice-rink", CancellationToken.None);
+            var cafe = await editor.GetAsync("cafe", CancellationToken.None);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(rink!.PendingOverlays, Does.Contain("winter"));
+                Assert.That(cafe!.PendingOverlays, Is.Empty);
+            });
+        }
+        finally
+        {
+            foreach (var room in ContentFile.Embedded().RoomList)
+            {
+                await editor.DiscardDraftAsync(room.Id, adminPlayer.Id, CancellationToken.None);
+            }
+        }
+    }
+
+    [Test]
+    public async Task LoadingTheContentFile_SavesWildlifeBeforeTheLookThatNamesIt()
+    {
+        var (adminPlayer, _) = await Game.SignInGuestAsync();
+        var editor = Game.Get<IRoomEditor>();
+        var moth = new DraftWildlife("import-test-moth", [new PropPart("ball", [0, 0.05, 0], "#d9d2c3", Diameter: 0.2)], new WildlifeMotion("wander", 0.6, 1.2, 3));
+        var look = new RoomLook("#112233", "#445566", "#778899", new LookBackdrop([]), Wildlife: "import-test-moth");
+        var file = new ContentFile(Looks: new DraftLooks([new DraftLook("import-test-look", look)]), Wildlife: [moth]);
+        try
+        {
+            var report = await editor.ImportAsync(file, adminPlayer.Id, CancellationToken.None);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(report.Problems, Is.Empty, "the recipe is saved first, so the look finds it");
+                Assert.That(report.Applied, Has.Some.Contains("wildlife import-test-moth").And.Some.Contains("look import-test-look"));
+            });
+        }
+        finally
+        {
+            await using var db = Db();
+            db.RoomLooks.RemoveRange(db.RoomLooks.Where(l => l.Id == "import-test-look"));
+            db.WildlifeRecipes.RemoveRange(db.WildlifeRecipes.Where(w => w.Id == "import-test-moth"));
+            await db.SaveChangesAsync();
+        }
+    }
+
+    [Test]
+    public async Task LoadingTheContentFile_ReportsAnOverlayOfAnUnpublishedRoomAsWaiting_AndOfAMistypedRoomAsAProblem()
+    {
+        var (adminPlayer, cookie) = await Game.SignInGuestAsync();
+        Game.Admins.Add(adminPlayer.Id);
+        using var admin = ClientFor(cookie);
+        using var opened = await SendAsync(admin, HttpMethod.Get, "rooms/pear-orchard");
+        var layout = (await JsonOfAsync(opened))["published"]!.Deserialize<RoomLayout>(ContentFile.Json)!;
+        var window = new OverlayWindow(new DateTimeOffset(2090, 1, 1, 0, 0, 0, TimeSpan.Zero), new DateTimeOffset(2090, 1, 2, 0, 0, 0, TimeSpan.Zero));
+        var file = new ContentFile(
+            [new DraftRoom("import-test-room", layout)],
+            Overlays: [new RoomOverlay("wait", "import-test-room", "Waits", window), new RoomOverlay("typo", "import-test-rooom", "Mistyped", window)]);
+        var editor = Game.Get<IRoomEditor>();
+        try
+        {
+            var report = await editor.ImportAsync(file, adminPlayer.Id, CancellationToken.None);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(report.Pending, Has.Count.EqualTo(1).And.Some.Contains("import-test-room/wait"));
+                Assert.That(report.Problems, Has.Some.Contains("import-test-rooom/typo"));
+                Assert.That(report.Problems, Has.None.Contains("import-test-room/wait"));
+                Assert.That(report.Unchanged, Has.None.Contains("overlay"), "a skipped overlay is not reported as unchanged");
+            });
+        }
+        finally
+        {
+            await editor.DiscardDraftAsync("import-test-room", adminPlayer.Id, CancellationToken.None);
+        }
+    }
+
+    [Test]
     public async Task LoadingTheContentFile_MakesDrafts_ThatAreNotLiveUntilPublished()
     {
         var (adminPlayer, cookie) = await Game.SignInGuestAsync();
