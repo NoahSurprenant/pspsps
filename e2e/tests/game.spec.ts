@@ -3,7 +3,7 @@ import type { Page } from "@playwright/test";
 import {
   animation, catEyes, cats, clickCat, emotes, enterWorld, expect, fishFor, goHome, goThroughDoor, hubGuest, newPlayer,
   pixelsNear, pondBlue, roomBarButtons, tapFloor, test, watchErrors, expectRoom, openCatalogue, partyHatPink, portrait, focusByTab,
-  enterWorldSignedIn, holdDrawing, signInAsAdmin, fakeNetwork, pinchRoom,
+  enterWorldSignedIn, signInAsAdmin, fakeNetwork, pinchRoom,
 } from "./game";
 
 test("read the square map, grow daisies, and pick and pack a pear", async ({ page }) => {
@@ -989,7 +989,7 @@ test("an admin mutes and warns a cat from its card, bans another, whose tab is s
     const felixId = await enterWorld(felix.page, "Siamese");
     await tapFloor(felix.page, 4, 2);
     await expect.poll(async () => (await cats(admin))[felixId]?.x ?? 0).toBeGreaterThan(3.5);
-    const garfieldId = await holdDrawing([admin, felix.page], () => enterWorld(garfield.page, "Siamese"));
+    const garfieldId = await enterWorld(garfield.page, "Siamese");
     const name = (page: typeof admin) =>
       page.evaluate(async () => ((await (await fetch("/api/me")).json()) as { displayName: string }).displayName);
     const [felixName, garfieldName] = [await name(felix.page), await name(garfield.page)];

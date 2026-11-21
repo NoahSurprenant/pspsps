@@ -9,29 +9,6 @@ export async function drawLess(context: BrowserContext): Promise<void> {
   });
 }
 
-/**
- * Holds a page's drawing (its animation frames are kept, not run) while <during> runs, then lets it go on. Pages already
- * in a room draw in software WebGL on the same runner CPUs as a page that is joining: a third page then stalls for
- * seconds building its 3D scene, so the joined pages stand still until it has its room.
- */
-export async function holdDrawing<T>(pages: Page[], during: () => Promise<T>): Promise<T> {
-  await Promise.all(pages.map((page) => page.evaluate(() => {
-    const held: FrameRequestCallback[] = [];
-    const real = window.requestAnimationFrame.bind(window);
-    (window as unknown as { releaseDrawing: () => void }).releaseDrawing = () => {
-      window.requestAnimationFrame = real;
-      for (const frame of held.splice(0)) real(frame);
-    };
-    window.requestAnimationFrame = (frame) => held.push(frame);
-  })));
-  try {
-    return await during();
-  } finally {
-    await Promise.all(pages.map((page) => page.evaluate(() =>
-      (window as unknown as { releaseDrawing: () => void }).releaseDrawing())));
-  }
-}
-
 /** A page that fails its test on any console error or uncaught exception (the "No camera defined" kind). */
 export const test = base.extend<{ page: Page }>({
   page: async ({ page }, use) => {
