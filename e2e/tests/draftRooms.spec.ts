@@ -40,10 +40,10 @@ test("every draft room loads, previews without errors, and is pictured on a cont
     await page.waitForTimeout(1500);
     pictures.push({ name: draft.layout.name, png: await canvas.screenshot() });
 
-    // The room's seasonal overlays waiting in the file (they can only be saved once the room is published), each pictured
+    // The room's seasonal overlays (the import saves them even while the room is a draft), each pictured
     // with its look on, so a winter rink is judged as well as the pitch it is the rest of the year.
     for (const overlay of (file.overlays ?? []).filter((o) => o.roomId === draft.id)) {
-      await page.locator("li", { hasText: `${overlay.id} (in the reviewed file` }).getByRole("button", { name: "Preview" }).click();
+      await page.locator("li", { hasText: new RegExp(`^${overlay.id} `) }).getByRole("button", { name: "Preview" }).click();
       await expect(page.getByText(`${draft.id} with ${overlay.id} on`)).toBeVisible();
       await page.waitForTimeout(1500);
       pictures.push({ name: `${draft.layout.name}: ${overlay.name}`, png: await canvas.screenshot() });

@@ -571,7 +571,7 @@ public sealed class RoomEditorHttpTests
     }
 
     [Test]
-    public async Task AnOverlay_WaitsForItsRoomsRealState_AndAnUnknownRoomIsAMistake()
+    public async Task AnOverlay_IsSavedForARoomThatIsOnlyADraft_WithoutBreakingOtherRooms_AndAnUnknownRoomIsAMistake()
     {
         var (adminPlayer, _) = await Game.SignInGuestAsync();
         Game.Admins.Add(adminPlayer.Id);
@@ -580,27 +580,30 @@ public sealed class RoomEditorHttpTests
         var layout = (await editor.GetAsync("pear-orchard", CancellationToken.None))!.Published!;
         try
         {
-            // A room that exists only as a draft in the database, and is not in this file, is a room the overlay can wait for.
             await editor.SaveDraftAsync("import-test-drafted", layout, adminPlayer.Id, null, CancellationToken.None);
             var first = await editor.ImportAsync(new ContentFile(Overlays: [new RoomOverlay("wait", "import-test-drafted", "Waits", window)]), adminPlayer.Id, CancellationToken.None);
             var second = await editor.ImportAsync(new ContentFile(Overlays: [new RoomOverlay("wait", "import-test-nowhere", "Nowhere", window)]), adminPlayer.Id, CancellationToken.None);
+            var other = await editor.SaveDraftAsync("pear-orchard", layout, adminPlayer.Id, null, CancellationToken.None);
 
             Assert.Multiple(() =>
             {
-                Assert.That(first.Pending, Has.Some.Contains("import-test-drafted/wait"));
+                Assert.That(first.Applied, Has.Some.Contains("overlay import-test-drafted/wait"), "no player can see the room yet, so its overlay is saved now");
                 Assert.That(first.Problems, Is.Empty);
-                Assert.That(second.Pending, Is.Empty);
+                Assert.That(first.Pending, Is.Empty);
                 Assert.That(second.Problems, Has.Some.Contains("import-test-nowhere/wait"), "a room that is neither published nor a draft is a mistake");
+                Assert.That(other, Has.None.Contains("import-test-drafted"), "the overlay of a draft room does not make the checks of other rooms complain");
             });
         }
         finally
         {
+            await editor.DeleteOverlayAsync("import-test-drafted", "wait", adminPlayer.Id, CancellationToken.None);
             await editor.DiscardDraftAsync("import-test-drafted", adminPlayer.Id, CancellationToken.None);
+            await editor.DiscardDraftAsync("pear-orchard", adminPlayer.Id, CancellationToken.None);
         }
     }
 
     [Test]
-    public async Task OnlyARoomThatIsNotPublished_HasOverlaysWaitingInTheFile()
+    public async Task AnOverlayInTheFile_OfARoomThatIsNotPublished_IsSavedNotWaiting()
     {
         var (adminPlayer, _) = await Game.SignInGuestAsync();
         Game.Admins.Add(adminPlayer.Id);
@@ -613,12 +616,13 @@ public sealed class RoomEditorHttpTests
 
             Assert.Multiple(() =>
             {
-                Assert.That(rink!.PendingOverlays, Does.Contain("winter"));
+                Assert.That(rink!.PendingOverlays, Is.Empty);
                 Assert.That(cafe!.PendingOverlays, Is.Empty);
             });
         }
         finally
         {
+            await editor.DeleteOverlayAsync("ice-rink", "winter", adminPlayer.Id, CancellationToken.None);
             foreach (var room in ContentFile.Embedded().RoomList)
             {
                 await editor.DiscardDraftAsync(room.Id, adminPlayer.Id, CancellationToken.None);
@@ -654,7 +658,7 @@ public sealed class RoomEditorHttpTests
     }
 
     [Test]
-    public async Task LoadingTheContentFile_ReportsAnOverlayOfAnUnpublishedRoomAsWaiting_AndOfAMistypedRoomAsAProblem()
+    public async Task LoadingTheContentFile_SavesAnOverlayOfAnUnpublishedRoom_AndReportsAMistypedRoomAsAProblem()
     {
         var (adminPlayer, cookie) = await Game.SignInGuestAsync();
         Game.Admins.Add(adminPlayer.Id);
@@ -672,7 +676,8 @@ public sealed class RoomEditorHttpTests
 
             Assert.Multiple(() =>
             {
-                Assert.That(report.Pending, Has.Count.EqualTo(1).And.Some.Contains("import-test-room/wait"));
+                Assert.That(report.Applied, Has.Some.Contains("overlay import-test-room/wait"), "the room is a draft from this same file, and its overlay is saved with it");
+                Assert.That(report.Pending, Is.Empty);
                 Assert.That(report.Problems, Has.Some.Contains("import-test-rooom/typo"));
                 Assert.That(report.Problems, Has.None.Contains("import-test-room/wait"));
                 Assert.That(report.Unchanged, Has.None.Contains("overlay"), "a skipped overlay is not reported as unchanged");
@@ -680,6 +685,7 @@ public sealed class RoomEditorHttpTests
         }
         finally
         {
+            await editor.DeleteOverlayAsync("import-test-room", "wait", adminPlayer.Id, CancellationToken.None);
             await editor.DiscardDraftAsync("import-test-room", adminPlayer.Id, CancellationToken.None);
         }
     }
