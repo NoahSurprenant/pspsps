@@ -12,9 +12,9 @@ export default defineConfig({
   testIgnore: suite === "gameplay" ? [layout, accessibility] : undefined,
   timeout: 60_000,
   expect: { timeout: 15_000 },
-  // Shard layout by individual case, with a single browser worker on each isolated runner.
+  // Shard by individual case; layout runs two browser workers on the 4-CPU runner, the rest one.
   fullyParallel: suite !== undefined,
-  workers: 1,
+  workers: suite === "layout" ? 2 : 1,
   retries: 0,
   forbidOnly: !!process.env.CI,
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
