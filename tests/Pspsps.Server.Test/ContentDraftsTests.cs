@@ -100,33 +100,39 @@ public sealed class ContentDraftsTests
 
     // The browser draws a design scaled to the prop's circle (its size), outline included; a part that reaches past the
     // size would spill out of the circle the placement rules keep clear. A bound that is never too small: a part
-    // turned about the vertical keeps its footprint's reach, a tilted one its whole diagonal.
+    // turned only about the vertical keeps its footprint's reach, a tilted one its whole diagonal.
     [Test]
-    public void TheBookRoomsNewDesigns_DrawInsideTheirSize()
+    public void EveryDesignInTheFile_DrawsInsideItsSize()
     {
         Assert.Multiple(() =>
         {
-            foreach (var design in Content.PropDesignList.Where(d => BookRoomKinds.Contains(d.Kind)))
+            foreach (var design in Content.PropDesignList)
             {
-                foreach (var (part, index) in design.Parts.Select((p, i) => (p, i)))
+                var parts = design.Parts.Concat((design.Growth ?? []).SelectMany(step => step.Parts));
+                foreach (var (part, index) in parts.Select((p, i) => (p, i)))
                 {
-                    var tilted = part.Turn is { } turn && (turn[0] != 0 || turn[2] != 0);
-                    var reach = part.Shape switch
-                    {
-                        "box" => tilted
-                            ? Math.Sqrt(Math.Pow(part.Width!.Value, 2) + Math.Pow(part.Height!.Value, 2) + Math.Pow(part.Depth!.Value, 2)) / 2
-                            : Math.Sqrt(Math.Pow(part.Width!.Value, 2) + Math.Pow(part.Depth!.Value, 2)) / 2,
-                        "cylinder" => tilted || part.Turn is not null && part.Turn[0] != 0
-                            ? Math.Sqrt(Math.Pow(part.Diameter!.Value, 2) + Math.Pow(part.Height!.Value, 2)) / 2
-                            : part.Diameter!.Value / 2,
-                        _ => part.Diameter!.Value / 2,
-                    };
-                    var outline = part.Outlined == false ? 0 : 0.05;
-                    var total = Math.Sqrt((part.At[0] * part.At[0]) + (part.At[2] * part.At[2])) + reach + outline;
-
-                    Assert.That(total, Is.LessThanOrEqualTo(design.Size + 1e-6), $"{design.Kind}, part {index + 1}");
+                    Assert.That(ReachOf(part), Is.LessThanOrEqualTo(design.Size + 1e-6), $"{design.Kind}, part {index + 1}");
                 }
             }
         });
+    }
+
+    private static double ReachOf(PropPart part)
+    {
+        var tilted = part.Turn is { Length: > 0 } turn && (turn[0] != 0 || (turn.Length > 2 && turn[2] != 0));
+        var width = part.Width ?? 0;
+        var height = part.Height ?? 0;
+        var depth = part.Depth ?? 0;
+        var diameter = part.Diameter ?? 0;
+        var reach = part.Shape switch
+        {
+            "box" => tilted ? Math.Sqrt((width * width) + (height * height) + (depth * depth)) / 2 : Math.Sqrt((width * width) + (depth * depth)) / 2,
+            "cylinder" => tilted ? Math.Sqrt((diameter * diameter) + (height * height)) / 2 : diameter / 2,
+            _ => diameter / 2,
+        };
+        var outline = part.Outlined == false ? 0 : 0.05;
+        var x = part.At.Length > 0 ? part.At[0] : 0;
+        var z = part.At.Length > 2 ? part.At[2] : 0;
+        return Math.Sqrt((x * x) + (z * z)) + reach + outline;
     }
 }
