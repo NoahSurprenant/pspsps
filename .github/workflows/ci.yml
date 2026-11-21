@@ -411,6 +411,15 @@ jobs:
           archive: false
           retention-days: 30
           overwrite: true
+      # The rooms waiting in ContentDrafts.json, drawn by the admin preview (e2e/tests/draftRooms.spec.ts).
+      - name: Upload the draft rooms contact sheet
+        if: ${{ !cancelled() && hashFiles('e2e/screenshots/draft-rooms.png') != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          path: e2e/screenshots/draft-rooms.png
+          archive: false
+          retention-days: 30
+          overwrite: true
       - name: Verify screenshot uploads and collect links
         id: screenshot_links
         if: ${{ !cancelled() && (needs.e2e-shards.result == 'success' || hashFiles('e2e/screenshots/*.png') != '') }}
