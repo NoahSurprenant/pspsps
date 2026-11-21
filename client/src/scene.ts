@@ -134,12 +134,13 @@ export class RoomScene {
     private readonly engine: AbstractEngine,
     private readonly loadModel: (scene: Scene) => Promise<AssetContainer> = catModelFor,
     private readonly touch = false,
+    maxFps: () => number | undefined = () => undefined,
   ) {
     this.scene = new Scene(this.engine);
     this.scene.clearColor = sky;
     this.portraits = new Portraits(this.engine, this.loadModel);
     // One loop for the page; it draws whichever room is showing.
-    const due = frameLimiter();
+    const due = frameLimiter(maxFps);
     this.engine.runRenderLoop(() => {
       if (due(performance.now())) {
         this.renderFrame();

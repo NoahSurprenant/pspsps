@@ -1,4 +1,5 @@
 import { el } from "./dom";
+import { FRAME_RATES, type FrameRate } from "./frameLimit";
 import { hasDoorway } from "./doors";
 import { emoteBar, emoteForKey, isTyping } from "./emotes";
 import type { Fishing } from "./fishing";
@@ -151,6 +152,7 @@ export class Overlay {
     signOut: () => void,
     save: SaveYourCat,
     note?: Note,
+    frame?: FrameRateChoice,
   ): void {
     const saving = player.isGuest && save.providers.length > 0
       ? [
@@ -170,6 +172,7 @@ export class Overlay {
           pick.disabled = full;
           return pick;
         }),
+        ...(frame ? [frameRateChooser(frame)] : []),
         button("Sign out", signOut, "quiet"),
       ),
     );
@@ -795,6 +798,26 @@ function swatchOf(fur: FurColor): HTMLElement {
   swatch.style.background = `linear-gradient(135deg, ${coat.body} 55%, ${coat.accent} 55%)`;
   swatch.setAttribute("aria-hidden", "true");
   return swatch;
+}
+
+/** How often the room is drawn, as the player set it: kept by the page, which applies it on the next frame. */
+export interface FrameRateChoice {
+  value: FrameRate;
+  change(value: FrameRate): void;
+}
+
+function frameRateChooser(frame: FrameRateChoice): HTMLElement {
+  const choice = el("select", { id: "frame-rate" });
+  for (const { value, label } of FRAME_RATES) {
+    const option = el("option", { text: label });
+    option.value = value;
+    choice.append(option);
+  }
+  choice.value = frame.value;
+  choice.addEventListener("change", () => frame.change(choice.value as FrameRate));
+  const label = el("label", { text: "Frame rate" });
+  label.htmlFor = choice.id;
+  return el("p", { className: "frame-rate" }, label, " ", choice);
 }
 
 /** The owner's controls in their own home: Decorate, and who can visit. */
