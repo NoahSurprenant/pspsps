@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Pspsps.Application.Abstractions;
 using Pspsps.Domain;
@@ -42,6 +43,13 @@ public interface IRoomEditor
 
     /// <summary>The published rooms (the starting room first), their overlays and looks, the painter and wildlife recipes and the prop designs, in a stable order.</summary>
     Task<ContentExport> ExportAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Loads the content file: each room that differs from its published version becomes its draft (nothing goes live until it is
+    /// published). Looks, variants and recipes that are new are saved (nothing uses them yet); ones that already exist and differ are
+    /// not touched and are reported, because changing them would change live rooms.
+    /// </summary>
+    Task<ImportReport> ImportAsync(ContentFile file, Guid adminId, CancellationToken cancellationToken);
 
     /// <summary>
     /// Keeps the layout as the room's draft (a new room's first one too) and says what would stop it being published.
@@ -117,6 +125,124 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
                 var draft = group.FirstOrDefault(v => v.State == RoomVersionState.Draft);
                 return new RoomSummary(group.Key, (published ?? draft ?? group.First()).Layout.Name, published?.Number, draft?.Number, draft?.GoLiveAt);
             })];
+    }
+
+    public async Task<ImportReport> ImportAsync(ContentFile file, Guid adminId, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(file);
+        var applied = new List<string>();
+        var unchanged = new List<string>();
+        var problems = new List<string>();
+        static bool Same<T>(T a, T b) => JsonSerializer.Serialize(a, ContentFile.Json) == JsonSerializer.Serialize(b, ContentFile.Json);
+
+        var looks = await db.RoomLooks.AsNoTracking().ToDictionaryAsync(l => l.Id, cancellationToken);
+        foreach (var (id, look) in file.LookList.Select(l => (l.Id, l.Look)))
+        {
+            if (!looks.TryGetValue(id, out var existing))
+            {
+                await Attempt($"look {id}", () => SaveLookAsync(id, look, adminId, cancellationToken));
+            }
+            else if (Same(existing.Look, look))
+            {
+                unchanged.Add($"look {id}");
+            }
+            else
+            {
+                problems.Add($"look {id}: differs from the live look; change it in the admin (it would change a live room).");
+            }
+        }
+
+        var variants = await db.LookVariants.AsNoTracking().ToDictionaryAsync(v => v.Id, cancellationToken);
+        foreach (var variant in file.VariantList)
+        {
+            if (!variants.TryGetValue(variant.Id, out var existing))
+            {
+                await Attempt($"variant {variant.Id}", () => SaveVariantAsync(variant.Id, new LookVariant(variant.Sky, variant.WallColour), adminId, cancellationToken));
+            }
+            else if (existing.Sky == variant.Sky && existing.WallColour == variant.WallColour)
+            {
+                unchanged.Add($"variant {variant.Id}");
+            }
+            else
+            {
+                problems.Add($"variant {variant.Id}: differs from the live variant; change it in the admin.");
+            }
+        }
+
+        var painters = await db.PainterRecipes.AsNoTracking().ToDictionaryAsync(p => p.Id, cancellationToken);
+        foreach (var painter in file.PainterList)
+        {
+            if (!painters.TryGetValue(painter.Id, out var existing))
+            {
+                await Attempt($"painter {painter.Id}", () => SavePainterAsync(painter.Id, painter.Surface, painter.Steps, adminId, cancellationToken));
+            }
+            else if (existing.Surface == painter.Surface && Same(existing.Steps, painter.Steps))
+            {
+                unchanged.Add($"painter {painter.Id}");
+            }
+            else
+            {
+                problems.Add($"painter {painter.Id}: differs from the live recipe; change it in the admin.");
+            }
+        }
+
+        var creatures = await db.WildlifeRecipes.AsNoTracking().ToDictionaryAsync(w => w.Id, cancellationToken);
+        foreach (var creature in file.WildlifeList)
+        {
+            if (!creatures.TryGetValue(creature.Id, out var existing))
+            {
+                await Attempt($"wildlife {creature.Id}", () => SaveWildlifeAsync(creature.Id, creature.Parts, creature.Motion, adminId, cancellationToken));
+            }
+            else if (Same(existing.Parts, creature.Parts) && Same(existing.Motion, creature.Motion))
+            {
+                unchanged.Add($"wildlife {creature.Id}");
+            }
+            else
+            {
+                problems.Add($"wildlife {creature.Id}: differs from the live recipe; change it in the admin.");
+            }
+        }
+
+        foreach (var room in file.RoomList)
+        {
+            var detail = await GetAsync(room.Id, cancellationToken);
+            if (detail?.Published is { } published && Same(published, room.Layout) && detail.Draft is null)
+            {
+                unchanged.Add($"room {room.Id}");
+            }
+            else if (detail?.Draft is { } draft && Same(draft, room.Layout))
+            {
+                unchanged.Add($"room {room.Id} (already a draft)");
+            }
+            else
+            {
+                try
+                {
+                    var found = await SaveDraftAsync(room.Id, room.Layout, adminId, null, cancellationToken);
+                    applied.Add($"room {room.Id}: saved as a draft");
+                    problems.AddRange(found.Select(problem => $"room {room.Id}: {problem}"));
+                }
+                catch (DomainException exception)
+                {
+                    problems.Add($"room {room.Id}: {exception.Message}");
+                }
+            }
+        }
+
+        return new ImportReport(applied, unchanged, problems);
+
+        async Task Attempt(string what, Func<Task> save)
+        {
+            try
+            {
+                await save();
+                applied.Add($"{what}: saved");
+            }
+            catch (DomainException exception)
+            {
+                problems.Add($"{what}: {exception.Message}");
+            }
+        }
     }
 
     public async Task<ContentExport> ExportAsync(CancellationToken cancellationToken)

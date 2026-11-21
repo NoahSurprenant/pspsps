@@ -27,6 +27,9 @@ public static class RoomEditorEndpoints
         admin.MapGet("/export", (ClaimsPrincipal user, IModerationService moderation, IRoomEditor editor, CancellationToken ct) =>
             Admin(user, moderation, async _ => Results.Json(await editor.ExportAsync(ct), Export)));
 
+        admin.MapPost("/import", (HttpRequest request, ClaimsPrincipal user, IModerationService moderation, IRoomEditor editor) =>
+            Change(request, user, moderation, async adminId => Results.Ok(await editor.ImportAsync(ContentFile.Embedded(), adminId, CancellationToken.None))));
+
         rooms.MapGet("/audit", (int? limit, ClaimsPrincipal user, IModerationService moderation, IRoomEditor editor, CancellationToken ct) =>
             Admin(user, moderation, async _ => Results.Ok(await editor.AuditAsync(limit ?? 100, ct))));
 
