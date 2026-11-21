@@ -252,7 +252,7 @@
           {
             "id": "boat-shed",
             "edge": "South",
-            "offset": -6,
+            "offset": 6,
             "toRoom": "boat-shed",
             "toDoor": "cove"
           }
