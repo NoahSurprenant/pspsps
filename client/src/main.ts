@@ -27,6 +27,7 @@ import { Notices, doneMessage, inForce, mutedToast, type ModerationRequest, type
 import { Mutes, muteMessage, reportRequest, reportSentMessage, type ReportDraft, type SafetyAction } from "./safety";
 import { pageTitle } from "./title";
 import { WalkKeys } from "./walkKeys";
+import { FRAME_RATE_KEY, maxFps, savedFrameRate, type FrameRate } from "./frameLimit";
 import { stepInRoom } from "./walking";
 import type {
   DoorView, HomeView, HomeVisitors, MutedView, OutfitView, Player, PlayerCard, PropView, RoomSnapshot, Shop,
@@ -40,6 +41,7 @@ overlay.onFriends = () => void openFriends();
 // The 3D scene, made on the way into the first room: Babylon (most of the page's script) loads only then, so the
 // sign-in screen and the world list stay light, and nothing draws until there is a room to draw.
 let scene: RoomScene | undefined;
+let frameRate: FrameRate = readFrameRate();
 
 // A scene that failed to load (a dropped connection, a deploy that replaced the chunks) is tried again on the next room.
 const stage = lazily(async (): Promise<RoomScene> => {
@@ -66,7 +68,8 @@ async function makeStage(): Promise<RoomScene> {
   const engine = new Engine(canvas, true, { stencil: true, canvasTabIndex: -1 });
   let made: RoomScene;
   try {
-    made = new RoomScene(engine, undefined, matchMedia("(pointer: coarse)").matches);
+    const touch = matchMedia("(pointer: coarse)").matches;
+    made = new RoomScene(engine, undefined, touch, () => maxFps(frameRate, touch));
   } catch (error) {
     // Nothing left behind for the next try: it makes its own engine.
     engine.dispose();
@@ -735,6 +738,17 @@ async function pickWorld(player: Player, providers?: string[], note?: Note): Pro
     () => void signOut().then(() => window.location.reload()),
     { providers: saveWith, link: (provider) => postTo(linkUrl(provider)) },
     note,
+    {
+      value: frameRate,
+      change: (value) => {
+        frameRate = value;
+        try {
+          localStorage.setItem(FRAME_RATE_KEY, value);
+        } catch {
+          // Storage refused (private browsing): the choice holds until the page closes.
+        }
+      },
+    },
   );
   showNotice();
   // A warning left while the player was away: shown once, now.
@@ -1334,3 +1348,11 @@ function required<T extends Element>(selector: string): T {
 }
 
 void start();
+
+function readFrameRate(): FrameRate {
+  try {
+    return savedFrameRate(localStorage);
+  } catch {
+    return "auto";
+  }
+}

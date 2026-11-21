@@ -1155,3 +1155,17 @@ test("an admin decides a report on /admin from its chat: the reported cat is mut
     await felix.hub.stop();
   }
 });
+
+test("a player chooses how often the room is drawn, and the choice is kept", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Play as a guest" }).click();
+  const choice = page.getByLabel("Frame rate");
+  await expect(choice).toHaveValue("30");
+  await choice.selectOption("unlimited");
+  await page.reload();
+  await expect(page.getByLabel("Frame rate")).toHaveValue("unlimited");
+  await page.getByLabel("Frame rate").selectOption("60");
+  await page.getByRole("button", { name: /^Tabby · / }).click();
+  await expectRoom(page, "Town Square");
+  expect(await page.evaluate(() => localStorage.getItem("pspsps.frameRate"))).toBe("60");
+});

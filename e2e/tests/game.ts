@@ -2,9 +2,17 @@ import { HubConnectionBuilder, LogLevel, type HubConnection } from "@microsoft/s
 import { expect, test as base, type Browser, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import { PNG } from "pngjs";
 
+/** Fewer frames drawn: several pages drawing in software WebGL on one runner starve each other. */
+export async function drawLess(context: BrowserContext): Promise<void> {
+  await context.addInitScript(() => {
+    if (localStorage.getItem("pspsps.frameRate") === null) localStorage.setItem("pspsps.frameRate", "30");
+  });
+}
+
 /** A page that fails its test on any console error or uncaught exception (the "No camera defined" kind). */
 export const test = base.extend<{ page: Page }>({
   page: async ({ page }, use) => {
+    await drawLess(page.context());
     const errors = watchErrors(page);
     await use(page);
     expect(errors, "console errors and uncaught exceptions").toEqual([]);
@@ -151,6 +159,7 @@ export async function newPlayer(
 ): Promise<{ page: Page; errors: string[]; close(): Promise<void> }> {
   // From the address <from>, if given (forwarded: see fakeNetwork).
   const context = await browser.newContext(from ? { extraHTTPHeaders: { "X-Forwarded-For": from } } : {});
+  await drawLess(context);
   const page = await context.newPage();
   return { page, errors: watchErrors(page), close: () => context.close() };
 }
