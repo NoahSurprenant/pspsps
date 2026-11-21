@@ -54,6 +54,34 @@ public sealed class ContentDraftsTests
             Assert.That(layouts["riverside"].Doors.Select(d => d.ToRoom), Does.Contain("dojo-courtyard"));
             Assert.That(layouts["dojo-courtyard"].Doors.Select(d => d.ToRoom), Is.EquivalentTo(new[] { "riverside", "dojo" }));
             Assert.That(layouts["dojo"].Doors.Select(d => d.ToRoom), Is.EqualTo(new[] { "dojo-courtyard" }));
+            foreach (var room in new[] { "town-square", "riverside", "dojo-courtyard", "dojo" })
+            {
+                foreach (var door in layouts[room].Doors.Where(d => d.ToRoom is "riverside" or "dojo-courtyard" or "dojo"))
+                {
+                    Assert.That(layouts[door.ToRoom].Doors.Any(back => back.Id == door.ToDoor && back.ToRoom == room && back.ToDoor == door.Id),
+                        Is.True, $"{room}/{door.Id} leads to {door.ToRoom}/{door.ToDoor}, which must lead back");
+                }
+            }
+        });
+    }
+
+    [Test]
+    public void TheRiversideDraft_IsTheLiveRoomWithOnlyTheDojoCourtyardDoorAdded()
+    {
+        var live = RoomLayout.Of(RoomCatalog.All.Single(room => room.Id == "riverside"));
+        var draft = Content.RoomList.Single(room => room.Id == "riverside").Layout;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(draft.Name, Is.EqualTo(live.Name));
+            Assert.That(draft.Width, Is.EqualTo(live.Width));
+            Assert.That(draft.Depth, Is.EqualTo(live.Depth));
+            Assert.That(draft.Spawn, Is.EqualTo(live.Spawn));
+            Assert.That(draft.Capacity, Is.EqualTo(live.Capacity));
+            Assert.That(draft.Pond, Is.EqualTo(live.Pond));
+            Assert.That(draft.Look, Is.EqualTo(live.Look));
+            Assert.That(draft.Props, Is.EqualTo(live.Props));
+            Assert.That(draft.Doors.Where(door => door.Id != "dojo-courtyard"), Is.EqualTo(live.Doors));
         });
     }
 
