@@ -316,13 +316,13 @@
       {
         "id": "cove",
         "look": {
-          "sky": "#aee0f0",
-          "floorColour": "#ecd9a6",
+          "sky": "#bfe6f5",
+          "floorColour": "#d9b98a",
           "wallColour": "#cfe6ea",
           "floor": {
-            "painter": "riverside",
-            "colour": "#ecd9a6",
-            "accent": "#d8c18a"
+            "painter": "planks",
+            "colour": "#d9b98a",
+            "accent": "#b8946a"
           },
           "wall": {
             "painter": "riverside"
@@ -330,7 +330,34 @@
           "openLandscape": true,
           "wildlife": "fish",
           "backdrop": {
-            "parts": []
+            "parts": [
+              {
+                "shape": "box",
+                "width": 90,
+                "height": 0.2,
+                "depth": 70,
+                "at": [
+                  0,
+                  -0.25,
+                  0
+                ],
+                "colour": "#5fb3d9",
+                "outlined": false
+              },
+              {
+                "shape": "box",
+                "width": 90,
+                "height": 0.04,
+                "depth": 70,
+                "at": [
+                  0,
+                  -0.12,
+                  0
+                ],
+                "colour": "#8fd0e8",
+                "outlined": false
+              }
+            ]
           }
         }
       },
