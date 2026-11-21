@@ -498,7 +498,7 @@
             "facing": -0.5
           },
           {
-            "kind": "yarn-basket",
+            "kind": "yarn-nook",
             "spot": {
               "x": -3.2,
               "z": -2.4
@@ -2434,7 +2434,7 @@
       ]
     },
     {
-      "kind": "yarn-basket",
+      "kind": "yarn-nook",
       "size": 0.5,
       "parts": [
         {

@@ -407,7 +407,7 @@
   {"shape":"ball","diameter":0.16,"at":[-0.26,0.98,-0.22],"colour":"#f2d6c2"},
   {"shape":"box","width":0.9,"height":0.05,"depth":0.05,"at":[0,1.08,0],"colour":"#7a5a44","turn":[0,0,0.4]}
  ]},
- {"kind": "yarn-basket", "size": 0.5, "parts": [
+ {"kind": "yarn-nook", "size": 0.5, "parts": [
   {"shape":"cylinder","diameter":0.9,"height":0.34,"at":[0,0.17,0],"colour":"#c98f5a","sides":20},
   {"shape":"cylinder","diameter":0.72,"height":0.05,"at":[0,0.33,0],"colour":"#7a5a44","sides":20},
   {"shape":"ball","diameter":0.38,"at":[-0.12,0.48,-0.04],"colour":"#f29bc1"},
