@@ -43,7 +43,7 @@ public static class PropKinds
     public const string Mirror = "mirror";
     public const string BookStack = "book-stack";
     public const string Globe = "globe";
-    public const string YarnNook = "yarn-basket";
+    public const string YarnNook = "yarn-nook";
     public const string WindowSeat = "window-seat";
 
     public static IReadOnlyList<string> All { get; } =
