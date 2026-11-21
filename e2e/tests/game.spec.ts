@@ -647,7 +647,7 @@ test("a cat walks the garden loop and travels to a room's spawn from the world m
   const map = page.getByRole("dialog", { name: "World map" });
   await expect(map.getByRole("button", { name: "Town Square, you are here" })).toHaveAttribute("aria-current", "location");
   // Every outdoor place of the island is on the map; a building's inside is not. Places not built yet can't be entered.
-  await expect(map.locator(".map-place[data-place]")).toHaveCount(13);
+  await expect(map.locator(".map-place[data-place]")).toHaveCount(16);
   await expect(map.locator('[data-place="cafe"], [data-place="shop"]')).toHaveCount(0);
   await expect(map.getByRole("button", { name: "Old Mill, coming soon" })).toBeVisible();
   await map.getByRole("button", { name: "Games", exact: true }).click();
