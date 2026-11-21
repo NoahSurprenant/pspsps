@@ -40,6 +40,33 @@ public sealed class ContentDraftsTests
     }
 
     [Test]
+    public void MarketRow_IsOnTheMap_AndJoinsTownSquareAndTheTwoIndoorRoomsBothWays()
+    {
+        var layouts = Content.RoomList.ToDictionary(room => room.Id, room => room.Layout);
+        var placesWithRooms = IslandMap.Places.Where(place => place.Room is not null).Select(place => place.Room).ToList();
+        Assert.Multiple(() =>
+        {
+            Assert.That(IslandMap.Places.Single(place => place.Id == "market-row").Room, Is.EqualTo("market-row"));
+            foreach (var (room, other) in new[] { ("town-square", "market-row"), ("market-row", "pizza-parlor"), ("market-row", "night-club") })
+            {
+                Assert.That(layouts[room].Doors.Any(door => door.ToRoom == other && door.ToDoor == room), Is.True, $"{room} has a door to {other}");
+                Assert.That(layouts[other].Doors.Any(door => door.ToRoom == room && door.ToDoor == other), Is.True, $"{other} has a door back to {room}");
+            }
+
+            Assert.That(placesWithRooms, Does.Not.Contain("pizza-parlor"), "a building's inside is not on the map");
+            Assert.That(placesWithRooms, Does.Not.Contain("night-club"), "a building's inside is not on the map");
+        });
+    }
+
+    [Test]
+    public void EveryPropInTheFile_IsAKindTheBrowserDraws()
+    {
+        var unknown = Content.RoomList.SelectMany(room => room.Layout.Props.Select(prop => (room.Id, prop.Kind)))
+            .Where(pair => !PropKinds.All.Contains(pair.Kind)).Select(pair => $"{pair.Id}: {pair.Kind}");
+        Assert.That(unknown, Is.Empty);
+    }
+
+    [Test]
     public void EveryPropDesignInTheFile_CanBeDrawn() =>
         Assert.That(Content.PropDesignList.SelectMany(d => PropDesign.Problems(d.Kind, d.Size, d.Parts, d.Growth)), Is.Empty);
 }
