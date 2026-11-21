@@ -3,7 +3,7 @@ import type { MapPlaceView } from "./types";
 export const FILTERS = ["all", "places", "games", "shops", "pets"] as const;
 export type Filter = (typeof FILTERS)[number];
 
-export const filterLabel = (filter: Filter): string => (filter === "all" ? "All" : filter[0]!.toUpperCase() + filter.slice(1));
+export const filterLabel = (filter: Filter): string => (filter === "all" ? "All" : filter.charAt(0).toUpperCase() + filter.slice(1));
 
 export const matches = (place: MapPlaceView, filter: Filter): boolean => filter === "all" || place.category === filter;
 

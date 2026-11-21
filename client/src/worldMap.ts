@@ -65,7 +65,7 @@ export function drawMap(room: RoomSnapshot, travel: (roomId: string) => void): H
       const touch = (event as PointerEvent).pointerType ?? "";
       const again = selected?.id === place.id;
       show(place);
-      if (isOpen(place) && place.roomId !== room.roomId && shouldTravel(again, touch)) travel(place.roomId!);
+      if (place.roomId && place.roomId !== room.roomId && shouldTravel(again, touch)) travel(place.roomId);
     });
     marker.addEventListener("pointerenter", (event) => {
       if (event.pointerType === "mouse" && !selected) caption.textContent = place.name;

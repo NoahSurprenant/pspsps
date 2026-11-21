@@ -179,7 +179,7 @@ export function drawIsland(engine: AbstractEngine, places: readonly MapPlaceView
   for (const place of places) {
     const node = new TransformNode(place.id, scene);
     node.position.set(place.x, 0, place.z);
-    (landmarks[place.landmark] ?? landmarks.plaza!)(node);
+    (landmarks[place.landmark] ?? landmarks.plaza)?.(node);
     nodes.set(place.id, node);
   }
 
