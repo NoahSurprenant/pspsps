@@ -96,6 +96,8 @@ export async function goThroughDoor(page: Page, roomId: string, roomName: string
     } catch (error) {
       await attachMiss(page, roomId, attempt, mat);
       if (attempt >= 3) throw error;
+      // A click that landed on the player's own cat opened its card, which now covers the mat.
+      await page.keyboard.press("Escape");
       mat = await doorMat(page, roomId);
     }
   }
