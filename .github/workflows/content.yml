@@ -2,7 +2,7 @@ name: Content
 
 # Runs the room editor's export, import and publish against the live game with no browser, so an agent (or the owner) can
 # do them from the Actions tab or `gh workflow run content.yml -f action=...`. It calls /api/content with a bearer token
-# (docs/content.md): the repository secret CONTENT_TOKEN, the repository variable GAME_URL (https://host, no slash).
+# (docs/content.md): the repository secret CONTENT_TOKEN, the repository variable GAME_URL (https://host, no slash; https://cats.gurnt.com when unset).
 #   list     the rooms, with which have a draft
 #   export   the live content as JSON, kept as an artifact (and printed in the log summary's size line)
 #   import   loads ContentDrafts.json from the image that is deployed (merge the change and let it deploy first) as drafts
@@ -41,7 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
-      GAME_URL: ${{ vars.GAME_URL }}
+      GAME_URL: ${{ vars.GAME_URL || 'https://cats.gurnt.com' }}
       CONTENT_TOKEN: ${{ secrets.CONTENT_TOKEN }}
       ACTION: ${{ inputs.action }}
       ROOM: ${{ inputs.room }}
@@ -57,7 +57,13 @@ jobs:
       - name: Run
         run: |
           set -euo pipefail
-          call() { curl --silent --show-error --fail-with-body --max-time 120 -H "Authorization: Bearer $CONTENT_TOKEN" "$@"; }
+          call() {
+            local out; out=$(mktemp)
+            local code; code=$(curl --silent --show-error --max-time 120 -o "$out" -w '%{http_code}' -H "Authorization: Bearer $CONTENT_TOKEN" "$@") || { echo "::error::curl failed" >&2; return 1; }
+            if [ "$code" -ge 400 ]; then echo "::error::HTTP $code: $(head -c 400 "$out")" >&2; return 1; fi
+            echo "::notice::HTTP $code, $(wc -c < "$out") bytes, starts: $(head -c 80 "$out" | tr -d "\n")" >&2
+            cat "$out"
+          }
           case "$ACTION" in
             list)
               call "$GAME_URL/api/content/rooms" | tee rooms.json | jq .
