@@ -56,7 +56,7 @@ export interface LooksData {
   wildlife?: WildlifeRecipe[];
 }
 
-/** Where Town Square's plaza is paved: round the spawn point (src/Pspsps.Domain/Rooms/RoomCatalog.cs), a little in front. */
+/** Where Town Square's plaza is paved: round the spawn point (src/Pspsps.Domain/Rooms/StartingRooms.json), a little in front. */
 const plaza = { x: 0, z: 3.4 };
 
 type FloorPainter = (brush: Brush, plan: Floorplan, scale: number, colours: PaintColours) => void;

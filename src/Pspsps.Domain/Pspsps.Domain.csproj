@@ -1,2 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <EmbeddedResource Include="Rooms/StartingRooms.json" LogicalName="StartingRooms.json" />
+  </ItemGroup>
 </Project>
