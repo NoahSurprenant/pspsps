@@ -180,6 +180,8 @@ export function drawIsland(engine: AbstractEngine, places: readonly MapPlaceView
       box(p, 0.5, 4.4, 0.5, -3.2, 0.3, 3.4, colours.red);
       box(p, 0.5, 4.4, 0.5, 3.2, 0.3, 3.4, colours.red);
       box(p, 8, 0.6, 0.7, 0, 4.2, 3.4, colours.red);
+      box(p, 2.6, 4.4, 0.5, 4.2, 0.3, -4.6, colours.water);
+      disc(p, 3.4, 1.6, 0.2, 0.3, colours.water, 4.2, -3.6);
     },
     rink: (p) => {
       disc(p, 15, 10, 0.25, 0.1, colours.leaf);
@@ -187,13 +189,16 @@ export function drawIsland(engine: AbstractEngine, places: readonly MapPlaceView
       for (const x of [-6.6, 6.6]) {
         box(p, 0.4, 1.6, 2.4, x, 0.1, 0, colours.white);
       }
+      for (const x of [-7.2, 7.2]) {
+        box(p, 0.3, 1.8, 3.2, x, 0.25, 0, colours.white);
+      }
     },
     mine: (p) => {
-      const rocks = ball(p, 11, 0, -3, -1, colours.rock);
+      const rocks = ball(p, 9, 0, -5, -5, colours.rock);
       rocks.scaling.y = 0.55;
       box(p, 4, 2.6, 3.4, 0, 0, 2.4, colours.wood);
       box(p, 4.8, 0.5, 4.2, 0, 2.6, 2.4, colours.roof);
-      box(p, 2.2, 2.4, 0.4, 0, 0.2, -3.2, colours.dark);
+      box(p, 2.2, 1.8, 0.6, 0, 0, -2, colours.dark);
     },
   };
 
