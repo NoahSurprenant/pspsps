@@ -33,6 +33,7 @@ test("every draft room loads, previews without errors, and is pictured on a cont
     }
 
     await page.getByRole("button", { name: new RegExp(`^${draft.layout.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} \\(`) }).click();
+    await expect(page.getByRole("heading", { name: new RegExp(`^${draft.id} \\(editing`) })).toBeVisible();
     await page.getByRole("button", { name: "Preview in 3D" }).click();
     const canvas = page.getByLabel(`Preview of ${draft.id} in 3D`);
     await expect(canvas).toBeVisible();
