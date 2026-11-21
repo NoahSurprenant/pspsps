@@ -41,11 +41,15 @@ public static class PropKinds
     public const string HatShelf = "hat-shelf";
     public const string ShopCounter = "shop-counter";
     public const string Mirror = "mirror";
+    public const string BookStack = "book-stack";
+    public const string Globe = "globe";
+    public const string YarnBasket = "yarn-basket";
+    public const string WindowSeat = "window-seat";
 
     public static IReadOnlyList<string> All { get; } =
     [
         Tree, Bench, Lamp, FlowerBed, CafeTable, Counter, Plant, CatTree, Rug, Armchair, Sofa, FloorLamp, Bookshelf, CatBed,
         MapBoard, Piano, PottingBench, RodRack, PearTree, PackingCrate,
-        CatalogueStand, HatShelf, ShopCounter, Mirror,
+        CatalogueStand, HatShelf, ShopCounter, Mirror, BookStack, Globe, YarnBasket, WindowSeat,
     ];
 }

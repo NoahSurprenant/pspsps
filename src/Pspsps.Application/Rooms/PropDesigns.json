@@ -389,5 +389,39 @@
   {"shape":"box","width":0.5,"height":1.26,"depth":0.03,"at":[0,0.9,-0.025],"colour":"#d8eef0"},
   {"shape":"box","width":0.05,"height":0.5,"depth":0.01,"at":[-0.08,1.05,-0.045],"colour":"#fdf7f0","turn":[0,0,-0.6],"outlined":false},
   {"shape":"box","width":0.03,"height":0.3,"depth":0.01,"at":[0.06,1,-0.045],"colour":"#fdf7f0","turn":[0,0,-0.6],"outlined":false}
+ ]},
+ {"kind": "book-stack", "size": 0.5, "parts": [
+  {"shape":"box","width":0.62,"height":0.12,"depth":0.44,"at":[0,0.06,0],"colour":"#4f7f86"},
+  {"shape":"box","width":0.55,"height":0.1,"depth":0.4,"at":[0.03,0.17,0],"colour":"#f2a7c3","turn":[0,0.2,0]},
+  {"shape":"box","width":0.48,"height":0.11,"depth":0.34,"at":[-0.02,0.275,0],"colour":"#cc9a3a","turn":[0,-0.25,0]},
+  {"shape":"box","width":0.4,"height":0.08,"depth":0.3,"at":[0.02,0.37,0],"colour":"#a98bd6","turn":[0,0.4,0]},
+  {"shape":"box","width":0.3,"height":0.02,"depth":0.22,"at":[0.02,0.42,0],"colour":"#fdf7f0","turn":[0,0.4,0],"outlined":false},
+  {"shape":"ball","diameter":0.2,"at":[0.02,0.52,0],"colour":"#f29bc1"},
+  {"shape":"ball","diameter":0.08,"at":[-0.05,0.6,-0.04],"colour":"#2a2230","outlined":false}
+ ]},
+ {"kind": "globe", "size": 0.6, "parts": [
+  {"shape":"cylinder","diameter":0.62,"height":0.08,"at":[0,0.04,0],"colour":"#7a5a44","sides":20},
+  {"shape":"cylinder","diameter":0.08,"height":0.7,"at":[0,0.42,0],"colour":"#c98f5a","sides":10},
+  {"shape":"ball","diameter":0.76,"at":[0,1.08,0],"colour":"#8fb9a8"},
+  {"shape":"ball","diameter":0.2,"at":[0.22,1.18,-0.25],"colour":"#cc9a3a"},
+  {"shape":"ball","diameter":0.16,"at":[-0.26,0.98,-0.22],"colour":"#f2d6c2"},
+  {"shape":"box","width":0.9,"height":0.05,"depth":0.05,"at":[0,1.08,0],"colour":"#7a5a44","turn":[0,0,0.4]}
+ ]},
+ {"kind": "yarn-basket", "size": 0.5, "parts": [
+  {"shape":"cylinder","diameter":0.9,"height":0.34,"at":[0,0.17,0],"colour":"#c98f5a","sides":20},
+  {"shape":"cylinder","diameter":0.72,"height":0.05,"at":[0,0.33,0],"colour":"#7a5a44","sides":20},
+  {"shape":"ball","diameter":0.38,"at":[-0.12,0.48,-0.04],"colour":"#f29bc1"},
+  {"shape":"ball","diameter":0.3,"at":[0.18,0.44,0.08],"colour":"#8fb9a8"},
+  {"shape":"ball","diameter":0.26,"at":[0.05,0.6,0.12],"colour":"#a98bd6"},
+  {"shape":"box","width":0.5,"height":0.025,"depth":0.025,"at":[0.3,0.05,-0.4],"colour":"#f29bc1","turn":[0,0.7,0],"outlined":false},
+  {"shape":"box","width":0.32,"height":0.025,"depth":0.025,"at":[0.55,0.03,-0.55],"colour":"#f29bc1","turn":[0,-0.4,0],"outlined":false}
+ ]},
+ {"kind": "window-seat", "size": 0.9, "parts": [
+  {"shape":"box","width":1.9,"height":0.45,"depth":0.7,"at":[0,0.225,0],"colour":"#c98f5a"},
+  {"shape":"box","width":1.8,"height":0.14,"depth":0.62,"at":[0,0.52,-0.02],"colour":"#4f7f86"},
+  {"shape":"box","width":0.5,"height":0.28,"depth":0.16,"at":[-0.65,0.7,0.2],"colour":"#f2a7c3","turn":[0.2,0,0.15]},
+  {"shape":"box","width":0.45,"height":0.26,"depth":0.15,"at":[0.15,0.69,0.22],"colour":"#cc9a3a","turn":[0.2,0,-0.1]},
+  {"shape":"cylinder","diameter":0.5,"height":0.13,"at":[0.62,0.65,-0.05],"colour":"#a98bd6","sides":16},
+  {"shape":"box","width":0.5,"height":0.06,"depth":0.3,"at":[-0.4,0.6,-0.12],"colour":"#f4e9d8","turn":[0,0.3,0]}
  ]}
 ]
