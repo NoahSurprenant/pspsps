@@ -560,7 +560,8 @@ public sealed class RoomEditorHttpTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(report.Problems, Is.Empty, "a room that is painted in a variant from the same file, and a look that names a painter and a creature from it, load");
+            // The lone room has no route from the square (a book rule, unrelated to looks), so that is the only problem allowed.
+            Assert.That(report.Problems, Is.EqualTo(new[] { "Every public room needs a walking route from the square." }), "a room painted in a variant from the same file, and a look naming a painter and a creature from it, raise nothing about looks");
             Assert.That(report.Applied, Has.Some.Contains("painter import-order-floor").And.Some.Contains("wildlife import-order-bird").And.Some.Contains("variant import-order-dusk").And.Some.Contains("look import-order-room"));
         });
     }
