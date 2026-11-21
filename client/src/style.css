@@ -212,8 +212,9 @@ button:disabled {
   display: grid;
   justify-items: center;
   gap: 0.1rem;
-  min-width: 2rem;
-  min-height: 2rem;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  align-content: center;
   padding: 0;
   border: 0;
   background: none;
