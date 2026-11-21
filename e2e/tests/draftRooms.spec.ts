@@ -26,10 +26,10 @@ test("every draft room loads, previews without errors, and is pictured on a cont
   for (const draft of drafts) {
     const preview = await page.request.get(`/api/admin/rooms/${draft.id}/preview`);
     expect(preview.ok(), `${draft.id}'s preview`).toBe(true);
-    const snapshot = (await preview.json()) as { doors: { id: string; toRoomId: string }[]; rooms: { roomId: string }[] };
+    const snapshot = (await preview.json()) as { doors: { id: string; toRoomId: string }[]; rooms: { id: string }[] };
     expect(snapshot.doors.length, `${draft.id} has a door`).toBeGreaterThan(0);
     for (const door of snapshot.doors) {
-      expect(snapshot.rooms.map((room) => room.roomId), `${draft.id}'s door ${door.id} leads to a room`).toContain(door.toRoomId);
+      expect(snapshot.rooms.map((room) => room.id), `${draft.id}'s door ${door.id} leads to a room`).toContain(door.toRoomId);
     }
 
     await page.getByRole("button", { name: new RegExp(`^${draft.layout.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} \\(`) }).click();
