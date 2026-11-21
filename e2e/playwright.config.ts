@@ -13,7 +13,7 @@ export default defineConfig({
   timeout: 60_000,
   expect: { timeout: 15_000 },
   // Shard layout by individual case, with a single browser worker on each isolated runner.
-  fullyParallel: suite === "layout",
+  fullyParallel: suite === "layout" || suite === "gameplay",
   workers: 1,
   retries: 0,
   forbidOnly: !!process.env.CI,
