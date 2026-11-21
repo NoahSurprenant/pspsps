@@ -39,8 +39,10 @@ public sealed class RoomPreviewer(IApplicationDbContext db) : IRoomPreviewer
         var overlays = new List<RoomOverlay>();
         if (overlayId is not null)
         {
+            // An overlay can only be saved once its room is published, so one waiting in the reviewed file is previewed from there.
             var saved = (await db.RoomOverlays.AsNoTracking().Where(o => o.RoomId == roomId).ToListAsync(cancellationToken))
                 .Select(entry => entry.ToOverlay())
+                .Concat(ContentFile.Embedded().OverlayList.Where(o => o.RoomId == roomId))
                 .FirstOrDefault(o => o.Id == overlayId)
                 ?? throw new DomainException($"{roomId} has no overlay {overlayId}.");
             overlays.Add(saved with { Window = new OverlayWindow(now.AddDays(-1), now.AddDays(1)) });

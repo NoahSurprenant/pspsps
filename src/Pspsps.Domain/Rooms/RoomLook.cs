@@ -110,8 +110,8 @@ public sealed partial record RoomLook(
     private static partial Regex HexColour();
 }
 
-/// <summary>What an overlay's named look changes of any room: its sky and back wall's colours.</summary>
-public sealed record LookVariant(string Sky, string WallColour)
+/// <summary>What an overlay's named look changes of any room: its sky and back wall's colours, and, when it has one, a floor of its own (a frozen rink) in place of the room's.</summary>
+public sealed record LookVariant(string Sky, string WallColour, LookPaint? Floor = null)
 {
     public IReadOnlyList<string> Problems(string name)
     {
@@ -125,6 +125,14 @@ public sealed record LookVariant(string Sky, string WallColour)
             || !Regex.IsMatch(WallColour ?? string.Empty, "^#[0-9a-fA-F]{6}$", RegexOptions.None, TimeSpan.FromSeconds(1)))
         {
             problems.Add($"{name}: its sky and wall colours are hex colours such as #c98f5a.");
+        }
+
+        if (Floor is not null
+            && (string.IsNullOrWhiteSpace(Floor.Painter)
+                || (Floor.Colour is not null && !Regex.IsMatch(Floor.Colour, "^#[0-9a-fA-F]{6}$", RegexOptions.None, TimeSpan.FromSeconds(1)))
+                || (Floor.Accent is not null && !Regex.IsMatch(Floor.Accent, "^#[0-9a-fA-F]{6}$", RegexOptions.None, TimeSpan.FromSeconds(1)))))
+        {
+            problems.Add($"{name}: its floor names a painter, and its colours are hex colours.");
         }
 
         return problems;
@@ -183,6 +191,13 @@ public sealed class LookVariantEntry
 
     public string WallColour { get; private set; }
 
+    /// <summary>The painter of the variant's own floor, if it has one, and its colours.</summary>
+    public string? FloorPainter { get; private set; }
+
+    public string? FloorColour { get; private set; }
+
+    public string? FloorAccent { get; private set; }
+
     public DateTimeOffset UpdatedAt { get; private set; }
 
     public static LookVariantEntry Of(string name, LookVariant variant, DateTimeOffset now)
@@ -203,8 +218,13 @@ public sealed class LookVariantEntry
 
         Sky = variant.Sky;
         WallColour = variant.WallColour;
+        FloorPainter = variant.Floor?.Painter;
+        FloorColour = variant.Floor?.Colour;
+        FloorAccent = variant.Floor?.Accent;
         UpdatedAt = now;
     }
 
-    public LookVariant ToVariant() => new(Sky, WallColour);
+    public LookPaint? Floor => FloorPainter is null ? null : new LookPaint(FloorPainter, FloorColour, FloorAccent);
+
+    public LookVariant ToVariant() => new(Sky, WallColour, Floor);
 }

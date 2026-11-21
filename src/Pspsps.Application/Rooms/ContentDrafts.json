@@ -336,7 +336,7 @@
               "z": -10.6
             },
             "radius": 1.3,
-            "facing": 0
+            "facing": 3.141592653589793
           },
           {
             "kind": "goal",
@@ -345,7 +345,7 @@
               "z": 10.6
             },
             "radius": 1.3,
-            "facing": 3.141592653589793
+            "facing": 0
           },
           {
             "kind": "bench",
@@ -2654,7 +2654,18 @@
         }
       }
     ],
-    "variants": []
+    "variants": [
+      {
+        "id": "frozen-rink",
+        "sky": "#cfe3f0",
+        "wallColour": "#e8eef4",
+        "floor": {
+          "painter": "rink-ice",
+          "colour": "#d9f0fa",
+          "accent": "#bfe2f2"
+        }
+      }
+    ]
   },
   "painters": [
     {
@@ -2800,6 +2811,163 @@
           "shade": -0.1
         }
       ]
+    },
+    {
+      "id": "rink-ice",
+      "surface": "floor",
+      "steps": [
+        {
+          "op": "fill",
+          "colour": "main"
+        },
+        {
+          "op": "rect",
+          "colour": "accent",
+          "x": 0,
+          "y": 0,
+          "width": 16,
+          "height": 1.6,
+          "repeat": {
+            "dx": 0,
+            "dy": 3.2
+          }
+        },
+        {
+          "op": "rect",
+          "colour": "#ffffff",
+          "x": 0.5,
+          "y": 1.1,
+          "width": 15,
+          "height": 0.05,
+          "repeat": {
+            "dx": 0,
+            "dy": 1.7
+          },
+          "shade": 0.2
+        },
+        {
+          "op": "rect",
+          "colour": "#4a86c8",
+          "x": 0.5,
+          "y": 8,
+          "width": 15,
+          "height": 0.3
+        },
+        {
+          "op": "rect",
+          "colour": "#4a86c8",
+          "x": 0.5,
+          "y": 15.7,
+          "width": 15,
+          "height": 0.3
+        },
+        {
+          "op": "rect",
+          "colour": "#d9534f",
+          "x": 0.5,
+          "y": 11.88,
+          "width": 15,
+          "height": 0.24
+        },
+        {
+          "op": "rect",
+          "colour": "#4a86c8",
+          "x": 6,
+          "y": 10,
+          "width": 4,
+          "height": 4,
+          "line": 0.1,
+          "outline": true
+        },
+        {
+          "op": "rect",
+          "colour": "#4a86c8",
+          "x": 7.75,
+          "y": 11.75,
+          "width": 0.5,
+          "height": 0.5
+        },
+        {
+          "op": "rect",
+          "colour": "#d9534f",
+          "x": 3.8,
+          "y": 5,
+          "width": 0.4,
+          "height": 0.4
+        },
+        {
+          "op": "rect",
+          "colour": "#d9534f",
+          "x": 11.8,
+          "y": 5,
+          "width": 0.4,
+          "height": 0.4
+        },
+        {
+          "op": "rect",
+          "colour": "#d9534f",
+          "x": 3.8,
+          "y": 18.6,
+          "width": 0.4,
+          "height": 0.4
+        },
+        {
+          "op": "rect",
+          "colour": "#d9534f",
+          "x": 11.8,
+          "y": 18.6,
+          "width": 0.4,
+          "height": 0.4
+        },
+        {
+          "op": "rect",
+          "colour": "#4a86c8",
+          "x": 5.5,
+          "y": 0.5,
+          "width": 5,
+          "height": 2,
+          "line": 0.1,
+          "outline": true
+        },
+        {
+          "op": "rect",
+          "colour": "#4a86c8",
+          "x": 5.5,
+          "y": 21.5,
+          "width": 5,
+          "height": 2,
+          "line": 0.1,
+          "outline": true
+        },
+        {
+          "op": "rect",
+          "colour": "#f4f9fc",
+          "x": 0.5,
+          "y": 0.5,
+          "width": 15,
+          "height": 23,
+          "line": 0.12,
+          "outline": true
+        },
+        {
+          "op": "rect",
+          "colour": "#8a6a50",
+          "x": 0,
+          "y": 0,
+          "width": 0.5,
+          "height": 24,
+          "shade": -0.1
+        },
+        {
+          "op": "rect",
+          "colour": "#8a6a50",
+          "x": 15.5,
+          "y": 0,
+          "width": 0.5,
+          "height": 24,
+          "shade": -0.1
+        }
+      ]
     }
   ],
   "wildlife": [],
@@ -2866,7 +3034,7 @@
             "z": -10.6
           },
           "radius": 1.2,
-          "facing": 0
+          "facing": 3.141592653589793
         },
         {
           "kind": "rink-board",
@@ -2875,7 +3043,7 @@
             "z": -10.6
           },
           "radius": 1.2,
-          "facing": 0
+          "facing": 3.141592653589793
         },
         {
           "kind": "rink-board",
@@ -3030,7 +3198,7 @@
             "z": -10.6
           },
           "radius": 1.3,
-          "facing": 0
+          "facing": 3.141592653589793
         },
         {
           "kind": "goal",
@@ -3039,7 +3207,7 @@
             "z": 10.6
           },
           "radius": 1.3,
-          "facing": 3.141592653589793
+          "facing": 0
         },
         {
           "kind": "bench",
@@ -3087,7 +3255,7 @@
           "facing": 0
         }
       ],
-      "look": "winter"
+      "look": "frozen-rink"
     }
   ],
   "propDesigns": [

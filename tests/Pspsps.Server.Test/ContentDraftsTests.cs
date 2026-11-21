@@ -71,7 +71,7 @@ public sealed class ContentDraftsTests
         }
 
         var book = RoomBook.Create(layouts, [.. Content.OverlayList]);
-        var rink = book.Find("ice-rink", DateTimeOffset.Parse(day, System.Globalization.CultureInfo.InvariantCulture))!;
+        var rink = book.Find("ice-rink", DateTimeOffset.Parse(day, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal))!;
 
         Assert.Multiple(() =>
         {
@@ -80,7 +80,7 @@ public sealed class ContentDraftsTests
             Assert.That(rink.Props.Any(p => p.Kind == PropKinds.RinkBoard), Is.EqualTo(winter), "boards only in winter");
             Assert.That(rink.Props.Count(p => p.Kind == PropKinds.Bench), Is.GreaterThan(0), "benches all year");
             Assert.That(rink.Props.Count(p => p.Kind == PropKinds.Lamp), Is.GreaterThan(0), "lamps all year");
-            Assert.That(rink.Look, Is.EqualTo(winter ? "winter" : null));
+            Assert.That(rink.Look, Is.EqualTo(winter ? "frozen-rink" : null));
         });
     }
 
@@ -90,6 +90,58 @@ public sealed class ContentDraftsTests
         var variants = RoomLookSeeder.StartingVariants().Select(v => v.Name).Concat(Content.VariantList.Select(v => v.Id)).ToHashSet();
 
         Assert.That(Content.OverlayList.Where(o => o.Look is not null && !variants.Contains(o.Look)).Select(o => o.RoomId + "/" + o.Id), Is.Empty);
+    }
+
+    [Test]
+    public void TheGoalsAndRinkBoards_FaceTheMiddleOfThePitch()
+    {
+        var rink = Content.RoomList.Single(room => room.Id == "ice-rink").Layout;
+        var winter = Content.OverlayList.Single(o => o.RoomId == "ice-rink" && o.Id == "winter");
+        var facing = rink.Props.Concat(winter.Adds).Where(p => p.Kind is PropKinds.Goal or PropKinds.RinkBoard).Where(p => Math.Abs(p.Spot.Z) > 5).ToList();
+
+        Assert.That(facing, Is.Not.Empty);
+        foreach (var prop in facing)
+        {
+            // A prop's front is -z, turned by its facing; the front must point at the middle (the origin, along z).
+            var frontZ = -Math.Cos(prop.Facing);
+            var towardsMiddleZ = -prop.Spot.Z;
+            Assert.That(frontZ * towardsMiddleZ, Is.GreaterThan(0), $"{prop.Kind} at z={prop.Spot.Z} faces away from the pitch");
+        }
+    }
+
+    [Test]
+    public void ThePropDesignsInTheFile_AreTheSameAsTheStartingOnes_SoEitherWayOfLoadingGivesTheSameGame()
+    {
+        var starting = PropDesignSeeder.Starting().ToDictionary(d => d.Kind);
+        var copies = Content.PropDesignList.Where(d => starting.ContainsKey(d.Kind)).ToList();
+
+        Assert.That(copies, Is.Not.Empty);
+        foreach (var design in copies)
+        {
+            var (_, size, parts, growth) = starting[design.Kind];
+            Assert.Multiple(() =>
+            {
+                Assert.That(design.Size, Is.EqualTo(size), $"{design.Kind} size");
+                Assert.That(Json(design.Parts), Is.EqualTo(Json(parts)), $"{design.Kind} parts");
+                Assert.That(Json(design.Growth ?? []), Is.EqualTo(Json(growth)), $"{design.Kind} growth");
+            });
+        }
+    }
+
+    private static string Json<T>(T value) => System.Text.Json.JsonSerializer.Serialize(value, ContentFile.Json);
+
+    [Test]
+    public void EveryVariantFloorInTheFile_NamesAPainterTheBrowserCanDraw()
+    {
+        var floors = LookNames.BuiltIn.Floors.Concat(Content.PainterList.Where(p => p.Surface == PaintSurfaces.Floor).Select(p => p.Id)).ToHashSet();
+        var variants = Content.VariantList.Where(v => v.Floor is not null).ToList();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(variants, Is.Not.Empty, "the frozen rink has a floor of its own");
+            Assert.That(variants.Where(v => !floors.Contains(v.Floor!.Painter)).Select(v => v.Id), Is.Empty);
+            Assert.That(variants.SelectMany(v => new LookVariant(v.Sky, v.WallColour, v.Floor).Problems(v.Id)), Is.Empty);
+        });
     }
 
     [Test]

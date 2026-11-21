@@ -9,7 +9,7 @@ public sealed record DraftRoom(string Id, RoomLayout Layout);
 
 public sealed record DraftLook(string Id, RoomLook Look);
 
-public sealed record DraftVariant(string Id, string Sky, string WallColour);
+public sealed record DraftVariant(string Id, string Sky, string WallColour, LookPaint? Floor = null);
 
 public sealed record DraftLooks(IReadOnlyList<DraftLook>? Rooms = null, IReadOnlyList<DraftVariant>? Variants = null);
 
@@ -59,5 +59,5 @@ public sealed record ContentFile(
     public IReadOnlyList<DraftPropDesign> PropDesignList => PropDesigns ?? [];
 }
 
-/// <summary>What loading the content file did: what was saved, what was already so, and what could not be.</summary>
-public sealed record ImportReport(IReadOnlyList<string> Applied, IReadOnlyList<string> Unchanged, IReadOnlyList<string> Problems);
+/// <summary>What loading the content file did: what was saved, what was already so, what could not be, and what waits (an overlay for its room to be published).</summary>
+public sealed record ImportReport(IReadOnlyList<string> Applied, IReadOnlyList<string> Unchanged, IReadOnlyList<string> Problems, IReadOnlyList<string> Pending);

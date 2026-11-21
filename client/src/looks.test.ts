@@ -115,6 +115,21 @@ describe("looks as data", () => {
     expect(look.backdrop({ width: 10, depth: 8, pond: null, doors: [] }, 4)).toEqual(newRoom.backdrop.parts);
   });
 
+  it("lets a variant carry a floor of its own, kept apart from the room's own floor", () => {
+    setLooks({
+      rooms: [{ id: "loft", look: newRoom }],
+      variants: [{ id: "frozen", sky: "#d8ecf7", wallColour: "#e8f0f5", floor: { painter: "tiles", colour: "#cfe9f6" } }, { id: "dusk", sky: "#223355", wallColour: "#445566" }],
+    });
+
+    const [plain, frozen, dusk] = [lookOf("loft"), lookOf("loft", "frozen"), lookOf("loft", "dusk")];
+
+    expect(frozen.paintFloor).toBeDefined();
+    expect(frozen.paintFloor).not.toBe(plain.paintFloor);
+    expect(frozen.variant).toBe("frozen");
+    expect(dusk.paintFloor).toBe(plain.paintFloor);
+    expect(plain.variant).toBeUndefined();
+  });
+
   it("ignores a painter it doesn't know, painting the plain floor instead of failing", () => {
     setLooks({ rooms: [{ id: "loft", look: { ...newRoom, floor: { painter: "marble" } } }], variants: [] });
 

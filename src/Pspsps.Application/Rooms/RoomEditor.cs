@@ -17,7 +17,8 @@ public sealed record RoomDetail(
     RoomLayout? Draft,
     IReadOnlyList<RoomOverlay> Overlays,
     int? DraftRevision = null,
-    DateTimeOffset? GoLiveAt = null);
+    DateTimeOffset? GoLiveAt = null,
+    IReadOnlyList<string>? PendingOverlays = null);
 
 /// <summary>Everything admins author, in the shape the files in the repository hold it, to commit and review.</summary>
 public sealed record ContentExport(
@@ -133,6 +134,7 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
         var applied = new List<string>();
         var unchanged = new List<string>();
         var problems = new List<string>();
+        var pending = new List<string>();
         static bool Same<T>(T a, T b) => JsonSerializer.Serialize(a, ContentFile.Json) == JsonSerializer.Serialize(b, ContentFile.Json);
 
         var designs = await db.PropDesigns.ToDictionaryAsync(d => d.Kind, cancellationToken);
@@ -180,6 +182,24 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             }
         }
 
+        // Wildlife too: a look names its creatures.
+        var creatures = await db.WildlifeRecipes.AsNoTracking().ToDictionaryAsync(w => w.Id, cancellationToken);
+        foreach (var creature in file.WildlifeList)
+        {
+            if (!creatures.TryGetValue(creature.Id, out var existing))
+            {
+                await Attempt($"wildlife {creature.Id}", () => SaveWildlifeAsync(creature.Id, creature.Parts, creature.Motion, adminId, cancellationToken));
+            }
+            else if (Same(existing.Parts, creature.Parts) && Same(existing.Motion, creature.Motion))
+            {
+                unchanged.Add($"wildlife {creature.Id}");
+            }
+            else
+            {
+                problems.Add($"wildlife {creature.Id}: differs from the live recipe; change it in the admin.");
+            }
+        }
+
         var looks = await db.RoomLooks.AsNoTracking().ToDictionaryAsync(l => l.Id, cancellationToken);
         foreach (var (id, look) in file.LookList.Select(l => (l.Id, l.Look)))
         {
@@ -202,9 +222,9 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
         {
             if (!variants.TryGetValue(variant.Id, out var existing))
             {
-                await Attempt($"variant {variant.Id}", () => SaveVariantAsync(variant.Id, new LookVariant(variant.Sky, variant.WallColour), adminId, cancellationToken));
+                await Attempt($"variant {variant.Id}", () => SaveVariantAsync(variant.Id, new LookVariant(variant.Sky, variant.WallColour, variant.Floor), adminId, cancellationToken));
             }
-            else if (existing.Sky == variant.Sky && existing.WallColour == variant.WallColour)
+            else if (existing.Sky == variant.Sky && existing.WallColour == variant.WallColour && Same(existing.Floor, variant.Floor))
             {
                 unchanged.Add($"variant {variant.Id}");
             }
@@ -214,32 +234,24 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             }
         }
 
-        var creatures = await db.WildlifeRecipes.AsNoTracking().ToDictionaryAsync(w => w.Id, cancellationToken);
-        foreach (var creature in file.WildlifeList)
-        {
-            if (!creatures.TryGetValue(creature.Id, out var existing))
-            {
-                await Attempt($"wildlife {creature.Id}", () => SaveWildlifeAsync(creature.Id, creature.Parts, creature.Motion, adminId, cancellationToken));
-            }
-            else if (Same(existing.Parts, creature.Parts) && Same(existing.Motion, creature.Motion))
-            {
-                unchanged.Add($"wildlife {creature.Id}");
-            }
-            else
-            {
-                problems.Add($"wildlife {creature.Id}: differs from the live recipe; change it in the admin.");
-            }
-        }
-
         var overlays = (await db.RoomOverlays.AsNoTracking().ToListAsync(cancellationToken)).Select(o => o.ToOverlay()).ToDictionary(o => (o.RoomId, o.Id));
+        var publishedRooms = (await db.RoomVersions.AsNoTracking().Where(v => v.State == RoomVersionState.Published).Select(v => v.RoomId).ToListAsync(cancellationToken)).ToHashSet();
         foreach (var overlay in file.OverlayList)
         {
             if (!overlays.TryGetValue((overlay.RoomId, overlay.Id), out var existing))
             {
-                if ((await GetAsync(overlay.RoomId, cancellationToken))?.Published is null)
+                if (!publishedRooms.Contains(overlay.RoomId))
                 {
-                    // An overlay can only belong to a published room: load the file again once the room is published.
-                    unchanged.Add($"overlay {overlay.RoomId}/{overlay.Id}: waits for its room to be published");
+                    // An overlay can only belong to a published room: a room of this file is still a draft, so it waits; any other room is a mistake.
+                    if (file.RoomList.Any(r => r.Id == overlay.RoomId))
+                    {
+                        pending.Add($"overlay {overlay.RoomId}/{overlay.Id}: waits until room {overlay.RoomId} is published, then load the file again");
+                    }
+                    else
+                    {
+                        problems.Add($"overlay {overlay.RoomId}/{overlay.Id}: there is no published room {overlay.RoomId}, and the file does not have it either");
+                    }
+
                     continue;
                 }
 
@@ -286,7 +298,7 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             problems.AddRange(await ProblemsWithAsync(file.RoomList.ToDictionary(r => r.Id, r => r.Layout), cancellationToken));
         }
 
-        return new ImportReport(applied, unchanged, problems);
+        return new ImportReport(applied, unchanged, problems, pending);
 
         async Task Attempt(string what, Func<Task> save)
         {
@@ -313,7 +325,7 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             [.. overlays.Select(o => o.ToOverlay()).OrderBy(o => o.RoomId, StringComparer.Ordinal).ThenBy(o => o.Id, StringComparer.Ordinal)],
             new ExportedLooks(
                 [.. (await db.RoomLooks.AsNoTracking().OrderBy(l => l.Id).ToListAsync(cancellationToken)).Select(l => new { l.Id, l.Look })],
-                [.. (await db.LookVariants.AsNoTracking().OrderBy(v => v.Id).ToListAsync(cancellationToken)).Select(v => new { v.Id, v.Sky, v.WallColour })]),
+                [.. (await db.LookVariants.AsNoTracking().OrderBy(v => v.Id).ToListAsync(cancellationToken)).Select(v => new { v.Id, v.Sky, v.WallColour, v.Floor })]),
             [.. (await db.PainterRecipes.AsNoTracking().OrderBy(r => r.Id).ToListAsync(cancellationToken)).Select(r => new { r.Id, r.Surface, r.Steps })],
             [.. (await db.WildlifeRecipes.AsNoTracking().OrderBy(r => r.Id).ToListAsync(cancellationToken)).Select(r => new { r.Id, r.Parts, r.Motion })],
             [.. (await db.PropDesigns.AsNoTracking().OrderBy(d => d.Kind).ToListAsync(cancellationToken)).Select(d => new { d.Kind, d.Size, d.Parts, d.Growth })]);
@@ -335,7 +347,8 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             versions.FirstOrDefault(v => v.State == RoomVersionState.Draft)?.Layout,
             [.. overlays.Select(o => o.ToOverlay()).OrderBy(o => o.Id, StringComparer.Ordinal)],
             versions.FirstOrDefault(v => v.State == RoomVersionState.Draft)?.Revision,
-            versions.FirstOrDefault(v => v.State == RoomVersionState.Draft)?.GoLiveAt);
+            versions.FirstOrDefault(v => v.State == RoomVersionState.Draft)?.GoLiveAt,
+            [.. ContentFile.Embedded().OverlayList.Where(o => o.RoomId == roomId && overlays.All(saved => saved.Id != o.Id)).Select(o => o.Id)]);
     }
 
     public async Task<IReadOnlyList<string>> SaveDraftAsync(string roomId, RoomLayout layout, Guid adminId, int? expectedRevision, CancellationToken cancellationToken)
@@ -527,6 +540,11 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
     {
         ArgumentNullException.ThrowIfNull(variant);
         var now = time.GetUtcNow();
+        if (variant.Floor is { } floor && !(await LookNamesAsync(cancellationToken)).Floors.Contains(floor.Painter))
+        {
+            throw new DomainException($"{name}: '{floor.Painter}' is not a floor painter.");
+        }
+
         var entry = await db.LookVariants.FirstOrDefaultAsync(v => v.Id == name, cancellationToken);
         if (entry is null)
         {
