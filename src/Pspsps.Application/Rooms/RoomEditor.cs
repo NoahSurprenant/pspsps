@@ -201,6 +201,7 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
         }
 
         var looks = await db.RoomLooks.AsNoTracking().ToDictionaryAsync(l => l.Id, cancellationToken);
+        var liveRooms = (await db.RoomVersions.AsNoTracking().Where(v => v.State == RoomVersionState.Published).Select(v => v.RoomId).ToListAsync(cancellationToken)).ToHashSet();
         foreach (var (id, look) in file.LookList.Select(l => (l.Id, l.Look)))
         {
             if (!looks.TryGetValue(id, out var existing))
@@ -210,6 +211,10 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             else if (Same(existing.Look, look))
             {
                 unchanged.Add($"look {id}");
+            }
+            else if (!liveRooms.Contains(id))
+            {
+                await Attempt($"look {id}", () => SaveLookAsync(id, look, adminId, cancellationToken));
             }
             else
             {
