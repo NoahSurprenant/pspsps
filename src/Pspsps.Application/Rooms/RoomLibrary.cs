@@ -25,7 +25,7 @@ public sealed class RoomLibrary(IServiceScopeFactory scopes, TimeProvider time) 
             .Where(v => v.State == RoomVersionState.Published)
             .ToDictionaryAsync(v => v.RoomId, v => v.Layout, cancellationToken);
         var entries = await db.RoomOverlays.AsNoTracking().ToListAsync(cancellationToken);
-        _book = RoomBook.Create(layouts, [.. entries.Select(entry => entry.ToOverlay())]);
+        _book = RoomBook.Create(layouts, [.. entries.Where(entry => layouts.ContainsKey(entry.RoomId)).Select(entry => entry.ToOverlay())]);
     }
 }
 
