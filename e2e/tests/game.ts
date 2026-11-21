@@ -125,6 +125,9 @@ export async function goThroughDoor(page: Page, roomId: string, roomName: string
       break;
     } catch (error) {
       await attachMiss(page, roomId, attempt, mat);
+      // The walk may have finished just after the wait gave up (a slow runner): then the cat is through, and there is no
+      // door to click again.
+      if ((await page.title()) === `${roomName} · pspsps`) break;
       if (attempt >= 3) throw error;
       // A click that landed on the player's own cat opened its card, which now covers the mat.
       await page.keyboard.press("Escape");
