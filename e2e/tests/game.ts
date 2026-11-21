@@ -37,8 +37,30 @@ export function watchErrors(page: Page): string[] {
  * name, and the room itself (window.pspsps).
  */
 export async function expectRoom(page: Page, name: string): Promise<void> {
-  await expect(page).toHaveTitle(`${name} · pspsps`);
-  await expect.poll(() => page.evaluate(() => window.pspsps?.room()?.snapshot.roomName)).toBe(name);
+  try {
+    await expect(page).toHaveTitle(`${name} · pspsps`);
+    await expect.poll(() => page.evaluate(() => window.pspsps?.room()?.snapshot.roomName)).toBe(name);
+  } catch (error) {
+    await attachPage(page, `not-in-${name}`);
+    throw error;
+  }
+}
+
+/** Attaches what a page shows (screenshot, page text, title, room) to the test, whichever player's page it is. */
+export async function attachPage(page: Page, label: string): Promise<void> {
+  const info = base.info();
+  try {
+    const state = await page.evaluate(() => ({
+      url: location.href,
+      title: document.title,
+      room: window.pspsps?.room()?.snapshot.roomName,
+      text: document.body.innerText,
+    }));
+    await info.attach(`${label}.json`, { body: JSON.stringify(state, null, 2), contentType: "application/json" });
+    await info.attach(`${label}.png`, { body: await page.screenshot(), contentType: "image/png" });
+  } catch (inner) {
+    await info.attach(`${label}-unavailable.txt`, { body: String(inner), contentType: "text/plain" });
+  }
 }
 
 /** Signs in as a new guest and enters a world; resolves once the room is showing. Returns the player's ID. */

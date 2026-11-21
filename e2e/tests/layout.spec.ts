@@ -154,9 +154,10 @@ async function drawn(page: Page, things: [string, [number, number, number], numb
   }
 }
 
-for (const screen of SCREENS) {
-  const checks = CHECKS[screen.name];
-  for (const [index, size] of SIZES.entries()) {
+// Sizes outermost: Playwright shards by position, and a screen's tests cost about the same as each other but not as another screen's.
+for (const [index, size] of SIZES.entries()) {
+  for (const screen of SCREENS) {
+    const checks = CHECKS[screen.name];
     test(`${screen.name} at ${size.device} ${size.width}x${size.height}`, async ({ browser }) => {
       const context = await contextFor(browser, size);
       let close: (() => Promise<void>) | undefined;
