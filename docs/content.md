@@ -27,7 +27,7 @@ The database is the truth for rooms, looks, recipes, overlays and prop designs. 
 - The game's Secret (`existingSecret`) gets `Content__ApiToken` (a random string of 32+ characters) and `Content__ActAs`
   (the player ID of an admin, on the admin list: the room audit trail shows that player). Without both, `/api/content`
   answers 404.
-- The repository gets the secret `CONTENT_TOKEN` (the same token) and the variable `GAME_URL` (`https://host`).
+- The repository gets the secret `CONTENT_TOKEN` (the same token). The variable `GAME_URL` (`https://host`) is optional: the workflow uses https://cats.gurnt.com without it.
 
 The token reaches only `/api/content/{export,rooms,import,rooms/{id}/publish}`: not moderation, bans or players.
 It carries no cookie, so the same-site check the admin page's changes need does not apply to it.
