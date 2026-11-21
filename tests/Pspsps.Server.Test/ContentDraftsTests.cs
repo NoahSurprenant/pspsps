@@ -38,4 +38,8 @@ public sealed class ContentDraftsTests
 
         Assert.That(problems, Is.Empty);
     }
+
+    [Test]
+    public void EveryPropDesignInTheFile_CanBeDrawn() =>
+        Assert.That(Content.PropDesignList.SelectMany(d => PropDesign.Problems(d.Kind, d.Size, d.Parts, d.Growth)), Is.Empty);
 }

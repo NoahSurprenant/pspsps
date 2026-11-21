@@ -2,5 +2,7 @@
   "rooms": [],
   "looks": { "rooms": [], "variants": [] },
   "painters": [],
-  "wildlife": []
+  "wildlife": [],
+  "overlays": [],
+  "propDesigns": []
 }

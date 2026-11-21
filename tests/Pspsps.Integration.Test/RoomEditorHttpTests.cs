@@ -480,6 +480,36 @@ public sealed class RoomEditorHttpTests
     }
 
     [Test]
+    public async Task LoadingTheContentFile_AddsANewPropDesignAndOverlay_AndLeavesLiveOnesAlone()
+    {
+        var (adminPlayer, _) = await Game.SignInGuestAsync();
+        var editor = Game.Get<IRoomEditor>();
+        var design = new DraftPropDesign("import-test-lamp", 0.5, [new PropPart("ball", [0, 0.5, 0], "#ffd54a", Diameter: 0.4)]);
+        var overlay = new RoomOverlay("import-test", "garden", "Import test", new OverlayWindow(new DateTimeOffset(2090, 1, 1, 0, 0, 0, TimeSpan.Zero), new DateTimeOffset(2090, 1, 2, 0, 0, 0, TimeSpan.Zero)));
+        var file = new ContentFile(PropDesigns: [design], Overlays: [overlay]);
+        try
+        {
+            var first = await editor.ImportAsync(file, adminPlayer.Id, CancellationToken.None);
+            var again = await editor.ImportAsync(file, adminPlayer.Id, CancellationToken.None);
+            var changed = await editor.ImportAsync(new ContentFile(PropDesigns: [design with { Size = 0.6 }], Overlays: [overlay with { Name = "Changed" }]), adminPlayer.Id, CancellationToken.None);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(first.Problems, Is.Empty);
+                Assert.That(first.Applied, Has.Some.Contains("prop design import-test-lamp").And.Some.Contains("overlay garden/import-test"));
+                Assert.That(again.Applied, Is.Empty, "loading it twice changes nothing");
+                Assert.That(again.Unchanged, Has.Some.Contains("prop design import-test-lamp").And.Some.Contains("overlay garden/import-test"));
+                Assert.That(changed.Applied, Is.Empty);
+                Assert.That(changed.Problems, Has.Count.EqualTo(2), "a live design and overlay are not changed from the file");
+            });
+        }
+        finally
+        {
+            await editor.DeleteOverlayAsync("garden", "import-test", adminPlayer.Id, CancellationToken.None);
+        }
+    }
+
+    [Test]
     public async Task LoadingTheContentFile_MakesDrafts_ThatAreNotLiveUntilPublished()
     {
         var (adminPlayer, cookie) = await Game.SignInGuestAsync();
