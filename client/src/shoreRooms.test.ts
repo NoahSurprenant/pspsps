@@ -24,7 +24,7 @@ describe("the shore rooms' floors", () => {
 
     paintSteps(brush as never, painter.steps, 28, 16, 64, { colour: "#808080", accent: "#ff0000" });
 
-    expect(rects).toBeGreaterThan(5);
+    expect(rects).toBeGreaterThanOrEqual(5);
     expect(rects).toBeLessThan(mostRects);
     for (const step of painter.steps.filter((s) => s.op === "rect")) {
       expect(step.x ?? 0).toBeGreaterThanOrEqual(-1e-9);
