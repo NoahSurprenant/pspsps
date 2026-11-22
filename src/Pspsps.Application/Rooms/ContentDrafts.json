@@ -90,15 +90,6 @@
             },
             "radius": 0.9,
             "facing": 0
-          },
-          {
-            "kind": "flower-bed",
-            "spot": {
-              "x": 1.4,
-              "z": -4.6
-            },
-            "radius": 0.9,
-            "facing": 0
           }
         ],
         "doors": [
@@ -708,18 +699,9 @@
             "kind": "flower-bed",
             "spot": {
               "x": 0,
-              "z": -5.2
+              "z": -4.4
             },
             "radius": 0.9,
-            "facing": 0
-          },
-          {
-            "kind": "plant",
-            "spot": {
-              "x": 13,
-              "z": -0.8
-            },
-            "radius": 0.5,
             "facing": 0
           }
         ],
