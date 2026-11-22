@@ -2151,7 +2151,7 @@
           {
             "id": "market-row",
             "edge": "South",
-            "offset": 0,
+            "offset": 3.4,
             "toRoom": "market-row",
             "toDoor": "ice-rink"
           }
