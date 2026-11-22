@@ -66,8 +66,8 @@ public sealed class IslandMapTests
     /// <summary>Where each place stands on the original picture of the island, as percent across and down it. The map keeps this layout.</summary>
     private static readonly Dictionary<string, (double Across, double Down)> Reference = new()
     {
-        ["town-square"] = (66, 60),
-        ["plaza"] = (36, 60),
+        ["town-square"] = (36, 60),
+        ["plaza"] = (66, 60),
         ["ice-rink"] = (43, 44),
         ["scratching-peaks"] = (29, 48),
         ["dojo-courtyard"] = (60, 29),
