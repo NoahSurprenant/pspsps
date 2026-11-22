@@ -1,0 +1,52 @@
+name: Live check
+
+# Walks the live game's world map in a browser (e2e/tests/walkMap.spec.ts) and keeps the report and screenshots. It runs on
+# the in-cluster runner pspsps-browser-k8s, as Cloudflare answers GitHub-hosted runners with 403.
+# Start it from the Actions tab or `gh workflow run live-check.yml`, e.g. after publishing rooms.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-check
+  cancel-in-progress: false
+
+jobs:
+  walk:
+    name: Walk the live game
+    runs-on: pspsps-browser-k8s
+    timeout-minutes: 20
+    env:
+      E2E_BASE_URL: https://cats.gurnt.com
+    defaults:
+      run:
+        working-directory: e2e
+    steps:
+      - uses: actions/checkout@v7
+      - run: npm ci
+      - run: npm run test:live
+      - name: Upload the picture of every place
+        id: places
+        if: ${{ !cancelled() && hashFiles('e2e/live-check/world-map.png') != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          path: e2e/live-check/world-map.png
+          archive: false
+          retention-days: 14
+          overwrite: true
+      - name: Link the picture in the summary
+        if: ${{ !cancelled() && steps.places.outputs.artifact-url != '' }}
+        run: echo "[Every place on the world map](${{ steps.places.outputs.artifact-url }})" >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload the report and screenshots
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: live-check
+          path: |
+            e2e/playwright-report
+            e2e/test-results
+          retention-days: 14
+          if-no-files-found: ignore
