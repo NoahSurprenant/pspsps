@@ -112,6 +112,11 @@ public sealed class RoomEditorHttpTests
         var layout = (await JsonOfAsync(opened))["published"]!.DeepClone();
         layout["name"] = "The Previewed Shop";
         using var saved = await SendAsync(admin, HttpMethod.Put, "rooms/shop/draft", layout);
+        using var noLookYet = await SendAsync(admin, HttpMethod.Get, "rooms/shop/preview");
+        using var draftLook = await SendAsync(admin, HttpMethod.Put, "looks/rooms/shop", JsonNode.Parse("""{"sky":"#102030","floorColour":"#405060","wallColour":"#708090","backdrop":{"parts":[]}}"""));
+        using var withLook = await SendAsync(admin, HttpMethod.Get, "rooms/shop/preview");
+        var withoutLookSnapshot = await JsonOfAsync(noLookYet);
+        var withLookSnapshot = await JsonOfAsync(withLook);
 
         using var refused = await SendAsync(guest, HttpMethod.Get, "rooms/shop/preview");
         using var preview = await SendAsync(admin, HttpMethod.Get, "rooms/shop/preview");
@@ -127,6 +132,9 @@ public sealed class RoomEditorHttpTests
             Assert.That(refused.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
             Assert.That(preview.StatusCode, Is.EqualTo(HttpStatusCode.OK));
             Assert.That(snapshot["roomName"]!.GetValue<string>(), Is.EqualTo("The Previewed Shop"));
+            Assert.That(draftLook.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+            Assert.That(withoutLookSnapshot["draftLook"], Is.Null, "no look in the draft, so the preview has none to show");
+            Assert.That(withLookSnapshot["draftLook"]!["sky"]!.GetValue<string>(), Is.EqualTo("#102030"), "the preview carries the draft's look");
             Assert.That(snapshot["cats"]!.AsArray(), Is.Empty);
             Assert.That(snapshot["doors"]!.AsArray(), Is.Not.Empty);
             Assert.That(snapshot["worldMap"], Is.Not.Null);
@@ -740,6 +748,47 @@ public sealed class RoomEditorHttpTests
             Assert.That(afterImport.Draft!.Name, Is.EqualTo("Café changed"));
         });
     });
+
+    [Test]
+    public async Task ADraftWithALook_ScheduledForLater_PutsTheLookLiveWithTheLayout_AndRollbackTakesItBack()
+    {
+        var (adminPlayer, _) = await Game.SignInGuestAsync();
+        Game.Admins.Add(adminPlayer.Id);
+        var editor = Game.Get<IRoomEditor>();
+        var before = (await editor.GetAsync("cafe", CancellationToken.None))!;
+        var number = before.Versions.Single(v => v.State == RoomVersionState.Published).Number;
+        var original = (await Db().RoomLooks.AsNoTracking().SingleAsync(l => l.Id == "cafe")).Look;
+        var look = new RoomLook("#102030", "#405060", "#708090", new LookBackdrop([]));
+        var at = DateTimeOffset.UtcNow.AddHours(1);
+        try
+        {
+            await editor.SaveDraftAsync("cafe", before.Published!, adminPlayer.Id, null, CancellationToken.None, look);
+            await editor.ScheduleAsync("cafe", [], at, adminPlayer.Id, CancellationToken.None);
+            await using var scope = Game.Services.CreateAsyncScope();
+            var due = await new RoomEditor(scope.ServiceProvider.GetRequiredService<IApplicationDbContext>(), Game.Get<IRoomLibrary>(), new FakeTimeProvider(at.AddMinutes(1))).PublishDueAsync(CancellationToken.None);
+            var live = (await Db().RoomLooks.AsNoTracking().SingleAsync(l => l.Id == "cafe")).Look;
+            await editor.RollbackAsync("cafe", number, adminPlayer.Id, CancellationToken.None);
+            var back = (await Db().RoomLooks.AsNoTracking().SingleAsync(l => l.Id == "cafe")).Look;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(due, Is.EqualTo(1));
+                Assert.That(Json(live), Is.EqualTo(Json(look)), "the scheduled publish put the draft's look live");
+                Assert.That(Json(back), Is.EqualTo(Json(original)), "and rolling back brought the old one back");
+            });
+        }
+        finally
+        {
+            if ((await editor.GetAsync("cafe", CancellationToken.None))?.Draft is not null)
+            {
+                await editor.DiscardDraftAsync("cafe", adminPlayer.Id, CancellationToken.None);
+            }
+
+            await using var db = Db();
+            (await db.RoomLooks.SingleAsync(l => l.Id == "cafe")).Replace(original, DateTimeOffset.UtcNow);
+            await db.SaveChangesAsync();
+        }
+    }
 
     [Test]
     public Task ARecipeNamedByADraftsLook_CannotBeDeleted() => WithCafeAsync(async (editor, admin, before) =>

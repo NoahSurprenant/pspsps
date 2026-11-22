@@ -419,9 +419,14 @@ export function roomsSection(say: (message: string) => void): HTMLElement {
         const parsed = parseJson(lookText.value);
         if (parsed === null) { say("That isn't valid JSON."); return; }
         await send("PUT", `/api/admin/looks/rooms/${encodeURIComponent(roomId)}`, parsed);
-        say(`The look of ${roomId} is saved in its draft: publish the room to put it live.`);
+        say(`The look of ${roomId} is saved in its draft: publish the room to put it live.${detail?.goLiveAt ? " Its schedule is taken off: schedule it again." : ""}`);
         await refresh();
       })),
+      ...(detail?.draftLook ? [button("Take the look out of the draft", () => void run(async () => {
+        await send("DELETE", `/api/admin/looks/rooms/${encodeURIComponent(roomId)}/draft`);
+        say(`The draft of ${roomId} goes live with the look the room has now.`);
+        await refresh();
+      }))] : []),
       el("pre", { className: "quiet", text: options ? optionsText(options) : "" }),
       el("h3", { text: "Look variants (for overlays)" }),
       variantText,
