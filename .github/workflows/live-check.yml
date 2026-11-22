@@ -6,6 +6,8 @@ name: Live check
 
 on:
   workflow_dispatch:
+  push:
+    branches: [live-check]
 
 permissions:
   contents: read
@@ -28,6 +30,18 @@ jobs:
       - uses: actions/checkout@v7
       - run: npm ci
       - run: npm run test:live
+      - name: Upload the picture of every place
+        id: places
+        if: ${{ !cancelled() && hashFiles('e2e/live-check/world-map.png') != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          path: e2e/live-check/world-map.png
+          archive: false
+          retention-days: 14
+          overwrite: true
+      - name: Link the picture in the summary
+        if: ${{ !cancelled() && steps.places.outputs.artifact-url != '' }}
+        run: echo "[Every place on the world map](${{ steps.places.outputs.artifact-url }})" >> "$GITHUB_STEP_SUMMARY"
       - name: Upload the report and screenshots
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7
