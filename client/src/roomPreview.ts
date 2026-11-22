@@ -1,3 +1,4 @@
+import type { RoomLookData } from "./looks";
 import type { RoomSnapshot } from "./types";
 
 /** Where the server gives a room as it would be with its drafts in place; with an overlay, that overlay on. */
@@ -34,9 +35,17 @@ export function roomPreview(canvas: HTMLCanvasElement): RoomPreview {
         const said = (await response.json().catch(() => null)) as { message?: string } | null;
         throw new Error(said?.message ?? `The preview could not be made (${response.status}).`);
       }
-      const snapshot = (await response.json()) as RoomSnapshot;
+      const { draftLook, ...snapshot } = (await response.json()) as RoomSnapshot & { draftLook?: RoomLookData };
+      // The scene first (making it reads the live looks, which would wipe a draft look set before it), then the live looks as
+      // they are now with the draft's over its room's: a draft that has been discarded or published leaves nothing behind.
       scene ??= make();
-      (await scene).show(snapshot);
+      const made = await scene;
+      const { loadLooks, setDraftLook } = await import("./looks");
+      await loadLooks();
+      if (draftLook) {
+        setDraftLook(roomId, draftLook);
+      }
+      made.show(snapshot);
     },
   };
 }

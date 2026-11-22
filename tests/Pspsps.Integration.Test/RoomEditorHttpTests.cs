@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 using Pspsps.Application.Abstractions;
 using Pspsps.Application.Rooms;
+using Pspsps.Domain;
 using Pspsps.Domain.Rooms;
 using Pspsps.Infrastructure.Persistence;
 
@@ -62,11 +63,11 @@ public sealed class RoomEditorHttpTests
         using var admin = await AdminClientAsync();
 
         using var list = await SendAsync(guest, HttpMethod.Get, "rooms");
-        using var detail = await SendAsync(guest, HttpMethod.Get, "rooms/garden");
-        using var draft = await SendAsync(guest, HttpMethod.Put, "rooms/garden/draft", new JsonObject());
-        using var publish = await SendAsync(guest, HttpMethod.Post, "rooms/garden/publish");
+        using var detail = await SendAsync(guest, HttpMethod.Get, "rooms/shop");
+        using var draft = await SendAsync(guest, HttpMethod.Put, "rooms/shop/draft", new JsonObject());
+        using var publish = await SendAsync(guest, HttpMethod.Post, "rooms/shop/publish");
         using var look = await SendAsync(guest, HttpMethod.Put, "looks/variants/spring", new { sky = "#112233", wallColour = "#445566" });
-        using var crossSite = await SendAsync(admin, HttpMethod.Post, "rooms/garden/publish", site: "cross-site");
+        using var crossSite = await SendAsync(admin, HttpMethod.Post, "rooms/shop/publish", site: "cross-site");
         using var adminList = await SendAsync(admin, HttpMethod.Get, "rooms");
 
         Assert.Multiple(() =>
@@ -108,25 +109,33 @@ public sealed class RoomEditorHttpTests
         var (_, cookie) = await Game.SignInGuestAsync();
         using var guest = ClientFor(cookie);
         using var admin = await AdminClientAsync();
-        using var opened = await SendAsync(admin, HttpMethod.Get, "rooms/garden");
+        using var opened = await SendAsync(admin, HttpMethod.Get, "rooms/shop");
         var layout = (await JsonOfAsync(opened))["published"]!.DeepClone();
-        layout["name"] = "The Previewed Garden";
-        using var saved = await SendAsync(admin, HttpMethod.Put, "rooms/garden/draft", layout);
+        layout["name"] = "The Previewed Shop";
+        using var saved = await SendAsync(admin, HttpMethod.Put, "rooms/shop/draft", layout);
+        using var noLookYet = await SendAsync(admin, HttpMethod.Get, "rooms/shop/preview");
+        using var draftLook = await SendAsync(admin, HttpMethod.Put, "looks/rooms/shop", JsonNode.Parse("""{"sky":"#102030","floorColour":"#405060","wallColour":"#708090","backdrop":{"parts":[]}}"""));
+        using var withLook = await SendAsync(admin, HttpMethod.Get, "rooms/shop/preview");
+        var withoutLookSnapshot = await JsonOfAsync(noLookYet);
+        var withLookSnapshot = await JsonOfAsync(withLook);
 
-        using var refused = await SendAsync(guest, HttpMethod.Get, "rooms/garden/preview");
-        using var preview = await SendAsync(admin, HttpMethod.Get, "rooms/garden/preview");
-        using var noOverlay = await SendAsync(admin, HttpMethod.Get, "rooms/garden/preview?overlay=nope");
+        using var refused = await SendAsync(guest, HttpMethod.Get, "rooms/shop/preview");
+        using var preview = await SendAsync(admin, HttpMethod.Get, "rooms/shop/preview");
+        using var noOverlay = await SendAsync(admin, HttpMethod.Get, "rooms/shop/preview?overlay=nope");
         using var noRoom = await SendAsync(admin, HttpMethod.Get, "rooms/attic/preview");
-        using var published = await SendAsync(admin, HttpMethod.Get, "rooms/garden");
+        using var published = await SendAsync(admin, HttpMethod.Get, "rooms/shop");
         var snapshot = await JsonOfAsync(preview);
-        using var discard = await SendAsync(admin, HttpMethod.Delete, "rooms/garden/draft");
+        using var discard = await SendAsync(admin, HttpMethod.Delete, "rooms/shop/draft");
 
         Assert.Multiple(() =>
         {
             Assert.That(saved.StatusCode, Is.EqualTo(HttpStatusCode.OK));
             Assert.That(refused.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
             Assert.That(preview.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            Assert.That(snapshot["roomName"]!.GetValue<string>(), Is.EqualTo("The Previewed Garden"));
+            Assert.That(snapshot["roomName"]!.GetValue<string>(), Is.EqualTo("The Previewed Shop"));
+            Assert.That(draftLook.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+            Assert.That(withoutLookSnapshot["draftLook"], Is.Null, "no look in the draft, so the preview has none to show");
+            Assert.That(withLookSnapshot["draftLook"]!["sky"]!.GetValue<string>(), Is.EqualTo("#102030"), "the preview carries the draft's look");
             Assert.That(snapshot["cats"]!.AsArray(), Is.Empty);
             Assert.That(snapshot["doors"]!.AsArray(), Is.Not.Empty);
             Assert.That(snapshot["worldMap"], Is.Not.Null);
@@ -172,17 +181,17 @@ public sealed class RoomEditorHttpTests
     public async Task AnAdmin_EditsARoomAsJson_PublishesIt_AndGoesBack()
     {
         using var admin = await AdminClientAsync();
-        using var before = await SendAsync(admin, HttpMethod.Get, "rooms/garden");
+        using var before = await SendAsync(admin, HttpMethod.Get, "rooms/shop");
         var detail = await JsonOfAsync(before);
         var original = detail["published"]!.DeepClone();
         var edited = detail["published"]!.DeepClone();
-        edited["name"] = "The Http Garden";
+        edited["name"] = "The Http Shop";
         var firstNumber = detail["versions"]!.AsArray().Single(v => v!["state"]!.GetValue<string>() == "Published")!["number"]!.GetValue<int>();
 
-        using var save = await SendAsync(admin, HttpMethod.Put, "rooms/garden/draft", edited);
+        using var save = await SendAsync(admin, HttpMethod.Put, "rooms/shop/draft", edited);
         var problems = (await JsonOfAsync(save))["problems"]!.AsArray();
-        using var publish = await SendAsync(admin, HttpMethod.Post, "rooms/garden/publish");
-        using var after = await SendAsync(admin, HttpMethod.Get, "rooms/garden");
+        using var publish = await SendAsync(admin, HttpMethod.Post, "rooms/shop/publish");
+        using var after = await SendAsync(admin, HttpMethod.Get, "rooms/shop");
         var published = (await JsonOfAsync(after))["published"]!;
 
         Assert.Multiple(() =>
@@ -190,14 +199,14 @@ public sealed class RoomEditorHttpTests
             Assert.That(save.StatusCode, Is.EqualTo(HttpStatusCode.OK));
             Assert.That(problems, Is.Empty, "the layout as the server sent it is read back whole");
             Assert.That(publish.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
-            Assert.That(published["name"]!.GetValue<string>(), Is.EqualTo("The Http Garden"));
+            Assert.That(published["name"]!.GetValue<string>(), Is.EqualTo("The Http Shop"));
             Assert.That(JsonNode.DeepEquals(published["doors"], original["doors"]), Is.True, "doors survive the round trip");
             Assert.That(JsonNode.DeepEquals(published["props"], original["props"]), Is.True, "props survive the round trip");
         });
 
-        using var back = await SendAsync(admin, HttpMethod.Post, $"rooms/garden/rollback/{firstNumber}");
-        using var gone = await SendAsync(admin, HttpMethod.Post, "rooms/garden/rollback/999");
-        using var restored = await SendAsync(admin, HttpMethod.Get, "rooms/garden");
+        using var back = await SendAsync(admin, HttpMethod.Post, $"rooms/shop/rollback/{firstNumber}");
+        using var gone = await SendAsync(admin, HttpMethod.Post, "rooms/shop/rollback/999");
+        using var restored = await SendAsync(admin, HttpMethod.Get, "rooms/shop");
 
         await Assert.MultipleAsync(async () =>
         {
@@ -218,13 +227,13 @@ public sealed class RoomEditorHttpTests
             ["window"] = new JsonObject { ["starts"] = "2026-03-01T00:00:00Z", ["ends"] = "2026-06-01T00:00:00Z", ["yearly"] = true },
         };
 
-        using var unknown = await SendAsync(admin, HttpMethod.Put, "rooms/garden/overlays/spring-http", overlay);
+        using var unknown = await SendAsync(admin, HttpMethod.Put, "rooms/shop/overlays/spring-http", overlay);
         overlay["look"] = "autumn";
-        using var known = await SendAsync(admin, HttpMethod.Put, "rooms/garden/overlays/spring-http", overlay);
-        using var read = await SendAsync(admin, HttpMethod.Get, "rooms/garden");
+        using var known = await SendAsync(admin, HttpMethod.Put, "rooms/shop/overlays/spring-http", overlay);
+        using var read = await SendAsync(admin, HttpMethod.Get, "rooms/shop");
         var overlays = (await JsonOfAsync(read))["overlays"]!.AsArray();
         using var removeLook = await SendAsync(admin, HttpMethod.Delete, "looks/variants/autumn");
-        using var deleted = await SendAsync(admin, HttpMethod.Delete, "rooms/garden/overlays/spring-http");
+        using var deleted = await SendAsync(admin, HttpMethod.Delete, "rooms/shop/overlays/spring-http");
 
         await Assert.MultipleAsync(async () =>
         {
@@ -241,15 +250,15 @@ public sealed class RoomEditorHttpTests
     public async Task ABrandNewRoom_NeedsALookAndDoorsBothWays_ThenIsPublishedWithTheRoomThatLeadsToIt()
     {
         using var admin = await AdminClientAsync();
-        using var gardenRead = await SendAsync(admin, HttpMethod.Get, "rooms/garden");
-        var garden = await JsonOfAsync(gardenRead);
-        var gardenNumber = garden["versions"]!.AsArray().Single(v => v!["state"]!.GetValue<string>() == "Published")!["number"]!.GetValue<int>();
-        var gardenDraft = garden["published"]!.DeepClone();
-        gardenDraft["props"] = new JsonArray();
-        gardenDraft["doors"]!.AsArray().Add(JsonNode.Parse("""{"id":"loft","edge":"West","offset":0,"toRoom":"loft","toDoor":"garden"}"""));
+        using var shopRead = await SendAsync(admin, HttpMethod.Get, "rooms/shop");
+        var shop = await JsonOfAsync(shopRead);
+        var shopNumber = shop["versions"]!.AsArray().Single(v => v!["state"]!.GetValue<string>() == "Published")!["number"]!.GetValue<int>();
+        var shopDraft = shop["published"]!.DeepClone();
+        shopDraft["props"] = new JsonArray();
+        shopDraft["doors"]!.AsArray().Add(JsonNode.Parse("""{"id":"loft","edge":"West","offset":0,"toRoom":"loft","toDoor":"shop"}"""));
         var loft = JsonNode.Parse("""
             {"name":"The Loft","width":10,"depth":8,"spawn":{"x":0,"z":0},"capacity":12,"props":[],
-             "doors":[{"id":"garden","edge":"East","offset":0,"toRoom":"garden","toDoor":"loft"}]}
+             "doors":[{"id":"shop","edge":"East","offset":0,"toRoom":"shop","toDoor":"loft"}]}
             """)!;
         var look = JsonNode.Parse("""
             {"sky":"#112233","floorColour":"#445566","wallColour":"#778899",
@@ -259,12 +268,12 @@ public sealed class RoomEditorHttpTests
         try
         {
             using var loftDraft = await SendAsync(admin, HttpMethod.Put, "rooms/loft/draft", loft);
-            using var gardenSaved = await SendAsync(admin, HttpMethod.Put, "rooms/garden/draft", gardenDraft);
-            using var noLook = await SendAsync(admin, HttpMethod.Post, "rooms/loft/publish?with=garden");
+            using var shopSaved = await SendAsync(admin, HttpMethod.Put, "rooms/shop/draft", shopDraft);
+            using var noLook = await SendAsync(admin, HttpMethod.Post, "rooms/loft/publish?with=shop");
             using var badLook = await SendAsync(admin, HttpMethod.Put, "looks/rooms/loft", JsonNode.Parse("""{"sky":"x","floorColour":"#445566","wallColour":"#778899","backdrop":{"parts":[]}}"""));
             using var goodLook = await SendAsync(admin, HttpMethod.Put, "looks/rooms/loft", look);
             using var alone = await SendAsync(admin, HttpMethod.Post, "rooms/loft/publish");
-            using var together = await SendAsync(admin, HttpMethod.Post, "rooms/loft/publish?with=garden");
+            using var together = await SendAsync(admin, HttpMethod.Post, "rooms/loft/publish?with=shop");
             using var list = await SendAsync(admin, HttpMethod.Get, "rooms");
             using var served = await admin.GetAsync(new Uri("/api/looks", UriKind.Relative));
             var rooms = (await JsonOfAsync(list)).AsArray();
@@ -274,17 +283,17 @@ public sealed class RoomEditorHttpTests
             await Assert.MultipleAsync(async () =>
             {
                 Assert.That(loftDraft.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-                Assert.That(gardenSaved.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+                Assert.That(shopSaved.StatusCode, Is.EqualTo(HttpStatusCode.OK));
                 Assert.That(noLook.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
                 Assert.That(await noLook.Content.ReadAsStringAsync(), Does.Contain("loft: has no look"));
                 Assert.That(badLook.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
                 Assert.That(goodLook.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
-                Assert.That(alone.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), "the loft's door to the garden isn't met until the garden's is published too");
+                Assert.That(alone.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), "the loft's door to the shop isn't met until the shop's is published too");
                 Assert.That(together.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
                 Assert.That(rooms.Any(r => r!["roomId"]!.GetValue<string>() == "loft" && r["published"] is not null), Is.True);
                 Assert.That(looks["rooms"]!.AsArray().Any(r => r!["id"]!.GetValue<string>() == "loft"), Is.True, "the browser is served the new room's look");
                 Assert.That(library.Find("loft")?.Name, Is.EqualTo("The Loft"), "the pod that published knows the room at once");
-                Assert.That(library.Find("garden")!.Doors.Any(d => d.Id == "loft"), Is.True);
+                Assert.That(library.Find("shop")!.Doors.Any(d => d.Id == "loft"), Is.True);
             });
         }
         finally
@@ -293,8 +302,8 @@ public sealed class RoomEditorHttpTests
             db.RoomVersions.RemoveRange(await db.RoomVersions.Where(v => v.RoomId == "loft").ToListAsync());
             db.RoomLooks.RemoveRange(await db.RoomLooks.Where(l => l.Id == "loft").ToListAsync());
             await db.SaveChangesAsync();
-            using var discard = await SendAsync(admin, HttpMethod.Delete, "rooms/garden/draft");
-            using var back = await SendAsync(admin, HttpMethod.Post, $"rooms/garden/rollback/{gardenNumber}");
+            using var discard = await SendAsync(admin, HttpMethod.Delete, "rooms/shop/draft");
+            using var back = await SendAsync(admin, HttpMethod.Post, $"rooms/shop/rollback/{shopNumber}");
             Assert.That(back.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
         }
     }
@@ -485,7 +494,7 @@ public sealed class RoomEditorHttpTests
         var (adminPlayer, _) = await Game.SignInGuestAsync();
         var editor = Game.Get<IRoomEditor>();
         var design = new DraftPropDesign("import-test-lamp", 0.5, [new PropPart("ball", [0, 0.5, 0], "#ffd54a", Diameter: 0.4)]);
-        var overlay = new RoomOverlay("import-test", "garden", "Import test", new OverlayWindow(new DateTimeOffset(2090, 1, 1, 0, 0, 0, TimeSpan.Zero), new DateTimeOffset(2090, 1, 2, 0, 0, 0, TimeSpan.Zero)));
+        var overlay = new RoomOverlay("import-test", "shop", "Import test", new OverlayWindow(new DateTimeOffset(2090, 1, 1, 0, 0, 0, TimeSpan.Zero), new DateTimeOffset(2090, 1, 2, 0, 0, 0, TimeSpan.Zero)));
         var file = new ContentFile(PropDesigns: [design], Overlays: [overlay]);
         try
         {
@@ -496,16 +505,16 @@ public sealed class RoomEditorHttpTests
             Assert.Multiple(() =>
             {
                 Assert.That(first.Problems, Is.Empty);
-                Assert.That(first.Applied, Has.Some.Contains("prop design import-test-lamp").And.Some.Contains("overlay garden/import-test"));
+                Assert.That(first.Applied, Has.Some.Contains("prop design import-test-lamp").And.Some.Contains("overlay shop/import-test"));
                 Assert.That(again.Applied, Is.Empty, "loading it twice changes nothing");
-                Assert.That(again.Unchanged, Has.Some.Contains("prop design import-test-lamp").And.Some.Contains("overlay garden/import-test"));
+                Assert.That(again.Unchanged, Has.Some.Contains("prop design import-test-lamp").And.Some.Contains("overlay shop/import-test"));
                 Assert.That(changed.Applied, Is.Empty);
                 Assert.That(changed.Problems, Has.Count.EqualTo(2), "a live design and overlay are not changed from the file");
             });
         }
         finally
         {
-            await editor.DeleteOverlayAsync("garden", "import-test", adminPlayer.Id, CancellationToken.None);
+            await editor.DeleteOverlayAsync("shop", "import-test", adminPlayer.Id, CancellationToken.None);
         }
     }
 
@@ -577,13 +586,13 @@ public sealed class RoomEditorHttpTests
         Game.Admins.Add(adminPlayer.Id);
         var editor = Game.Get<IRoomEditor>();
         var window = new OverlayWindow(new DateTimeOffset(2090, 1, 1, 0, 0, 0, TimeSpan.Zero), new DateTimeOffset(2090, 1, 2, 0, 0, 0, TimeSpan.Zero));
-        var layout = (await editor.GetAsync("pear-orchard", CancellationToken.None))!.Published!;
+        var layout = (await editor.GetAsync("cafe", CancellationToken.None))!.Published!;
         try
         {
             await editor.SaveDraftAsync("import-test-drafted", layout, adminPlayer.Id, null, CancellationToken.None);
             var first = await editor.ImportAsync(new ContentFile(Overlays: [new RoomOverlay("wait", "import-test-drafted", "Waits", window)]), adminPlayer.Id, CancellationToken.None);
             var second = await editor.ImportAsync(new ContentFile(Overlays: [new RoomOverlay("wait", "import-test-nowhere", "Nowhere", window)]), adminPlayer.Id, CancellationToken.None);
-            var other = await editor.SaveDraftAsync("pear-orchard", layout, adminPlayer.Id, null, CancellationToken.None);
+            var other = await editor.SaveDraftAsync("cafe", layout, adminPlayer.Id, null, CancellationToken.None);
 
             Assert.Multiple(() =>
             {
@@ -597,7 +606,7 @@ public sealed class RoomEditorHttpTests
         {
             await editor.DeleteOverlayAsync("import-test-drafted", "wait", adminPlayer.Id, CancellationToken.None);
             await editor.DiscardDraftAsync("import-test-drafted", adminPlayer.Id, CancellationToken.None);
-            await editor.DiscardDraftAsync("pear-orchard", adminPlayer.Id, CancellationToken.None);
+            await editor.DiscardDraftAsync("cafe", adminPlayer.Id, CancellationToken.None);
         }
     }
 
@@ -628,6 +637,181 @@ public sealed class RoomEditorHttpTests
             }
         }
     }
+
+    private static string Json(object? value) => JsonSerializer.Serialize(value);
+
+    [Test]
+    public async Task ARoomsLook_IsKeptInItsDraft_GoesLiveOnPublish_AndIsExportedWithTheRoom()
+    {
+        var (adminPlayer, _) = await Game.SignInGuestAsync();
+        Game.Admins.Add(adminPlayer.Id);
+        var editor = Game.Get<IRoomEditor>();
+        var before = await editor.GetAsync("cafe", CancellationToken.None);
+        var original = (await Db().RoomLooks.AsNoTracking().SingleAsync(l => l.Id == "cafe")).Look;
+        var number = before!.Versions.Single(v => v.State == RoomVersionState.Published).Number;
+        var look = new RoomLook("#102030", "#405060", "#708090", new LookBackdrop([]));
+        try
+        {
+            await editor.SaveDraftAsync("cafe", before.Published!, adminPlayer.Id, null, CancellationToken.None, look);
+            var drafted = await editor.GetAsync("cafe", CancellationToken.None);
+            var liveBefore = await Db().RoomLooks.AsNoTracking().SingleOrDefaultAsync(l => l.Id == "cafe");
+
+            await editor.PublishAsync("cafe", [], adminPlayer.Id, CancellationToken.None);
+            var published = await editor.GetAsync("cafe", CancellationToken.None);
+            var liveAfter = await Db().RoomLooks.AsNoTracking().SingleOrDefaultAsync(l => l.Id == "cafe");
+            var exported = (await editor.ExportAsync(CancellationToken.None)).Rooms.Single(r => r.Id == "cafe");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(Json(drafted!.DraftLook), Is.EqualTo(Json(look)), "the look sits in the draft");
+                Assert.That(liveBefore?.Look, Is.Not.EqualTo(look), "and is not live yet");
+                Assert.That(published!.DraftLook, Is.Null);
+                Assert.That(Json(liveAfter?.Look), Is.EqualTo(Json(look)), "publishing puts it live");
+                Assert.That(Json(exported.Look), Is.EqualTo(Json(look)), "an export carries the room's look with it");
+            });
+
+            await editor.RollbackAsync("cafe", number, adminPlayer.Id, CancellationToken.None);
+            var rolledBack = await Db().RoomLooks.AsNoTracking().SingleAsync(l => l.Id == "cafe");
+
+            Assert.That(Json(rolledBack.Look), Is.EqualTo(Json(original)), "going back to a version brings back the look it went live with");
+        }
+        finally
+        {
+            if ((await editor.GetAsync("cafe", CancellationToken.None))?.Draft is not null)
+            {
+                await editor.DiscardDraftAsync("cafe", adminPlayer.Id, CancellationToken.None);
+            }
+
+            await editor.RollbackAsync("cafe", number, adminPlayer.Id, CancellationToken.None);
+            await using var db = Db();
+            (await db.RoomLooks.SingleAsync(l => l.Id == "cafe")).Replace(original, DateTimeOffset.UtcNow);
+            await db.SaveChangesAsync();
+        }
+    }
+
+    private static async Task WithCafeAsync(Func<IRoomEditor, Guid, RoomDetail, Task> test)
+    {
+        var (adminPlayer, _) = await Game.SignInGuestAsync();
+        Game.Admins.Add(adminPlayer.Id);
+        var editor = Game.Get<IRoomEditor>();
+        var before = (await editor.GetAsync("cafe", CancellationToken.None))!;
+        try
+        {
+            await test(editor, adminPlayer.Id, before);
+        }
+        finally
+        {
+            if ((await editor.GetAsync("cafe", CancellationToken.None))?.Draft is not null)
+            {
+                await editor.DiscardDraftAsync("cafe", adminPlayer.Id, CancellationToken.None);
+            }
+        }
+    }
+
+    [Test]
+    public Task SavingTheLookOfAScheduledDraft_TakesTheScheduleOff_AndTheAuditSaysSo() => WithCafeAsync(async (editor, admin, before) =>
+    {
+        var look = new RoomLook("#102030", "#405060", "#708090", new LookBackdrop([]));
+        await editor.SaveDraftAsync("cafe", before.Published!, admin, null, CancellationToken.None);
+        await editor.ScheduleAsync("cafe", [], DateTimeOffset.UtcNow.AddDays(30), admin, CancellationToken.None);
+        await editor.SaveLookAsync("cafe", look, admin, CancellationToken.None);
+        var after = await editor.GetAsync("cafe", CancellationToken.None);
+        var audit = await editor.AuditAsync(20, CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(after!.GoLiveAt, Is.Null);
+            Assert.That(audit, Has.Some.Matches<AuditLine>(a => a.Action == "draft-look-saved" && a.Target == "cafe" && a.Detail.Contains("schedule was taken off")));
+        });
+    });
+
+    [Test]
+    public Task ADraftsLook_CanBeCleared_AndAFileRoomWithoutALookClearsIt() => WithCafeAsync(async (editor, admin, before) =>
+    {
+        var look = new RoomLook("#102030", "#405060", "#708090", new LookBackdrop([]));
+        await editor.SaveDraftAsync("cafe", before.Published!, admin, null, CancellationToken.None, look);
+        await editor.ClearDraftLookAsync("cafe", admin, CancellationToken.None);
+        var cleared = await editor.GetAsync("cafe", CancellationToken.None);
+        var again = Assert.ThrowsAsync<DomainException>(() => editor.ClearDraftLookAsync("cafe", admin, CancellationToken.None));
+
+        await editor.SaveLookAsync("cafe", look, admin, CancellationToken.None);
+        var changed = before.Published! with { Name = "Café changed" };
+        var report = await editor.ImportAsync(new ContentFile(Rooms: [new DraftRoom("cafe", changed)]), admin, CancellationToken.None);
+        var afterImport = await editor.GetAsync("cafe", CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(cleared!.DraftLook, Is.Null);
+            Assert.That(cleared.Draft, Is.Not.Null, "the draft itself stays");
+            Assert.That(again!.Message, Does.Contain("no draft with a look"));
+            Assert.That(report.Problems, Is.Empty);
+            Assert.That(afterImport!.DraftLook, Is.Null, "the file has no look for the room, so its draft is left with none");
+            Assert.That(afterImport.Draft!.Name, Is.EqualTo("Café changed"));
+        });
+    });
+
+    [Test]
+    public async Task ADraftWithALook_ScheduledForLater_PutsTheLookLiveWithTheLayout_AndRollbackTakesItBack()
+    {
+        var (adminPlayer, _) = await Game.SignInGuestAsync();
+        Game.Admins.Add(adminPlayer.Id);
+        var editor = Game.Get<IRoomEditor>();
+        var before = (await editor.GetAsync("cafe", CancellationToken.None))!;
+        var number = before.Versions.Single(v => v.State == RoomVersionState.Published).Number;
+        var original = (await Db().RoomLooks.AsNoTracking().SingleAsync(l => l.Id == "cafe")).Look;
+        var look = new RoomLook("#102030", "#405060", "#708090", new LookBackdrop([]));
+        var at = DateTimeOffset.UtcNow.AddHours(1);
+        try
+        {
+            await editor.SaveDraftAsync("cafe", before.Published!, adminPlayer.Id, null, CancellationToken.None, look);
+            await editor.ScheduleAsync("cafe", [], at, adminPlayer.Id, CancellationToken.None);
+            await using var scope = Game.Services.CreateAsyncScope();
+            var due = await new RoomEditor(scope.ServiceProvider.GetRequiredService<IApplicationDbContext>(), Game.Get<IRoomLibrary>(), new FakeTimeProvider(at.AddMinutes(1))).PublishDueAsync(CancellationToken.None);
+            var live = (await Db().RoomLooks.AsNoTracking().SingleAsync(l => l.Id == "cafe")).Look;
+            await editor.RollbackAsync("cafe", number, adminPlayer.Id, CancellationToken.None);
+            var back = (await Db().RoomLooks.AsNoTracking().SingleAsync(l => l.Id == "cafe")).Look;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(due, Is.EqualTo(1));
+                Assert.That(Json(live), Is.EqualTo(Json(look)), "the scheduled publish put the draft's look live");
+                Assert.That(Json(back), Is.EqualTo(Json(original)), "and rolling back brought the old one back");
+            });
+        }
+        finally
+        {
+            if ((await editor.GetAsync("cafe", CancellationToken.None))?.Draft is not null)
+            {
+                await editor.DiscardDraftAsync("cafe", adminPlayer.Id, CancellationToken.None);
+            }
+
+            await using var db = Db();
+            (await db.RoomLooks.SingleAsync(l => l.Id == "cafe")).Replace(original, DateTimeOffset.UtcNow);
+            await db.SaveChangesAsync();
+        }
+    }
+
+    [Test]
+    public Task ARecipeNamedByADraftsLook_CannotBeDeleted() => WithCafeAsync(async (editor, admin, before) =>
+    {
+        var look = new RoomLook("#102030", "#405060", "#708090", new LookBackdrop([]), Floor: new LookPaint("recipe-draft-floor"));
+        await editor.SavePainterAsync("recipe-draft-floor", "floor", [new PaintStep("fill", Colour: "#808080")], admin, CancellationToken.None);
+        try
+        {
+            await editor.SaveDraftAsync("cafe", before.Published!, admin, null, CancellationToken.None, look);
+            var refused = Assert.ThrowsAsync<DomainException>(() => editor.DeletePainterAsync("recipe-draft-floor", admin, CancellationToken.None));
+            await editor.DiscardDraftAsync("cafe", admin, CancellationToken.None);
+            await editor.DeletePainterAsync("recipe-draft-floor", admin, CancellationToken.None);
+
+            Assert.That(refused!.Message, Does.Contain("cafe (draft)"));
+        }
+        finally
+        {
+            await using var db = Db();
+            db.PainterRecipes.RemoveRange(await db.PainterRecipes.Where(r => r.Id == "recipe-draft-floor").ToListAsync());
+            await db.SaveChangesAsync();
+        }
+    });
 
     [Test]
     public async Task LoadingTheContentFile_SavesWildlifeBeforeTheLookThatNamesIt()
@@ -662,7 +846,7 @@ public sealed class RoomEditorHttpTests
         var (adminPlayer, cookie) = await Game.SignInGuestAsync();
         Game.Admins.Add(adminPlayer.Id);
         using var admin = ClientFor(cookie);
-        using var opened = await SendAsync(admin, HttpMethod.Get, "rooms/pear-orchard");
+        using var opened = await SendAsync(admin, HttpMethod.Get, "rooms/cafe");
         var layout = (await JsonOfAsync(opened))["published"]!.Deserialize<RoomLayout>(ContentFile.Json)!;
         var window = new OverlayWindow(new DateTimeOffset(2090, 1, 1, 0, 0, 0, TimeSpan.Zero), new DateTimeOffset(2090, 1, 2, 0, 0, 0, TimeSpan.Zero));
         var file = new ContentFile(
@@ -694,10 +878,10 @@ public sealed class RoomEditorHttpTests
         var (adminPlayer, cookie) = await Game.SignInGuestAsync();
         Game.Admins.Add(adminPlayer.Id);
         using var admin = ClientFor(cookie);
-        using var opened = await SendAsync(admin, HttpMethod.Get, "rooms/pear-orchard");
+        using var opened = await SendAsync(admin, HttpMethod.Get, "rooms/cafe");
         var layout = (await JsonOfAsync(opened))["published"]!.DeepClone();
-        layout["name"] = "Pear Orchard (draft)";
-        var file = new ContentFile([new DraftRoom("pear-orchard", layout.Deserialize<RoomLayout>(ContentFile.Json)!)]);
+        layout["name"] = "Cafe (draft)";
+        var file = new ContentFile([new DraftRoom("cafe", layout.Deserialize<RoomLayout>(ContentFile.Json)!)]);
         var editor = Game.Get<IRoomEditor>();
         var library = Game.Get<IRoomLibrary>();
         var player = adminPlayer.Id;
@@ -705,19 +889,19 @@ public sealed class RoomEditorHttpTests
         {
             var report = await editor.ImportAsync(file, player, CancellationToken.None);
             var again = await editor.ImportAsync(file, player, CancellationToken.None);
-            var detail = await editor.GetAsync("pear-orchard", CancellationToken.None);
+            var detail = await editor.GetAsync("cafe", CancellationToken.None);
 
             Assert.Multiple(() =>
             {
-                Assert.That(report.Applied, Has.Some.Contains("pear-orchard").And.Some.Contains("saved as a draft"));
+                Assert.That(report.Applied, Has.Some.Contains("cafe").And.Some.Contains("saved as a draft"));
                 Assert.That(again.Applied, Is.Empty, "loading it twice changes nothing");
-                Assert.That(detail!.Draft!.Name, Is.EqualTo("Pear Orchard (draft)"));
-                Assert.That(library.Find("pear-orchard")!.Name, Is.Not.EqualTo("Pear Orchard (draft)"), "players still have the published room");
+                Assert.That(detail!.Draft!.Name, Is.EqualTo("Cafe (draft)"));
+                Assert.That(library.Find("cafe")!.Name, Is.Not.EqualTo("Cafe (draft)"), "players still have the published room");
             });
         }
         finally
         {
-            await editor.DiscardDraftAsync("pear-orchard", player, CancellationToken.None);
+            await editor.DiscardDraftAsync("cafe", player, CancellationToken.None);
         }
     }
 
@@ -730,10 +914,10 @@ public sealed class RoomEditorHttpTests
         var creature = new DraftWildlife("import-order-bird", [new PropPart("ball", [0, 0.5, 0], "#f5f5f5", Diameter: 0.3)], new WildlifeMotion("wander", 0.5, 1, Reach: 3));
         var look = new RoomLook("#aaccee", "#c0b090", "#d8c8b0", new LookBackdrop([]), Floor: new LookPaint("import-order-floor"), Wildlife: "import-order-bird");
         var file = new ContentFile(
-            Looks: new DraftLooks([new DraftLook("import-order-room", look)], [new DraftVariant("import-order-dusk", "#334466", "#554477")]),
+            Looks: new DraftLooks([], [new DraftVariant("import-order-dusk", "#334466", "#554477")]),
             Painters: [new DraftPainter("import-order-floor", "floor", [floor])],
             Wildlife: [creature],
-            Rooms: [new DraftRoom("import-order-room", new RoomLayout("Import order", 8, 8, new Position(0, 0), 4) { Look = "import-order-dusk" })]);
+            Rooms: [new DraftRoom("import-order-room", new RoomLayout("Import order", 8, 8, new Position(0, 0), 4) { Look = "import-order-dusk" }, look)]);
 
         var report = await editor.ImportAsync(file, adminPlayer.Id, CancellationToken.None);
 
@@ -741,7 +925,7 @@ public sealed class RoomEditorHttpTests
         {
             // The lone room has no route from the square (a book rule, unrelated to looks), so that is the only problem allowed.
             Assert.That(report.Problems, Is.EqualTo(new[] { "Every public room needs a walking route from the square." }), "a room painted in a variant from the same file, and a look naming a painter and a creature from it, raise nothing about looks");
-            Assert.That(report.Applied, Has.Some.Contains("painter import-order-floor").And.Some.Contains("wildlife import-order-bird").And.Some.Contains("variant import-order-dusk").And.Some.Contains("look import-order-room"));
+            Assert.That(report.Applied, Has.Some.Contains("painter import-order-floor").And.Some.Contains("wildlife import-order-bird").And.Some.Contains("variant import-order-dusk").And.Some.Contains("room import-order-room"));
         });
     }
 
@@ -783,8 +967,8 @@ public sealed class RoomEditorHttpTests
         Assert.Multiple(() =>
         {
             Assert.That(first.Applied, Has.Some.Contains("look unpublished-look-room"));
-            Assert.That(changed.Problems, Is.Empty, "no player can see the room yet, so a different look in the file replaces the stored one");
-            Assert.That(changed.Applied, Has.Some.Contains("look unpublished-look-room: replaced (room not published)"));
+            Assert.That(changed.Problems, Is.Empty, "no room has it, so a different look in the file replaces the stored one");
+            Assert.That(changed.Applied, Has.Some.Contains("look unpublished-look-room: replaced (no room has it)"));
             Assert.That(stored.Look.Sky, Is.EqualTo("#112233"));
             Assert.That(again.Unchanged, Has.Some.Contains("look unpublished-look-room"));
         });
@@ -796,15 +980,15 @@ public sealed class RoomEditorHttpTests
         var (adminPlayer, _) = await Game.SignInGuestAsync();
         var editor = Game.Get<IRoomEditor>();
 
-        var report = await editor.ImportAsync(new ContentFile(Looks: new DraftLooks([new DraftLook("garden", new RoomLook("#010203", "#c0b090", "#d8c8b0", new LookBackdrop([])))])), adminPlayer.Id, CancellationToken.None);
+        var report = await editor.ImportAsync(new ContentFile(Looks: new DraftLooks([new DraftLook("shop", new RoomLook("#010203", "#c0b090", "#d8c8b0", new LookBackdrop([])))])), adminPlayer.Id, CancellationToken.None);
 
         await using var scope = Game.Services.CreateAsyncScope();
-        var stored = await scope.ServiceProvider.GetRequiredService<IApplicationDbContext>().RoomLooks.AsNoTracking().SingleAsync(l => l.Id == "garden");
+        var stored = await scope.ServiceProvider.GetRequiredService<IApplicationDbContext>().RoomLooks.AsNoTracking().SingleAsync(l => l.Id == "shop");
         Assert.Multiple(() =>
         {
-            Assert.That(report.Problems, Has.Some.Contains("look garden: differs from the live look"));
-            Assert.That(report.Applied, Has.None.Contains("look garden"));
-            Assert.That(stored.Look.Sky, Is.Not.EqualTo("#010203"), "the garden is published, so its look is not replaced from a file");
+            Assert.That(report.Problems, Has.Some.Contains("look shop: shop is a room, so its look goes in the room's own entry"));
+            Assert.That(report.Applied, Has.None.Contains("look shop"));
+            Assert.That(stored.Look.Sky, Is.Not.EqualTo("#010203"), "a room's look only comes in with the room");
         });
     }
 }

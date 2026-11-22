@@ -54,12 +54,59 @@ public sealed class IslandMapTests
         {
             Assert.That(IslandMap.Places[0].Room, Is.EqualTo(RoomBook.StartingRoom));
             Assert.That(withRooms, Is.Unique);
-            foreach (var id in new[] { "town-square", "garden", "riverside", "pear-orchard", "mine" })
+            foreach (var id in new[] { "town-square", "mine", "plaza", "fort", "forest", "cove", "ice-rink", "dojo-courtyard", "dock", "beach", "peakside-village", "scratching-peaks" })
             {
                 Assert.That(withRooms, Does.Contain(id));
             }
             Assert.That(withRooms, Does.Not.Contain("cafe"), "a building's inside is not on the map");
             Assert.That(withRooms, Does.Not.Contain("shop"), "a building's inside is not on the map");
+        });
+    }
+
+    /// <summary>Where each place stands on the island picture, as percent across and down it. The map keeps this layout.</summary>
+    private static readonly Dictionary<string, (double Across, double Down)> Reference = new()
+    {
+        ["town-square"] = (69, 61),
+        ["plaza"] = (37, 60),
+        ["ice-rink"] = (45, 39),
+        ["scratching-peaks"] = (19, 26),
+        ["mine"] = (83, 46),
+        ["cove"] = (96, 68),
+        ["lighthouse"] = (7, 63),
+        ["harbour-dock"] = (19, 78),
+        ["whisker-woods"] = (51, 68),
+        ["peakside-village"] = (16, 46),
+        ["fort"] = (58, 49),
+        ["forest"] = (83, 72),
+        ["dojo-courtyard"] = (60, 29),
+        ["cat-homes"] = (39, 73),
+    };
+
+    /// <summary>The reference picture spans this share of the island's width and depth.</summary>
+    private const double Fill = 0.95;
+
+    [Test]
+    public void EveryPlace_StandsWhereTheReferenceLayoutPutsIt()
+    {
+        Assert.Multiple(() =>
+        {
+            foreach (var place in IslandMap.Places)
+            {
+                Assert.That(Reference.ContainsKey(place.Id), Is.True, $"{place.Id} has no spot in the reference layout.");
+                if (!Reference.TryGetValue(place.Id, out var spot))
+                {
+                    continue;
+                }
+
+                var x = (spot.Across / 100 - 0.5) * 2 * IslandMap.HalfWidth * Fill;
+                var z = -(spot.Down / 100 - 0.5) * 2 * IslandMap.HalfDepth * Fill;
+                Assert.That(Math.Abs(place.X - x), Is.LessThanOrEqualTo(4), $"{place.Id} is {place.X} east, the reference says {x:0.#}.");
+                Assert.That(Math.Abs(place.Z - z), Is.LessThanOrEqualTo(4), $"{place.Id} is {place.Z} north, the reference says {z:0.#}.");
+            }
+            foreach (var id in Reference.Keys)
+            {
+                Assert.That(IslandMap.Places.Select(p => p.Id), Does.Contain(id), $"{id} is in the reference layout but not on the map.");
+            }
         });
     }
 }

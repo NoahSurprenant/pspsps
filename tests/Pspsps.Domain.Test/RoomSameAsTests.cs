@@ -4,11 +4,11 @@ namespace Pspsps.Domain.Test;
 
 public sealed class RoomSameAsTests
 {
-    private static readonly RoomDefinition Garden = RoomCatalog.Find("garden")!;
+    private static readonly RoomDefinition Shop = RoomCatalog.Find("shop")!;
 
     [Test]
     public void ARoomBuiltAgain_IsTheSameRoom() =>
-        Assert.That(RoomBook.Create(RoomCatalog.All.ToDictionary(room => room.Id, RoomLayout.Of), []).Find("garden")!.SameAs(Garden), Is.True);
+        Assert.That(RoomBook.Create(RoomCatalog.All.ToDictionary(room => room.Id, RoomLayout.Of), []).Find("shop")!.SameAs(Shop), Is.True);
 
     [Test]
     public void ARoomWithAnotherPropOrLook_IsNot()
@@ -17,9 +17,9 @@ public sealed class RoomSameAsTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(Garden.SameAs(Garden with { Props = [.. Garden.Props, lamp] }), Is.False);
-            Assert.That(Garden.SameAs(Garden with { Look = "winter" }), Is.False);
-            Assert.That(Garden.SameAs(Garden with { Width = Garden.Width + 1 }), Is.False);
+            Assert.That(Shop.SameAs(Shop with { Props = [.. Shop.Props, lamp] }), Is.False);
+            Assert.That(Shop.SameAs(Shop with { Look = "winter" }), Is.False);
+            Assert.That(Shop.SameAs(Shop with { Width = Shop.Width + 1 }), Is.False);
         });
     }
 }

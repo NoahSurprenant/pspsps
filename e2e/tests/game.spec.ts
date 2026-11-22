@@ -6,35 +6,18 @@ import {
   enterWorldSignedIn, holdDrawing, signInAsAdmin, fakeNetwork, pinchRoom,
 } from "./game";
 
-test("read the square map, grow daisies, and pick and pack a pear", async ({ page }) => {
+test("read the square map", async ({ page }) => {
   await enterWorld(page, "Tabby");
   const board = await page.evaluate(() => window.pspsps?.room()?.snapshot.props?.find(prop => prop.kind === "map-board"));
   if (!board) throw new Error("no town map board");
   await tapFloor(page, board.x, board.z);
   const map = page.getByRole("dialog", { name: "World map" });
-  await map.getByRole("button", { name: "Garden Courtyard" }).click();
-  await expectRoom(page, "Garden Courtyard");
-  const use = async (name: string) => {
-    const button = page.getByRole("button", { name, exact: true });
-    await button.focus();
-    await page.keyboard.press("Enter");
-  };
-  await use("Water the seedlings");
-  await expect(page.locator("#toast")).toHaveText("The first daisy opened.");
-  await goThroughDoor(page, "pear-orchard", "Pear Orchard");
-  await use("Pick a pear from tree 1");
-  await expect(page.locator("#toast")).toContainText("One ripe pear");
-  await use("Pack the pears");
-  await expect(page.locator("#toast")).toHaveText("Pears packed: 1 of 3.");
+  await expect(map.getByRole("button", { name: "Town Square, you are here" })).toBeVisible();
+  await page.keyboard.press("Escape");
 });
 
-test("play the café piano, try the shop mirror and cast from the river rod rack", async ({ page }) => {
+test("play the café piano and try the shop mirror", async ({ page }) => {
   await enterWorld(page, "Tabby");
-  const travel = async (name: string) => {
-    await page.getByRole("button", { name: "World map" }).click();
-    await page.getByRole("dialog", { name: "World map" }).getByRole("button", { name }).click();
-    await expectRoom(page, name);
-  };
   const use = async (kind: string) => {
     const prop = await page.evaluate(wanted => window.pspsps?.room()?.snapshot.props?.find(p => p.kind === wanted), kind);
     if (!prop) throw new Error(`missing ${kind}`);
@@ -49,9 +32,6 @@ test("play the café piano, try the shop mirror and cast from the river rod rack
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.keyboard.press("Escape");
   await goThroughDoor(page, "town-square", "Town Square");
-  await travel("Riverside Trail");
-  await use("rod-rack");
-  await expect.poll(() => page.evaluate(() => window.pspsps?.fishing())).toMatch(/waiting|bite/);
 });
 
 test("the sign-in page loads without errors", async ({ page }) => {
@@ -620,12 +600,11 @@ test("a guest walks through the café door and comes in by the café's door back
   expect(await roomBarButtons(page)).toEqual(["Friends", "World map", "Worlds"]);
 });
 
-test("a cat walks the garden loop and travels to a room's spawn from the world map", async ({ page }) => {
+test("a cat walks through the café and the shop and back and travels to a room's spawn from the world map", async ({ page }) => {
   const me = await enterWorld(page, "Tabby");
   let previous = "town-square";
   for (const [id, name] of [
-    ["garden", "Garden Courtyard"], ["pear-orchard", "Pear Orchard"],
-    ["riverside", "Riverside Trail"], ["town-square", "Town Square"],
+    ["cafe", "Cat Café"], ["town-square", "Town Square"], ["shop", "Cat Shop"], ["town-square", "Town Square"],
   ] as const) {
     await goThroughDoor(page, id, name);
     const entrance = await page.evaluate(from => window.pspsps?.room()?.snapshot.doors.find(d => d.toRoomId === from), previous);
@@ -636,7 +615,6 @@ test("a cat walks the garden loop and travels to a room's spawn from the world m
     const dz = entrance.edge === "north" ? -offset : entrance.edge === "south" ? offset : 0;
     expect(cat.x).toBeCloseTo(entrance.x + dx, 6);
     expect(cat.z).toBeCloseTo(entrance.z + dz, 6);
-    if (id === "riverside") await expect(page.getByRole("button", { name: "🎣 Fish", exact: true })).toBeVisible();
     previous = id;
   }
   await goThroughDoor(page, "cafe", "Cat Café");
@@ -647,23 +625,24 @@ test("a cat walks the garden loop and travels to a room's spawn from the world m
   const map = page.getByRole("dialog", { name: "World map" });
   await expect(map.getByRole("button", { name: "Town Square, you are here" })).toHaveAttribute("aria-current", "location");
   // Every outdoor place of the island is on the map; a building's inside is not. Places not built yet can't be entered.
-  await expect(map.locator(".map-place[data-place]")).toHaveCount(16);
+  await expect(map.locator(".map-place[data-place]")).toHaveCount(14);
   await expect(map.locator('[data-place="cafe"], [data-place="shop"]')).toHaveCount(0);
-  await expect(map.getByRole("button", { name: "Old Mill, coming soon" })).toBeVisible();
+  await expect(map.getByRole("button", { name: "Lighthouse Point, coming soon" })).toBeVisible();
   await map.getByRole("button", { name: "Games", exact: true }).click();
   await expect(map.locator('.map-place[data-category="shops"]').first()).toHaveClass(/map-dim/);
   await expect(map.locator('.map-place[data-category="games"]').first()).not.toHaveClass(/map-dim/);
-  await map.getByRole("button", { name: "Old Mill, coming soon" }).click();
+  await map.getByRole("button", { name: "Lighthouse Point, coming soon" }).click();
   await expect(map.getByText("Coming soon.")).toBeVisible();
   await expect(page.getByRole("dialog", { name: "World map" })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(map).toBeHidden();
   await expect(openMap).toBeFocused();
 
+  await goThroughDoor(page, "cafe", "Cat Café");
   await openMap.click();
-  await map.getByRole("button", { name: "Riverside Trail" }).click();
-  await expectRoom(page, "Riverside Trail");
-  expect((await cats(page))[me]).toMatchObject({ x: 0, z: 3 });
+  await map.getByRole("button", { name: "Town Square" }).click();
+  await expectRoom(page, "Town Square");
+  expect((await cats(page))[me]).toMatchObject({ x: 0, z: 4 });
   await expect(map).toBeHidden();
 });
 

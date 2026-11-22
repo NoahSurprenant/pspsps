@@ -50,7 +50,7 @@ public sealed class RoomContentTests
         {
             Assert.That(library.Start.Id, Is.EqualTo(RoomBook.StartingRoom));
             Assert.That(library.All.Select(room => room.Id), Is.EquivalentTo(RoomCatalog.All.Select(room => room.Id)));
-            Assert.That(library.Find("garden")!.Props, Is.EqualTo(RoomCatalog.Find("garden")!.Props));
+            Assert.That(library.Find("shop")!.Props, Is.EqualTo(RoomCatalog.Find("shop")!.Props));
             Assert.That(library.Find("attic"), Is.Null);
         });
     }
@@ -108,9 +108,9 @@ public sealed class RoomContentTests
     public async Task ARoom_CannotHaveTwoPublishedVersions_EvenWhenTwoPodsPublishAtOnce()
     {
         await using var db = Db();
-        var layout = RoomLayout.Of(RoomCatalog.Find("garden")!);
-        db.RoomVersions.Add(RoomVersion.Draft("garden", 90, layout, null, DateTimeOffset.UtcNow));
-        var rival = RoomVersion.Draft("garden", 91, layout, null, DateTimeOffset.UtcNow);
+        var layout = RoomLayout.Of(RoomCatalog.Find("shop")!);
+        db.RoomVersions.Add(RoomVersion.Draft("shop", 90, layout, null, DateTimeOffset.UtcNow));
+        var rival = RoomVersion.Draft("shop", 91, layout, null, DateTimeOffset.UtcNow);
         rival.Publish(DateTimeOffset.UtcNow);
         db.RoomVersions.Add(rival);
 
@@ -161,26 +161,26 @@ public sealed class RoomContentTests
         db.Players.Add(player);
         await db.SaveChangesAsync(ct);
         var admin = player.Id;
-        var before = (await editor.GetAsync("garden", ct))!;
+        var before = (await editor.GetAsync("shop", ct))!;
         var original = before.Published!;
 
-        var problems = await editor.SaveDraftAsync("garden", original with { Name = "The Big Garden" }, admin, null, ct);
+        var problems = await editor.SaveDraftAsync("shop", original with { Name = "The Big Shop" }, admin, null, ct);
         Assert.That(problems, Is.Empty);
-        await editor.PublishAsync("garden", [], admin, ct);
-        var published = (await editor.GetAsync("garden", ct))!;
+        await editor.PublishAsync("shop", [], admin, ct);
+        var published = (await editor.GetAsync("shop", ct))!;
         Assert.Multiple(() =>
         {
-            Assert.That(published.Published!.Name, Is.EqualTo("The Big Garden"));
+            Assert.That(published.Published!.Name, Is.EqualTo("The Big Shop"));
             Assert.That(published.Draft, Is.Null);
             Assert.That(published.Versions.Count(v => v.State == RoomVersionState.Published), Is.EqualTo(1));
         });
 
-        await editor.RollbackAsync("garden", before.Versions.First(v => v.State == RoomVersionState.Published).Number, admin, ct);
-        Assert.That((await editor.GetAsync("garden", ct))!.Published!.Name, Is.EqualTo(original.Name));
+        await editor.RollbackAsync("shop", before.Versions.First(v => v.State == RoomVersionState.Published).Number, admin, ct);
+        Assert.That((await editor.GetAsync("shop", ct))!.Published!.Name, Is.EqualTo(original.Name));
 
-        await editor.SaveDraftAsync("garden", original with { Doors = [] }, admin, null, ct);
-        Assert.That(async () => await editor.PublishAsync("garden", [], admin, ct), Throws.TypeOf<Pspsps.Domain.DomainException>());
-        await editor.DiscardDraftAsync("garden", admin, ct);
-        Assert.That((await editor.GetAsync("garden", ct))!.Draft, Is.Null);
+        await editor.SaveDraftAsync("shop", original with { Doors = [] }, admin, null, ct);
+        Assert.That(async () => await editor.PublishAsync("shop", [], admin, ct), Throws.TypeOf<Pspsps.Domain.DomainException>());
+        await editor.DiscardDraftAsync("shop", admin, ct);
+        Assert.That((await editor.GetAsync("shop", ct))!.Draft, Is.Null);
     }
 }

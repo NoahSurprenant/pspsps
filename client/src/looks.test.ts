@@ -3,7 +3,7 @@ import seed from "../../src/Pspsps.Application/Rooms/RoomLooks.json?raw";
 import serverLook from "../../src/Pspsps.Domain/Rooms/RoomLook.cs?raw";
 import { openLandscape } from "./doors";
 import {
-  backdropGenerators, floorPainters, groundPainters, lookOf, setLooks, wallPainters, wildlifeKinds, type LooksData, type RoomLookData,
+  backdropGenerators, floorPainters, groundPainters, lookOf, setDraftLook, setLooks, wallPainters, wildlifeKinds, type LooksData, type RoomLookData,
 } from "./looks";
 import type { Floorplan } from "./paint";
 
@@ -12,9 +12,8 @@ const plans = {
   cafe: { width: 14, depth: 10, pond: null, doors: [] },
   home: { width: 12, depth: 9, pond: null, doors: [] },
   shop: { width: 13, depth: 9, pond: null, doors: [] },
-  garden: { width: 18, depth: 12, pond: null, doors: [] },
-  "pear-orchard": { width: 18, depth: 19, pond: null, doors: [] },
-  riverside: { width: 24, depth: 14, pond: { x: -3, z: -2, radius: 2.4 }, doors: [] },
+  meadow: { width: 18, depth: 12, pond: null, doors: [] },
+  stream: { width: 24, depth: 14, pond: { x: -3, z: -2, radius: 2.4 }, doors: [] },
 } satisfies Record<string, Floorplan>;
 
 describe("lookOf", () => {
@@ -61,15 +60,26 @@ describe("lookOf", () => {
     expect(look.backdrop({ width: 14, depth: 10, pond: null, doors: [] }, 4)).toEqual([]);
   });
 
-  it("gives the garden and the riverside distinct outdoor looks", () => {
-    const [garden, riverside] = [lookOf("garden"), lookOf("riverside")];
+  it("gives rooms with different painters distinct outdoor looks", () => {
+    const outdoors: RoomLookData = {
+      sky: "#d1eaf3", floorColour: "#9fd38a", wallColour: "#f0ddba", ground: { colour: "#b7cf98" }, openLandscape: true,
+      backdrop: { parts: [{ shape: "box", width: 1, height: 1, depth: 1, at: [0, 3, 8], colour: "#ffffff" }] },
+    };
+    setLooks({
+      rooms: [
+        { id: "meadow", look: { ...outdoors, floor: { painter: "garden" }, wall: { painter: "garden" }, backdrop: { parts: [] } } },
+        { id: "stream", look: { ...outdoors, floor: { painter: "riverside" }, wall: { painter: "riverside" } } },
+      ],
+      variants: [],
+    });
+    const [meadow, stream] = [lookOf("meadow"), lookOf("stream")];
 
-    expect(garden.ground).toBeDefined();
-    expect(riverside.ground).toBeDefined();
-    expect(garden.paintFloor).toBeDefined();
-    expect(riverside.paintFloor).toBeDefined();
-    expect(garden.paintFloor).not.toBe(riverside.paintFloor);
-    expect(garden.backdrop(plans.garden, 4)).not.toEqual(riverside.backdrop(plans.riverside, 4));
+    expect(meadow.ground).toBeDefined();
+    expect(stream.ground).toBeDefined();
+    expect(meadow.paintFloor).toBeDefined();
+    expect(stream.paintFloor).toBeDefined();
+    expect(meadow.paintFloor).not.toBe(stream.paintFloor);
+    expect(meadow.backdrop(plans.meadow, 4)).not.toEqual(stream.backdrop(plans.stream, 4));
   });
 
   // Hidden in the back wall, a part costs drawing and shows nothing.
@@ -84,6 +94,9 @@ describe("lookOf", () => {
   // The backdrop is scenery: nothing in it stands where cats walk, or hangs low enough over the floor to hide one.
   it.each(Object.entries(plans))("keeps %s's backdrop off the floor, or above the cats' heads", (room, plan) => {
     for (const part of lookOf(room).backdrop(plan, 4)) {
+      if (part.shape === "model") {
+        continue;
+      }
       const [x, y, z] = part.at;
       const [halfX, halfZ] = part.shape === "box" ? [part.width / 2, part.depth / 2] : [part.diameter / 2, part.diameter / 2];
       const height = part.shape === "ball" ? (part.height ?? part.diameter) : part.height;
@@ -149,13 +162,37 @@ describe("looks as data", () => {
     expect(lookOf("loft").paintFloor).toBeUndefined();
   });
 
+  it("shows a draft's look in place of the live one, kept under its own paint key, and the same key for the same look", () => {
+    setLooks({ rooms: [{ id: "loft", look: newRoom }], variants: [] });
+    const live = lookOf("loft");
+
+    setDraftLook("loft", { ...newRoom, sky: "#abcdef", openLandscape: true });
+    const first = lookOf("loft");
+    setDraftLook("loft", { ...newRoom, sky: "#fedcba", floor: { painter: "tiles", colour: "#aa8855" } });
+    const second = lookOf("loft");
+    setDraftLook("loft", { ...newRoom, sky: "#fedcba", floor: { painter: "tiles", colour: "#aa8855" } });
+    const again = lookOf("loft");
+
+    expect(first.sky).toBe("#abcdef");
+    expect(second.sky).toBe("#fedcba");
+    expect(new Set([live.paintKey, first.paintKey, second.paintKey]).size).toBe(3);
+    expect(again.paintKey).toBe(second.paintKey);
+    expect(openLandscape("loft")).toBe(false);
+  });
+
+  it("gives a live room a new paint key when its look changes, so a published change is redrawn", () => {
+    setLooks({ rooms: [{ id: "loft", look: newRoom }], variants: [] });
+    const before = lookOf("loft").paintKey;
+    setLooks({ rooms: [{ id: "loft", look: { ...newRoom, floorColour: "#000000", floor: { painter: "planks", colour: "#000000" } } }], variants: [] });
+
+    expect(lookOf("loft").paintKey).not.toBe(before);
+  });
+
   it("knows which rooms are open countryside, from their looks", () => {
-    expect(openLandscape("pear-orchard")).toBe(true);
-    expect(openLandscape("riverside")).toBe(true);
     expect(openLandscape("cafe")).toBe(false);
     setLooks({ rooms: [{ id: "loft", look: { ...newRoom, openLandscape: true } }], variants: [] });
     expect(openLandscape("loft")).toBe(true);
-    expect(openLandscape("riverside")).toBe(false);
+    expect(openLandscape("cafe")).toBe(false);
   });
 
   it("runs the town's generator beside any parts the look gives", () => {
@@ -165,8 +202,12 @@ describe("looks as data", () => {
   });
 
   it("gives each room the wildlife its look names", () => {
-    expect(lookOf("riverside").wildlife).toBe("fish");
-    expect(lookOf("garden").wildlife).toBe("butterfly");
+    setLooks({
+      rooms: [{ id: "stream", look: { ...newRoom, wildlife: "fish" } }, { id: "meadow", look: { ...newRoom, wildlife: "butterfly" } }],
+      variants: [],
+    });
+    expect(lookOf("stream").wildlife).toBe("fish");
+    expect(lookOf("meadow").wildlife).toBe("butterfly");
     expect(lookOf("cafe").wildlife).toBeUndefined();
   });
 

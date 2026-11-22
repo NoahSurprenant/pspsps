@@ -17,7 +17,8 @@ public sealed record RoomDetail(
     RoomLayout? Draft,
     IReadOnlyList<RoomOverlay> Overlays,
     int? DraftRevision = null,
-    DateTimeOffset? GoLiveAt = null);
+    DateTimeOffset? GoLiveAt = null,
+    RoomLook? DraftLook = null);
 
 /// <summary>Everything admins author, in the shape the files in the repository hold it, to commit and review.</summary>
 public sealed record ContentExport(
@@ -28,7 +29,7 @@ public sealed record ContentExport(
     IReadOnlyList<object> Wildlife,
     IReadOnlyList<object> PropDesigns);
 
-public sealed record ExportedRoom(string Id, RoomLayout Layout);
+public sealed record ExportedRoom(string Id, RoomLayout Layout, RoomLook? Look = null);
 
 public sealed record ExportedLooks(IReadOnlyList<object> Rooms, IReadOnlyList<object> Variants);
 
@@ -41,13 +42,13 @@ public interface IRoomEditor
 
     Task<RoomDetail?> GetAsync(string roomId, CancellationToken cancellationToken);
 
-    /// <summary>The published rooms (the starting room first), their overlays and looks, the painter and wildlife recipes and the prop designs, in a stable order.</summary>
+    /// <summary>The published rooms (the starting room first, each with its look), their overlays, the looks that belong to no room, the painter and wildlife recipes and the prop designs, in a stable order.</summary>
     Task<ContentExport> ExportAsync(CancellationToken cancellationToken);
 
     /// <summary>
-    /// Loads the content file: each room that differs from its published version becomes its draft (nothing goes live until it is
-    /// published). Looks, variants and recipes that are new are saved (nothing uses them yet); ones that already exist and differ are
-    /// not touched and are reported, because changing them would change live rooms.
+    /// Loads the content file: each room whose layout or look differs from its published version becomes its draft, carrying its
+    /// look (nothing goes live until it is published). Variants and recipes that are new are saved (nothing uses them yet); ones
+    /// that already exist and differ are not touched and are reported, because changing them would change live rooms.
     /// </summary>
     Task<ImportReport> ImportAsync(ContentFile file, Guid adminId, CancellationToken cancellationToken);
 
@@ -56,7 +57,8 @@ public interface IRoomEditor
     /// <paramref name="expectedRevision"/> is the draft's <see cref="RoomDetail.DraftRevision"/> as the admin opened it: when the
     /// draft has been saved since (or is gone), nothing is saved and a <see cref="DomainException"/> says so.
     /// </summary>
-    Task<IReadOnlyList<string>> SaveDraftAsync(string roomId, RoomLayout layout, Guid adminId, int? expectedRevision, CancellationToken cancellationToken);
+    /// <remarks>A <paramref name="look"/> is kept with the draft and goes live with it; none leaves the draft's look as it is.</remarks>
+    Task<IReadOnlyList<string>> SaveDraftAsync(string roomId, RoomLayout layout, Guid adminId, int? expectedRevision, CancellationToken cancellationToken, RoomLook? look = null);
 
     Task DiscardDraftAsync(string roomId, Guid adminId, CancellationToken cancellationToken);
 
@@ -89,7 +91,14 @@ public interface IRoomEditor
 
     Task DeleteOverlayAsync(string roomId, string overlayId, Guid adminId, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Sets a room's look. A room that has a version takes it in its draft (made from the published version when there is none),
+    /// so it goes live, is scheduled and rolls back with the layout; one with no version (a player's home) is saved straight away.
+    /// </summary>
     Task SaveLookAsync(string id, RoomLook look, Guid adminId, CancellationToken cancellationToken);
+
+    /// <summary>Takes the look out of a room's draft, so the room goes live with the look it has now.</summary>
+    Task ClearDraftLookAsync(string id, Guid adminId, CancellationToken cancellationToken);
 
     Task SaveVariantAsync(string name, LookVariant variant, Guid adminId, CancellationToken cancellationToken);
 
@@ -201,10 +210,16 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
         }
 
         var looks = await db.RoomLooks.AsNoTracking().ToDictionaryAsync(l => l.Id, cancellationToken);
-        var liveRooms = (await db.RoomVersions.AsNoTracking().Where(v => v.State == RoomVersionState.Published).Select(v => v.RoomId).ToListAsync(cancellationToken)).ToHashSet();
+        var roomsOfFile = file.RoomList.Select(r => r.Id).ToHashSet();
+        var roomsWithVersions = (await db.RoomVersions.AsNoTracking().Where(v => v.State != RoomVersionState.Archived).Select(v => v.RoomId).ToListAsync(cancellationToken)).ToHashSet();
+        // A room's look goes live with the room, so it is in the room's entry; these are only the looks of places that are no room of the book (a player's home).
         foreach (var (id, look) in file.LookList.Select(l => (l.Id, l.Look)))
         {
-            if (!looks.TryGetValue(id, out var existing))
+            if (roomsOfFile.Contains(id) || roomsWithVersions.Contains(id))
+            {
+                problems.Add($"look {id}: {id} is a room, so its look goes in the room's own entry (rooms, look): it is drafted, scheduled and published with the room.");
+            }
+            else if (!looks.TryGetValue(id, out var existing))
             {
                 await Attempt($"look {id}", () => SaveLookAsync(id, look, adminId, cancellationToken));
             }
@@ -212,13 +227,9 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             {
                 unchanged.Add($"look {id}");
             }
-            else if (!liveRooms.Contains(id))
-            {
-                await Attempt($"look {id}", () => SaveLookAsync(id, look, adminId, cancellationToken), "replaced (room not published)");
-            }
             else
             {
-                problems.Add($"look {id}: differs from the live look; change it in the admin (it would change a live room).");
+                await Attempt($"look {id}", () => SaveLookAsync(id, look, adminId, cancellationToken), "replaced (no room has it)");
             }
         }
 
@@ -242,11 +253,12 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
         foreach (var room in file.RoomList)
         {
             var detail = await GetAsync(room.Id, cancellationToken);
-            if (detail?.Published is { } published && Same(published, room.Layout) && detail.Draft is null)
+            var live = looks.TryGetValue(room.Id, out var liveEntry) ? liveEntry.Look : null;
+            if (detail?.Published is { } published && Same(published, room.Layout) && detail.Draft is null && (room.Look is null || Same(live, room.Look)))
             {
                 unchanged.Add($"room {room.Id}");
             }
-            else if (detail?.Draft is { } draft && Same(draft, room.Layout))
+            else if (detail?.Draft is { } draft && Same(draft, room.Layout) && (room.Look is null ? detail.DraftLook is null : Same(detail.DraftLook ?? live, room.Look)))
             {
                 unchanged.Add($"room {room.Id} (already a draft)");
             }
@@ -254,7 +266,12 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             {
                 try
                 {
-                    await SaveDraftAsync(room.Id, room.Layout, adminId, null, cancellationToken);
+                    await SaveDraftAsync(room.Id, room.Layout, adminId, null, cancellationToken, room.Look);
+                    if (room.Look is null && detail?.DraftLook is not null)
+                    {
+                        await ClearDraftLookAsync(room.Id, adminId, cancellationToken);
+                    }
+
                     applied.Add($"room {room.Id}: saved as a draft");
                 }
                 catch (DomainException exception)
@@ -293,7 +310,10 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
         if (file.RoomList.Count > 0)
         {
             // The rooms of one file lead to each other, so they are only right as a set, not one at a time against the live rooms.
-            problems.AddRange(await ProblemsWithAsync(file.RoomList.ToDictionary(r => r.Id, r => r.Layout), cancellationToken));
+            problems.AddRange(await ProblemsWithAsync(
+                file.RoomList.ToDictionary(r => r.Id, r => r.Layout),
+                file.RoomList.Where(r => r.Look is not null).ToDictionary(r => r.Id, r => r.Look!),
+                cancellationToken));
         }
 
         return new ImportReport(applied, unchanged, problems);
@@ -316,13 +336,15 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
     {
         var published = await db.RoomVersions.AsNoTracking().Where(v => v.State == RoomVersionState.Published).ToListAsync(cancellationToken);
         var overlays = await db.RoomOverlays.AsNoTracking().ToListAsync(cancellationToken);
+        var looks = await db.RoomLooks.AsNoTracking().OrderBy(l => l.Id).ToListAsync(cancellationToken);
+        var roomIds = published.Select(v => v.RoomId).ToHashSet();
         return new ContentExport(
             [.. published
                 .OrderBy(v => v.RoomId == RoomBook.StartingRoom ? 0 : 1).ThenBy(v => v.RoomId, StringComparer.Ordinal)
-                .Select(v => new ExportedRoom(v.RoomId, v.Layout))],
+                .Select(v => new ExportedRoom(v.RoomId, v.Layout, looks.FirstOrDefault(l => l.Id == v.RoomId)?.Look))],
             [.. overlays.Select(o => o.ToOverlay()).OrderBy(o => o.RoomId, StringComparer.Ordinal).ThenBy(o => o.Id, StringComparer.Ordinal)],
             new ExportedLooks(
-                [.. (await db.RoomLooks.AsNoTracking().OrderBy(l => l.Id).ToListAsync(cancellationToken)).Select(l => new { l.Id, l.Look })],
+                [.. looks.Where(l => !roomIds.Contains(l.Id)).Select(l => new { l.Id, l.Look })],
                 [.. (await db.LookVariants.AsNoTracking().OrderBy(v => v.Id).ToListAsync(cancellationToken)).Select(v => new { v.Id, v.Sky, v.WallColour, v.Floor })]),
             [.. (await db.PainterRecipes.AsNoTracking().OrderBy(r => r.Id).ToListAsync(cancellationToken)).Select(r => new { r.Id, r.Surface, r.Steps })],
             [.. (await db.WildlifeRecipes.AsNoTracking().OrderBy(r => r.Id).ToListAsync(cancellationToken)).Select(r => new { r.Id, r.Parts, r.Motion })],
@@ -345,12 +367,18 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             versions.FirstOrDefault(v => v.State == RoomVersionState.Draft)?.Layout,
             [.. overlays.Select(o => o.ToOverlay()).OrderBy(o => o.Id, StringComparer.Ordinal)],
             versions.FirstOrDefault(v => v.State == RoomVersionState.Draft)?.Revision,
-            versions.FirstOrDefault(v => v.State == RoomVersionState.Draft)?.GoLiveAt);
+            versions.FirstOrDefault(v => v.State == RoomVersionState.Draft)?.GoLiveAt,
+            versions.FirstOrDefault(v => v.State == RoomVersionState.Draft)?.Look);
     }
 
-    public async Task<IReadOnlyList<string>> SaveDraftAsync(string roomId, RoomLayout layout, Guid adminId, int? expectedRevision, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<string>> SaveDraftAsync(string roomId, RoomLayout layout, Guid adminId, int? expectedRevision, CancellationToken cancellationToken, RoomLook? look = null)
     {
         ArgumentNullException.ThrowIfNull(layout);
+        if (look is not null)
+        {
+            ThrowIfProblems(look.Problems(roomId, await LookNamesAsync(cancellationToken)));
+        }
+
         var versions = await db.RoomVersions.Where(v => v.RoomId == roomId).ToListAsync(cancellationToken);
         var draft = versions.FirstOrDefault(v => v.State == RoomVersionState.Draft);
         if (expectedRevision is not null && draft?.Revision != expectedRevision)
@@ -360,16 +388,16 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
 
         if (draft is null)
         {
-            db.RoomVersions.Add(RoomVersion.Draft(roomId, versions.Select(v => v.Number).DefaultIfEmpty(0).Max() + 1, layout, adminId, time.GetUtcNow()));
+            db.RoomVersions.Add(RoomVersion.Draft(roomId, versions.Select(v => v.Number).DefaultIfEmpty(0).Max() + 1, layout, adminId, time.GetUtcNow(), look));
         }
         else
         {
-            draft.Edit(layout);
+            draft.Edit(layout, look);
         }
 
         Audit(adminId, "draft-saved", roomId, draft is null ? "a new draft" : $"draft over revision {draft.Revision - 1}");
         await SaveAsync(cancellationToken);
-        return await ProblemsWithAsync(roomId, layout, cancellationToken);
+        return await ProblemsWithAsync(roomId, layout, look ?? draft?.Look, cancellationToken);
     }
 
     public async Task DiscardDraftAsync(string roomId, Guid adminId, CancellationToken cancellationToken)
@@ -390,7 +418,7 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
     public async Task ScheduleAsync(string roomId, IReadOnlyList<string> together, DateTimeOffset at, Guid adminId, CancellationToken cancellationToken)
     {
         var drafts = await DraftsOfAsync(roomId, together, cancellationToken);
-        ThrowIfProblems(await ProblemsWithAsync(drafts.ToDictionary(d => d.RoomId, d => d.Layout), cancellationToken));
+        ThrowIfProblems(await ProblemsWithAsync(drafts.ToDictionary(d => d.RoomId, d => d.Layout), LooksOf(drafts), cancellationToken));
         var now = time.GetUtcNow();
         foreach (var draft in drafts)
         {
@@ -419,7 +447,7 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             return 0;
         }
 
-        var problems = await ProblemsWithAsync(due.ToDictionary(d => d.RoomId, d => d.Layout), cancellationToken);
+        var problems = await ProblemsWithAsync(due.ToDictionary(d => d.RoomId, d => d.Layout), LooksOf(due), cancellationToken);
         if (problems.Count > 0)
         {
             foreach (var draft in due)
@@ -488,7 +516,7 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
                 .Select(entry => entry.ToOverlay())
                 .Where(o => o.RoomId != overlay.RoomId || o.Id != overlay.Id)
                 .Append(overlay));
-            ThrowIfProblems([.. RoomBook.Problems(published, overlays), .. await LookProblemsAsync(published, overlays, cancellationToken)]);
+            ThrowIfProblems([.. RoomBook.Problems(published, overlays), .. await LookProblemsAsync(published, overlays, new Dictionary<string, RoomLook>(), cancellationToken)]);
         }
         else
         {
@@ -543,11 +571,44 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
         await library.RefreshAsync(cancellationToken);
     }
 
+    public async Task ClearDraftLookAsync(string id, Guid adminId, CancellationToken cancellationToken)
+    {
+        var draft = await db.RoomVersions.FirstOrDefaultAsync(v => v.RoomId == id && v.State == RoomVersionState.Draft && v.Look != null, cancellationToken)
+            ?? throw new DomainException($"{id} has no draft with a look.");
+        draft.ClearLook();
+        Audit(adminId, "draft-look-cleared", id, $"version {draft.Number}");
+        await SaveAsync(cancellationToken);
+    }
+
     public async Task SaveLookAsync(string id, RoomLook look, Guid adminId, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(look);
         var now = time.GetUtcNow();
         var names = await LookNamesAsync(cancellationToken);
+        var versions = await db.RoomVersions.Where(v => v.RoomId == id && v.State != RoomVersionState.Archived).ToListAsync(cancellationToken);
+        if (versions.Count > 0)
+        {
+            ThrowIfProblems(look.Problems(id, names));
+            var scheduleRemoved = string.Empty;
+            var draft = versions.FirstOrDefault(v => v.State == RoomVersionState.Draft);
+            if (draft is null)
+            {
+                var all = await db.RoomVersions.Where(v => v.RoomId == id).Select(v => v.Number).ToListAsync(cancellationToken);
+                draft = RoomVersion.Draft(id, all.Max() + 1, versions[0].Layout, adminId, now, look);
+                db.RoomVersions.Add(draft);
+            }
+            else
+            {
+                var wasScheduled = draft.GoLiveAt is not null;
+                draft.Edit(draft.Layout, look);
+                scheduleRemoved = wasScheduled ? " (its schedule was taken off)" : string.Empty;
+            }
+
+            Audit(adminId, "draft-look-saved", id, $"version {draft.Number}{scheduleRemoved}");
+            await SaveAsync(cancellationToken);
+            return;
+        }
+
         var entry = await db.RoomLooks.FirstOrDefaultAsync(l => l.Id == id, cancellationToken);
         if (entry is null)
         {
@@ -677,7 +738,11 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
     }
 
     private async Task<List<string>> UsedByLooksAsync(Func<RoomLook, bool> uses, CancellationToken cancellationToken) =>
-        [.. (await db.RoomLooks.AsNoTracking().ToListAsync(cancellationToken)).Where(entry => uses(entry.Look)).Select(entry => entry.Id)];
+    [
+        .. (await db.RoomLooks.AsNoTracking().ToListAsync(cancellationToken)).Where(entry => uses(entry.Look)).Select(entry => entry.Id),
+        .. (await db.RoomVersions.AsNoTracking().Where(v => v.State == RoomVersionState.Draft).ToListAsync(cancellationToken))
+            .Where(v => v.Look is not null && uses(v.Look)).Select(v => $"{v.RoomId} (draft)"),
+    ];
 
     public async Task<IReadOnlyList<AuditLine>> AuditAsync(int limit, CancellationToken cancellationToken) =>
         [.. (await db.RoomAudit.AsNoTracking().OrderByDescending(a => a.At).Take(Math.Clamp(limit, 1, 500)).ToListAsync(cancellationToken))
@@ -686,9 +751,14 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
     private void Audit(Guid? adminId, string action, string target, string detail) =>
         db.RoomAudit.Add(RoomAuditEntry.Of(adminId, action, target, detail, time.GetUtcNow()));
 
+    private static bool SameLook(RoomLook a, RoomLook b) => JsonSerializer.Serialize(a, ContentFile.Json) == JsonSerializer.Serialize(b, ContentFile.Json);
+
+    private static Dictionary<string, RoomLook> LooksOf(IEnumerable<RoomVersion> drafts) =>
+        drafts.Where(d => d.Look is not null).ToDictionary(d => d.RoomId, d => d.Look!);
+
     private async Task PublishAsync(List<RoomVersion> drafts, Guid? adminId, string action, Func<RoomVersion, string> note, CancellationToken cancellationToken)
     {
-        ThrowIfProblems(await ProblemsWithAsync(drafts.ToDictionary(d => d.RoomId, d => d.Layout), cancellationToken));
+        ThrowIfProblems(await ProblemsWithAsync(drafts.ToDictionary(d => d.RoomId, d => d.Layout), LooksOf(drafts), cancellationToken));
         var draftIds = drafts.Select(d => d.Id).ToList();
         var roomIds = drafts.Select(d => d.RoomId).ToList();
         try
@@ -707,11 +777,37 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
                 }
 
                 var now = time.GetUtcNow();
+                var names = await LookNamesAsync(ct);
+                var liveLooks = await db.RoomLooks.Where(l => roomIds.Contains(l.Id)).ToDictionaryAsync(l => l.Id, ct);
                 foreach (var draft in await db.RoomVersions.Where(v => draftIds.Contains(v.Id)).ToListAsync(ct))
                 {
                     var extra = note(draft);
+                    liveLooks.TryGetValue(draft.RoomId, out var entry);
+                    if (entry is not null)
+                    {
+                        foreach (var version in current.Where(v => v.RoomId == draft.RoomId))
+                        {
+                            version.KeepLook(entry.Look);
+                        }
+
+                        draft.KeepLook(entry.Look);
+                    }
+
                     draft.Publish(now);
                     Audit(adminId, action, draft.RoomId, $"version {draft.Number}{extra}");
+                    if (draft.Look is { } look && (entry is null || !SameLook(entry.Look, look)))
+                    {
+                        if (entry is not null)
+                        {
+                            entry.Replace(look, now, names);
+                        }
+                        else
+                        {
+                            db.RoomLooks.Add(RoomLookEntry.Of(draft.RoomId, look, now, names));
+                        }
+
+                        Audit(adminId, "look-saved", draft.RoomId, $"with version {draft.Number}");
+                    }
                 }
 
                 await db.SaveChangesAsync(ct);
@@ -746,10 +842,13 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             .Where(v => v.State == RoomVersionState.Published)
             .ToDictionaryAsync(v => v.RoomId, v => v.Layout, cancellationToken);
 
-    private Task<IReadOnlyList<string>> ProblemsWithAsync(string roomId, RoomLayout layout, CancellationToken cancellationToken) =>
-        ProblemsWithAsync(new Dictionary<string, RoomLayout> { [roomId] = layout }, cancellationToken);
+    private Task<IReadOnlyList<string>> ProblemsWithAsync(string roomId, RoomLayout layout, RoomLook? look, CancellationToken cancellationToken) =>
+        ProblemsWithAsync(
+            new Dictionary<string, RoomLayout> { [roomId] = layout },
+            look is null ? new Dictionary<string, RoomLook>() : new Dictionary<string, RoomLook> { [roomId] = look },
+            cancellationToken);
 
-    private async Task<IReadOnlyList<string>> ProblemsWithAsync(IReadOnlyDictionary<string, RoomLayout> replaced, CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<string>> ProblemsWithAsync(IReadOnlyDictionary<string, RoomLayout> replaced, IReadOnlyDictionary<string, RoomLook> looksOf, CancellationToken cancellationToken)
     {
         var layouts = await PublishedLayoutsAsync(cancellationToken);
         foreach (var (id, layout) in replaced)
@@ -758,17 +857,20 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
         }
 
         var overlays = OverlaysOfRooms(layouts, (await db.RoomOverlays.AsNoTracking().ToListAsync(cancellationToken)).Select(entry => entry.ToOverlay()));
-        return [.. RoomBook.Problems(layouts, overlays), .. await LookProblemsAsync(layouts, overlays, cancellationToken)];
+        return [.. RoomBook.Problems(layouts, overlays), .. await LookProblemsAsync(layouts, overlays, looksOf, cancellationToken)];
     }
 
     /// <summary>A room is published only with a look to be drawn in, and an overlay only with a look that is there.</summary>
-    private async Task<IReadOnlyList<string>> LookProblemsAsync(IReadOnlyDictionary<string, RoomLayout> layouts, IReadOnlyList<RoomOverlay> overlays, CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<string>> LookProblemsAsync(
+        IReadOnlyDictionary<string, RoomLayout> layouts, IReadOnlyList<RoomOverlay> overlays, IReadOnlyDictionary<string, RoomLook> drafted, CancellationToken cancellationToken)
     {
-        var looks = await db.RoomLooks.AsNoTracking().Select(l => l.Id).ToListAsync(cancellationToken);
+        var names = drafted.Count > 0 ? await LookNamesAsync(cancellationToken) : null;
+        var looks = (await db.RoomLooks.AsNoTracking().Select(l => l.Id).ToListAsync(cancellationToken)).Concat(drafted.Keys).ToList();
         var variants = await db.LookVariants.AsNoTracking().Select(v => v.Id).ToListAsync(cancellationToken);
         return
         [
             .. layouts.Keys.Where(id => !looks.Contains(id)).Order(StringComparer.Ordinal).Select(id => $"{id}: has no look: add one (how it is painted and what is round it) before publishing."),
+            .. drafted.OrderBy(pair => pair.Key, StringComparer.Ordinal).SelectMany(pair => pair.Value.Problems(pair.Key, names)),
             .. layouts.Where(pair => pair.Value.Look is not null && !variants.Contains(pair.Value.Look)).Select(pair => $"{pair.Key}: its look '{pair.Value.Look}' is not one of ({string.Join(", ", variants)})."),
             .. overlays.Where(o => o.Look is not null && !variants.Contains(o.Look)).Select(o => $"{o.RoomId}/{o.Id}: its look '{o.Look}' is not one of ({string.Join(", ", variants)})."),
         ];

@@ -35,7 +35,7 @@ describe("the island map", () => {
   it("names a place for a screen reader by where you stand and whether you can go", () => {
     expect(placeName(place(), "town-square")).toBe("Sunny Cove");
     expect(placeName(place(), "cove")).toBe("Sunny Cove, you are here");
-    expect(placeName(place({ roomId: null }), "cove")).toBe("Old Mill, coming soon".replace("Old Mill", "Sunny Cove"));
+    expect(placeName(place({ roomId: null }), "cove")).toBe("Sunny Cove, coming soon");
     expect(isOpen(place({ roomId: null }))).toBe(false);
   });
 

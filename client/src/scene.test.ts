@@ -3,7 +3,8 @@ import { NullEngine, Scene, StandardMaterial, TransformNode, Vector3, type Picki
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { loadCatModel } from "./cat";
-import { lookOf } from "./looks";
+import seed from "../../src/Pspsps.Application/Rooms/RoomLooks.json?raw";
+import { lookOf, setLooks, type LooksData } from "./looks";
 import { catPlayerIdOf, RoomScene } from "./scene";
 import { modelBytes } from "./testCatModel";
 import type { RoomSnapshot } from "./types";
@@ -189,7 +190,11 @@ describe("RoomScene", () => {
     const engine = new NullEngine();
     const view = new RoomScene(engine, () => new Promise<AssetContainer>(() => {}));
     const pond = { x: -3, z: -2, radius: 2.4 };
-    view.show({ ...room, roomId: "riverside", pond });
+    setLooks({
+      rooms: [{ id: "stream", look: { sky: "#c1e2ef", floorColour: "#9fd38a", wallColour: "#ac805b", wildlife: "fish", backdrop: { parts: [] } } }],
+      variants: [],
+    });
+    view.show({ ...room, roomId: "stream", pond });
     const scene = (view as unknown as { scene: Scene }).scene;
     const shoal = scene.getMeshByName("wildlife");
     expect(shoal?.isPickable).toBe(false);
@@ -203,6 +208,7 @@ describe("RoomScene", () => {
     expect(shoal.position.equals(start)).toBe(false);
     view.show(room);
     expect(shoal.isDisposed()).toBe(true);
+    setLooks(JSON.parse(seed) as LooksData);
   });
 
   describe("a tap", () => {
@@ -341,7 +347,7 @@ describe("RoomScene", () => {
   // The paintings are the same every time (seeded), so a room seen again reuses them rather than painting them anew.
   it("paints a room's floor, wall and street once, however often it shows", () => {
     const look = lookOf("town-square");
-    const painters = [vi.spyOn(look, "paintFloor"), vi.spyOn(look, "paintWall"), vi.spyOn(look.ground ?? { paint: () => {} }, "paint")];
+    const painters = [vi.spyOn(look, "paintFloor"), vi.spyOn(look, "paintWall"), vi.spyOn(look.ground?.paint ? look.ground : { paint: () => {} }, "paint")];
     try {
       const view = new RoomScene(new NullEngine(), () => new Promise<AssetContainer>(() => {}));
       const square = { ...room, roomId: "town-square", width: 24, depth: 16 };

@@ -33,6 +33,8 @@ export interface RoomLook {
   wildlife?: string;
   /** The seasonal variant whose own floor replaces the room's (set only then): what that painted floor is kept under, apart from the room's own. */
   floorVariant?: string;
+  /** What the room's paintings are kept under: it changes with the look's data and painter recipes, so a changed look is never drawn from an older picture. */
+  paintKey?: string;
   /** What stands behind the back wall (and round the room), in the room's own space. */
   backdrop(plan: Floorplan, wallHeight: number): Part[];
 }
@@ -124,6 +126,15 @@ function floorPainterOf(paint: FloorPaint | null | undefined): FloorPainter | un
     ?? (recipe ? (brush, plan, scale, colours) => paintSteps(brush, recipe.steps, plan.width, plan.depth, scale, colours) : undefined);
 }
 
+function paintKeyOf(data: RoomLookData): string {
+  const text = JSON.stringify([data, data.floor && painterRecipe("floor", data.floor.painter), data.wall && painterRecipe("wall", data.wall.painter)]);
+  let hash = 5381;
+  for (let i = 0; i < text.length; i += 1) {
+    hash = ((hash * 33) ^ text.charCodeAt(i)) >>> 0;
+  }
+  return `#${hash.toString(36)}`;
+}
+
 function lookFromData(data: RoomLookData): RoomLook {
   const wallRecipe = data.wall && painterRecipe("wall", data.wall.painter);
   const floor = floorPainterOf(data.floor);
@@ -135,6 +146,7 @@ function lookFromData(data: RoomLookData): RoomLook {
   const wallColours = { colour: data.wall?.colour ?? data.wallColour, accent: data.wall?.accent };
   return {
     sky: data.sky,
+    paintKey: paintKeyOf(data),
     floorColour: data.floorColour,
     wallColour: data.wallColour,
     ground: data.ground ? { colour: data.ground.colour, paint: ground } : undefined,
@@ -158,6 +170,12 @@ export function setLooks(data: LooksData): void {
     variants.set(variant.id, variant);
   }
   setOpenLandscapes(data.rooms.filter(({ look }) => look.openLandscape).map(({ id }) => id));
+}
+
+/** Shows a room in a look that is only in its draft (the admin's preview), in place of the live one until the looks are read again. */
+export function setDraftLook(roomId: string, data: RoomLookData): void {
+  rooms.set(roomId, lookFromData(data));
+  setOpenLandscapes([...rooms].filter(([, look]) => look.openLandscape).map(([id]) => id));
 }
 
 /** Reads the looks from the server: every page load, so a new room's look needs no new client. */

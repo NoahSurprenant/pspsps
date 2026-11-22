@@ -12,6 +12,7 @@ import { CreateIcoSphereVertexData } from "@babylonjs/core/Meshes/Builders/icoSp
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import type { Scene } from "@babylonjs/core/scene";
+import { modelData } from "./meshes";
 import type { PropView } from "./types";
 
 /** The dark ink every outline in a room is drawn in. */
@@ -27,6 +28,7 @@ export type Part = (
   | { shape: "box"; width: number; height: number; depth: number }
   | { shape: "cylinder"; diameter: number; height: number; top?: number; sides?: number }
   | { shape: "ball"; diameter: number; height?: number }
+  | { shape: "model"; model: string; scale: number }
 ) & { at: [number, number, number]; turn?: [number, number, number]; colour: string; outlined?: boolean };
 
 // The props' colours. None is the pond's blue (#5fb3d9), a door mat's red (#c8553d) or a cat's eye yellow (#ffc85a): the
@@ -118,6 +120,8 @@ function scaled(part: Part, by: number): Part {
       return { ...part, diameter: part.diameter * by, height: part.height * by, top: part.top === undefined ? undefined : part.top * by };
     case "ball":
       return { ...part, diameter: part.diameter * by, height: part.height === undefined ? undefined : part.height * by };
+    case "model":
+      return { ...part, scale: part.scale * by };
   }
 }
 
@@ -158,8 +162,13 @@ function piece(part: Part, grow: number, hex: string): VertexData {
   const normals = data.normals ?? [];
   const count = (data.positions?.length ?? 0) / 3;
   const colours = new Float32Array(count * 4);
+  const own = grow === 0 && part.shape === "model" ? modelData(part.model)?.colours : undefined;
   for (let i = 0; i < count; i++) {
-    const c = (normals[i * 3 + 1] ?? 0) > 0.7 ? top : colour;
+    const faceUp = (normals[i * 3 + 1] ?? 0) > 0.7;
+    let c = faceUp ? top : colour;
+    if (own) {
+      c = Color3.FromHexString(own[i] ?? hex);
+    }
     colours.set([c.r, c.g, c.b, 1], i * 4);
   }
   data.colors = colours;
@@ -178,6 +187,8 @@ function shapeOf(part: Part, grow: number): VertexData {
         height: part.height + twice,
         tessellation: part.sides ?? 12,
       });
+    case "model":
+      return modelShape(part.model, part.scale, grow);
     case "ball": {
       const radius = part.diameter / 2 + grow;
       return CreateIcoSphereVertexData({
@@ -187,6 +198,42 @@ function shapeOf(part: Part, grow: number): VertexData {
       });
     }
   }
+}
+
+/** A built-in mesh drawn <scale> times its size, its surface pushed out <grow> metres along its smoothed normals. */
+function modelShape(name: string, scale: number, grow: number): VertexData {
+  const mesh = modelData(name);
+  const data = new VertexData();
+  if (!mesh) {
+    return data;
+  }
+  // glTF is right-handed and Babylon left-handed: mirror it in Z (the triangles then wind the way Babylon draws, and the model's front faces -Z, the camera).
+  const positions = mesh.positions.map((v, i) => (i % 3 === 2 ? -v : v) * scale);
+  const indices = [...mesh.indices];
+  const normals: number[] = [];
+  VertexData.ComputeNormals(positions, indices, normals);
+  if (grow > 0) {
+    // Corners are split in the mesh (one vertex per face); average the normals of vertices at the same place so the outline stays closed.
+    const sums = new Map<string, Vector3>();
+    const key = (i: number): string => [0, 1, 2].map((k) => (positions[i * 3 + k] ?? 0).toFixed(3)).join(",");
+    for (let i = 0; i < positions.length / 3; i++) {
+      const sum = sums.get(key(i)) ?? Vector3.Zero();
+      sum.addInPlace(new Vector3(normals[i * 3] ?? 0, normals[i * 3 + 1] ?? 0, normals[i * 3 + 2] ?? 0));
+      sums.set(key(i), sum);
+    }
+    for (let i = 0; i < positions.length / 3; i++) {
+      const out = (sums.get(key(i)) ?? Vector3.Up()).normalizeToNew().scale(grow);
+      positions[i * 3] = (positions[i * 3] ?? 0) + out.x;
+      positions[i * 3 + 1] = (positions[i * 3 + 1] ?? 0) + out.y;
+      positions[i * 3 + 2] = (positions[i * 3 + 2] ?? 0) + out.z;
+    }
+  }
+  data.positions = positions;
+  data.indices = indices;
+  data.normals = normals;
+  // Merged with boxes and balls, which have texture coordinates: every piece needs the same attributes.
+  data.uvs = new Array((positions.length / 3) * 2).fill(0);
+  return data;
 }
 
 /** The same shape turned inside out: only its far side is drawn, which shows as an edge round the part in front of it. */

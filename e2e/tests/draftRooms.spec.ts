@@ -3,13 +3,13 @@ import { expect, signInAsAdmin, test } from "./game";
 
 // The rooms waiting in ContentDrafts.json, end to end before they are merged: the game this PR built loads the file as
 // drafts (no problems), and the admin page's 3D preview draws each draft room with every draft in place, with no
-// console errors, a floor and every door leading to a room that exists. The pictures go on one contact sheet
+// console errors, a floor and every door leading to a room that exists. The pictures go on one contact sheet, three to a row
 // (screenshots/draft-rooms.png), which CI links on the PR, so the rooms are seen before anything is published.
 
 interface Draft { id: string; layout: { name: string; doors: { id: string; toRoom: string }[] } }
 
 test("every draft room loads, previews without errors, and is pictured on a contact sheet", async ({ page, context, browser, baseURL }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(360_000);
   const file = JSON.parse(await readFile("../src/Pspsps.Application/Rooms/ContentDrafts.json", "utf8")) as { rooms?: Draft[]; overlays?: { id: string; roomId: string; name: string }[] };
   const drafts = file.rooms ?? [];
   test.skip(drafts.length === 0, "ContentDrafts.json has no rooms");
@@ -51,10 +51,10 @@ test("every draft room loads, previews without errors, and is pictured on a cont
   }
 
   await mkdir("screenshots", { recursive: true });
-  const sheet = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+  const sheet = await browser.newPage({ viewport: { width: 2000, height: 900 } });
   try {
     await sheet.setContent(`<!doctype html><html><head><style>
-      body { margin: 0; padding: 16px; background: #f4efe4; font: 14px system-ui, sans-serif; color: #2a2230; width: max-content; }
+      body { margin: 0; padding: 16px; background: #f4efe4; font: 14px system-ui, sans-serif; color: #2a2230; width: 1964px; }
       h1 { margin: 0 0 12px; font-size: 20px; }
       .row { display: flex; flex-wrap: wrap; gap: 16px; }
       figure { margin: 0; }

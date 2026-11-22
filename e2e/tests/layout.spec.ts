@@ -59,7 +59,7 @@ const CHECKS: Record<Screen["name"], Checks> = {
     // The pond and the doors' mats, drawn: from further off (a narrow screen backs the camera away) the floor's outline
     // once hid the pond, and props must never cover them.
     shows: (page) => drawn(page, [["the pond", pondBlue, 20], ["the doors' mats", doorMatRed, 4], ["the paths", pathTan, 4]]),
-    reachable: (page) => doorsReachable(page, ["cafe", "shop", "garden", "riverside"]),
+    reachable: (page) => doorsReachable(page, ["cafe", "shop"]),
   },
   // A home: its owner's controls (Decorate, who can visit) in the dock, and its door out to Town Square clickable.
   home: {
@@ -86,21 +86,6 @@ const CHECKS: Record<Screen["name"], Checks> = {
     // The door back to the square's mat, among the café's tables and chairs, drawn and clickable.
     shows: (page) => drawn(page, [["the door's mat", doorMatRed, 2]]),
     reachable: (page) => doorsReachable(page, ["town-square"]),
-  },
-  garden: {
-    parts: [".room-bar", ".emote-bar", ".chat-bar"],
-    shows: (page) => drawn(page, [["the paths", pathTan, 4]]),
-    reachable: (page) => doorsReachable(page, ["town-square", "pear-orchard"]),
-  },
-  "pear-orchard": {
-    parts: [".room-bar", ".emote-bar", ".chat-bar"],
-    shows: (page) => drawn(page, [["the paths", pathTan, 4]]),
-    reachable: (page) => doorsReachable(page, ["garden", "riverside"]),
-  },
-  riverside: {
-    parts: [".room-bar", ".emote-bar", ".chat-bar", ".fishing"],
-    shows: (page) => drawn(page, [["the pond", pondBlue, 20], ["the paths", pathTan, 4]]),
-    reachable: (page) => doorsReachable(page, ["pear-orchard", "town-square"]),
   },
 };
 
