@@ -162,6 +162,8 @@ describe("Babylon's log", () => {
     expect(babylonLine("<div style='color:orange'>[12:01:02]: Texture /t.png?sig=x failed</div><br>"))
       .toEqual({ level: "warn", message: "Texture /t.png?sig=REDACTED failed" });
     expect(babylonLine("<div style='color:white'>[12:01:02]: Babylon.js v9</div><br>")).toBeUndefined();
+    // Only real tags go: a "<" in the text itself stays, and is not taken for the start of the next tag
+    expect(babylonLine("<div style='color:red'>[12:01:02]: size < limit <b>now</b></div>")).toEqual({ level: "error", message: "size < limit now" });
   });
 
   it("sends Babylon's errors without writing them to the console again, at most MAX_BABYLON_LINES", () => {

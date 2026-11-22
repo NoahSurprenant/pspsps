@@ -11,8 +11,7 @@ RUN SOURCE_REVISION=$SOURCE_REVISION npm run build
 # The server.
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS server
 WORKDIR /src
-COPY global.json Directory.Build.props Directory.Packages.props BannedSymbols.txt .editorconfig ./
-COPY analyzers/ analyzers/
+COPY global.json Directory.Build.props Directory.Packages.props .editorconfig ./
 COPY src/ src/
 # The commit, for service.version in telemetry (passed by the publish workflow; empty locally).
 ARG SOURCE_REVISION=""

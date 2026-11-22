@@ -13,8 +13,8 @@ describe("a cat's outlines", () => {
     const scene = new Scene(new NullEngine());
     const model = await loadCatModel(scene, modelBytes());
 
-    const cat = new Cat(scene, model, new TransformNode("cat", scene), "cat-a", "Grey");
-    expect(cat).toBeDefined();
+    // eslint-disable-next-line sonarjs/constructor-for-side-effects -- constructing a Cat is what applies its outlines to the scene
+    new Cat(scene, model, new TransformNode("cat", scene), "cat-a", "Grey");
 
     expect(scene.meshes.some((mesh) => mesh.renderOutline)).toBe(true);
     expect(scene._getComponent("Outline")?.constructor.name).toBe("OutlineRenderer");

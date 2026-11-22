@@ -45,14 +45,13 @@ export function doorSpot(layout: Pick<CanvasLayout, "width" | "depth">, door: Pi
 
 /** The nearest floor edge to a spot, and the offset along it: where a dragged door lands. */
 export function doorAtEdge(layout: Pick<CanvasLayout, "width" | "depth">, spot: Spot): Pick<CanvasDoor, "edge" | "offset"> {
-  const north: [CanvasDoor["edge"], number] = ["North", layout.depth / 2 - spot.z];
   const gaps: [CanvasDoor["edge"], number][] = [
-    north,
+    ["North", layout.depth / 2 - spot.z],
     ["South", spot.z + layout.depth / 2],
     ["East", layout.width / 2 - spot.x],
     ["West", spot.x + layout.width / 2],
   ];
-  const [edge] = gaps.reduce((best, gap) => (gap[1] < best[1] ? gap : best), north);
+  const [edge] = gaps.reduce((best, gap) => (gap[1] < best[1] ? gap : best), ["North", Infinity] as [CanvasDoor["edge"], number]);
   const along = edge === "North" || edge === "South" ? spot.x : spot.z;
   const half = (edge === "North" || edge === "South" ? layout.width : layout.depth) / 2;
   return { edge, offset: round(Math.max(-half, Math.min(half, along))) };

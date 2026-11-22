@@ -2,7 +2,7 @@
 # sonar-rules.sh [profile]: writes analyzers/sonar-main.globalconfig and analyzers/sonar-tests.globalconfig, the
 # SonarAnalyzer.CSharp rules (Directory.Packages.props) that SonarCloud's quality profile turns on, so `dotnet build`
 # fails on what SonarCloud would raise. Run it from the repo's root after the analyzer's version changes (Renovate's
-# SonarAnalyzer PR: the scripts tests fail until the files name the new version), or the profile does.
+# SonarAnalyzer PR: SonarRulesTests in Pspsps.Analyzers.Test fails until the files name the new version), or the profile does.
 #
 # The project uses SonarCloud's built-in "Sonar way core" (profile: core); "extended" and "comprehensive" are the other
 # built-in ones. Who isn't in the organization can't read a profile's rule list, so this builds it the way SonarCloud

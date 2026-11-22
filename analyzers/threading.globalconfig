@@ -1,6 +1,6 @@
 # Not generated (sonar-rules.sh writes the sonar-*.globalconfig files): Microsoft.VisualStudio.Threading.Analyzers.
 # The rules about .NET async correctness are errors; the rules that need Visual Studio's main thread or a
-# JoinableTaskFactory are off: Grif is an ASP.NET Core app (no SynchronizationContext, no main thread).
+# JoinableTaskFactory are off: pspsps is an ASP.NET Core app (no SynchronizationContext, no main thread).
 # https://github.com/microsoft/vs-threading/blob/main/docfx/analyzers/index.md
 is_global = true
 

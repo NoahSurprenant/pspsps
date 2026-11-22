@@ -92,7 +92,7 @@ public sealed class SyncQueryExecutionAnalyzer : DiagnosticAnalyzer
         var isEnumerable = SymbolEqualityComparer.Default.Equals(method.ContainingType, types.Enumerable);
         foreach (var argument in arguments)
         {
-            if (argument.Parameter is not { } parameter || types.IsQuery(parameter.Type) || !IsSequence(parameter.Type)
+            if (argument.Parameter is not { } parameter || !IsSequence(parameter.Type) || types.IsQuery(parameter.Type)
                 || !types.IsQuery(Unconverted(argument.Value).Type))
                 continue;
             if (!IsAsyncContext(context.Operation.Syntax, context.Operation.SemanticModel!, types, context.CancellationToken))
