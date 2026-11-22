@@ -629,6 +629,8 @@ public sealed class RoomEditorHttpTests
         }
     }
 
+    private static string Json(object? value) => JsonSerializer.Serialize(value);
+
     [Test]
     public async Task ARoomsLook_IsKeptInItsDraft_GoesLiveOnPublish_AndIsExportedWithTheRoom()
     {
@@ -651,16 +653,20 @@ public sealed class RoomEditorHttpTests
 
             Assert.Multiple(() =>
             {
-                Assert.That(drafted!.DraftLook, Is.EqualTo(look), "the look sits in the draft");
+                Assert.That(Json(drafted!.DraftLook), Is.EqualTo(Json(look)), "the look sits in the draft");
                 Assert.That(liveBefore?.Look, Is.Not.EqualTo(look), "and is not live yet");
                 Assert.That(published!.DraftLook, Is.Null);
-                Assert.That(liveAfter?.Look, Is.EqualTo(look), "publishing puts it live");
-                Assert.That(exported.Look, Is.EqualTo(look), "an export carries the room's look with it");
+                Assert.That(Json(liveAfter?.Look), Is.EqualTo(Json(look)), "publishing puts it live");
+                Assert.That(Json(exported.Look), Is.EqualTo(Json(look)), "an export carries the room's look with it");
             });
         }
         finally
         {
-            await editor.DiscardDraftAsync("cafe", adminPlayer.Id, CancellationToken.None);
+            if ((await editor.GetAsync("cafe", CancellationToken.None))?.Draft is not null)
+            {
+                await editor.DiscardDraftAsync("cafe", adminPlayer.Id, CancellationToken.None);
+            }
+
             await editor.RollbackAsync("cafe", number, adminPlayer.Id, CancellationToken.None);
             await using var db = Db();
             db.RoomLooks.RemoveRange(await db.RoomLooks.Where(l => l.Id == "cafe").ToListAsync());
@@ -769,10 +775,10 @@ public sealed class RoomEditorHttpTests
         var creature = new DraftWildlife("import-order-bird", [new PropPart("ball", [0, 0.5, 0], "#f5f5f5", Diameter: 0.3)], new WildlifeMotion("wander", 0.5, 1, Reach: 3));
         var look = new RoomLook("#aaccee", "#c0b090", "#d8c8b0", new LookBackdrop([]), Floor: new LookPaint("import-order-floor"), Wildlife: "import-order-bird");
         var file = new ContentFile(
-            Looks: new DraftLooks([new DraftLook("import-order-room", look)], [new DraftVariant("import-order-dusk", "#334466", "#554477")]),
+            Looks: new DraftLooks([], [new DraftVariant("import-order-dusk", "#334466", "#554477")]),
             Painters: [new DraftPainter("import-order-floor", "floor", [floor])],
             Wildlife: [creature],
-            Rooms: [new DraftRoom("import-order-room", new RoomLayout("Import order", 8, 8, new Position(0, 0), 4) { Look = "import-order-dusk" })]);
+            Rooms: [new DraftRoom("import-order-room", new RoomLayout("Import order", 8, 8, new Position(0, 0), 4) { Look = "import-order-dusk" }, look)]);
 
         var report = await editor.ImportAsync(file, adminPlayer.Id, CancellationToken.None);
 
@@ -780,7 +786,7 @@ public sealed class RoomEditorHttpTests
         {
             // The lone room has no route from the square (a book rule, unrelated to looks), so that is the only problem allowed.
             Assert.That(report.Problems, Is.EqualTo(new[] { "Every public room needs a walking route from the square." }), "a room painted in a variant from the same file, and a look naming a painter and a creature from it, raise nothing about looks");
-            Assert.That(report.Applied, Has.Some.Contains("painter import-order-floor").And.Some.Contains("wildlife import-order-bird").And.Some.Contains("variant import-order-dusk").And.Some.Contains("look import-order-room"));
+            Assert.That(report.Applied, Has.Some.Contains("painter import-order-floor").And.Some.Contains("wildlife import-order-bird").And.Some.Contains("variant import-order-dusk").And.Some.Contains("room import-order-room"));
         });
     }
 
@@ -841,9 +847,9 @@ public sealed class RoomEditorHttpTests
         var stored = await scope.ServiceProvider.GetRequiredService<IApplicationDbContext>().RoomLooks.AsNoTracking().SingleAsync(l => l.Id == "shop");
         Assert.Multiple(() =>
         {
-            Assert.That(report.Problems, Has.Some.Contains("look shop: differs from the live look"));
+            Assert.That(report.Problems, Has.Some.Contains("look shop: shop is a room, so its look goes in the room's own entry"));
             Assert.That(report.Applied, Has.None.Contains("look shop"));
-            Assert.That(stored.Look.Sky, Is.Not.EqualTo("#010203"), "the shop is published, so its look is not replaced from a file");
+            Assert.That(stored.Look.Sky, Is.Not.EqualTo("#010203"), "a room's look only comes in with the room");
         });
     }
 }
