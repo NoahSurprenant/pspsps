@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Pspsps.Analyzers' rules, each run on small compilations against EF Core: no database, no host. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <!-- The compilations' EF Core (DbContext, ToListAsync, AsAsyncEnumerable) -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Pspsps.Analyzers\Pspsps.Analyzers.csproj" />
+  </ItemGroup>
+
+</Project>
