@@ -347,7 +347,7 @@ describe("RoomScene", () => {
   // The paintings are the same every time (seeded), so a room seen again reuses them rather than painting them anew.
   it("paints a room's floor, wall and street once, however often it shows", () => {
     const look = lookOf("town-square");
-    const painters = [vi.spyOn(look, "paintFloor"), vi.spyOn(look, "paintWall"), vi.spyOn(look.ground ?? { paint: () => {} }, "paint")];
+    const painters = [vi.spyOn(look, "paintFloor"), vi.spyOn(look, "paintWall"), vi.spyOn(look.ground?.paint ? look.ground : { paint: () => {} }, "paint")];
     try {
       const view = new RoomScene(new NullEngine(), () => new Promise<AssetContainer>(() => {}));
       const square = { ...room, roomId: "town-square", width: 24, depth: 16 };
