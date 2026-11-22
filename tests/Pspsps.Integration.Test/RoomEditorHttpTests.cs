@@ -638,6 +638,7 @@ public sealed class RoomEditorHttpTests
         Game.Admins.Add(adminPlayer.Id);
         var editor = Game.Get<IRoomEditor>();
         var before = await editor.GetAsync("cafe", CancellationToken.None);
+        var original = (await Db().RoomLooks.AsNoTracking().SingleAsync(l => l.Id == "cafe")).Look;
         var number = before!.Versions.Single(v => v.State == RoomVersionState.Published).Number;
         var look = new RoomLook("#102030", "#405060", "#708090", new LookBackdrop([]));
         try
@@ -669,7 +670,7 @@ public sealed class RoomEditorHttpTests
 
             await editor.RollbackAsync("cafe", number, adminPlayer.Id, CancellationToken.None);
             await using var db = Db();
-            db.RoomLooks.RemoveRange(await db.RoomLooks.Where(l => l.Id == "cafe").ToListAsync());
+            (await db.RoomLooks.SingleAsync(l => l.Id == "cafe")).Replace(original, DateTimeOffset.UtcNow);
             await db.SaveChangesAsync();
         }
     }
