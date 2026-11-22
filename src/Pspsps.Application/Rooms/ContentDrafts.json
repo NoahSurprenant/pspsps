@@ -122,7 +122,7 @@
           {
             "id": "ice-rink",
             "edge": "North",
-            "offset": -10,
+            "offset": 0.5,
             "toRoom": "ice-rink",
             "toDoor": "town-square"
           }
