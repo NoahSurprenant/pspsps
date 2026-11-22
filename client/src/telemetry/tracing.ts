@@ -116,7 +116,8 @@ export function isCutOff(error: unknown): boolean {
 }
 
 export function hubOutcome(error: unknown): HubOutcome {
-  return isRefusal(error) ? "refused" : isCutOff(error) ? "cut-off" : "error";
+  if (isRefusal(error)) return "refused";
+  return isCutOff(error) ? "cut-off" : "error";
 }
 
 /**

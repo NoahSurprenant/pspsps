@@ -158,5 +158,7 @@ function aOrAn(name: string): string {
  */
 export function describeCat(name: string, fur: string, hatName?: string | null, collarName?: string | null): string {
   const worn = [hatName, collarName].filter((worn): worn is string => !!worn).map(aOrAn);
-  return `${name}: ${aOrAn(`${fur} cat`)}${worn.length > 0 ? ` wearing ${worn.join(" and ")}` : ""}`;
+  const furCat = aOrAn(`${fur} cat`);
+  const wearing = worn.length > 0 ? ` wearing ${worn.join(" and ")}` : "";
+  return `${name}: ${furCat}${wearing}`;
 }

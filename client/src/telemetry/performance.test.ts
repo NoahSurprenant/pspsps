@@ -67,7 +67,7 @@ describe("reportLongTasks", () => {
   function observerFor(durations: number[]) {
     let disconnected = false;
     class Observer {
-      static supportedEntryTypes = ["longtask"];
+      static readonly supportedEntryTypes = ["longtask"];
       constructor(private readonly callback: (list: { getEntries(): { duration: number }[] }) => void) {}
       observe(): void {
         this.callback({ getEntries: () => durations.map((duration) => ({ duration })) });
@@ -127,7 +127,7 @@ describe("watching again (the scene loaded again after a failed try)", () => {
     const output = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
     const log = new AppLog(telemetry, output);
     const canvas = new EventTarget();
-    const logger = { OnNewCacheEntry: (entry: string) => void entry };
+    const logger = { OnNewCacheEntry: (entry: string) => entry.length };
 
     for (let attempt = 0; attempt < 3; attempt++) {
       watchWebGlContext(canvas as unknown as HTMLCanvasElement, log);
@@ -167,7 +167,7 @@ describe("Babylon's log", () => {
   it("sends Babylon's errors without writing them to the console again, at most MAX_BABYLON_LINES", () => {
     const { telemetry, host } = telemetryOn();
     const output = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
-    const logger = { OnNewCacheEntry: (entry: string) => void entry };
+    const logger = { OnNewCacheEntry: (entry: string) => entry.length };
     watchBabylonLog(logger, new AppLog(telemetry, output));
 
     for (let i = 0; i < MAX_BABYLON_LINES + 5; i++) {

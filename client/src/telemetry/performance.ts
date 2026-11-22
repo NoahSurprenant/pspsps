@@ -122,11 +122,13 @@ export const MAX_BABYLON_LINES = 20;
  * its level (red is an error, orange a warning; plain logs are left out) and its text.
  */
 export function babylonLine(entry: string): { level: "error" | "warn"; message: string } | undefined {
-  const level = entry.includes("color:red") ? "error" : entry.includes("color:orange") ? "warn" : undefined;
+  let level: "error" | "warn" | undefined;
+  if (entry.includes("color:red")) level = "error";
+  else if (entry.includes("color:orange")) level = "warn";
   if (!level) {
     return undefined;
   }
-  const text = entry.replace(/<[^>]*>/g, "").replace(/^\[\d\d:\d\d:\d\d\]:\s*/, "").trim();
+  const text = entry.replace(/<[^<>]*>/g, "").replace(/^\[\d\d:\d\d:\d\d\]:\s*/, "").trim();
   return { level, message: redactUrlsIn(text) };
 }
 

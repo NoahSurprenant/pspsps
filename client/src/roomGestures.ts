@@ -61,8 +61,9 @@ export function roomGestures(canvas: HTMLCanvasElement, tap: (x: number, y: numb
 
   canvas.addEventListener("wheel", (event) => {
     event.preventDefault();
-    const unit = event.deltaMode === WheelEvent.DOM_DELTA_LINE ? 16
-      : event.deltaMode === WheelEvent.DOM_DELTA_PAGE ? canvas.clientHeight : 1;
+    let unit = 1;
+    if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) unit = 16;
+    else if (event.deltaMode === WheelEvent.DOM_DELTA_PAGE) unit = canvas.clientHeight;
     const delta = Math.max(-250, Math.min(250, event.deltaY * unit));
     zoom(Math.exp(-delta * 0.004));
   }, { passive: false });

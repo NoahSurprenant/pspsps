@@ -113,9 +113,11 @@ export class ErrorReporter {
       return;
     }
     const path = reportedUrl(url, this.host.href());
-    const message = status === 0
-      ? `${method} ${path} got no answer${error === undefined ? "" : `: ${describeError(error).message}`}`
-      : `${method} ${path} answered ${status}`;
+    let message = `${method} ${path} answered ${status}`;
+    if (status === 0) {
+      const detail = error === undefined ? "" : `: ${describeError(error).message}`;
+      message = `${method} ${path} got no answer${detail}`;
+    }
     this.send(`http|${method}|${path}|${status}`, message.slice(0, MAX_MESSAGE), {
       "error.kind": "http",
       "http.request.method": method,

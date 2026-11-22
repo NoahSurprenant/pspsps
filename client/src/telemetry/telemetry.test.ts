@@ -176,6 +176,7 @@ describe("BrowserTelemetry", () => {
     const { telemetry, host } = telemetryOn();
     const big = () => {
       for (let i = 0; i < 10; i++) {
+        // eslint-disable-next-line sonarjs/pseudo-random -- only makes each message distinct; not security related
         telemetry.log("error", `${Math.random()} ${"x".repeat(3_500)}`);
       }
     };

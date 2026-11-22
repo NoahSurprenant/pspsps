@@ -13,7 +13,8 @@ describe("a cat's outlines", () => {
     const scene = new Scene(new NullEngine());
     const model = await loadCatModel(scene, modelBytes());
 
-    new Cat(scene, model, new TransformNode("cat", scene), "cat-a", "Grey");
+    const cat = new Cat(scene, model, new TransformNode("cat", scene), "cat-a", "Grey");
+    expect(cat).toBeDefined();
 
     expect(scene.meshes.some((mesh) => mesh.renderOutline)).toBe(true);
     expect(scene._getComponent("Outline")?.constructor.name).toBe("OutlineRenderer");

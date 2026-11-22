@@ -102,7 +102,8 @@ export function sanctionLine(what: "Banned" | "Muted", sanction: AdminSanction, 
 
 /** What Lift does for this player, for its button's name. */
 export function liftLabel(player: SanctionedPlayer): string {
-  const what = player.ban && player.mute ? "ban and mute" : player.ban ? "ban" : "mute";
+  let what = "mute";
+  if (player.ban) what = player.mute ? "ban and mute" : "ban";
   return `Lift ${player.displayName}'s ${what}`;
 }
 
@@ -135,7 +136,8 @@ export function logLine(line: ModerationLogLine, format: TimeFormat = {}): strin
     AddressBanned: `${line.byName} banned ${line.playerName}'s network ${line.address ?? ""} ${until}`,
     AddressBanLifted: `${line.byName} lifted the ban on ${line.playerName}'s network ${line.address ?? ""}`,
   };
-  return `${when(line.at, format)} · ${done[line.kind]}${line.reason ? `: ${line.reason}` : ""}`;
+  const why = line.reason ? `: ${line.reason}` : "";
+  return `${when(line.at, format)} · ${done[line.kind]}${why}`;
 }
 
 /** "Tom reported Felix". */
