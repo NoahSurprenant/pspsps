@@ -6650,16 +6650,6 @@
                   -0.4
                 ],
                 "colour": "#d9cdb4"
-              },
-              {
-                "shape": "ball",
-                "diameter": 0.5,
-                "at": [
-                  7,
-                  0.2,
-                  1.5
-                ],
-                "colour": "#f2c14e"
               }
             ]
           }
