@@ -77,7 +77,7 @@ public sealed class IslandMapTests
         ["whisker-woods"] = (51, 68),
         ["peakside-village"] = (16, 46),
         ["fort"] = (58, 49),
-        ["forest"] = (83, 70),
+        ["forest"] = (83, 72),
         ["dojo-courtyard"] = (60, 29),
         ["cat-homes"] = (39, 73),
     };

@@ -2,15 +2,15 @@
   { "id": "town-square", "name": "Town Square", "category": "places", "landmark": "plaza", "x": 17, "z": -9, "room": "town-square", "blurb": "Where every cat arrives. The café and the shop are here." },
   { "id": "cat-homes", "name": "Cat Homes Lane", "category": "places", "landmark": "homes", "x": -9, "z": -21, "room": null, "blurb": "A lane of little houses, one for each cat." },
   { "id": "lighthouse", "name": "Lighthouse Point", "category": "places", "landmark": "lighthouse", "x": -38, "z": -10, "room": "beach", "blurb": "A tall light over a sandy beach." },
-  { "id": "cove", "name": "Sunny Cove", "category": "games", "landmark": "cove", "x": 41, "z": -14, "room": "cove", "blurb": "A boardwalk, a pond and a boat shed." },
+  { "id": "cove", "name": "Sunny Cove", "category": "games", "landmark": "cove", "x": 41, "z": -12, "room": "cove", "blurb": "A boardwalk, a pond and a boat shed." },
   { "id": "scratching-peaks", "name": "Scratching Peaks", "category": "games", "landmark": "mountain", "x": -27, "z": 19, "room": "scratching-peaks", "blurb": "Climb the scratching posts to the top." },
   { "id": "plaza", "name": "Plaza", "category": "shops", "landmark": "market", "x": -11, "z": -8, "room": "plaza", "blurb": "A paved strip of shop fronts: the pet shop, the pizza parlor and the way to the rink." },
   { "id": "whisker-woods", "name": "Whisker Woods", "category": "pets", "landmark": "woods", "x": 1, "z": -14, "room": null, "blurb": "Wild friends live among the trees." },
   { "id": "dojo-courtyard", "name": "Dojo Courtyard", "category": "places", "landmark": "dojo", "x": 11, "z": 17, "room": "dojo-courtyard", "blurb": "A training yard behind a waterfall. The dojo hall is through the door." },
   { "id": "ice-rink", "name": "Ice Rink", "category": "games", "landmark": "rink", "x": -4, "z": 9, "room": "ice-rink", "blurb": "Skates in winter, a soccer pitch the rest of the year." },
-  { "id": "mine", "name": "Mine Shack", "category": "games", "landmark": "mine", "x": 29, "z": 3, "room": "mine", "blurb": "A little hut at the mouth of the old tunnels." },
+  { "id": "mine", "name": "Mine Shack", "category": "games", "landmark": "mine", "x": 31, "z": 3, "room": "mine", "blurb": "A little hut at the mouth of the old tunnels." },
   { "id": "harbour-dock", "name": "Harbour Dock", "category": "places", "landmark": "dock", "x": -27, "z": -22, "room": "dock", "blurb": "Boats bobbing at the end of a wooden pier." },
   { "id": "peakside-village", "name": "Peakside Village", "category": "places", "landmark": "homes", "x": -30, "z": 3, "room": "peakside-village", "blurb": "A few houses below the peaks, a path to the dock." },
   { "id": "fort", "name": "Fort", "category": "places", "landmark": "market", "x": 7, "z": 1, "room": "fort", "blurb": "A stone yard between the plaza and the town, with the way to the rink." },
-  { "id": "forest", "name": "Forest", "category": "places", "landmark": "woods", "x": 29, "z": -16, "room": "forest", "blurb": "Tall trees between the town, the cove and the mine." }
+  { "id": "forest", "name": "Forest", "category": "places", "landmark": "woods", "x": 31, "z": -20, "room": "forest", "blurb": "Tall trees between the town, the cove and the mine." }
 ]
