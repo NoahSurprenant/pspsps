@@ -164,7 +164,8 @@ function piece(part: Part, grow: number, hex: string): VertexData {
   const colours = new Float32Array(count * 4);
   const own = grow === 0 && part.shape === "model" ? modelData(part.model)?.colours : undefined;
   for (let i = 0; i < count; i++) {
-    const c = own ? Color3.FromHexString(own[i] ?? hex) : (normals[i * 3 + 1] ?? 0) > 0.7 ? top : colour;
+    const faceUp = (normals[i * 3 + 1] ?? 0) > 0.7;
+    const c = own ? Color3.FromHexString(own[i] ?? hex) : faceUp ? top : colour;
     colours.set([c.r, c.g, c.b, 1], i * 4);
   }
   data.colors = colours;
@@ -217,10 +218,10 @@ function modelShape(name: string, scale: number, grow: number): VertexData {
       sums.set(key(i), sum);
     }
     for (let i = 0; i < positions.length / 3; i++) {
-      const out = (sums.get(key(i)) ?? Vector3.Up()).normalizeToNew();
-      for (let k = 0; k < 3; k++) {
-        positions[i * 3 + k] = (positions[i * 3 + k] ?? 0) + out.asArray()[k]! * grow;
-      }
+      const out = (sums.get(key(i)) ?? Vector3.Up()).normalizeToNew().scale(grow);
+      positions[i * 3] = (positions[i * 3] ?? 0) + out.x;
+      positions[i * 3 + 1] = (positions[i * 3 + 1] ?? 0) + out.y;
+      positions[i * 3 + 2] = (positions[i * 3 + 2] ?? 0) + out.z;
     }
   }
   data.positions = positions;

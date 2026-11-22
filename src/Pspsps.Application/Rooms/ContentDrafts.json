@@ -678,57 +678,39 @@
             "facing": 0
           },
           {
-            "kind": "flower-bed",
+            "kind": "town-house",
             "spot": {
-              "x": -7.2,
-              "z": -3.6
+              "x": -10,
+              "z": -3.5
             },
-            "radius": 0.9,
+            "radius": 2.4,
+            "facing": 0
+          },
+          {
+            "kind": "bench",
+            "spot": {
+              "x": 6.8,
+              "z": -4.6
+            },
+            "radius": 1,
             "facing": 0
           },
           {
             "kind": "flower-bed",
             "spot": {
-              "x": -13,
-              "z": -3.4
+              "x": 12.4,
+              "z": -4.4
             },
             "radius": 0.9,
-            "facing": 0
-          },
-          {
-            "kind": "plant",
-            "spot": {
-              "x": -11.8,
-              "z": -2.2
-            },
-            "radius": 0.5,
             "facing": 0
           },
           {
             "kind": "pizza-table",
             "spot": {
-              "x": -8,
-              "z": -1
+              "x": -2.5,
+              "z": -2.2
             },
             "radius": 1.2,
-            "facing": 0
-          },
-          {
-            "kind": "lamp",
-            "spot": {
-              "x": 8,
-              "z": 5.2
-            },
-            "radius": 0.35,
-            "facing": 0
-          },
-          {
-            "kind": "town-house",
-            "spot": {
-              "x": 10,
-              "z": -3.5
-            },
-            "radius": 2.4,
             "facing": 0
           }
         ],

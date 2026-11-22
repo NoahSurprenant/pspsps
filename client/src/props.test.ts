@@ -21,7 +21,9 @@ describe("props", () => {
     const positions = mesh?.getVerticesData(VertexBuffer.PositionKind) ?? [];
     const colours = new Set<string>();
     const data = mesh?.getVerticesData(VertexBuffer.ColorKind) ?? [];
-    for (let i = 0; i < data.length; i += 4) colours.add(`${data[i]?.toFixed(2)}${data[i + 1]?.toFixed(2)}${data[i + 2]?.toFixed(2)}`);
+    for (let i = 0; i < data.length; i += 4) {
+      colours.add(`${data[i]?.toFixed(2)}${data[i + 1]?.toFixed(2)}${data[i + 2]?.toFixed(2)}`);
+    }
 
     // Twice the vertices: the mesh and its outline. Several colours, not the part's one.
     expect(positions.length / 3).toBe(1468);
