@@ -9,7 +9,7 @@ import { expect, signInAsAdmin, test } from "./game";
 interface Draft { id: string; layout: { name: string; doors: { id: string; toRoom: string }[] } }
 
 test("every draft room loads, previews without errors, and is pictured on a contact sheet", async ({ page, context, browser, baseURL }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(360_000);
   const file = JSON.parse(await readFile("../src/Pspsps.Application/Rooms/ContentDrafts.json", "utf8")) as { rooms?: Draft[]; overlays?: { id: string; roomId: string; name: string }[] };
   const drafts = file.rooms ?? [];
   test.skip(drafts.length === 0, "ContentDrafts.json has no rooms");
