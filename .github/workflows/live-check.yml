@@ -23,6 +23,7 @@ jobs:
     timeout-minutes: 20
     env:
       E2E_BASE_URL: https://cats.gurnt.com
+      DEBUG: pw:browser
     defaults:
       run:
         working-directory: e2e
