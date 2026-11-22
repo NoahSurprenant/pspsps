@@ -696,15 +696,6 @@
             "facing": 0
           },
           {
-            "kind": "flower-bed",
-            "spot": {
-              "x": 12.4,
-              "z": -4.4
-            },
-            "radius": 0.9,
-            "facing": 0
-          },
-          {
             "kind": "plant",
             "spot": {
               "x": -11.8,
@@ -723,39 +714,21 @@
             "facing": 0
           },
           {
-            "kind": "bench",
-            "spot": {
-              "x": 6.8,
-              "z": -4.6
-            },
-            "radius": 1,
-            "facing": 0
-          },
-          {
-            "kind": "plant",
-            "spot": {
-              "x": 13,
-              "z": -3
-            },
-            "radius": 0.5,
-            "facing": 0
-          },
-          {
-            "kind": "plant",
-            "spot": {
-              "x": 9,
-              "z": -5.2
-            },
-            "radius": 0.5,
-            "facing": 0
-          },
-          {
             "kind": "lamp",
             "spot": {
               "x": 8,
               "z": 5.2
             },
             "radius": 0.35,
+            "facing": 0
+          },
+          {
+            "kind": "town-house",
+            "spot": {
+              "x": 10,
+              "z": -3.5
+            },
+            "radius": 2.4,
             "facing": 0
           }
         ],
@@ -22802,6 +22775,28 @@
             -0.4
           ],
           "colour": "#c0505a"
+        }
+      ]
+    },
+    {
+      "kind": "town-house",
+      "size": 2.4,
+      "parts": [
+        {
+          "shape": "model",
+          "at": [
+            0,
+            0,
+            0
+          ],
+          "colour": "#ffffff",
+          "model": "town-house",
+          "scale": 4.6,
+          "turn": [
+            0,
+            3.141592653589793,
+            0
+          ]
         }
       ]
     }

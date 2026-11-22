@@ -16,6 +16,18 @@ function verticesOf(prop: PropView): { x: number; y: number; z: number }[] {
 }
 
 describe("props", () => {
+  it("draws a model part as its mesh, in its own colours and outlined", () => {
+    const mesh = buildParts(new Scene(new NullEngine()), "house", [{ shape: "model", model: "town-house", scale: 4, at: [0, 0, 0], colour: "#ffffff" }]);
+    const positions = mesh?.getVerticesData(VertexBuffer.PositionKind) ?? [];
+    const colours = new Set<string>();
+    const data = mesh?.getVerticesData(VertexBuffer.ColorKind) ?? [];
+    for (let i = 0; i < data.length; i += 4) colours.add(`${data[i]?.toFixed(2)}${data[i + 1]?.toFixed(2)}${data[i + 2]?.toFixed(2)}`);
+
+    // Twice the vertices: the mesh and its outline. Several colours, not the part's one.
+    expect(positions.length / 3).toBe(1468);
+    expect(colours.size).toBeGreaterThan(5);
+  });
+
   // The kinds the server places, read from its source (src/Pspsps.Domain/Rooms/Prop.cs, PropKinds): a kind added there
   // and not drawn here would be missing from the room without a word.
   it("draws exactly the kinds of prop the server places", () => {

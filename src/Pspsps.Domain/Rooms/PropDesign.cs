@@ -5,7 +5,7 @@ namespace Pspsps.Domain.Rooms;
 /// <summary>
 /// One part of a prop as the browser draws it, in metres, in the prop's own space (standing on the floor at the origin, its
 /// front towards -Z). A box has a Width, Height and Depth; a cylinder a Diameter, Height and optionally a Top diameter and
-/// Sides; a ball a Diameter and optionally a Height. At is its centre; Turn is radians about each axis.
+/// Sides; a ball a Diameter and optionally a Height; a model is one of the client's built-in meshes (Model, by name), drawn Scale times its own size. At is its centre; Turn is radians about each axis.
 /// </summary>
 public sealed record PropPart(
     string Shape,
@@ -18,7 +18,9 @@ public sealed record PropPart(
     double? Top = null,
     int? Sides = null,
     double[]? Turn = null,
-    bool? Outlined = null);
+    bool? Outlined = null,
+    string? Model = null,
+    double? Scale = null);
 
 /// <summary>Parts drawn only at some stages of a prop that grows (fruit on a tree, pears in a crate): from stage <see cref="From"/> (default 0) and below stage <see cref="Until"/> (default no end).</summary>
 public sealed record PropGrowth(IReadOnlyList<PropPart> Parts, int? From = null, int? Until = null);
@@ -26,7 +28,7 @@ public sealed record PropGrowth(IReadOnlyList<PropPart> Parts, int? From = null,
 /// <summary>What a kind of prop looks like: the parts it is drawn from, at the size it is designed for (<see cref="Size"/>: the radius it fits in, outline included).</summary>
 public sealed partial class PropDesign
 {
-    public static readonly IReadOnlyList<string> Shapes = ["box", "cylinder", "ball"];
+    public static readonly IReadOnlyList<string> Shapes = ["box", "cylinder", "ball", "model"];
 
     private PropDesign()
     {
@@ -144,11 +146,17 @@ public sealed partial class PropDesign
         {
             "box" => new[] { part.Width, part.Height, part.Depth },
             "cylinder" => [part.Diameter, part.Height],
+            "model" => [part.Scale],
             _ => new[] { part.Diameter },
         };
         if (wanted.Any(v => v is not > 0 || !double.IsFinite(v.Value)))
         {
             yield return $"a {part.Shape} needs its sizes above nothing.";
+        }
+
+        if (part.Shape == "model" && !KindName().IsMatch(part.Model ?? string.Empty))
+        {
+            yield return "a model needs the name of one of the client's meshes.";
         }
 
         if (part.Top is < 0 || part.Height is <= 0 || part.Sides is < 3 or > 64)
