@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 using Pspsps.Application.Abstractions;
 using Pspsps.Application.Rooms;
+using Pspsps.Domain;
 using Pspsps.Domain.Rooms;
 using Pspsps.Infrastructure.Persistence;
 

@@ -36,14 +36,16 @@ export function roomPreview(canvas: HTMLCanvasElement): RoomPreview {
         throw new Error(said?.message ?? `The preview could not be made (${response.status}).`);
       }
       const { draftLook, ...snapshot } = (await response.json()) as RoomSnapshot & { draftLook?: RoomLookData };
-      // The live looks as they are now, then the draft's over its room's: a draft that has been discarded or published leaves nothing behind.
+      // The scene first (making it reads the live looks, which would wipe a draft look set before it), then the live looks as
+      // they are now with the draft's over its room's: a draft that has been discarded or published leaves nothing behind.
+      scene ??= make();
+      const made = await scene;
       const { loadLooks, setDraftLook } = await import("./looks");
       await loadLooks();
       if (draftLook) {
         setDraftLook(roomId, draftLook);
       }
-      scene ??= make();
-      (await scene).show(snapshot);
+      made.show(snapshot);
     },
   };
 }
