@@ -169,7 +169,9 @@ public class RequestTelemetryTests
         builder.WebHost.UseTestServer();
         builder.Configuration["ForwardedHeaders:KnownIPNetworks:0"] = "10.42.0.0/16";
         builder.Configuration["ForwardedHeaders:ForwardedForHeaderName"] = "X-Real-IP";
+#pragma warning disable VSTHRD103 // the sync overload is what runs without fetching Cloudflare's ranges
         builder.Services.ConfigureAppForwardedHeaders(builder.Configuration);
+#pragma warning restore VSTHRD103
         // Only the request log. UseSerilogRequestLogging writes to the static logger, as in Program.
         var previous = Log.Logger;
         Log.Logger = new LoggerConfiguration()

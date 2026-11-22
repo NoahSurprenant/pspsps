@@ -199,7 +199,7 @@ public sealed class RoomEditorHttpTests
         using var gone = await SendAsync(admin, HttpMethod.Post, "rooms/garden/rollback/999");
         using var restored = await SendAsync(admin, HttpMethod.Get, "rooms/garden");
 
-        Assert.Multiple(async () =>
+        await Assert.MultipleAsync(async () =>
         {
             Assert.That(back.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
             Assert.That(gone.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
@@ -226,7 +226,7 @@ public sealed class RoomEditorHttpTests
         using var removeLook = await SendAsync(admin, HttpMethod.Delete, "looks/variants/autumn");
         using var deleted = await SendAsync(admin, HttpMethod.Delete, "rooms/garden/overlays/spring-http");
 
-        Assert.Multiple(async () =>
+        await Assert.MultipleAsync(async () =>
         {
             Assert.That(unknown.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
             Assert.That(await unknown.Content.ReadAsStringAsync(), Does.Contain("no-such-look"));
@@ -271,7 +271,7 @@ public sealed class RoomEditorHttpTests
             var looks = await JsonOfAsync(served);
             var library = Game.Get<IRoomLibrary>();
 
-            Assert.Multiple(async () =>
+            await Assert.MultipleAsync(async () =>
             {
                 Assert.That(loftDraft.StatusCode, Is.EqualTo(HttpStatusCode.OK));
                 Assert.That(gardenSaved.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -315,7 +315,7 @@ public sealed class RoomEditorHttpTests
             using var refusedMoth = await SendAsync(admin, HttpMethod.Delete, "looks/wildlife/recipe-moth");
             var looks = await JsonOfAsync(served);
 
-            Assert.Multiple(async () =>
+            await Assert.MultipleAsync(async () =>
             {
                 Assert.That(badPainter.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
                 Assert.That(painter.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));

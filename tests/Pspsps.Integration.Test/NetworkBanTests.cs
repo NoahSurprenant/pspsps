@@ -225,12 +225,12 @@ public sealed class NetworkBanTests
         Game.ModerationTime.Advance(TimeSpan.FromDays(7) - TimeSpan.FromSeconds(1));
         await networks.PruneAsync(forgetAll: false, CancellationToken.None);
         var db = Game.Get<PspspsDbContext>();
-        Assert.That(db.PlayerAddresses.Count(a => a.PlayerId == felix.Id), Is.EqualTo(1), "kept for 7 days");
-        Assert.That(db.AddressBans.Count(b => b.PlayerId == felix.Id), Is.Zero, "the day's ban is over: forgotten");
+        Assert.That(await db.PlayerAddresses.CountAsync(a => a.PlayerId == felix.Id), Is.EqualTo(1), "kept for 7 days");
+        Assert.That(await db.AddressBans.CountAsync(b => b.PlayerId == felix.Id), Is.Zero, "the day's ban is over: forgotten");
 
         Game.ModerationTime.Advance(TimeSpan.FromSeconds(1));
         await networks.PruneAsync(forgetAll: false, CancellationToken.None);
-        Assert.That(Game.Get<PspspsDbContext>().PlayerAddresses.Count(a => a.PlayerId == felix.Id), Is.Zero, "then forgotten");
+        Assert.That(await Game.Get<PspspsDbContext>().PlayerAddresses.CountAsync(a => a.PlayerId == felix.Id), Is.Zero, "then forgotten");
     }
 
     [Test]
@@ -306,8 +306,8 @@ public sealed class NetworkBanTests
         await Game.Get<IAddressBanService>().PruneAsync(forgetAll: true, CancellationToken.None);
 
         var db = Game.Get<PspspsDbContext>();
-        Assert.That(db.PlayerAddresses.Count(a => a.PlayerId == felix.Id), Is.Zero);
-        Assert.That(db.AddressBans.Count(b => b.PlayerId == felix.Id), Is.Zero);
+        Assert.That(await db.PlayerAddresses.CountAsync(a => a.PlayerId == felix.Id), Is.Zero);
+        Assert.That(await db.AddressBans.CountAsync(b => b.PlayerId == felix.Id), Is.Zero);
     }
 
     [Test]
