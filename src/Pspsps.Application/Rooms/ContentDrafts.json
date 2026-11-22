@@ -398,13 +398,6 @@
             "offset": 6.4,
             "toRoom": "town-square",
             "toDoor": "riverside"
-          },
-          {
-            "id": "dojo-courtyard",
-            "edge": "East",
-            "offset": 2,
-            "toRoom": "dojo-courtyard",
-            "toDoor": "riverside"
           }
         ]
       }
@@ -557,10 +550,10 @@
         },
         "doors": [
           {
-            "id": "riverside",
+            "id": "ice-rink",
             "edge": "West",
             "offset": 2,
-            "toRoom": "riverside",
+            "toRoom": "ice-rink",
             "toDoor": "dojo-courtyard"
           },
           {
@@ -568,6 +561,13 @@
             "edge": "North",
             "offset": 0,
             "toRoom": "dojo",
+            "toDoor": "dojo-courtyard"
+          },
+          {
+            "id": "mine",
+            "edge": "East",
+            "offset": 2,
+            "toRoom": "mine",
             "toDoor": "dojo-courtyard"
           }
         ]
@@ -1329,13 +1329,6 @@
             "offset": 2.5,
             "toRoom": "riverside",
             "toDoor": "pear-orchard"
-          },
-          {
-            "id": "mine",
-            "edge": "West",
-            "offset": 3,
-            "toRoom": "mine",
-            "toDoor": "pear-orchard"
           }
         ]
       }
@@ -1410,7 +1403,7 @@
             "kind": "flower-bed",
             "spot": {
               "x": -4.8,
-              "z": -1.8
+              "z": -3.2
             },
             "radius": 0.9,
             "facing": 0
@@ -1418,7 +1411,7 @@
           {
             "kind": "packing-crate",
             "spot": {
-              "x": -8.4,
+              "x": 8.4,
               "z": 0.8
             },
             "radius": 0.9,
@@ -1454,10 +1447,10 @@
         ],
         "doors": [
           {
-            "id": "pear-orchard",
-            "edge": "East",
+            "id": "dojo-courtyard",
+            "edge": "West",
             "offset": 0,
-            "toRoom": "pear-orchard",
+            "toRoom": "dojo-courtyard",
             "toDoor": "mine"
           },
           {
@@ -2054,6 +2047,13 @@
             "edge": "South",
             "offset": 5.6,
             "toRoom": "market-row",
+            "toDoor": "ice-rink"
+          },
+          {
+            "id": "dojo-courtyard",
+            "edge": "East",
+            "offset": -8.5,
+            "toRoom": "dojo-courtyard",
             "toDoor": "ice-rink"
           }
         ]

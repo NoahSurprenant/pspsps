@@ -18,11 +18,7 @@ public sealed class MapRulesTests
         "garden/pear-orchard",
         "pear-orchard/garden",
         "pear-orchard/riverside",
-        "pear-orchard/mine",
         "riverside/pear-orchard",
-        "riverside/dojo-courtyard",
-        "dojo-courtyard/riverside",
-        "mine/pear-orchard",
     ];
 
     [Test]
