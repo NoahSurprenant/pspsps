@@ -72,6 +72,23 @@ public static class PropKinds
     public const string TownHouse = "town-house";
     public const string TownHotel = "town-hotel";
     public const string TownMall = "town-mall";
+    public const string ShoreLighthouse = "shore-lighthouse";
+    public const string ShoreDeckChair = "shore-deck-chair";
+    public const string ShoreParasol = "shore-parasol";
+    public const string ShoreRocks = "shore-rocks";
+    public const string ShoreRowboat = "shore-rowboat";
+    public const string ShoreSurfboards = "shore-surfboards";
+    public const string ShorePicnicTable = "shore-picnic-table";
+    public const string ShoreTubes = "shore-tubes";
+    public const string ShoreBollard = "shore-bollard";
+    public const string ShoreLifebuoy = "shore-lifebuoy";
+    public const string ShoreLiftTower = "shore-lift-tower";
+    public const string ShoreLiftHut = "shore-lift-hut";
+    public const string ShorePost = "shore-post";
+    public const string ShorePine = "shore-pine";
+    public const string ShoreLodge = "shore-lodge";
+    public const string ShoreTourStand = "shore-tour-stand";
+    public const string ShoreSignpost = "shore-signpost";
 
     public static IReadOnlyList<string> All { get; } =
     [
@@ -81,5 +98,6 @@ public static class PropKinds
         CatalogueStand, HatShelf, ShopCounter, Mirror, BookStack, Globe, YarnNook, WindowSeat,
         MarketStall, PizzaTable, PizzaOven, Stage, SpeakerStack, LightRig, FishBarrel, YarnBasket, MarketCart, Chalkboard,
         DoughTable, WoodStack, FishTank, Jukebox, DjBooth, BarStool, VelvetRope, Podium, Fountain, TownHouse, TownHotel, TownMall,
+        ShoreLighthouse, ShoreDeckChair, ShoreParasol, ShoreRocks, ShoreRowboat, ShoreSurfboards, ShorePicnicTable, ShoreTubes, ShoreBollard, ShoreLifebuoy, ShoreLiftTower, ShoreLiftHut, ShorePost, ShorePine, ShoreLodge, ShoreTourStand, ShoreSignpost,
     ];
 }
