@@ -303,7 +303,7 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
                     continue;
                 }
 
-                await Attempt($"overlay {overlay.RoomId}/{overlay.Id}", () => SaveOverlayAsync(overlay, adminId, cancellationToken, checkAgainstLive: file.RoomList.All(r => r.Id != overlay.RoomId)));
+                await Attempt($"overlay {overlay.RoomId}/{overlay.Id}", () => SaveOverlayAsync(overlay, adminId, cancellationToken, checkAgainstLive: !HasDraft(overlay.RoomId)));
             }
             else if (Same(existing, overlay))
             {
@@ -311,8 +311,7 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             }
             else
             {
-                var roomIsInTheFile = file.RoomList.Any(r => r.Id == overlay.RoomId);
-                await Attempt($"overlay {overlay.RoomId}/{overlay.Id}", () => SaveOverlayAsync(overlay, adminId, cancellationToken, checkAgainstLive: !roomIsInTheFile), "replaced (the file differs)");
+                await Attempt($"overlay {overlay.RoomId}/{overlay.Id}", () => SaveOverlayAsync(overlay, adminId, cancellationToken, checkAgainstLive: !HasDraft(overlay.RoomId)), "replaced (the file differs)");
             }
         }
 
@@ -326,6 +325,8 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
         }
 
         return new ImportReport(applied, unchanged, problems);
+
+        bool HasDraft(string roomId) => states.TryGetValue(roomId, out var of) && of.Contains(RoomVersionState.Draft);
 
         async Task Attempt(string what, Func<Task> save, string done = "saved")
         {
