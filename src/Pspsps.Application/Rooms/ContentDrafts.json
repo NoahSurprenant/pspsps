@@ -615,15 +615,6 @@
             "facing": 3.141592653589793
           },
           {
-            "kind": "bench",
-            "spot": {
-              "x": -2.7,
-              "z": -4.8
-            },
-            "radius": 1,
-            "facing": 3.141592653589793
-          },
-          {
             "kind": "lamp",
             "spot": {
               "x": -7.6,
@@ -660,15 +651,6 @@
             "facing": 0
           },
           {
-            "kind": "bench",
-            "spot": {
-              "x": -5.4,
-              "z": -1.8
-            },
-            "radius": 1,
-            "facing": -1.5707963267948966
-          },
-          {
             "kind": "fountain",
             "spot": {
               "x": -10,
@@ -696,21 +678,21 @@
             "facing": 0
           },
           {
-            "kind": "flower-bed",
+            "kind": "town-hotel",
             "spot": {
-              "x": 12.4,
-              "z": -4.4
+              "x": -4.5,
+              "z": -3.6
             },
-            "radius": 0.9,
+            "radius": 2.4,
             "facing": 0
           },
           {
-            "kind": "pizza-table",
+            "kind": "town-mall",
             "spot": {
-              "x": -2.5,
-              "z": -2.2
+              "x": 10,
+              "z": -4
             },
-            "radius": 1.2,
+            "radius": 2,
             "facing": 0
           }
         ],

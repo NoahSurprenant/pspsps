@@ -734,5 +734,11 @@
  ]},
  {"kind": "town-house", "size": 2.4, "parts": [
   {"shape":"model","model":"town-house","scale":3.3,"at":[0,0,0],"colour":"#ffffff"}
+ ]},
+ {"kind": "town-hotel", "size": 2.4, "parts": [
+  {"shape":"model","model":"town-hotel","scale":3.3,"at":[0,0,0],"colour":"#ffffff"}
+ ]},
+ {"kind": "town-mall", "size": 2, "parts": [
+  {"shape":"model","model":"town-mall","scale":2.7,"at":[0,0,0],"colour":"#ffffff"}
  ]}
 ]

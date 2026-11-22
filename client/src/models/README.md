@@ -31,3 +31,8 @@ the colour-map texel it points at, and the game draws it flat and outlined like 
 cd client
 node scripts/mesh-model.mjs "<starter kit>/models/building-small-a.glb" src/models/townHouse.json
 ```
+
+## townHotel.json, townMall.json
+
+The "town-hotel" and "town-mall" meshes, from the same starter kit as the town house: Kenney's "building-small-c" and
+"building-garage" (CC0), made the same way with `scripts/mesh-model.mjs`.

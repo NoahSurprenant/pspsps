@@ -70,6 +70,8 @@ public static class PropKinds
     public const string Podium = "podium";
     public const string Fountain = "fountain";
     public const string TownHouse = "town-house";
+    public const string TownHotel = "town-hotel";
+    public const string TownMall = "town-mall";
 
     public static IReadOnlyList<string> All { get; } =
     [
@@ -78,6 +80,6 @@ public static class PropKinds
         Goal, IcePatch, RinkBoard, YarnBall, SnowCat,
         CatalogueStand, HatShelf, ShopCounter, Mirror, BookStack, Globe, YarnNook, WindowSeat,
         MarketStall, PizzaTable, PizzaOven, Stage, SpeakerStack, LightRig, FishBarrel, YarnBasket, MarketCart, Chalkboard,
-        DoughTable, WoodStack, FishTank, Jukebox, DjBooth, BarStool, VelvetRope, Podium, Fountain, TownHouse,
+        DoughTable, WoodStack, FishTank, Jukebox, DjBooth, BarStool, VelvetRope, Podium, Fountain, TownHouse, TownHotel, TownMall,
     ];
 }
