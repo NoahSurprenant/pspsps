@@ -18,6 +18,10 @@
     The package alone turns on all of Sonar way; the globalconfig keeps the rules SonarCloud's "core" profile has, and on
     test code only the test rules.
   -->
+  <!-- An analyzer the compiler can't load (CS8032) or built against a newer Roslyn than the SDK's (CS9057) is only a warning and its rules quietly stop; errors here so they can't drop out unnoticed. -->
+  <PropertyGroup Condition="'$(MSBuildProjectExtension)' == '.csproj' And '$(RunAnalyzers)' != 'false'">
+    <WarningsAsErrors>$(WarningsAsErrors);CS9057;CS8032</WarningsAsErrors>
+  </PropertyGroup>
   <ItemGroup Condition="'$(MSBuildProjectExtension)' == '.csproj'">
     <PackageReference Include="SonarAnalyzer.CSharp" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
     <GlobalAnalyzerConfigFiles Include="$(MSBuildThisFileDirectory)analyzers/sonar-main.globalconfig" Condition="'$(IsTestProject)' != 'true'" />
