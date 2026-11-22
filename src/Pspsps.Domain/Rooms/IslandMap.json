@@ -1,7 +1,7 @@
 [
   { "id": "town-square", "name": "Town Square", "category": "places", "landmark": "plaza", "x": 14, "z": -8, "room": "town-square", "blurb": "Where every cat arrives. The café and the shop are here." },
   { "id": "garden", "name": "Garden Courtyard", "category": "places", "landmark": "garden", "x": -8, "z": 22, "room": "garden", "blurb": "Flower beds and a quiet bench." },
-  { "id": "pear-orchard", "name": "Pear Orchard", "category": "places", "landmark": "orchard", "x": -32, "z": 10, "room": "pear-orchard", "blurb": "Pears to pick, shade to nap in." },
+  { "id": "pear-orchard", "name": "Pear Orchard", "category": "places", "landmark": "orchard", "x": -34, "z": 12, "room": "pear-orchard", "blurb": "Pears to pick, shade to nap in." },
   { "id": "cat-homes", "name": "Cat Homes Lane", "category": "places", "landmark": "homes", "x": -9, "z": -21, "room": null, "blurb": "A lane of little houses, one for each cat." },
   { "id": "lighthouse", "name": "Lighthouse Point", "category": "places", "landmark": "lighthouse", "x": -40, "z": -9, "room": null, "blurb": "A tall light over the waves." },
   { "id": "riverside", "name": "Riverside Trail", "category": "games", "landmark": "river", "x": 16, "z": -22, "room": "riverside", "blurb": "Fish from the bank." },
