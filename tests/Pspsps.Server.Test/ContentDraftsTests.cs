@@ -142,7 +142,7 @@ public sealed class ContentDraftsTests
     }
 
     [Test]
-    public void TheIceRink_IsReachableFromTownSquare_ThroughSunnyCove()
+    public void TheIceRink_IsReachableFromTownSquare_ThroughMarketRow()
     {
         var layouts = RoomCatalog.All.ToDictionary(room => room.Id, RoomLayout.Of);
         foreach (var room in Content.RoomList)
@@ -152,9 +152,9 @@ public sealed class ContentDraftsTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(layouts["cove"].Doors.Any(door => door.ToRoom == "ice-rink" && door.ToDoor == "cove"), Is.True, "a way from the cove");
-            Assert.That(layouts["ice-rink"].Doors.Any(door => door.ToRoom == "cove" && door.ToDoor == "ice-rink"), Is.True, "and back");
-            Assert.That(layouts["town-square"].Doors.Any(door => door.ToRoom == "cove"), Is.True, "the cove is reached from the square");
+            Assert.That(layouts["market-row"].Doors.Any(door => door.ToRoom == "ice-rink" && door.ToDoor == "market-row"), Is.True, "a way from the market row");
+            Assert.That(layouts["ice-rink"].Doors.Any(door => door.ToRoom == "market-row" && door.ToDoor == "ice-rink"), Is.True, "and back");
+            Assert.That(layouts["town-square"].Doors.Any(door => door.ToRoom == "market-row"), Is.True, "the market row is reached from the square");
         });
     }
 

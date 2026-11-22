@@ -55,6 +55,8 @@ export const SCREENS: Screen[] = [
     name: "garden",
     open: async (page) => {
       await enterWorld(page, "Calico");
+      await goThroughDoor(page, "riverside", "Riverside Trail");
+      await goThroughDoor(page, "pear-orchard", "Pear Orchard");
       await goThroughDoor(page, "garden", "Garden Courtyard");
     },
   },
@@ -62,7 +64,7 @@ export const SCREENS: Screen[] = [
     name: "pear-orchard",
     open: async (page) => {
       await enterWorld(page, "Calico");
-      await goThroughDoor(page, "garden", "Garden Courtyard");
+      await goThroughDoor(page, "riverside", "Riverside Trail");
       await goThroughDoor(page, "pear-orchard", "Pear Orchard");
     },
   },

@@ -108,13 +108,6 @@
             "toDoor": "town-square"
           },
           {
-            "id": "garden",
-            "edge": "West",
-            "offset": 3.3,
-            "toRoom": "garden",
-            "toDoor": "town-square"
-          },
-          {
             "id": "riverside",
             "edge": "South",
             "offset": 6.4,
@@ -130,8 +123,8 @@
           },
           {
             "id": "market-row",
-            "edge": "North",
-            "offset": 0.5,
+            "edge": "West",
+            "offset": 0,
             "toRoom": "market-row",
             "toDoor": "town-square"
           }
@@ -243,13 +236,6 @@
             "edge": "South",
             "offset": 6,
             "toRoom": "boat-shed",
-            "toDoor": "cove"
-          },
-          {
-            "id": "ice-rink",
-            "edge": "East",
-            "offset": 0,
-            "toRoom": "ice-rink",
             "toDoor": "cove"
           }
         ]
@@ -978,8 +964,8 @@
         "doors": [
           {
             "id": "town-square",
-            "edge": "South",
-            "offset": 0.5,
+            "edge": "East",
+            "offset": 0,
             "toRoom": "town-square",
             "toDoor": "market-row"
           },
@@ -995,6 +981,13 @@
             "edge": "North",
             "offset": 5,
             "toRoom": "night-club",
+            "toDoor": "market-row"
+          },
+          {
+            "id": "ice-rink",
+            "edge": "North",
+            "offset": 11,
+            "toRoom": "ice-rink",
             "toDoor": "market-row"
           }
         ]
@@ -2156,11 +2149,107 @@
         ],
         "doors": [
           {
-            "id": "cove",
-            "edge": "West",
+            "id": "market-row",
+            "edge": "South",
             "offset": 0,
-            "toRoom": "cove",
+            "toRoom": "market-row",
             "toDoor": "ice-rink"
+          }
+        ]
+      }
+    },
+    {
+      "id": "garden",
+      "layout": {
+        "name": "Garden Courtyard",
+        "width": 18,
+        "depth": 12,
+        "spawn": {
+          "x": 0,
+          "z": 1
+        },
+        "capacity": 40,
+        "props": [
+          {
+            "kind": "potting-bench",
+            "spot": {
+              "x": -7.6,
+              "z": 2
+            },
+            "radius": 1.3,
+            "facing": 0
+          },
+          {
+            "kind": "tree",
+            "spot": {
+              "x": 6.9,
+              "z": 4.4
+            },
+            "radius": 1.3,
+            "facing": 0
+          },
+          {
+            "kind": "flower-bed",
+            "spot": {
+              "x": -6.8,
+              "z": -0.4
+            },
+            "radius": 1.1,
+            "facing": 0
+          },
+          {
+            "kind": "flower-bed",
+            "spot": {
+              "x": 0.3,
+              "z": -3
+            },
+            "radius": 1.1,
+            "facing": 0
+          },
+          {
+            "kind": "flower-bed",
+            "spot": {
+              "x": 0,
+              "z": 3.5
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "bench",
+            "spot": {
+              "x": -7.7,
+              "z": -2.5
+            },
+            "radius": 1,
+            "facing": -3.1193740882630743
+          },
+          {
+            "kind": "bench",
+            "spot": {
+              "x": -3.6,
+              "z": -4.8
+            },
+            "radius": 1,
+            "facing": -2.0032041023654346
+          },
+          {
+            "kind": "lamp",
+            "spot": {
+              "x": 1.2,
+              "z": -4.8
+            },
+            "radius": 0.35,
+            "facing": 0
+          }
+        ],
+        "doors": [
+          {
+            "id": "pear-orchard",
+            "edge": "South",
+            "offset": 5.8,
+            "toRoom": "pear-orchard",
+            "toDoor": "garden"
           }
         ]
       }

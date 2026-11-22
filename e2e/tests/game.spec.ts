@@ -620,12 +620,12 @@ test("a guest walks through the café door and comes in by the café's door back
   expect(await roomBarButtons(page)).toEqual(["Friends", "World map", "Worlds"]);
 });
 
-test("a cat walks the garden loop and travels to a room's spawn from the world map", async ({ page }) => {
+test("a cat walks the garden trail and back and travels to a room's spawn from the world map", async ({ page }) => {
   const me = await enterWorld(page, "Tabby");
   let previous = "town-square";
   for (const [id, name] of [
-    ["garden", "Garden Courtyard"], ["pear-orchard", "Pear Orchard"],
-    ["riverside", "Riverside Trail"], ["town-square", "Town Square"],
+    ["riverside", "Riverside Trail"], ["pear-orchard", "Pear Orchard"], ["garden", "Garden Courtyard"],
+    ["pear-orchard", "Pear Orchard"], ["riverside", "Riverside Trail"], ["town-square", "Town Square"],
   ] as const) {
     await goThroughDoor(page, id, name);
     const entrance = await page.evaluate(from => window.pspsps?.room()?.snapshot.doors.find(d => d.toRoomId === from), previous);

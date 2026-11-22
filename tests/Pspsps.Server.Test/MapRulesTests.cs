@@ -15,12 +15,6 @@ public sealed class MapRulesTests
     /// <summary>Doors that break the rules until their rooms are rebuilt; each leaves this list when it is fixed.</summary>
     private static readonly string[] KnownBreaks =
     [
-        "cove/ice-rink",
-        "ice-rink/cove",
-        "town-square/market-row",
-        "market-row/town-square",
-        "town-square/garden",
-        "garden/town-square",
         "garden/pear-orchard",
         "pear-orchard/garden",
         "pear-orchard/riverside",
