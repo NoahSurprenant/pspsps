@@ -1979,8 +1979,8 @@
         "width": 16,
         "depth": 24,
         "spawn": {
-          "x": 0,
-          "z": 0
+          "x": 5.6,
+          "z": -7.5
         },
         "capacity": 60,
         "props": [
@@ -2120,15 +2120,6 @@
             "facing": 0
           },
           {
-            "kind": "tree",
-            "spot": {
-              "x": 6.4,
-              "z": -9.4
-            },
-            "radius": 1.4,
-            "facing": 0
-          },
-          {
             "kind": "map-board",
             "spot": {
               "x": -4.5,
@@ -2151,7 +2142,7 @@
           {
             "id": "market-row",
             "edge": "South",
-            "offset": 3.4,
+            "offset": 5.6,
             "toRoom": "market-row",
             "toDoor": "ice-rink"
           }
