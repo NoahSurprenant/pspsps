@@ -75,7 +75,7 @@ public sealed class IslandMapTests
         ["lighthouse"] = (7, 63),
         ["harbour-dock"] = (19, 78),
         ["whisker-woods"] = (51, 68),
-        ["peakside-village"] = (16, 54),
+        ["peakside-village"] = (16, 46),
         ["fort"] = (58, 49),
         ["forest"] = (83, 70),
         ["dojo-courtyard"] = (60, 29),
