@@ -12,9 +12,8 @@ const plans = {
   cafe: { width: 14, depth: 10, pond: null, doors: [] },
   home: { width: 12, depth: 9, pond: null, doors: [] },
   shop: { width: 13, depth: 9, pond: null, doors: [] },
-  garden: { width: 18, depth: 12, pond: null, doors: [] },
-  "pear-orchard": { width: 18, depth: 19, pond: null, doors: [] },
-  riverside: { width: 24, depth: 14, pond: { x: -3, z: -2, radius: 2.4 }, doors: [] },
+  meadow: { width: 18, depth: 12, pond: null, doors: [] },
+  stream: { width: 24, depth: 14, pond: { x: -3, z: -2, radius: 2.4 }, doors: [] },
 } satisfies Record<string, Floorplan>;
 
 describe("lookOf", () => {
@@ -61,15 +60,23 @@ describe("lookOf", () => {
     expect(look.backdrop({ width: 14, depth: 10, pond: null, doors: [] }, 4)).toEqual([]);
   });
 
-  it("gives the garden and the riverside distinct outdoor looks", () => {
-    const [garden, riverside] = [lookOf("garden"), lookOf("riverside")];
+  it("gives rooms with different painters distinct outdoor looks", () => {
+    const outdoors = { ...newRoom, ground: { colour: "#b7cf98" }, openLandscape: true };
+    setLooks({
+      rooms: [
+        { id: "meadow", look: { ...outdoors, floor: { painter: "garden" }, wall: { painter: "garden" }, backdrop: { parts: [] } } },
+        { id: "stream", look: { ...outdoors, floor: { painter: "riverside" }, wall: { painter: "riverside" } } },
+      ],
+      variants: [],
+    });
+    const [meadow, stream] = [lookOf("meadow"), lookOf("stream")];
 
-    expect(garden.ground).toBeDefined();
-    expect(riverside.ground).toBeDefined();
-    expect(garden.paintFloor).toBeDefined();
-    expect(riverside.paintFloor).toBeDefined();
-    expect(garden.paintFloor).not.toBe(riverside.paintFloor);
-    expect(garden.backdrop(plans.garden, 4)).not.toEqual(riverside.backdrop(plans.riverside, 4));
+    expect(meadow.ground).toBeDefined();
+    expect(stream.ground).toBeDefined();
+    expect(meadow.paintFloor).toBeDefined();
+    expect(stream.paintFloor).toBeDefined();
+    expect(meadow.paintFloor).not.toBe(stream.paintFloor);
+    expect(meadow.backdrop(plans.meadow, 4)).not.toEqual(stream.backdrop(plans.stream, 4));
   });
 
   // Hidden in the back wall, a part costs drawing and shows nothing.
@@ -153,12 +160,10 @@ describe("looks as data", () => {
   });
 
   it("knows which rooms are open countryside, from their looks", () => {
-    expect(openLandscape("pear-orchard")).toBe(true);
-    expect(openLandscape("riverside")).toBe(true);
     expect(openLandscape("cafe")).toBe(false);
     setLooks({ rooms: [{ id: "loft", look: { ...newRoom, openLandscape: true } }], variants: [] });
     expect(openLandscape("loft")).toBe(true);
-    expect(openLandscape("riverside")).toBe(false);
+    expect(openLandscape("cafe")).toBe(false);
   });
 
   it("runs the town's generator beside any parts the look gives", () => {
@@ -168,8 +173,12 @@ describe("looks as data", () => {
   });
 
   it("gives each room the wildlife its look names", () => {
-    expect(lookOf("riverside").wildlife).toBe("fish");
-    expect(lookOf("garden").wildlife).toBe("butterfly");
+    setLooks({
+      rooms: [{ id: "stream", look: { ...newRoom, wildlife: "fish" } }, { id: "meadow", look: { ...newRoom, wildlife: "butterfly" } }],
+      variants: [],
+    });
+    expect(lookOf("stream").wildlife).toBe("fish");
+    expect(lookOf("meadow").wildlife).toBe("butterfly");
     expect(lookOf("cafe").wildlife).toBeUndefined();
   });
 
