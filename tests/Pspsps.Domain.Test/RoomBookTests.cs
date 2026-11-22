@@ -69,10 +69,10 @@ public sealed class RoomBookTests
     public void APropOnADoor_IsAProblemAtPublishing()
     {
         var layouts = Seed();
-        var garden = layouts["garden"];
-        layouts["garden"] = garden with { Props = [.. garden.Props, new Prop(PropKinds.Tree, new Position(-8.1, 3.3), 1)] };
+        var shop = layouts["shop"];
+        layouts["shop"] = shop with { Props = [.. shop.Props, new Prop(PropKinds.Tree, new Position(-8.1, 3.3), 1)] };
 
-        Assert.That(RoomBook.Problems(layouts, []), Has.Some.Matches<string>(p => p.StartsWith("garden: the tree at", StringComparison.Ordinal)));
+        Assert.That(RoomBook.Problems(layouts, []), Has.Some.Matches<string>(p => p.StartsWith("shop: the tree at", StringComparison.Ordinal)));
     }
 
     [Test]
@@ -80,14 +80,14 @@ public sealed class RoomBookTests
     {
         var window = new OverlayWindow(Now, Now.AddDays(7));
         var lost = new RoomOverlay("party", "attic", "Party", window);
-        var crowded = new RoomOverlay("crowd", "garden", "Crowd", window) { Adds = [new Prop(PropKinds.Tree, new Position(-8.1, 3.3), 1)] };
+        var crowded = new RoomOverlay("crowd", "shop", "Crowd", window) { Adds = [new Prop(PropKinds.Tree, new Position(-8.1, 3.3), 1)] };
 
         var problems = RoomBook.Problems(Seed(), [lost, crowded]);
 
         Assert.Multiple(() =>
         {
             Assert.That(problems, Has.Some.EqualTo("attic/party: is an overlay of a room that there is not."));
-            Assert.That(problems, Has.Some.Matches<string>(p => p.StartsWith("garden/crowd:", StringComparison.Ordinal)));
+            Assert.That(problems, Has.Some.Matches<string>(p => p.StartsWith("shop/crowd:", StringComparison.Ordinal)));
         });
     }
 
@@ -95,7 +95,7 @@ public sealed class RoomBookTests
     public void ARoomsLayout_NeedsAnIdANameASizeAndRoomForCats()
     {
         var layouts = Seed();
-        layouts["Bad Id"] = layouts["garden"] with { Name = " ", Width = 0, Capacity = 0, Doors = [] };
+        layouts["Bad Id"] = layouts["shop"] with { Name = " ", Width = 0, Capacity = 0, Doors = [] };
 
         Assert.That(RoomBook.Problems(layouts, []), Is.EqualTo(new[]
         {
@@ -123,12 +123,12 @@ public sealed class RoomBookTests
         });
     }
 
-    private static (Dictionary<string, RoomLayout> Layouts, RoomLayout Loft) WithALoft(RoomEdge gardenEdge, RoomEdge loftEdge)
+    private static (Dictionary<string, RoomLayout> Layouts, RoomLayout Loft) WithALoft(RoomEdge shopEdge, RoomEdge loftEdge)
     {
         var layouts = Seed();
-        var garden = layouts["garden"];
-        layouts["garden"] = garden with { Props = [], Doors = [.. garden.Doors, new DoorLayout("loft", gardenEdge, 0, "loft", "garden")] };
-        var loft = new RoomLayout("The Loft", 10, 8, new Position(0, 0), 12) { Doors = [new DoorLayout("garden", loftEdge, 0, "garden", "loft")] };
+        var shop = layouts["shop"];
+        layouts["shop"] = shop with { Props = [], Doors = [.. shop.Doors, new DoorLayout("loft", shopEdge, 0, "loft", "shop")] };
+        var loft = new RoomLayout("The Loft", 10, 8, new Position(0, 0), 12) { Doors = [new DoorLayout("shop", loftEdge, 0, "shop", "loft")] };
         return (layouts, loft);
     }
 

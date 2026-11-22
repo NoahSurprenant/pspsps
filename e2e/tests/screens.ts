@@ -16,7 +16,7 @@ export interface Size {
 export interface Screen {
   name:
     | "sign-in" | "worlds" | "town-square" | "cafe" | "shop-room" | "player-card" | "own-card" | "own-card-rename" | "friends" | "catalogue"
-    | "home" | "decorating" | "report" | "admin-card" | "admin-page" | "garden" | "pear-orchard" | "riverside" | "world-map";
+    | "home" | "decorating" | "report" | "admin-card" | "admin-page" | "world-map";
   /** Opens the screen in a fresh page; returns once it is ready, with what to close after (other players), if any. */
   open(page: Page): Promise<(() => Promise<void>) | void>;
 }
@@ -49,30 +49,6 @@ export const SCREENS: Screen[] = [
     open: async (page) => {
       await enterWorld(page, "Calico");
       await goThroughDoor(page, "cafe", "Cat Café");
-    },
-  },
-  {
-    name: "garden",
-    open: async (page) => {
-      await enterWorld(page, "Calico");
-      await goThroughDoor(page, "riverside", "Riverside Trail");
-      await goThroughDoor(page, "pear-orchard", "Pear Orchard");
-      await goThroughDoor(page, "garden", "Garden Courtyard");
-    },
-  },
-  {
-    name: "pear-orchard",
-    open: async (page) => {
-      await enterWorld(page, "Calico");
-      await goThroughDoor(page, "riverside", "Riverside Trail");
-      await goThroughDoor(page, "pear-orchard", "Pear Orchard");
-    },
-  },
-  {
-    name: "riverside",
-    open: async (page) => {
-      await enterWorld(page, "Calico");
-      await goThroughDoor(page, "riverside", "Riverside Trail");
     },
   },
   {

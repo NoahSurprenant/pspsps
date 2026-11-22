@@ -28,10 +28,8 @@ public sealed class RoomPlanTests
     [Test]
     public void DoorsNeedNotLineUpOnAnyMap_BecauseTheMapIsNotMadeFromThem()
     {
-        var orchard = RoomCatalog.Find("pear-orchard")!.WithDoors(
-            ("garden", RoomEdge.North, 5.8, "garden", "pear-orchard"),
-            ("riverside", RoomEdge.West, 2.5, "riverside", "pear-orchard"));
-        Assert.That(() => Replan(orchard), Throws.Nothing);
+        var shop = RoomCatalog.Find("shop")!.WithDoors(("town-square", RoomEdge.West, 1.5, "town-square", "shop"));
+        Assert.That(() => Replan(shop), Throws.Nothing);
     }
 
     [Test]

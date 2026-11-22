@@ -99,24 +99,17 @@
             "toDoor": "town-square"
           },
           {
-            "id": "cove",
-            "edge": "East",
-            "offset": -3.5,
-            "toRoom": "cove",
-            "toDoor": "town-square"
-          },
-          {
-            "id": "plaza",
+            "id": "fort",
             "edge": "West",
             "offset": 0,
-            "toRoom": "plaza",
+            "toRoom": "fort",
             "toDoor": "town-square"
           },
           {
-            "id": "riverside",
-            "edge": "South",
-            "offset": 6.4,
-            "toRoom": "riverside",
+            "id": "forest",
+            "edge": "East",
+            "offset": -3.5,
+            "toRoom": "forest",
             "toDoor": "town-square"
           },
           {
@@ -124,13 +117,6 @@
             "edge": "North",
             "offset": 0.5,
             "toRoom": "night-club",
-            "toDoor": "town-square"
-          },
-          {
-            "id": "ice-rink",
-            "edge": "West",
-            "offset": 5,
-            "toRoom": "ice-rink",
             "toDoor": "town-square"
           }
         ]
@@ -230,10 +216,10 @@
         ],
         "doors": [
           {
-            "id": "town-square",
+            "id": "forest",
             "edge": "West",
             "offset": 0,
-            "toRoom": "town-square",
+            "toRoom": "forest",
             "toDoor": "cove"
           },
           {
@@ -420,8 +406,8 @@
           {
             "kind": "rod-rack",
             "spot": {
-              "x": 0.4,
-              "z": -5.8
+              "x": 3.6,
+              "z": -3.5
             },
             "radius": 1.2,
             "facing": 0
@@ -447,8 +433,8 @@
           {
             "kind": "cat-bed",
             "spot": {
-              "x": -1,
-              "z": -3.6
+              "x": -3.1,
+              "z": -3.9
             },
             "radius": 0.8,
             "facing": 0
@@ -463,10 +449,10 @@
         },
         "doors": [
           {
-            "id": "ice-rink",
-            "edge": "West",
-            "offset": 2,
-            "toRoom": "ice-rink",
+            "id": "mine",
+            "edge": "South",
+            "offset": 0,
+            "toRoom": "mine",
             "toDoor": "dojo-courtyard"
           },
           {
@@ -474,13 +460,6 @@
             "edge": "North",
             "offset": 0,
             "toRoom": "dojo",
-            "toDoor": "dojo-courtyard"
-          },
-          {
-            "id": "mine",
-            "edge": "East",
-            "offset": 2,
-            "toRoom": "mine",
             "toDoor": "dojo-courtyard"
           }
         ]
@@ -651,17 +630,17 @@
         ],
         "doors": [
           {
-            "id": "town-square",
-            "edge": "East",
+            "id": "dock",
+            "edge": "West",
             "offset": 0,
-            "toRoom": "town-square",
+            "toRoom": "dock",
             "toDoor": "plaza"
           },
           {
-            "id": "garden",
-            "edge": "West",
+            "id": "fort",
+            "edge": "East",
             "offset": 0,
-            "toRoom": "garden",
+            "toRoom": "fort",
             "toDoor": "plaza"
           },
           {
@@ -1064,8 +1043,8 @@
           {
             "kind": "tree",
             "spot": {
-              "x": -8.5,
-              "z": 5.5
+              "x": -8.6,
+              "z": 4.1
             },
             "radius": 1.4,
             "facing": 0
@@ -1073,8 +1052,8 @@
           {
             "kind": "lamp",
             "spot": {
-              "x": -2.6,
-              "z": 6.2
+              "x": -2.3,
+              "z": 3.5
             },
             "radius": 0.35,
             "facing": 0
@@ -1163,9 +1142,16 @@
         ],
         "doors": [
           {
-            "id": "dojo-courtyard",
-            "edge": "West",
+            "id": "forest",
+            "edge": "South",
             "offset": 0,
+            "toRoom": "forest",
+            "toDoor": "mine"
+          },
+          {
+            "id": "dojo-courtyard",
+            "edge": "North",
+            "offset": -6.5,
             "toRoom": "dojo-courtyard",
             "toDoor": "mine"
           },
@@ -1759,121 +1745,11 @@
         ],
         "doors": [
           {
-            "id": "dojo-courtyard",
-            "edge": "East",
-            "offset": -8.5,
-            "toRoom": "dojo-courtyard",
-            "toDoor": "ice-rink"
-          },
-          {
-            "id": "town-square",
+            "id": "fort",
             "edge": "South",
             "offset": 5.6,
-            "toRoom": "town-square",
+            "toRoom": "fort",
             "toDoor": "ice-rink"
-          }
-        ]
-      }
-    },
-    {
-      "id": "garden",
-      "layout": {
-        "name": "Garden Courtyard",
-        "width": 18,
-        "depth": 12,
-        "spawn": {
-          "x": 0,
-          "z": 1
-        },
-        "capacity": 40,
-        "props": [
-          {
-            "kind": "potting-bench",
-            "spot": {
-              "x": -7.6,
-              "z": 2
-            },
-            "radius": 1.3,
-            "facing": 0
-          },
-          {
-            "kind": "tree",
-            "spot": {
-              "x": 6.9,
-              "z": 4.4
-            },
-            "radius": 1.3,
-            "facing": 0
-          },
-          {
-            "kind": "flower-bed",
-            "spot": {
-              "x": -6.8,
-              "z": -0.4
-            },
-            "radius": 1.1,
-            "facing": 0
-          },
-          {
-            "kind": "flower-bed",
-            "spot": {
-              "x": 0.3,
-              "z": -3
-            },
-            "radius": 1.1,
-            "facing": 0
-          },
-          {
-            "kind": "flower-bed",
-            "spot": {
-              "x": 0,
-              "z": 3.5
-            },
-            "radius": 0.9,
-            "facing": 0
-          },
-          {
-            "kind": "bench",
-            "spot": {
-              "x": -7.7,
-              "z": -2.5
-            },
-            "radius": 1,
-            "facing": -3.1193740882630743
-          },
-          {
-            "kind": "bench",
-            "spot": {
-              "x": -3.6,
-              "z": -4.8
-            },
-            "radius": 1,
-            "facing": -2.0032041023654346
-          },
-          {
-            "kind": "lamp",
-            "spot": {
-              "x": 1.2,
-              "z": -4.8
-            },
-            "radius": 0.35,
-            "facing": 0
-          }
-        ],
-        "doors": [
-          {
-            "id": "pear-orchard",
-            "edge": "South",
-            "offset": 5.8,
-            "toRoom": "pear-orchard",
-            "toDoor": "garden"
-          },
-          {
-            "id": "plaza",
-            "edge": "East",
-            "offset": 0,
-            "toRoom": "plaza",
-            "toDoor": "garden"
           }
         ]
       }
@@ -2360,6 +2236,717 @@
             "offset": 0,
             "toRoom": "plaza",
             "toDoor": "mall"
+          }
+        ]
+      }
+    },
+    {
+      "id": "fort",
+      "layout": {
+        "name": "Fort",
+        "width": 28,
+        "depth": 16,
+        "spawn": {
+          "x": 0,
+          "z": -1.5
+        },
+        "capacity": 60,
+        "props": [
+          {
+            "kind": "tree",
+            "spot": {
+              "x": -11,
+              "z": -5
+            },
+            "radius": 1.4,
+            "facing": 0
+          },
+          {
+            "kind": "tree",
+            "spot": {
+              "x": 11,
+              "z": -5
+            },
+            "radius": 1.4,
+            "facing": 0
+          },
+          {
+            "kind": "bench",
+            "spot": {
+              "x": -4,
+              "z": -5.5
+            },
+            "radius": 1,
+            "facing": 3.141592653589793
+          },
+          {
+            "kind": "bench",
+            "spot": {
+              "x": 4,
+              "z": -5.5
+            },
+            "radius": 1,
+            "facing": 3.141592653589793
+          },
+          {
+            "kind": "lamp",
+            "spot": {
+              "x": -4.3,
+              "z": 6.8
+            },
+            "radius": 0.35,
+            "facing": 0
+          },
+          {
+            "kind": "lamp",
+            "spot": {
+              "x": 5,
+              "z": 5
+            },
+            "radius": 0.35,
+            "facing": 0
+          },
+          {
+            "kind": "flower-bed",
+            "spot": {
+              "x": 9,
+              "z": 5
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "flower-bed",
+            "spot": {
+              "x": -8.2,
+              "z": 2.3
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "plant",
+            "spot": {
+              "x": 12,
+              "z": 5.5
+            },
+            "radius": 0.5,
+            "facing": 0
+          },
+          {
+            "kind": "plant",
+            "spot": {
+              "x": -12,
+              "z": 5.5
+            },
+            "radius": 0.5,
+            "facing": 0
+          }
+        ],
+        "doors": [
+          {
+            "id": "plaza",
+            "edge": "West",
+            "offset": 0,
+            "toRoom": "plaza",
+            "toDoor": "fort"
+          },
+          {
+            "id": "town-square",
+            "edge": "East",
+            "offset": 0,
+            "toRoom": "town-square",
+            "toDoor": "fort"
+          },
+          {
+            "id": "ice-rink",
+            "edge": "North",
+            "offset": -8,
+            "toRoom": "ice-rink",
+            "toDoor": "fort"
+          }
+        ]
+      }
+    },
+    {
+      "id": "dock",
+      "layout": {
+        "name": "Dock",
+        "width": 28,
+        "depth": 16,
+        "spawn": {
+          "x": 1,
+          "z": -1
+        },
+        "capacity": 50,
+        "props": [
+          {
+            "kind": "bench",
+            "spot": {
+              "x": -6,
+              "z": -5.5
+            },
+            "radius": 1,
+            "facing": 3.141592653589793
+          },
+          {
+            "kind": "packing-crate",
+            "spot": {
+              "x": 8,
+              "z": -5
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "packing-crate",
+            "spot": {
+              "x": 9.8,
+              "z": -3.6
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "lamp",
+            "spot": {
+              "x": -2.8,
+              "z": 4
+            },
+            "radius": 0.35,
+            "facing": 0
+          },
+          {
+            "kind": "lamp",
+            "spot": {
+              "x": 3,
+              "z": -6
+            },
+            "radius": 0.35,
+            "facing": 0
+          },
+          {
+            "kind": "tree",
+            "spot": {
+              "x": 11,
+              "z": 5
+            },
+            "radius": 1.4,
+            "facing": 0
+          },
+          {
+            "kind": "plant",
+            "spot": {
+              "x": -11,
+              "z": -5.5
+            },
+            "radius": 0.5,
+            "facing": 0
+          },
+          {
+            "kind": "bench",
+            "spot": {
+              "x": 6,
+              "z": 5.6
+            },
+            "radius": 1,
+            "facing": 0
+          }
+        ],
+        "doors": [
+          {
+            "id": "plaza",
+            "edge": "East",
+            "offset": 0,
+            "toRoom": "plaza",
+            "toDoor": "dock"
+          },
+          {
+            "id": "peakside-village",
+            "edge": "North",
+            "offset": 0,
+            "toRoom": "peakside-village",
+            "toDoor": "dock"
+          },
+          {
+            "id": "beach",
+            "edge": "West",
+            "offset": 3.5,
+            "toRoom": "beach",
+            "toDoor": "dock"
+          }
+        ]
+      }
+    },
+    {
+      "id": "beach",
+      "layout": {
+        "name": "Beach",
+        "width": 28,
+        "depth": 16,
+        "spawn": {
+          "x": 0,
+          "z": -1
+        },
+        "capacity": 50,
+        "props": [
+          {
+            "kind": "bench",
+            "spot": {
+              "x": -6,
+              "z": -5.5
+            },
+            "radius": 1,
+            "facing": 3.141592653589793
+          },
+          {
+            "kind": "lamp",
+            "spot": {
+              "x": 4,
+              "z": -5.5
+            },
+            "radius": 0.35,
+            "facing": 0
+          },
+          {
+            "kind": "packing-crate",
+            "spot": {
+              "x": 9,
+              "z": -5
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "plant",
+            "spot": {
+              "x": -11,
+              "z": 5.5
+            },
+            "radius": 0.5,
+            "facing": 0
+          },
+          {
+            "kind": "plant",
+            "spot": {
+              "x": 11,
+              "z": 5.5
+            },
+            "radius": 0.5,
+            "facing": 0
+          },
+          {
+            "kind": "tree",
+            "spot": {
+              "x": -11,
+              "z": -4.5
+            },
+            "radius": 1.4,
+            "facing": 0
+          },
+          {
+            "kind": "flower-bed",
+            "spot": {
+              "x": 7,
+              "z": 5.5
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "lamp",
+            "spot": {
+              "x": -6,
+              "z": 5.5
+            },
+            "radius": 0.35,
+            "facing": 0
+          }
+        ],
+        "doors": [
+          {
+            "id": "dock",
+            "edge": "East",
+            "offset": 0,
+            "toRoom": "dock",
+            "toDoor": "beach"
+          },
+          {
+            "id": "scratching-peaks",
+            "edge": "North",
+            "offset": 0,
+            "toRoom": "scratching-peaks",
+            "toDoor": "beach"
+          }
+        ]
+      }
+    },
+    {
+      "id": "peakside-village",
+      "layout": {
+        "name": "Peakside Village",
+        "width": 28,
+        "depth": 16,
+        "spawn": {
+          "x": 0,
+          "z": -1
+        },
+        "capacity": 60,
+        "props": [
+          {
+            "kind": "market-stall",
+            "spot": {
+              "x": -9,
+              "z": -2
+            },
+            "radius": 1.4,
+            "facing": 0
+          },
+          {
+            "kind": "market-stall",
+            "spot": {
+              "x": 9,
+              "z": -2
+            },
+            "radius": 1.4,
+            "facing": 0
+          },
+          {
+            "kind": "lamp",
+            "spot": {
+              "x": -4,
+              "z": 4
+            },
+            "radius": 0.35,
+            "facing": 0
+          },
+          {
+            "kind": "lamp",
+            "spot": {
+              "x": 4,
+              "z": 4
+            },
+            "radius": 0.35,
+            "facing": 0
+          },
+          {
+            "kind": "tree",
+            "spot": {
+              "x": -11.5,
+              "z": 5
+            },
+            "radius": 1.4,
+            "facing": 0
+          },
+          {
+            "kind": "tree",
+            "spot": {
+              "x": 11.5,
+              "z": 5
+            },
+            "radius": 1.4,
+            "facing": 0
+          },
+          {
+            "kind": "bench",
+            "spot": {
+              "x": -6,
+              "z": 5.5
+            },
+            "radius": 1,
+            "facing": 3.141592653589793
+          },
+          {
+            "kind": "bench",
+            "spot": {
+              "x": 6,
+              "z": 5.5
+            },
+            "radius": 1,
+            "facing": 3.141592653589793
+          },
+          {
+            "kind": "plant",
+            "spot": {
+              "x": -12,
+              "z": -5.5
+            },
+            "radius": 0.5,
+            "facing": 0
+          },
+          {
+            "kind": "plant",
+            "spot": {
+              "x": 12,
+              "z": -5.5
+            },
+            "radius": 0.5,
+            "facing": 0
+          }
+        ],
+        "doors": [
+          {
+            "id": "dock",
+            "edge": "South",
+            "offset": 0,
+            "toRoom": "dock",
+            "toDoor": "peakside-village"
+          },
+          {
+            "id": "scratching-peaks",
+            "edge": "North",
+            "offset": 0,
+            "toRoom": "scratching-peaks",
+            "toDoor": "peakside-village"
+          }
+        ]
+      }
+    },
+    {
+      "id": "scratching-peaks",
+      "layout": {
+        "name": "Scratching Peaks",
+        "width": 28,
+        "depth": 16,
+        "spawn": {
+          "x": 0,
+          "z": 1
+        },
+        "capacity": 60,
+        "props": [
+          {
+            "kind": "cat-tree",
+            "spot": {
+              "x": -8,
+              "z": 3
+            },
+            "radius": 1,
+            "facing": 0
+          },
+          {
+            "kind": "cat-tree",
+            "spot": {
+              "x": -4,
+              "z": 5
+            },
+            "radius": 1,
+            "facing": 0
+          },
+          {
+            "kind": "cat-tree",
+            "spot": {
+              "x": 4,
+              "z": 5
+            },
+            "radius": 1,
+            "facing": 0
+          },
+          {
+            "kind": "cat-tree",
+            "spot": {
+              "x": 8,
+              "z": 3
+            },
+            "radius": 1,
+            "facing": 0
+          },
+          {
+            "kind": "cat-tree",
+            "spot": {
+              "x": 0,
+              "z": 5.8
+            },
+            "radius": 1,
+            "facing": 0
+          },
+          {
+            "kind": "tree",
+            "spot": {
+              "x": -12,
+              "z": -4
+            },
+            "radius": 1.4,
+            "facing": 0
+          },
+          {
+            "kind": "tree",
+            "spot": {
+              "x": 12,
+              "z": -4
+            },
+            "radius": 1.4,
+            "facing": 0
+          },
+          {
+            "kind": "lamp",
+            "spot": {
+              "x": -11,
+              "z": 6
+            },
+            "radius": 0.35,
+            "facing": 0
+          },
+          {
+            "kind": "lamp",
+            "spot": {
+              "x": 11,
+              "z": 6
+            },
+            "radius": 0.35,
+            "facing": 0
+          }
+        ],
+        "doors": [
+          {
+            "id": "beach",
+            "edge": "South",
+            "offset": -5.25,
+            "toRoom": "beach",
+            "toDoor": "scratching-peaks"
+          },
+          {
+            "id": "peakside-village",
+            "edge": "South",
+            "offset": 5.25,
+            "toRoom": "peakside-village",
+            "toDoor": "scratching-peaks"
+          }
+        ]
+      }
+    },
+    {
+      "id": "forest",
+      "layout": {
+        "name": "Forest",
+        "width": 28,
+        "depth": 16,
+        "spawn": {
+          "x": 0,
+          "z": -1
+        },
+        "capacity": 60,
+        "props": [
+          {
+            "kind": "tree",
+            "spot": {
+              "x": -11,
+              "z": -5
+            },
+            "radius": 1.4,
+            "facing": 0
+          },
+          {
+            "kind": "tree",
+            "spot": {
+              "x": -11,
+              "z": 5
+            },
+            "radius": 1.4,
+            "facing": 0
+          },
+          {
+            "kind": "tree",
+            "spot": {
+              "x": 11,
+              "z": -5
+            },
+            "radius": 1.4,
+            "facing": 0
+          },
+          {
+            "kind": "tree",
+            "spot": {
+              "x": 11,
+              "z": 5.2
+            },
+            "radius": 1.4,
+            "facing": 0
+          },
+          {
+            "kind": "tree",
+            "spot": {
+              "x": -6,
+              "z": -5.5
+            },
+            "radius": 1.4,
+            "facing": 0
+          },
+          {
+            "kind": "tree",
+            "spot": {
+              "x": 5,
+              "z": -5.5
+            },
+            "radius": 1.4,
+            "facing": 0
+          },
+          {
+            "kind": "tree",
+            "spot": {
+              "x": 7,
+              "z": 5.5
+            },
+            "radius": 1.4,
+            "facing": 0
+          },
+          {
+            "kind": "plant",
+            "spot": {
+              "x": -4.8,
+              "z": 3.6
+            },
+            "radius": 0.5,
+            "facing": 0
+          },
+          {
+            "kind": "plant",
+            "spot": {
+              "x": 3.2,
+              "z": 5.2
+            },
+            "radius": 0.5,
+            "facing": 0
+          },
+          {
+            "kind": "flower-bed",
+            "spot": {
+              "x": -3,
+              "z": -5.8
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "bench",
+            "spot": {
+              "x": 1,
+              "z": -6
+            },
+            "radius": 1,
+            "facing": 3.141592653589793
+          }
+        ],
+        "doors": [
+          {
+            "id": "town-square",
+            "edge": "West",
+            "offset": 0,
+            "toRoom": "town-square",
+            "toDoor": "forest"
+          },
+          {
+            "id": "cove",
+            "edge": "East",
+            "offset": 0,
+            "toRoom": "cove",
+            "toDoor": "forest"
+          },
+          {
+            "id": "mine",
+            "edge": "North",
+            "offset": -4.2,
+            "toRoom": "mine",
+            "toDoor": "forest"
           }
         ]
       }
@@ -19269,6 +19856,140 @@
                 "outlined": true
               }
             ]
+          }
+        }
+      },
+      {
+        "id": "fort",
+        "look": {
+          "sky": "#bfe6f5",
+          "floorColour": "#c9b88c",
+          "wallColour": "#cfe6ea",
+          "ground": {
+            "colour": "#a9c587"
+          },
+          "floor": {
+            "painter": "tiles",
+            "colour": "#c9b88c",
+            "accent": "#b09a6c"
+          },
+          "wall": {
+            "painter": "riverside"
+          },
+          "openLandscape": true,
+          "backdrop": {
+            "parts": []
+          }
+        }
+      },
+      {
+        "id": "dock",
+        "look": {
+          "sky": "#bfe6f5",
+          "floorColour": "#b98c5e",
+          "wallColour": "#cfe6ea",
+          "ground": {
+            "colour": "#9bc3d4"
+          },
+          "floor": {
+            "painter": "planks",
+            "colour": "#b98c5e",
+            "accent": "#8f6a43"
+          },
+          "wall": {
+            "painter": "riverside"
+          },
+          "openLandscape": true,
+          "backdrop": {
+            "parts": []
+          }
+        }
+      },
+      {
+        "id": "beach",
+        "look": {
+          "sky": "#bfe6f5",
+          "floorColour": "#e9d9a8",
+          "wallColour": "#cfe6ea",
+          "ground": {
+            "colour": "#f1e7c8"
+          },
+          "floor": {
+            "painter": "tiles",
+            "colour": "#e9d9a8",
+            "accent": "#d8c58c"
+          },
+          "wall": {
+            "painter": "riverside"
+          },
+          "openLandscape": true,
+          "backdrop": {
+            "parts": []
+          }
+        }
+      },
+      {
+        "id": "peakside-village",
+        "look": {
+          "sky": "#cfe3f0",
+          "floorColour": "#d6c7a8",
+          "wallColour": "#e8eef4",
+          "ground": {
+            "colour": "#dfe9ee"
+          },
+          "floor": {
+            "painter": "cobbles"
+          },
+          "wall": {
+            "painter": "riverside"
+          },
+          "openLandscape": true,
+          "backdrop": {
+            "parts": []
+          }
+        }
+      },
+      {
+        "id": "scratching-peaks",
+        "look": {
+          "sky": "#bfe6f5",
+          "floorColour": "#a6d27c",
+          "wallColour": "#cfe6ea",
+          "ground": {
+            "colour": "#8fbf6a"
+          },
+          "floor": {
+            "painter": "garden",
+            "colour": "#a6d27c"
+          },
+          "wall": {
+            "painter": "garden"
+          },
+          "openLandscape": true,
+          "backdrop": {
+            "parts": []
+          }
+        }
+      },
+      {
+        "id": "forest",
+        "look": {
+          "sky": "#bcd6ea",
+          "floorColour": "#7fb36a",
+          "wallColour": "#bcd9c0",
+          "ground": {
+            "colour": "#5f9a4e"
+          },
+          "floor": {
+            "painter": "garden",
+            "colour": "#7fb36a"
+          },
+          "wall": {
+            "painter": "garden"
+          },
+          "openLandscape": true,
+          "backdrop": {
+            "parts": []
           }
         }
       }

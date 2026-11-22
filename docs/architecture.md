@@ -74,8 +74,11 @@ transaction. The admin page edits a layout as JSON or on a top-down canvas (drag
 Rooms are joined by doors, in the room catalogue (`RoomCatalog`): a door (`Door`) is a round spot on a room's floor
 that leads to a door of another room. The browser walks the cat onto it, then calls `GoThroughDoor`; the room's grain
 lets the cat out only if it stands on that door (`RoomState.LeaveThrough`), and the next room puts it just inside
-the matching door (`Door.Arrival`), off it, so it doesn't walk straight back out. Open paths link Town Square to the
-garden to its west and the riverside to its south, with a path between them. The café and shop open onto Town Square.
+the matching door (`Door.Arrival`), off it, so it doesn't walk straight back out. The café and shop open onto Town Square. The outdoor rooms are joined by exits on the edges they face: the plaza
+runs west to the dock and east to the fort; Town Square runs west to the fort and east to the forest; the fort leads
+north to the ice rink; the dock leads north to Peakside Village and west to the beach; the beach and the village
+both lead north to Scratching Peaks; the forest leads east to the cove and north to the mine, and the mine leads north
+to the dojo courtyard. Every exit exists both ways.
 Each entrance has a keyboard button that shows on
 focus, as do the player's own cat and the shop catalogue. The world map uses the public destinations from the current
 room's snapshot and calls `GoToRoom` to travel to a destination's spawn point, just as the browser does after a reconnect.

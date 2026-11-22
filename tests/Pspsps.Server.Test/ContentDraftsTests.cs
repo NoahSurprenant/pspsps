@@ -47,16 +47,17 @@ public sealed class ContentDraftsTests
     }
 
     [Test]
-    public void TheDojoCourtyard_IsReachedThroughTheIceRink_AndTheDojoOnlyThroughTheCourtyard()
+    public void TheDojoCourtyard_IsReachedThroughTheMine_AndTheDojoOnlyThroughTheCourtyard()
     {
         var layouts = LayoutsWithTheDrafts();
 
         Assert.Multiple(() =>
         {
-            Assert.That(layouts["ice-rink"].Doors.Select(d => d.ToRoom), Does.Contain("dojo-courtyard"));
-            Assert.That(layouts["dojo-courtyard"].Doors.Select(d => d.ToRoom), Is.EquivalentTo(new[] { "ice-rink", "dojo", "mine" }));
+            Assert.That(layouts["mine"].Doors.Select(d => d.ToRoom), Does.Contain("dojo-courtyard"));
+            Assert.That(layouts["ice-rink"].Doors.Select(d => d.ToRoom), Is.EqualTo(new[] { "fort" }), "the rink has no way to the courtyard");
+            Assert.That(layouts["dojo-courtyard"].Doors.Select(d => d.ToRoom), Is.EquivalentTo(new[] { "mine", "dojo" }));
             Assert.That(layouts["dojo"].Doors.Select(d => d.ToRoom), Is.EqualTo(new[] { "dojo-courtyard" }));
-            foreach (var room in new[] { "ice-rink", "dojo-courtyard", "dojo", "mine" })
+            foreach (var room in new[] { "dojo-courtyard", "dojo", "mine" })
             {
                 foreach (var door in layouts[room].Doors.Where(d => d.ToRoom is "dojo-courtyard" or "dojo"))
                 {
@@ -121,7 +122,7 @@ public sealed class ContentDraftsTests
     }
 
     [Test]
-    public void TheIceRink_IsReachableFromTownSquare()
+    public void TheIceRink_IsReachedOnlyFromTheFort()
     {
         var layouts = RoomCatalog.All.ToDictionary(room => room.Id, RoomLayout.Of);
         foreach (var room in Content.RoomList)
@@ -131,8 +132,9 @@ public sealed class ContentDraftsTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(layouts["town-square"].Doors.Any(door => door.ToRoom == "ice-rink" && door.ToDoor == "town-square"), Is.True, "a way from the square");
-            Assert.That(layouts["ice-rink"].Doors.Any(door => door.ToRoom == "town-square" && door.ToDoor == "ice-rink"), Is.True, "and back");
+            Assert.That(layouts["fort"].Doors.Any(door => door.ToRoom == "ice-rink" && door.ToDoor == "fort" && door.Edge == RoomEdge.North), Is.True, "a way from the fort");
+            Assert.That(layouts["ice-rink"].Doors.Any(door => door.ToRoom == "fort" && door.ToDoor == "ice-rink" && door.Edge == RoomEdge.South), Is.True, "and back");
+            Assert.That(layouts["town-square"].Doors.Any(door => door.ToRoom == "ice-rink"), Is.False, "the square does not reach the rink");
             Assert.That(layouts["plaza"].Doors.Any(door => door.ToRoom == "ice-rink"), Is.False, "the rink is outdoors, not behind a shop door");
         });
     }
@@ -291,12 +293,77 @@ public sealed class ContentDraftsTests
         Assert.Multiple(() =>
         {
             Assert.That(IslandMap.Places.Single(place => place.Id == "plaza").Room, Is.EqualTo("plaza"));
-            foreach (var (room, other) in new[] { ("town-square", "plaza"), ("plaza", "pizza-parlor"), ("plaza", "pet-shop"), ("plaza", "hotel"), ("plaza", "mall"), ("town-square", "night-club") })
+            foreach (var (room, other) in new[] { ("plaza", "pizza-parlor"), ("plaza", "pet-shop"), ("plaza", "hotel"), ("plaza", "mall"), ("town-square", "night-club") })
             {
                 var there = layouts[room].Doors.Single(door => door.ToRoom == other);
                 var back = layouts[other].Doors.Single(door => door.ToRoom == room);
                 Assert.That((there.ToDoor, back.ToDoor), Is.EqualTo((back.Id, there.Id)), $"{room} and {other} name each other's doors");
             }
+        });
+    }
+
+    /// <summary>Every outdoor exit: (room, edge, neighbour, neighbour's edge). Each must exist both ways with matching door names, on the stated edges.</summary>
+    private static readonly (string Room, RoomEdge Edge, string Other, RoomEdge OtherEdge)[] OutdoorExits =
+    [
+        ("plaza", RoomEdge.West, "dock", RoomEdge.East),
+        ("plaza", RoomEdge.East, "fort", RoomEdge.West),
+        ("town-square", RoomEdge.West, "fort", RoomEdge.East),
+        ("town-square", RoomEdge.East, "forest", RoomEdge.West),
+        ("fort", RoomEdge.North, "ice-rink", RoomEdge.South),
+        ("dock", RoomEdge.North, "peakside-village", RoomEdge.South),
+        ("dock", RoomEdge.West, "beach", RoomEdge.East),
+        ("beach", RoomEdge.North, "scratching-peaks", RoomEdge.South),
+        ("peakside-village", RoomEdge.North, "scratching-peaks", RoomEdge.South),
+        ("forest", RoomEdge.East, "cove", RoomEdge.West),
+        ("forest", RoomEdge.North, "mine", RoomEdge.South),
+        ("mine", RoomEdge.North, "dojo-courtyard", RoomEdge.South),
+    ];
+
+    [Test]
+    public void EveryOutdoorExit_ExistsBothWays_OnTheRightEdges_AndNoOtherOutdoorExitsAreThere()
+    {
+        var layouts = LayoutsWithTheDrafts();
+        var outdoor = OutdoorExits.SelectMany(e => new[] { e.Room, e.Other }).Distinct().ToList();
+        var expected = OutdoorExits.SelectMany(e => new[] { (e.Room, e.Other), (e.Other, e.Room) }).ToHashSet();
+        Assert.Multiple(() =>
+        {
+            foreach (var (room, edge, other, otherEdge) in OutdoorExits)
+            {
+                var there = layouts[room].Doors.SingleOrDefault(door => door.ToRoom == other);
+                var back = layouts[other].Doors.SingleOrDefault(door => door.ToRoom == room);
+                Assert.That(there, Is.Not.Null, $"{room} has no door to {other}");
+                Assert.That(back, Is.Not.Null, $"{other} has no door to {room}");
+                if (there is null || back is null)
+                {
+                    continue;
+                }
+
+                Assert.That((there.Edge, back.Edge), Is.EqualTo((edge, otherEdge)), $"{room} and {other} meet on the wrong edges");
+                Assert.That((there.ToDoor, back.ToDoor), Is.EqualTo((back.Id, there.Id)), $"{room} and {other} name each other's doors");
+            }
+            foreach (var room in outdoor)
+            {
+                foreach (var door in layouts[room].Doors.Where(door => outdoor.Contains(door.ToRoom)))
+                {
+                    Assert.That(expected, Does.Contain((room, door.ToRoom)), $"{room} has a door to {door.ToRoom} that the map does not have");
+                }
+            }
+        });
+    }
+
+    [Test]
+    public void TheOutdoorRoomsFormOneConnectedWorld_WithNoProblemsAndEveryRoomOnTheMap()
+    {
+        var layouts = LayoutsWithTheDrafts();
+        var places = IslandMap.Places.Where(place => place.Room is not null).Select(place => place.Room!).ToList();
+        Assert.Multiple(() =>
+        {
+            Assert.That(RoomBook.Problems(layouts, []), Is.Empty);
+            foreach (var room in OutdoorExits.SelectMany(e => new[] { e.Room, e.Other }).Distinct())
+            {
+                Assert.That(places, Does.Contain(room), $"{room} is not on the island map");
+            }
+            Assert.That(layouts.Keys, Does.Not.Contain("garden").And.Not.Contain("pear-orchard").And.Not.Contain("riverside"));
         });
     }
 
@@ -438,14 +505,14 @@ public sealed class ContentDraftsTests
     }
 
     [Test]
-    public void TheMineDoors_AreOnOppositeEdges_NoPropStandsOnADoorMatOrTheSpawn_AndTheLooksAreRich()
+    public void TheMineDoors_AreOnOppositeEdges_TheYardToTheSouthAndTheForestBehind_NoPropStandsOnADoorMatOrTheSpawn_AndTheLooksAreRich()
     {
         var rooms = Content.RoomList.ToDictionary(room => room.Id, room => room.Layout);
-        var orchardDoor = rooms["dojo-courtyard"].Doors.Single(door => door.Id == "mine");
+        var yardDoor = rooms["dojo-courtyard"].Doors.Single(door => door.Id == "mine");
         var shackDoor = rooms["mine"].Doors.Single(door => door.Id == "dojo-courtyard");
         Assert.Multiple(() =>
         {
-            Assert.That((orchardDoor.Edge, shackDoor.Edge), Is.EqualTo((RoomEdge.East, RoomEdge.West)));
+            Assert.That((yardDoor.Edge, shackDoor.Edge), Is.EqualTo((RoomEdge.South, RoomEdge.North)));
             foreach (var id in new[] { "mine", "mine-tunnels" })
             {
                 var room = rooms[id].ToDefinition(id);
@@ -476,7 +543,7 @@ public sealed class ContentDraftsTests
     }
 
     /// <summary>The way in and out must be visible and open: nothing stands on a door's mat or where a cat arrives through it, and the old tunnels' north door and the shack's two doors are all there.</summary>
-    [TestCase("mine", "dojo-courtyard,tunnels")]
+    [TestCase("mine", "forest,dojo-courtyard,tunnels")]
     [TestCase("mine-tunnels", "shack")]
     public void TheDoorsOfTheMineRooms_AndWhereCatsArriveThroughThem_AreClear(string id, string doorIds)
     {

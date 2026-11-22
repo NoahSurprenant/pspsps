@@ -54,7 +54,7 @@ public sealed class IslandMapTests
         {
             Assert.That(IslandMap.Places[0].Room, Is.EqualTo(RoomBook.StartingRoom));
             Assert.That(withRooms, Is.Unique);
-            foreach (var id in new[] { "town-square", "mine" })
+            foreach (var id in new[] { "town-square", "mine", "plaza", "fort", "forest", "cove", "ice-rink", "dojo-courtyard", "dock", "beach", "peakside-village", "scratching-peaks" })
             {
                 Assert.That(withRooms, Does.Contain(id));
             }
@@ -63,19 +63,22 @@ public sealed class IslandMapTests
         });
     }
 
-    /// <summary>Where each place stands on the original picture of the island, as percent across and down it. The map keeps this layout.</summary>
+    /// <summary>Where each place stands on the island picture, as percent across and down it. The map keeps this layout.</summary>
     private static readonly Dictionary<string, (double Across, double Down)> Reference = new()
     {
-        ["town-square"] = (66, 60),
-        ["plaza"] = (36, 60),
-        ["ice-rink"] = (43, 44),
-        ["scratching-peaks"] = (29, 48),
+        ["town-square"] = (69, 61),
+        ["plaza"] = (37, 60),
+        ["ice-rink"] = (45, 39),
+        ["scratching-peaks"] = (19, 26),
+        ["mine"] = (81, 46),
+        ["cove"] = (96, 68),
+        ["lighthouse"] = (7, 63),
+        ["harbour-dock"] = (19, 78),
+        ["whisker-woods"] = (51, 68),
+        ["peakside-village"] = (29, 47),
+        ["fort"] = (58, 49),
+        ["forest"] = (81, 70),
         ["dojo-courtyard"] = (60, 29),
-        ["mine"] = (81, 48),
-        ["cove"] = (94, 67),
-        ["lighthouse"] = (4, 61),
-        ["harbour-dock"] = (19, 81),
-        ["whisker-woods"] = (52, 53),
         ["cat-homes"] = (39, 73),
     };
 
