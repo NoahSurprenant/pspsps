@@ -662,7 +662,7 @@ public sealed class RoomEditorHttpTests
         var (adminPlayer, cookie) = await Game.SignInGuestAsync();
         Game.Admins.Add(adminPlayer.Id);
         using var admin = ClientFor(cookie);
-        using var opened = await SendAsync(admin, HttpMethod.Get, "rooms/pear-orchard");
+        using var opened = await SendAsync(admin, HttpMethod.Get, "rooms/cafe");
         var layout = (await JsonOfAsync(opened))["published"]!.Deserialize<RoomLayout>(ContentFile.Json)!;
         var window = new OverlayWindow(new DateTimeOffset(2090, 1, 1, 0, 0, 0, TimeSpan.Zero), new DateTimeOffset(2090, 1, 2, 0, 0, 0, TimeSpan.Zero));
         var file = new ContentFile(
@@ -694,7 +694,7 @@ public sealed class RoomEditorHttpTests
         var (adminPlayer, cookie) = await Game.SignInGuestAsync();
         Game.Admins.Add(adminPlayer.Id);
         using var admin = ClientFor(cookie);
-        using var opened = await SendAsync(admin, HttpMethod.Get, "rooms/pear-orchard");
+        using var opened = await SendAsync(admin, HttpMethod.Get, "rooms/cafe");
         var layout = (await JsonOfAsync(opened))["published"]!.DeepClone();
         layout["name"] = "Cafe (draft)";
         var file = new ContentFile([new DraftRoom("cafe", layout.Deserialize<RoomLayout>(ContentFile.Json)!)]);
