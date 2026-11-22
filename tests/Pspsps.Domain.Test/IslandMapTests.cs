@@ -87,7 +87,7 @@ public sealed class IslandMapTests
     {
         Assert.Multiple(() =>
         {
-            foreach (var place in IslandMap.Places.)
+            foreach (var place in IslandMap.Places)
             {
                 Assert.That(Reference.ContainsKey(place.Id), Is.True, $"{place.Id} has no spot in the reference layout.");
                 if (!Reference.TryGetValue(place.Id, out var spot))
