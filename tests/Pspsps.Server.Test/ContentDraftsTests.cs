@@ -248,7 +248,7 @@ public sealed class ContentDraftsTests
         var problems = new List<string>();
         foreach (var design in fields)
         {
-            foreach (var part in design.Parts.Where(part => part.Turn is not { Length: 3 } turn || (turn[0] == 0 && turn[2] == 0)))
+            foreach (var part in design.Parts.Where(part => part.Turn is null || part.Turn.All(angle => angle == 0)))
             {
                 var half = part.Shape switch
                 {
