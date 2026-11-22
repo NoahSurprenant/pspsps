@@ -19,6 +19,9 @@ export function screenPoint(x: number, z: number, height = 0): { left: number; t
   };
 }
 
+/** Metres above the ground where a place's marker sits: over the top of its miniature, not on it. */
+export const MARKER_HEIGHT = 10;
+
 export const isOpen = (place: MapPlaceView): boolean => place.roomId !== null;
 
 export function placeName(place: MapPlaceView, here: string): string {

@@ -1,5 +1,6 @@
 import { el } from "./dom";
-import { FILTERS, filterLabel, isOpen, matches, placeName, screenPoint, shouldTravel, type Filter } from "./islandMap";
+import { followSize } from "./followSize";
+import { FILTERS, MARKER_HEIGHT, filterLabel, isOpen, matches, placeName, screenPoint, shouldTravel, type Filter } from "./islandMap";
 import type { MapPlaceView, RoomSnapshot } from "./types";
 
 /**
@@ -61,7 +62,7 @@ export function drawMap(room: RoomSnapshot, travel: (roomId: string) => void): H
     marker.classList.toggle("map-closed", !isOpen(place));
     marker.setAttribute("aria-label", placeName(place, room.roomId));
     if (place.roomId === room.roomId) marker.setAttribute("aria-current", "location");
-    const { left, top } = screenPoint(place.x, place.z, 3);
+    const { left, top } = screenPoint(place.x, place.z, MARKER_HEIGHT);
     marker.style.left = `${left}%`;
     marker.style.top = `${top}%`;
     marker.addEventListener("click", (event) => {
@@ -112,13 +113,12 @@ async function startPicture(canvas: HTMLCanvasElement, places: MapPlaceView[]): 
     if (!canvas.isConnected) return undefined;
     const engine = new Engine(canvas, true, { canvasTabIndex: -1 });
     const island = drawIsland(engine, places);
-    const resize = () => island.resize();
-    window.addEventListener("resize", resize);
+    const stopFollowing = followSize(canvas, () => island.resize());
     // The sheet takes its canvas away when it closes.
     const watch = new MutationObserver(() => {
       if (!canvas.isConnected) {
         watch.disconnect();
-        window.removeEventListener("resize", resize);
+        stopFollowing();
         island.dispose();
       }
     });

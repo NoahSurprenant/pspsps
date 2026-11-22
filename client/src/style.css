@@ -225,6 +225,7 @@ button:disabled {
 }
 
 .map-dot {
+  position: relative;
   box-sizing: border-box;
   width: 1.5rem;
   height: 1.5rem;
@@ -232,6 +233,17 @@ button:disabled {
   border-radius: 50%;
   background: var(--paper);
   box-shadow: 0 2px 0 var(--ink);
+}
+
+.map-dot::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  width: 2px;
+  height: 0.7rem;
+  background: var(--ink);
+  transform: translateX(-50%);
 }
 
 .map-place[aria-current] .map-dot {
