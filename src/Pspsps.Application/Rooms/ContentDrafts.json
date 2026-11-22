@@ -774,15 +774,6 @@
           {
             "kind": "flower-bed",
             "spot": {
-              "x": 7.4,
-              "z": -1
-            },
-            "radius": 0.9,
-            "facing": 0
-          },
-          {
-            "kind": "flower-bed",
-            "spot": {
               "x": -7.4,
               "z": -1
             },
@@ -819,15 +810,6 @@
           {
             "kind": "lamp",
             "spot": {
-              "x": 7.6,
-              "z": 4.9
-            },
-            "radius": 0.35,
-            "facing": 0
-          },
-          {
-            "kind": "lamp",
-            "spot": {
               "x": -13,
               "z": 2.4
             },
@@ -841,15 +823,6 @@
               "z": 2.8
             },
             "radius": 0.35,
-            "facing": 0
-          },
-          {
-            "kind": "tree",
-            "spot": {
-              "x": 12.4,
-              "z": 4.5
-            },
-            "radius": 1.4,
             "facing": 0
           },
           {
