@@ -250,13 +250,10 @@ public sealed class ContentDraftsTests
         {
             foreach (var part in design.Parts.Where(part => part.Turn is null || part.Turn.All(angle => angle == 0)))
             {
-                var half = part.Shape switch
-                {
-                    "box" => Math.Sqrt(((part.Width ?? 0) * (part.Width ?? 0)) + ((part.Depth ?? 0) * (part.Depth ?? 0))) / 2,
-                    _ => (part.Diameter ?? 0) / 2,
-                };
-                var reach = Math.Sqrt((part.At[0] * part.At[0]) + (part.At[2] * part.At[2])) + half;
-                if (reach > design.Size + 0.1)
+                var reach = part.Shape == "box"
+                    ? new[] { -1, 1 }.SelectMany(sx => new[] { -1, 1 }.Select(sz => Math.Sqrt(Math.Pow(part.At[0] + (sx * (part.Width ?? 0) / 2), 2) + Math.Pow(part.At[2] + (sz * (part.Depth ?? 0) / 2), 2)))).Max()
+                    : Math.Sqrt((part.At[0] * part.At[0]) + (part.At[2] * part.At[2])) + (Math.Max(part.Diameter ?? 0, part.Top ?? 0) / 2);
+                if (reach > design.Size)
                 {
                     problems.Add($"{design.Kind}: a {part.Shape} reaches {reach:0.00} (size {design.Size})");
                 }
