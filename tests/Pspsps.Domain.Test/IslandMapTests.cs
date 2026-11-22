@@ -40,7 +40,7 @@ public sealed class IslandMapTests
                 foreach (var other in places.Skip(i + 1))
                 {
                     var apart = Math.Sqrt(Math.Pow(places[i].X - other.X, 2) + Math.Pow(places[i].Z - other.Z, 2));
-                    Assert.That(apart, Is.GreaterThanOrEqualTo(8), $"{places[i].Id} is too close to {other.Id}.");
+                    Assert.That(apart, Is.GreaterThanOrEqualTo(12), $"{places[i].Id} is too close to {other.Id}.");
                 }
             }
         });

@@ -19,6 +19,16 @@ public sealed class MapRulesTests
         "ice-rink/cove",
         "town-square/market-row",
         "market-row/town-square",
+        "town-square/garden",
+        "garden/town-square",
+        "garden/pear-orchard",
+        "pear-orchard/garden",
+        "pear-orchard/riverside",
+        "pear-orchard/mine",
+        "riverside/pear-orchard",
+        "riverside/dojo-courtyard",
+        "dojo-courtyard/riverside",
+        "mine/pear-orchard",
     ];
 
     [Test]
