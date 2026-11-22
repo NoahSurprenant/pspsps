@@ -309,6 +309,66 @@ public sealed class RoomEditorHttpTests
     }
 
     [Test]
+    public async Task ARoom_CanBeRetired_OnlyWhenNoRoomThatStaysLeadsToIt_AndItsVersionStaysInTheHistory()
+    {
+        using var admin = await AdminClientAsync();
+        using var shopRead = await SendAsync(admin, HttpMethod.Get, "rooms/shop");
+        var shop = await JsonOfAsync(shopRead);
+        var shopNumber = shop["versions"]!.AsArray().Single(v => v!["state"]!.GetValue<string>() == "Published")!["number"]!.GetValue<int>();
+        var withDoor = shop["published"]!.DeepClone();
+        withDoor["doors"]!.AsArray().Add(JsonNode.Parse("""{"id":"loft","edge":"West","offset":0,"toRoom":"loft","toDoor":"shop"}"""));
+        var withoutDoor = shop["published"]!.DeepClone();
+        var loft = JsonNode.Parse("""
+            {"name":"The Loft","width":10,"depth":8,"spawn":{"x":0,"z":0},"capacity":12,"props":[],
+             "doors":[{"id":"shop","edge":"East","offset":0,"toRoom":"shop","toDoor":"loft"}]}
+            """)!;
+        var look = JsonNode.Parse("""{"sky":"#112233","floorColour":"#445566","wallColour":"#778899","floor":{"painter":"planks","colour":"#aa8855"},"wall":{"painter":"bricks"},"backdrop":{"parts":[]}}""")!;
+
+        try
+        {
+            (await SendAsync(admin, HttpMethod.Put, "rooms/loft/draft", loft)).Dispose();
+            (await SendAsync(admin, HttpMethod.Put, "rooms/shop/draft", withDoor)).Dispose();
+            (await SendAsync(admin, HttpMethod.Put, "looks/rooms/loft", look)).Dispose();
+            using var opened = await SendAsync(admin, HttpMethod.Post, "rooms/loft/publish?with=shop");
+            Assert.That(opened.StatusCode, Is.EqualTo(HttpStatusCode.NoContent), "the loft is live, with a door from the shop");
+
+            using var tooSoon = await SendAsync(admin, HttpMethod.Post, "rooms/loft/retire");
+            using var notLive = await SendAsync(admin, HttpMethod.Post, "rooms/no-such-room/retire");
+            (await SendAsync(admin, HttpMethod.Put, "rooms/shop/draft", withoutDoor)).Dispose();
+            using var scheduled = await SendAsync(admin, HttpMethod.Post, "rooms/shop/publish?retire=loft&at=2099-01-01T00:00:00Z");
+            using var together = await SendAsync(admin, HttpMethod.Post, "rooms/shop/publish?retire=loft");
+            using var after = await SendAsync(admin, HttpMethod.Get, "rooms/loft");
+            using var audit = await SendAsync(admin, HttpMethod.Get, "rooms/audit?limit=20");
+            var versions = (await JsonOfAsync(after))["versions"]!.AsArray();
+            var library = Game.Get<IRoomLibrary>();
+
+            await Assert.MultipleAsync(async () =>
+            {
+                Assert.That(tooSoon.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), "the shop still has a door to the loft");
+                Assert.That(await tooSoon.Content.ReadAsStringAsync(), Does.Contain("loft"));
+                Assert.That(notLive.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+                Assert.That(await notLive.Content.ReadAsStringAsync(), Does.Contain("not live"));
+                Assert.That(scheduled.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), "a retirement goes with a publish now, not a schedule");
+                Assert.That(together.StatusCode, Is.EqualTo(HttpStatusCode.NoContent), "the shop's door to the loft goes in the same step");
+                Assert.That(versions.Select(v => v!["state"]!.GetValue<string>()), Is.All.EqualTo("Archived"), "the loft's version stays in the history");
+                Assert.That(library.Find("loft"), Is.Null, "the pod that retired it no longer has the room");
+                Assert.That(library.Find("shop")!.Doors.Any(d => d.ToRoom == "loft"), Is.False);
+                Assert.That((await audit.Content.ReadAsStringAsync()), Does.Contain("retired"));
+            });
+        }
+        finally
+        {
+            await using var db = Db();
+            db.RoomVersions.RemoveRange(await db.RoomVersions.Where(v => v.RoomId == "loft").ToListAsync());
+            db.RoomLooks.RemoveRange(await db.RoomLooks.Where(l => l.Id == "loft").ToListAsync());
+            await db.SaveChangesAsync();
+            using var discard = await SendAsync(admin, HttpMethod.Delete, "rooms/shop/draft");
+            using var back = await SendAsync(admin, HttpMethod.Post, $"rooms/shop/rollback/{shopNumber}");
+            Assert.That(back.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+        }
+    }
+
+    [Test]
     public async Task APainterAndACreatureRecipe_AreServedToTheBrowser_UsedByALook_AndKeptWhileALookUsesThem()
     {
         using var admin = await AdminClientAsync();

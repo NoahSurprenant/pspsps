@@ -47,18 +47,30 @@ public static class RoomEditorEndpoints
                 return Results.NoContent();
             }));
 
-        rooms.MapPost("/{roomId}/publish", (string roomId, [Microsoft.AspNetCore.Mvc.FromQuery(Name = "with")] string[]? together, DateTimeOffset? at, HttpRequest request, ClaimsPrincipal user, IModerationService moderation, IRoomEditor editor) =>
+        rooms.MapPost("/{roomId}/publish", (string roomId, [Microsoft.AspNetCore.Mvc.FromQuery(Name = "with")] string[]? together, [Microsoft.AspNetCore.Mvc.FromQuery(Name = "retire")] string[]? retire, DateTimeOffset? at, HttpRequest request, ClaimsPrincipal user, IModerationService moderation, IRoomEditor editor) =>
             Change(request, user, moderation, async adminId =>
             {
+                if (at is not null && retire is { Length: > 0 })
+                {
+                    return Results.BadRequest(new { message = "Retiring rooms goes with publishing now, not with a schedule." });
+                }
+
                 if (at is null)
                 {
-                    await editor.PublishAsync(roomId, together ?? [], adminId, CancellationToken.None);
+                    await editor.PublishAsync(roomId, together ?? [], adminId, CancellationToken.None, retire ?? []);
                 }
                 else
                 {
                     await editor.ScheduleAsync(roomId, together ?? [], at.Value, adminId, CancellationToken.None);
                 }
 
+                return Results.NoContent();
+            }));
+
+        rooms.MapPost("/{roomId}/retire", (string roomId, [Microsoft.AspNetCore.Mvc.FromQuery(Name = "with")] string[]? together, HttpRequest request, ClaimsPrincipal user, IModerationService moderation, IRoomEditor editor) =>
+            Change(request, user, moderation, async adminId =>
+            {
+                await editor.RetireAsync([roomId, .. together ?? []], adminId, CancellationToken.None);
                 return Results.NoContent();
             }));
 

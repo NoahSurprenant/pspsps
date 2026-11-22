@@ -67,7 +67,14 @@ public interface IRoomEditor
     /// new room and the doors that lead to it are only fine as a set); throws <see cref="DomainException"/> with the problems if
     /// the rooms together would be wrong.
     /// </summary>
-    Task PublishAsync(string roomId, IReadOnlyList<string> together, Guid adminId, CancellationToken cancellationToken);
+    Task PublishAsync(string roomId, IReadOnlyList<string> together, Guid adminId, CancellationToken cancellationToken, IReadOnlyList<string>? retire = null);
+
+    /// <summary>
+    /// Takes live rooms out of the game (their published version is archived, so it stays in the history and can be rolled back to);
+    /// throws <see cref="DomainException"/> with the problems if a room that stays still has a door to one of them. A draft of a
+    /// retired room is left as it is.
+    /// </summary>
+    Task RetireAsync(IReadOnlyList<string> roomIds, Guid adminId, CancellationToken cancellationToken);
 
     /// <summary>
     /// Checks the room's draft together with the drafts of <paramref name="together"/> as <see cref="PublishAsync"/> does, and sets
@@ -409,10 +416,21 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
         await SaveAsync(cancellationToken);
     }
 
-    public async Task PublishAsync(string roomId, IReadOnlyList<string> together, Guid adminId, CancellationToken cancellationToken)
+    public async Task PublishAsync(string roomId, IReadOnlyList<string> together, Guid adminId, CancellationToken cancellationToken, IReadOnlyList<string>? retire = null)
     {
         var drafts = await DraftsOfAsync(roomId, together, cancellationToken);
-        await PublishAsync(drafts, adminId, "published", _ => string.Empty, cancellationToken);
+        await PublishAsync(drafts, adminId, "published", _ => string.Empty, cancellationToken, retire ?? []);
+    }
+
+    public async Task RetireAsync(IReadOnlyList<string> roomIds, Guid adminId, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(roomIds);
+        if (roomIds.Count == 0)
+        {
+            throw new DomainException("Say which rooms to retire.");
+        }
+
+        await PublishAsync([], adminId, "published", _ => string.Empty, cancellationToken, roomIds);
     }
 
     public async Task ScheduleAsync(string roomId, IReadOnlyList<string> together, DateTimeOffset at, Guid adminId, CancellationToken cancellationToken)
@@ -756,15 +774,40 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
     private static Dictionary<string, RoomLook> LooksOf(IEnumerable<RoomVersion> drafts) =>
         drafts.Where(d => d.Look is not null).ToDictionary(d => d.RoomId, d => d.Look!);
 
-    private async Task PublishAsync(List<RoomVersion> drafts, Guid? adminId, string action, Func<RoomVersion, string> note, CancellationToken cancellationToken)
+    private async Task PublishAsync(
+        List<RoomVersion> drafts, Guid? adminId, string action, Func<RoomVersion, string> note, CancellationToken cancellationToken, IReadOnlyList<string>? retire = null)
     {
-        ThrowIfProblems(await ProblemsWithAsync(drafts.ToDictionary(d => d.RoomId, d => d.Layout), LooksOf(drafts), cancellationToken));
+        string[] retired = [.. (retire ?? []).Distinct()];
         var draftIds = drafts.Select(d => d.Id).ToList();
         var roomIds = drafts.Select(d => d.RoomId).ToList();
+        if (roomIds.Intersect(retired).FirstOrDefault() is { } both)
+        {
+            throw new DomainException($"{both} cannot be published and retired together.");
+        }
+
+        var live = await db.RoomVersions.AsNoTracking().Where(v => v.State == RoomVersionState.Published).Select(v => v.RoomId).ToListAsync(cancellationToken);
+        if (retired.Where(id => !live.Contains(id)).ToList() is { Count: > 0 } notLive)
+        {
+            throw new DomainException($"{string.Join(", ", notLive)} is not live, so it cannot be retired.");
+        }
+
+        ThrowIfProblems(await ProblemsWithAsync(drafts.ToDictionary(d => d.RoomId, d => d.Layout), LooksOf(drafts), cancellationToken, retired));
         try
         {
             await db.InTransactionAsync(async ct =>
             {
+                var going = await db.RoomVersions.Where(v => retired.Contains(v.RoomId) && v.State == RoomVersionState.Published).ToListAsync(ct);
+                foreach (var version in going)
+                {
+                    version.Archive();
+                    Audit(adminId, "retired", version.RoomId, $"version {version.Number} taken out of the game");
+                }
+
+                if (going.Count > 0)
+                {
+                    await db.SaveChangesAsync(ct);
+                }
+
                 var current = await db.RoomVersions.Where(v => roomIds.Contains(v.RoomId) && v.State == RoomVersionState.Published).ToListAsync(ct);
                 foreach (var version in current)
                 {
@@ -848,9 +891,15 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             look is null ? new Dictionary<string, RoomLook>() : new Dictionary<string, RoomLook> { [roomId] = look },
             cancellationToken);
 
-    private async Task<IReadOnlyList<string>> ProblemsWithAsync(IReadOnlyDictionary<string, RoomLayout> replaced, IReadOnlyDictionary<string, RoomLook> looksOf, CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<string>> ProblemsWithAsync(
+        IReadOnlyDictionary<string, RoomLayout> replaced, IReadOnlyDictionary<string, RoomLook> looksOf, CancellationToken cancellationToken, IReadOnlyCollection<string>? retired = null)
     {
         var layouts = await PublishedLayoutsAsync(cancellationToken);
+        foreach (var id in retired ?? [])
+        {
+            layouts.Remove(id);
+        }
+
         foreach (var (id, layout) in replaced)
         {
             layouts[id] = layout;
