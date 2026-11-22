@@ -230,6 +230,8 @@ function modelShape(name: string, scale: number, grow: number): VertexData {
   data.positions = positions;
   data.indices = indices;
   data.normals = normals;
+  // Merged with boxes and balls, which have texture coordinates: every piece needs the same attributes.
+  data.uvs = new Array((positions.length / 3) * 2).fill(0);
   return data;
 }
 

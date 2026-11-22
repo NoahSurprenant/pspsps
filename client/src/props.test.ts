@@ -30,6 +30,16 @@ describe("props", () => {
     expect(colours.size).toBeGreaterThan(5);
   });
 
+  it("builds a model part together with boxes and balls", () => {
+    const parts: Part[] = [
+      { shape: "box", width: 1, height: 1, depth: 1, at: [3, 0.5, 0], colour: "#c98f5a" },
+      { shape: "model", model: "town-house", scale: 3, at: [0, 0, 0], colour: "#ffffff" },
+      { shape: "ball", diameter: 1, at: [-3, 0.5, 0], colour: "#6fae5f" },
+    ];
+
+    expect(buildParts(new Scene(new NullEngine()), "mixed", parts)?.getTotalVertices()).toBeGreaterThan(1468);
+  });
+
   // The kinds the server places, read from its source (src/Pspsps.Domain/Rooms/Prop.cs, PropKinds): a kind added there
   // and not drawn here would be missing from the room without a word.
   it("draws exactly the kinds of prop the server places", () => {
