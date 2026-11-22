@@ -6,6 +6,8 @@ name: Live check
 
 on:
   workflow_dispatch:
+  push:
+    branches: [live-check]
 
 permissions:
   contents: read
