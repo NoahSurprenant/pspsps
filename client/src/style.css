@@ -275,14 +275,6 @@ button:disabled {
   }
 }
 
-/* On a phone the island is small and crowded: a place is the dot itself, so neighbours do not cover each other. */
-@media (max-width: 40rem) {
-  .map-place {
-    min-width: 1.5rem;
-    min-height: 1.5rem;
-  }
-}
-
 .map-caption {
   margin: 0;
   min-height: 1.3em;
