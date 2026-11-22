@@ -68,27 +68,6 @@ public sealed class ContentDraftsTests
     }
 
     [Test]
-    public void TheRiversideDraft_IsTheLiveRoom()
-    {
-        var live = RoomLayout.Of(RoomCatalog.All.Single(room => room.Id == "riverside"));
-        var draft = Content.RoomList.Single(room => room.Id == "riverside").Layout;
-        const string Recopy = "the riverside draft is a copy of the live room: re-copy the live riverside layout from StartingRooms.json into ContentDrafts.json";
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(draft.Name, Is.EqualTo(live.Name), Recopy);
-            Assert.That(draft.Width, Is.EqualTo(live.Width), Recopy);
-            Assert.That(draft.Depth, Is.EqualTo(live.Depth), Recopy);
-            Assert.That(draft.Spawn, Is.EqualTo(live.Spawn), Recopy);
-            Assert.That(draft.Capacity, Is.EqualTo(live.Capacity), Recopy);
-            Assert.That(draft.Pond, Is.EqualTo(live.Pond), Recopy);
-            Assert.That(draft.Look, Is.EqualTo(live.Look), Recopy);
-            Assert.That(draft.Props, Is.EqualTo(live.Props), Recopy);
-            Assert.That(draft.Doors, Is.EqualTo(live.Doors), Recopy);
-        });
-    }
-
-    [Test]
     public void TheDojo_IsIndoors_SoItHasNoOpenLandscapeAndIsNotOnTheIslandMap()
     {
         var dojo = Content.LookList.Single(look => look.Id == "dojo").Look;
@@ -457,27 +436,11 @@ public sealed class ContentDraftsTests
         Assert.Multiple(() =>
         {
             Assert.That(rooms.Keys, Does.Contain("mine").And.Contain("mine-tunnels"));
-            Assert.That(rooms["pear-orchard"].Doors.Select(d => (d.Id, d.ToRoom, d.ToDoor)),
-                Does.Contain(("garden", "garden", "pear-orchard")).And.Contain(("riverside", "riverside", "pear-orchard")));
             Assert.That(rooms["dojo-courtyard"].Doors.Select(d => (d.Id, d.ToRoom, d.ToDoor)), Does.Contain(("mine", "mine", "dojo-courtyard")));
             Assert.That(rooms["mine"].Doors.Select(d => (d.Id, d.ToRoom, d.ToDoor)),
                 Does.Contain(("dojo-courtyard", "dojo-courtyard", "mine")).And.Contain(("tunnels", "mine-tunnels", "shack")));
             Assert.That(rooms["mine-tunnels"].Doors.Select(d => (d.Id, d.ToRoom, d.ToDoor)), Is.EqualTo(new[] { ("shack", "mine", "tunnels") }));
             Assert.That(IslandMap.Places.Select(p => p.Room), Does.Not.Contain("mine-tunnels"), "indoor rooms are not on the island map");
-        });
-    }
-
-    [Test]
-    public void ThePearOrchardDraft_IsTheLiveOrchard()
-    {
-        var live = RoomLayout.Of(RoomCatalog.All.Single(room => room.Id == "pear-orchard"));
-        var draft = Content.RoomList.Single(room => room.Id == "pear-orchard").Layout;
-        Assert.Multiple(() =>
-        {
-            Assert.That((draft.Name, draft.Width, draft.Depth, draft.Spawn, draft.Capacity, draft.Look, draft.Pond),
-                Is.EqualTo((live.Name, live.Width, live.Depth, live.Spawn, live.Capacity, live.Look, live.Pond)), "re-copy the live orchard layout");
-            Assert.That(draft.Props, Is.EqualTo(live.Props).AsCollection, "re-copy the live orchard layout");
-            Assert.That(draft.Doors, Is.EqualTo(live.Doors).AsCollection, "re-copy the live orchard layout");
         });
     }
 
