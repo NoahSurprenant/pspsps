@@ -169,6 +169,22 @@ export function requestFor(
   return { action, reason: why, ...(action === "mute" || action === "ban" ? { length } : {}) };
 }
 
+/** What the admin is told once a ban is done. */
+function banMessage(request: ModerationRequest, name: string, length: string | undefined): string {
+  const count = request.networks?.length ?? 0;
+  const networkLength = networkLengths.find((choice) => choice.value === request.networkLength)?.label.toLowerCase();
+  if (request.networksOnly) {
+    const which = count === 1 ? `${name}'s network is` : `${count} of ${name}'s networks are`;
+    return `${which} banned for ${networkLength ?? "a while"}.`;
+  }
+  const banned = request.length === "permanent" ? `${name} is banned for good` : `${name} is banned for ${length ?? "a while"}`;
+  if (count === 0) {
+    return `${banned}.`;
+  }
+  const theirs = count === 1 ? "their network" : `${count} of their networks`;
+  return `${banned}, and ${theirs} for ${networkLength ?? "a while"}.`;
+}
+
 /** What the admin is told once an action is done. */
 export function doneMessage(request: ModerationRequest, name: string): string {
   const length = [...muteLengths, ...banLengths].find((choice) => choice.value === request.length)?.label.toLowerCase();
@@ -177,21 +193,8 @@ export function doneMessage(request: ModerationRequest, name: string): string {
       return `${name} was warned.`;
     case "mute":
       return `${name} is muted for ${length ?? "a while"}.`;
-    case "ban": {
-      if (request.networksOnly) {
-        const count = request.networks?.length ?? 0;
-        const networkLength = networkLengths.find((choice) => choice.value === request.networkLength)?.label.toLowerCase();
-        const which = count === 1 ? `${name}'s network is` : `${count} of ${name}'s networks are`;
-        return `${which} banned for ${networkLength ?? "a while"}.`;
-      }
-      const banned = request.length === "permanent" ? `${name} is banned for good` : `${name} is banned for ${length ?? "a while"}`;
-      const count = request.networks?.length ?? 0;
-      if (count === 0) {
-        return `${banned}.`;
-      }
-      const networkLength = networkLengths.find((choice) => choice.value === request.networkLength)?.label.toLowerCase();
-      return `${banned}, and ${count === 1 ? "their network" : `${count} of their networks`} for ${networkLength ?? "a while"}.`;
-    }
+    case "ban":
+      return banMessage(request, name, length);
     case "lift":
       if (request.liftCat === false) {
         return `${name}'s networks can play again.`;

@@ -194,6 +194,22 @@ export function lookOf(roomId: string, variant?: string | null): RoomLook {
   return look;
 }
 
+/** The windows of one backdrop house. */
+function houseWindows(house: { from: number; to: number; height: number }, plan: Floorplan, wallHeight: number, width: number, front: number): Part[] {
+  const parts: Part[] = [];
+  const windows = Math.max(1, Math.round(width / 1.9));
+  for (let w = 0; w < windows; w++) {
+    const x = house.from + 0.05 + (width / windows) * (w + 0.5);
+    // The ground floor shows only past the square's ends: the back wall hides it, and its painted front stands for it.
+    const besideTheSquare = Math.abs(x) - 0.4 >= plan.width / 2;
+    const floors = [...(besideTheSquare ? [1.7] : []), wallHeight + 1.1, wallHeight + 2.7].filter((y) => y + 0.6 < house.height);
+    for (const y of floors) {
+      parts.push({ shape: "box", width: 0.8, height: 1.0, depth: 0.06, at: [x, y, front - 0.02], colour: paints.glass });
+    }
+  }
+  return parts;
+}
+
 /**
  * The rest of the houses whose ground floors are the square's back wall, standing behind it with their roofs, upper
  * windows and chimneys; trees behind them, hills and clouds further off. Past the square's ends the houses stand on the
@@ -216,16 +232,7 @@ function townBackdrop(plan: Floorplan, wallHeight: number): Part[] {
     if (i % 2 === 0) {
       parts.push({ shape: "box", width: 0.45, height: 1.6, depth: 0.45, at: [middle + width / 4, house.height + 1.2, front + depth / 2 + 0.4], colour: house.roof });
     }
-    const windows = Math.max(1, Math.round(width / 1.9));
-    for (let w = 0; w < windows; w++) {
-      const x = house.from + 0.05 + (width / windows) * (w + 0.5);
-      // The ground floor shows only past the square's ends: the back wall hides it, and its painted front stands for it.
-      const besideTheSquare = Math.abs(x) - 0.4 >= plan.width / 2;
-      const floors = [...(besideTheSquare ? [1.7] : []), wallHeight + 1.1, wallHeight + 2.7].filter((y) => y + 0.6 < house.height);
-      for (const y of floors) {
-        parts.push({ shape: "box", width: 0.8, height: 1.0, depth: 0.06, at: [x, y, front - 0.02], colour: paints.glass });
-      }
-    }
+    parts.push(...houseWindows(house, plan, wallHeight, width, front));
   }
   // Trees between the houses' roofs.
   for (const [x, height] of [[-21.5, 8.6], [-11, 7.8], [0, 8.4], [12, 7.8], [22, 8.4]] as const) {
