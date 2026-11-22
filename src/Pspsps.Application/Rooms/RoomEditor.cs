@@ -578,7 +578,11 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
 
         Audit(adminId, "overlay-saved", $"{overlay.RoomId}/{overlay.Id}", overlay.Name);
         await SaveAsync(cancellationToken);
-        await library.RefreshAsync(cancellationToken);
+        if (checkAgainstLive)
+        {
+            // Skipped for an overlay checked against a draft: the live rooms would reject it until that draft is published, which refreshes them.
+            await library.RefreshAsync(cancellationToken);
+        }
     }
 
     public async Task DeleteOverlayAsync(string roomId, string overlayId, Guid adminId, CancellationToken cancellationToken)
