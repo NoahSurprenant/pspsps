@@ -120,6 +120,13 @@
             "offset": 0,
             "toRoom": "market-row",
             "toDoor": "town-square"
+          },
+          {
+            "id": "riverside",
+            "edge": "South",
+            "offset": 6.4,
+            "toRoom": "riverside",
+            "toDoor": "town-square"
           }
         ]
       }
