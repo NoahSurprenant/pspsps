@@ -835,28 +835,10 @@
             "facing": 0
           },
           {
-            "kind": "fountain",
-            "spot": {
-              "x": 0.5,
-              "z": 1.4
-            },
-            "radius": 1.35,
-            "facing": 0
-          },
-          {
             "kind": "flower-bed",
             "spot": {
               "x": -6.2,
               "z": 0.6
-            },
-            "radius": 0.9,
-            "facing": 0
-          },
-          {
-            "kind": "flower-bed",
-            "spot": {
-              "x": 6.2,
-              "z": 1.4
             },
             "radius": 0.9,
             "facing": 0
