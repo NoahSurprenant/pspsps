@@ -202,12 +202,12 @@ public sealed class NetworkBanTests
 
         var bytes = Convert.ToHexStringLower(IPAddress.Parse(Address).GetAddressBytes());
         Assert.That(rows, Has.None.Contains(Address).And.None.Contains(bytes));
-        var kept = db.PlayerAddresses.AsNoTracking().Where(a => a.PlayerId == felix.Id).Select(a => a.AddressHash).ToList();
+        var kept = await db.PlayerAddresses.AsNoTracking().Where(a => a.PlayerId == felix.Id).Select(a => a.AddressHash).ToListAsync();
         Assert.That(kept, Is.EqualTo(new[] { Hashes.HashOf(IPAddress.Parse(Address)) }), "a keyed hash of it, only");
-        var trail = db.ModerationEntries.AsNoTracking()
+        var trail = await db.ModerationEntries.AsNoTracking()
             .Where(e => e.PlayerId == felix.Id && e.Address != null)
             .Select(e => new { e.Kind, e.Address })
-            .ToList();
+            .ToListAsync();
         Assert.That(trail.Select(e => e.Kind), Is.EquivalentTo(new[] { ModerationKind.AddressBanned, ModerationKind.AddressBanLifted }));
         Assert.That(trail.Select(e => e.Address), Has.All.EqualTo(kept[0][..8]), "the audit trail has the label");
     }
