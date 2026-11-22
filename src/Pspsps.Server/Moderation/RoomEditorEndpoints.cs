@@ -110,6 +110,13 @@ public static class RoomEditorEndpoints
                 return Results.NoContent();
             }));
 
+        looks.MapDelete("/rooms/{id}/draft", (string id, HttpRequest request, ClaimsPrincipal user, IModerationService moderation, IRoomEditor editor) =>
+            Change(request, user, moderation, async adminId =>
+            {
+                await editor.ClearDraftLookAsync(id, adminId, CancellationToken.None);
+                return Results.NoContent();
+            }));
+
         looks.MapPut("/variants/{name}", (string name, LookVariant variant, HttpRequest request, ClaimsPrincipal user, IModerationService moderation, IRoomEditor editor) =>
             Change(request, user, moderation, async adminId =>
             {

@@ -660,6 +660,11 @@ public sealed class RoomEditorHttpTests
                 Assert.That(Json(liveAfter?.Look), Is.EqualTo(Json(look)), "publishing puts it live");
                 Assert.That(Json(exported.Look), Is.EqualTo(Json(look)), "an export carries the room's look with it");
             });
+
+            await editor.RollbackAsync("cafe", number, adminPlayer.Id, CancellationToken.None);
+            var rolledBack = await Db().RoomLooks.AsNoTracking().SingleAsync(l => l.Id == "cafe");
+
+            Assert.That(Json(rolledBack.Look), Is.EqualTo(Json(original)), "going back to a version brings back the look it went live with");
         }
         finally
         {
@@ -674,6 +679,89 @@ public sealed class RoomEditorHttpTests
             await db.SaveChangesAsync();
         }
     }
+
+    private static async Task WithCafeAsync(Func<IRoomEditor, Guid, RoomDetail, Task> test)
+    {
+        var (adminPlayer, _) = await Game.SignInGuestAsync();
+        Game.Admins.Add(adminPlayer.Id);
+        var editor = Game.Get<IRoomEditor>();
+        var before = (await editor.GetAsync("cafe", CancellationToken.None))!;
+        try
+        {
+            await test(editor, adminPlayer.Id, before);
+        }
+        finally
+        {
+            if ((await editor.GetAsync("cafe", CancellationToken.None))?.Draft is not null)
+            {
+                await editor.DiscardDraftAsync("cafe", adminPlayer.Id, CancellationToken.None);
+            }
+        }
+    }
+
+    [Test]
+    public Task SavingTheLookOfAScheduledDraft_TakesTheScheduleOff_AndTheAuditSaysSo() => WithCafeAsync(async (editor, admin, before) =>
+    {
+        var look = new RoomLook("#102030", "#405060", "#708090", new LookBackdrop([]));
+        await editor.SaveDraftAsync("cafe", before.Published!, admin, null, CancellationToken.None);
+        await editor.ScheduleAsync("cafe", [], DateTimeOffset.UtcNow.AddDays(30), admin, CancellationToken.None);
+        await editor.SaveLookAsync("cafe", look, admin, CancellationToken.None);
+        var after = await editor.GetAsync("cafe", CancellationToken.None);
+        var audit = await editor.AuditAsync(20, CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(after!.GoLiveAt, Is.Null);
+            Assert.That(audit, Has.Some.Matches<AuditLine>(a => a.Action == "draft-look-saved" && a.Target == "cafe" && a.Detail.Contains("schedule was taken off")));
+        });
+    });
+
+    [Test]
+    public Task ADraftsLook_CanBeCleared_AndAFileRoomWithoutALookClearsIt() => WithCafeAsync(async (editor, admin, before) =>
+    {
+        var look = new RoomLook("#102030", "#405060", "#708090", new LookBackdrop([]));
+        await editor.SaveDraftAsync("cafe", before.Published!, admin, null, CancellationToken.None, look);
+        await editor.ClearDraftLookAsync("cafe", admin, CancellationToken.None);
+        var cleared = await editor.GetAsync("cafe", CancellationToken.None);
+        var again = Assert.ThrowsAsync<DomainException>(() => editor.ClearDraftLookAsync("cafe", admin, CancellationToken.None));
+
+        await editor.SaveLookAsync("cafe", look, admin, CancellationToken.None);
+        var changed = before.Published! with { Name = "Café changed" };
+        var report = await editor.ImportAsync(new ContentFile(Rooms: [new DraftRoom("cafe", changed)]), admin, CancellationToken.None);
+        var afterImport = await editor.GetAsync("cafe", CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(cleared!.DraftLook, Is.Null);
+            Assert.That(cleared.Draft, Is.Not.Null, "the draft itself stays");
+            Assert.That(again!.Message, Does.Contain("no draft with a look"));
+            Assert.That(report.Problems, Is.Empty);
+            Assert.That(afterImport!.DraftLook, Is.Null, "the file has no look for the room, so its draft is left with none");
+            Assert.That(afterImport.Draft!.Name, Is.EqualTo("Café changed"));
+        });
+    });
+
+    [Test]
+    public Task ARecipeNamedByADraftsLook_CannotBeDeleted() => WithCafeAsync(async (editor, admin, before) =>
+    {
+        var look = new RoomLook("#102030", "#405060", "#708090", new LookBackdrop([]), Floor: new LookPaint("recipe-draft-floor"));
+        await editor.SavePainterAsync("recipe-draft-floor", "floor", [new PaintStep("fill", Colour: "#808080")], admin, CancellationToken.None);
+        try
+        {
+            await editor.SaveDraftAsync("cafe", before.Published!, admin, null, CancellationToken.None, look);
+            var refused = Assert.ThrowsAsync<DomainException>(() => editor.DeletePainterAsync("recipe-draft-floor", admin, CancellationToken.None));
+            await editor.DiscardDraftAsync("cafe", admin, CancellationToken.None);
+            await editor.DeletePainterAsync("recipe-draft-floor", admin, CancellationToken.None);
+
+            Assert.That(refused!.Message, Does.Contain("cafe (draft)"));
+        }
+        finally
+        {
+            await using var db = Db();
+            db.PainterRecipes.RemoveRange(await db.PainterRecipes.Where(r => r.Id == "recipe-draft-floor").ToListAsync());
+            await db.SaveChangesAsync();
+        }
+    });
 
     [Test]
     public async Task LoadingTheContentFile_SavesWildlifeBeforeTheLookThatNamesIt()

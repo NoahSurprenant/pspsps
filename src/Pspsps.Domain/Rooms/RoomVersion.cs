@@ -104,6 +104,27 @@ public sealed class RoomVersion
         ScheduledBy = null;
     }
 
+    /// <summary>Takes the draft's own look away, so it goes live with the look the room has now; like any edit it takes a schedule off.</summary>
+    public void ClearLook()
+    {
+        if (State != RoomVersionState.Draft)
+        {
+            throw new DomainException("Only a draft can be edited: make a new draft from this version.");
+        }
+
+        Look = null;
+        Revision++;
+        GoLiveAt = null;
+        ScheduledBy = null;
+    }
+
+    /// <summary>Records the look that was in force for a version that has none of its own, so going back to it brings that look back.</summary>
+    public void KeepLook(RoomLook look)
+    {
+        ArgumentNullException.ThrowIfNull(look);
+        Look ??= look;
+    }
+
     public void Schedule(DateTimeOffset at, Guid adminId, DateTimeOffset now)
     {
         if (State != RoomVersionState.Draft)

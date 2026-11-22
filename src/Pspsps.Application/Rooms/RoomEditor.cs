@@ -97,6 +97,9 @@ public interface IRoomEditor
     /// </summary>
     Task SaveLookAsync(string id, RoomLook look, Guid adminId, CancellationToken cancellationToken);
 
+    /// <summary>Takes the look out of a room's draft, so the room goes live with the look it has now.</summary>
+    Task ClearDraftLookAsync(string id, Guid adminId, CancellationToken cancellationToken);
+
     Task SaveVariantAsync(string name, LookVariant variant, Guid adminId, CancellationToken cancellationToken);
 
     Task DeleteVariantAsync(string name, Guid adminId, CancellationToken cancellationToken);
@@ -255,7 +258,7 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             {
                 unchanged.Add($"room {room.Id}");
             }
-            else if (detail?.Draft is { } draft && Same(draft, room.Layout) && (room.Look is null || Same(detail.DraftLook ?? live, room.Look)))
+            else if (detail?.Draft is { } draft && Same(draft, room.Layout) && (room.Look is null ? detail.DraftLook is null : Same(detail.DraftLook ?? live, room.Look)))
             {
                 unchanged.Add($"room {room.Id} (already a draft)");
             }
@@ -264,6 +267,11 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
                 try
                 {
                     await SaveDraftAsync(room.Id, room.Layout, adminId, null, cancellationToken, room.Look);
+                    if (room.Look is null && detail?.DraftLook is not null)
+                    {
+                        await ClearDraftLookAsync(room.Id, adminId, cancellationToken);
+                    }
+
                     applied.Add($"room {room.Id}: saved as a draft");
                 }
                 catch (DomainException exception)
@@ -563,6 +571,15 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
         await library.RefreshAsync(cancellationToken);
     }
 
+    public async Task ClearDraftLookAsync(string id, Guid adminId, CancellationToken cancellationToken)
+    {
+        var draft = await db.RoomVersions.FirstOrDefaultAsync(v => v.RoomId == id && v.State == RoomVersionState.Draft && v.Look != null, cancellationToken)
+            ?? throw new DomainException($"{id} has no draft with a look.");
+        draft.ClearLook();
+        Audit(adminId, "draft-look-cleared", id, $"version {draft.Number}");
+        await SaveAsync(cancellationToken);
+    }
+
     public async Task SaveLookAsync(string id, RoomLook look, Guid adminId, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(look);
@@ -572,6 +589,7 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
         if (versions.Count > 0)
         {
             ThrowIfProblems(look.Problems(id, names));
+            var scheduleRemoved = string.Empty;
             var draft = versions.FirstOrDefault(v => v.State == RoomVersionState.Draft);
             if (draft is null)
             {
@@ -581,10 +599,12 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             }
             else
             {
+                var wasScheduled = draft.GoLiveAt is not null;
                 draft.Edit(draft.Layout, look);
+                scheduleRemoved = wasScheduled ? " (its schedule was taken off)" : string.Empty;
             }
 
-            Audit(adminId, "draft-look-saved", id, $"version {draft.Number}");
+            Audit(adminId, "draft-look-saved", id, $"version {draft.Number}{scheduleRemoved}");
             await SaveAsync(cancellationToken);
             return;
         }
@@ -718,7 +738,11 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
     }
 
     private async Task<List<string>> UsedByLooksAsync(Func<RoomLook, bool> uses, CancellationToken cancellationToken) =>
-        [.. (await db.RoomLooks.AsNoTracking().ToListAsync(cancellationToken)).Where(entry => uses(entry.Look)).Select(entry => entry.Id)];
+    [
+        .. (await db.RoomLooks.AsNoTracking().ToListAsync(cancellationToken)).Where(entry => uses(entry.Look)).Select(entry => entry.Id),
+        .. (await db.RoomVersions.AsNoTracking().Where(v => v.State == RoomVersionState.Draft).ToListAsync(cancellationToken))
+            .Where(v => v.Look is not null && uses(v.Look)).Select(v => $"{v.RoomId} (draft)"),
+    ];
 
     public async Task<IReadOnlyList<AuditLine>> AuditAsync(int limit, CancellationToken cancellationToken) =>
         [.. (await db.RoomAudit.AsNoTracking().OrderByDescending(a => a.At).Take(Math.Clamp(limit, 1, 500)).ToListAsync(cancellationToken))
@@ -726,6 +750,8 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
 
     private void Audit(Guid? adminId, string action, string target, string detail) =>
         db.RoomAudit.Add(RoomAuditEntry.Of(adminId, action, target, detail, time.GetUtcNow()));
+
+    private static bool SameLook(RoomLook a, RoomLook b) => JsonSerializer.Serialize(a, ContentFile.Json) == JsonSerializer.Serialize(b, ContentFile.Json);
 
     private static Dictionary<string, RoomLook> LooksOf(IEnumerable<RoomVersion> drafts) =>
         drafts.Where(d => d.Look is not null).ToDictionary(d => d.RoomId, d => d.Look!);
@@ -756,11 +782,22 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
                 foreach (var draft in await db.RoomVersions.Where(v => draftIds.Contains(v.Id)).ToListAsync(ct))
                 {
                     var extra = note(draft);
+                    liveLooks.TryGetValue(draft.RoomId, out var entry);
+                    if (entry is not null)
+                    {
+                        foreach (var version in current.Where(v => v.RoomId == draft.RoomId))
+                        {
+                            version.KeepLook(entry.Look);
+                        }
+
+                        draft.KeepLook(entry.Look);
+                    }
+
                     draft.Publish(now);
                     Audit(adminId, action, draft.RoomId, $"version {draft.Number}{extra}");
-                    if (draft.Look is { } look)
+                    if (draft.Look is { } look && (entry is null || !SameLook(entry.Look, look)))
                     {
-                        if (liveLooks.TryGetValue(draft.RoomId, out var entry))
+                        if (entry is not null)
                         {
                             entry.Replace(look, now, names);
                         }

@@ -104,6 +104,30 @@ public sealed class RoomVersionTests
     }
 
     [Test]
+    public void ADraftsLook_CanBeCleared_TakingASchedule_AndAVersionKeepsTheLookItWentLiveWith()
+    {
+        var admin = Guid.NewGuid();
+        var look = new RoomLook("#112233", "#445566", "#778899", new LookBackdrop([]));
+        var draft = RoomVersion.Draft("shop", 2, Layout, admin, Now, look);
+        draft.Schedule(Now.AddDays(1), admin, Now);
+        var revision = draft.Revision;
+
+        draft.ClearLook();
+        var bare = RoomVersion.Draft("shop", 3, Layout, admin, Now);
+        bare.KeepLook(look);
+        bare.KeepLook(look with { Sky = "#000000" });
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(draft.Look, Is.Null);
+            Assert.That(draft.GoLiveAt, Is.Null);
+            Assert.That(draft.Revision, Is.EqualTo(revision + 1));
+            Assert.That(bare.Look, Is.EqualTo(look), "a look already kept is not replaced");
+            Assert.That(() => RoomVersion.Published("shop", Layout, Now).ClearLook(), Throws.TypeOf<DomainException>());
+        });
+    }
+
+    [Test]
     public void ADraft_ScheduledForLater_IsTakenOffByEditingItOrPublishingIt()
     {
         var admin = Guid.NewGuid();

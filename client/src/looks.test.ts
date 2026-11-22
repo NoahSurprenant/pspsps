@@ -162,21 +162,30 @@ describe("looks as data", () => {
     expect(lookOf("loft").paintFloor).toBeUndefined();
   });
 
-  it("shows a draft's look in place of the live one, with a new paint key each time so pictures are redrawn", () => {
+  it("shows a draft's look in place of the live one, kept under its own paint key, and the same key for the same look", () => {
     setLooks({ rooms: [{ id: "loft", look: newRoom }], variants: [] });
     const live = lookOf("loft");
 
     setDraftLook("loft", { ...newRoom, sky: "#abcdef", openLandscape: true });
     const first = lookOf("loft");
-    setDraftLook("loft", { ...newRoom, sky: "#fedcba" });
+    setDraftLook("loft", { ...newRoom, sky: "#fedcba", floor: { painter: "tiles", colour: "#aa8855" } });
     const second = lookOf("loft");
+    setDraftLook("loft", { ...newRoom, sky: "#fedcba", floor: { painter: "tiles", colour: "#aa8855" } });
+    const again = lookOf("loft");
 
-    expect(live.paintKey).toBeUndefined();
     expect(first.sky).toBe("#abcdef");
     expect(second.sky).toBe("#fedcba");
-    expect(first.paintKey).toBeDefined();
-    expect(second.paintKey).not.toBe(first.paintKey);
+    expect(new Set([live.paintKey, first.paintKey, second.paintKey]).size).toBe(3);
+    expect(again.paintKey).toBe(second.paintKey);
     expect(openLandscape("loft")).toBe(false);
+  });
+
+  it("gives a live room a new paint key when its look changes, so a published change is redrawn", () => {
+    setLooks({ rooms: [{ id: "loft", look: newRoom }], variants: [] });
+    const before = lookOf("loft").paintKey;
+    setLooks({ rooms: [{ id: "loft", look: { ...newRoom, floorColour: "#000000", floor: { painter: "planks", colour: "#000000" } } }], variants: [] });
+
+    expect(lookOf("loft").paintKey).not.toBe(before);
   });
 
   it("knows which rooms are open countryside, from their looks", () => {
