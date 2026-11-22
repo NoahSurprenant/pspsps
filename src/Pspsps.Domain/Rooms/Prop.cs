@@ -72,6 +72,25 @@ public static class PropKinds
     public const string TownHouse = "town-house";
     public const string TownHotel = "town-hotel";
     public const string TownMall = "town-mall";
+    public const string FieldSandcastle = "field-sandcastle";
+    public const string FieldSandcastleSmall = "field-sandcastle-small";
+    public const string FieldBucket = "field-bucket";
+    public const string FieldSapling = "field-sapling";
+    public const string FieldPine = "field-pine";
+    public const string FieldBush = "field-bush";
+    public const string FieldRock = "field-rock";
+    public const string FieldLog = "field-log";
+    public const string FieldStump = "field-stump";
+    public const string FieldSurfShack = "field-surf-shack";
+    public const string FieldBonfire = "field-bonfire";
+    public const string FieldTowel = "field-towel";
+    public const string FieldUmbrella = "field-umbrella";
+    public const string FieldSurfboards = "field-surfboards";
+    public const string FieldLifeguardChair = "field-lifeguard-chair";
+    public const string FieldCornerFlag = "field-corner-flag";
+    public const string FieldBall = "field-ball";
+    public const string FieldCone = "field-cone";
+    public const string FieldSignpost = "field-signpost";
 
     public static IReadOnlyList<string> All { get; } =
     [
@@ -81,5 +100,8 @@ public static class PropKinds
         CatalogueStand, HatShelf, ShopCounter, Mirror, BookStack, Globe, YarnNook, WindowSeat,
         MarketStall, PizzaTable, PizzaOven, Stage, SpeakerStack, LightRig, FishBarrel, YarnBasket, MarketCart, Chalkboard,
         DoughTable, WoodStack, FishTank, Jukebox, DjBooth, BarStool, VelvetRope, Podium, Fountain, TownHouse, TownHotel, TownMall,
+        FieldSandcastle, FieldSandcastleSmall, FieldBucket, FieldSapling, FieldPine, FieldBush, FieldRock, FieldLog, FieldStump,
+        FieldSurfShack, FieldBonfire, FieldTowel, FieldUmbrella, FieldSurfboards, FieldLifeguardChair, FieldCornerFlag, FieldBall,
+        FieldCone, FieldSignpost,
     ];
 }
