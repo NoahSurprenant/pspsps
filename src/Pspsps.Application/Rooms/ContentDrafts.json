@@ -700,15 +700,6 @@
             "facing": 0
           },
           {
-            "kind": "market-cart",
-            "spot": {
-              "x": 12.5,
-              "z": 0.2
-            },
-            "radius": 1.46,
-            "facing": 0
-          },
-          {
             "kind": "cat-tree",
             "spot": {
               "x": -12.6,
