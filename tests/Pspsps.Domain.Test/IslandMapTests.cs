@@ -67,7 +67,7 @@ public sealed class IslandMapTests
     private static readonly Dictionary<string, (double Across, double Down)> Reference = new()
     {
         ["town-square"] = (66, 60),
-        ["market-row"] = (36, 60),
+        ["plaza"] = (36, 60),
         ["ice-rink"] = (43, 44),
         ["scratching-peaks"] = (29, 48),
         ["dojo-courtyard"] = (60, 29),

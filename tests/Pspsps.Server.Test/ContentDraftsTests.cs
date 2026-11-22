@@ -131,9 +131,9 @@ public sealed class ContentDraftsTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(layouts["market-row"].Doors.Any(door => door.ToRoom == "ice-rink" && door.ToDoor == "market-row"), Is.True, "a way from the market row");
-            Assert.That(layouts["ice-rink"].Doors.Any(door => door.ToRoom == "market-row" && door.ToDoor == "ice-rink"), Is.True, "and back");
-            Assert.That(layouts["town-square"].Doors.Any(door => door.ToRoom == "market-row"), Is.True, "the market row is reached from the square");
+            Assert.That(layouts["plaza"].Doors.Any(door => door.ToRoom == "ice-rink" && door.ToDoor == "plaza"), Is.True, "a way from the market row");
+            Assert.That(layouts["ice-rink"].Doors.Any(door => door.ToRoom == "plaza" && door.ToDoor == "ice-rink"), Is.True, "and back");
+            Assert.That(layouts["town-square"].Doors.Any(door => door.ToRoom == "plaza"), Is.True, "the plaza is reached from the square");
         });
     }
 
@@ -285,13 +285,13 @@ public sealed class ContentDraftsTests
     }
 
     [Test]
-    public void MarketRow_IsOnTheMap_AndEveryDoorBetweenItsRoomsHasAMatchingOneBack()
+    public void Plaza_IsOnTheMap_AndEveryDoorBetweenItsRoomsHasAMatchingOneBack()
     {
         var layouts = Content.RoomList.ToDictionary(room => room.Id, room => room.Layout);
         Assert.Multiple(() =>
         {
-            Assert.That(IslandMap.Places.Single(place => place.Id == "market-row").Room, Is.EqualTo("market-row"));
-            foreach (var (room, other) in new[] { ("town-square", "market-row"), ("market-row", "pizza-parlor"), ("market-row", "night-club") })
+            Assert.That(IslandMap.Places.Single(place => place.Id == "plaza").Room, Is.EqualTo("plaza"));
+            foreach (var (room, other) in new[] { ("town-square", "plaza"), ("plaza", "pizza-parlor"), ("plaza", "pet-shop"), ("town-square", "night-club") })
             {
                 var there = layouts[room].Doors.Single(door => door.ToRoom == other);
                 var back = layouts[other].Doors.Single(door => door.ToRoom == room);
@@ -299,10 +299,10 @@ public sealed class ContentDraftsTests
             }
 
             // A shop door in the street is under its own sign: the way back out of a shop stands at the same x along the street.
-            foreach (var shop in new[] { "pizza-parlor", "night-club" })
+            foreach (var shop in new[] { "pizza-parlor", "pet-shop" })
             {
-                var street = layouts["market-row"].Doors.Single(door => door.ToRoom == shop);
-                var inside = layouts[shop].Doors.Single(door => door.ToRoom == "market-row");
+                var street = layouts["plaza"].Doors.Single(door => door.ToRoom == shop);
+                var inside = layouts[shop].Doors.Single(door => door.ToRoom == "plaza");
                 Assert.That(inside.Offset, Is.EqualTo(street.Offset), $"{shop}'s way out is at the street door's offset");
             }
         });
@@ -321,9 +321,10 @@ public sealed class ContentDraftsTests
     }
 
     /// <summary>Backdrop parts are not part of the prop-placement checks, so this keeps the rooms' decoration off their walks, props and ponds (see <see cref="BackdropClearance"/>).</summary>
-    [TestCase("market-row")]
+    [TestCase("plaza")]
     [TestCase("pizza-parlor")]
     [TestCase("night-club")]
+    [TestCase("pet-shop")]
     public void TheBackdropOf_KeepsClearOfTheWalksThePropsAndThePond(string id)
     {
         var layout = Content.RoomList.Single(room => room.Id == id).Layout;
