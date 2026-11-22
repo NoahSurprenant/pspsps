@@ -772,15 +772,6 @@
             "facing": -0.3
           },
           {
-            "kind": "chalkboard",
-            "spot": {
-              "x": 7.2,
-              "z": 3.2
-            },
-            "radius": 0.62,
-            "facing": 0.3
-          },
-          {
             "kind": "flower-bed",
             "spot": {
               "x": 7.4,
