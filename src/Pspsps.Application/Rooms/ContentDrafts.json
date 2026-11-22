@@ -6518,6 +6518,178 @@
                 "colour": "#b7a98c",
                 "sides": 16,
                 "outlined": false
+              },
+              {
+                "shape": "box",
+                "width": 1.1,
+                "height": 0.02,
+                "depth": 0.55,
+                "at": [
+                  -6,
+                  0.011,
+                  -0.4
+                ],
+                "colour": "#d9cdb4"
+              },
+              {
+                "shape": "box",
+                "width": 1.1,
+                "height": 0.02,
+                "depth": 0.55,
+                "at": [
+                  -4.8,
+                  0.011,
+                  -0.4
+                ],
+                "colour": "#e6dcc8"
+              },
+              {
+                "shape": "box",
+                "width": 1.1,
+                "height": 0.02,
+                "depth": 0.55,
+                "at": [
+                  -3.5999999999999996,
+                  0.011,
+                  -0.4
+                ],
+                "colour": "#d9cdb4"
+              },
+              {
+                "shape": "box",
+                "width": 1.1,
+                "height": 0.02,
+                "depth": 0.55,
+                "at": [
+                  -2.4,
+                  0.011,
+                  -0.4
+                ],
+                "colour": "#e6dcc8"
+              },
+              {
+                "shape": "box",
+                "width": 1.1,
+                "height": 0.02,
+                "depth": 0.55,
+                "at": [
+                  -1.2,
+                  0.011,
+                  -0.4
+                ],
+                "colour": "#d9cdb4"
+              },
+              {
+                "shape": "box",
+                "width": 1.1,
+                "height": 0.02,
+                "depth": 0.55,
+                "at": [
+                  0,
+                  0.011,
+                  -0.4
+                ],
+                "colour": "#e6dcc8"
+              },
+              {
+                "shape": "box",
+                "width": 1.1,
+                "height": 0.02,
+                "depth": 0.55,
+                "at": [
+                  1.2,
+                  0.011,
+                  -0.4
+                ],
+                "colour": "#d9cdb4"
+              },
+              {
+                "shape": "box",
+                "width": 1.1,
+                "height": 0.02,
+                "depth": 0.55,
+                "at": [
+                  2.4,
+                  0.011,
+                  -0.4
+                ],
+                "colour": "#e6dcc8"
+              },
+              {
+                "shape": "box",
+                "width": 1.1,
+                "height": 0.02,
+                "depth": 0.55,
+                "at": [
+                  3.5999999999999996,
+                  0.011,
+                  -0.4
+                ],
+                "colour": "#d9cdb4"
+              },
+              {
+                "shape": "box",
+                "width": 1.1,
+                "height": 0.02,
+                "depth": 0.55,
+                "at": [
+                  4.8,
+                  0.011,
+                  -0.4
+                ],
+                "colour": "#e6dcc8"
+              },
+              {
+                "shape": "box",
+                "width": 1.1,
+                "height": 0.02,
+                "depth": 0.55,
+                "at": [
+                  6,
+                  0.011,
+                  -0.4
+                ],
+                "colour": "#d9cdb4"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.7,
+                "at": [
+                  -6.6,
+                  0.25,
+                  1.2
+                ],
+                "colour": "#e9a4c2"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.5,
+                "at": [
+                  -6.199999999999999,
+                  0.2,
+                  1.5
+                ],
+                "colour": "#f2c14e"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.7,
+                "at": [
+                  6.6,
+                  0.25,
+                  1.2
+                ],
+                "colour": "#e9a4c2"
+              },
+              {
+                "shape": "ball",
+                "diameter": 0.5,
+                "at": [
+                  7,
+                  0.2,
+                  1.5
+                ],
+                "colour": "#f2c14e"
               }
             ]
           }
