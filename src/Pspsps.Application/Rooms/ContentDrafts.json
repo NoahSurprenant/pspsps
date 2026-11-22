@@ -6653,36 +6653,6 @@
               },
               {
                 "shape": "ball",
-                "diameter": 0.7,
-                "at": [
-                  -6.6,
-                  0.25,
-                  1.2
-                ],
-                "colour": "#e9a4c2"
-              },
-              {
-                "shape": "ball",
-                "diameter": 0.5,
-                "at": [
-                  -6.199999999999999,
-                  0.2,
-                  1.5
-                ],
-                "colour": "#f2c14e"
-              },
-              {
-                "shape": "ball",
-                "diameter": 0.7,
-                "at": [
-                  6.6,
-                  0.25,
-                  1.2
-                ],
-                "colour": "#e9a4c2"
-              },
-              {
-                "shape": "ball",
                 "diameter": 0.5,
                 "at": [
                   7,
