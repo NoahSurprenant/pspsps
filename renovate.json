@@ -3,6 +3,11 @@
   "extends": ["config:recommended", "helpers:pinGitHubActionDigests", "docker:pinDigests"],
   "packageRules": [
     {
+      "description": "SonarAnalyzer.CSharp gets its own PR: analyzers/sonar-*.globalconfig name the version they were made for and must be regenerated with it (bash .github/scripts/sonar-rules.sh, from the repo root)",
+      "matchPackageNames": ["SonarAnalyzer.CSharp"],
+      "groupName": "SonarAnalyzer.CSharp"
+    },
+    {
       "description": "Orleans ships its packages together.",
       "matchPackageNames": ["Microsoft.Orleans.**"],
       "groupName": "Orleans"
