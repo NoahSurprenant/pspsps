@@ -316,6 +316,7 @@ public sealed class RoomEditorHttpTests
         var shop = await JsonOfAsync(shopRead);
         var shopNumber = shop["versions"]!.AsArray().Single(v => v!["state"]!.GetValue<string>() == "Published")!["number"]!.GetValue<int>();
         var withDoor = shop["published"]!.DeepClone();
+        withDoor["props"] = new JsonArray();
         withDoor["doors"]!.AsArray().Add(JsonNode.Parse("""{"id":"loft","edge":"West","offset":0,"toRoom":"loft","toDoor":"shop"}"""));
         var withoutDoor = shop["published"]!.DeepClone();
         var loft = JsonNode.Parse("""
