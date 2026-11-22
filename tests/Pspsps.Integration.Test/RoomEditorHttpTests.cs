@@ -550,7 +550,7 @@ public sealed class RoomEditorHttpTests
     }
 
     [Test]
-    public async Task LoadingTheContentFile_AddsANewPropDesignAndOverlay_AndLeavesLiveOnesAlone()
+    public async Task LoadingTheContentFile_AddsANewPropDesignAndOverlay_ReplacesALiveOverlay_AndLeavesALiveDesignAlone()
     {
         var (adminPlayer, _) = await Game.SignInGuestAsync();
         var editor = Game.Get<IRoomEditor>();
@@ -569,13 +569,42 @@ public sealed class RoomEditorHttpTests
                 Assert.That(first.Applied, Has.Some.Contains("prop design import-test-lamp").And.Some.Contains("overlay shop/import-test"));
                 Assert.That(again.Applied, Is.Empty, "loading it twice changes nothing");
                 Assert.That(again.Unchanged, Has.Some.Contains("prop design import-test-lamp").And.Some.Contains("overlay shop/import-test"));
-                Assert.That(changed.Applied, Is.Empty);
-                Assert.That(changed.Problems, Has.Count.EqualTo(2), "a live design and overlay are not changed from the file");
+                Assert.That(changed.Applied, Has.Count.EqualTo(1).And.Some.Contains("overlay shop/import-test"), "the file wins for an overlay");
+                Assert.That(changed.Problems, Has.Count.EqualTo(1).And.Some.Contains("import-test-lamp"), "a live design is not changed from the file");
             });
+            await using var db = Db();
+            Assert.That((await db.RoomOverlays.AsNoTracking().SingleAsync(o => o.RoomId == "shop" && o.Id == "import-test")).ToOverlay().Name, Is.EqualTo("Changed"));
         }
         finally
         {
             await editor.DeleteOverlayAsync("shop", "import-test", adminPlayer.Id, CancellationToken.None);
+        }
+    }
+
+    [Test]
+    public async Task LoadingTheContentFile_ReplacesALiveVariantThatDiffers()
+    {
+        var (adminPlayer, _) = await Game.SignInGuestAsync();
+        var editor = Game.Get<IRoomEditor>();
+        var old = new DraftVariant("import-test-swap", "#cfe3f0", "#e8eef4", new LookPaint("tiles", "#d9f0fa", "#bfe2f2"));
+        try
+        {
+            await editor.ImportAsync(new ContentFile(Looks: new DraftLooks(Variants: [old])), adminPlayer.Id, CancellationToken.None);
+            var swapped = await editor.ImportAsync(new ContentFile(Looks: new DraftLooks(Variants: [old with { Sky = "#112233" }])), adminPlayer.Id, CancellationToken.None);
+            await using var db = Db();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(swapped.Problems, Is.Empty);
+                Assert.That(swapped.Applied, Has.Some.Contains("variant import-test-swap"));
+            });
+            Assert.That((await db.LookVariants.AsNoTracking().SingleAsync(v => v.Id == "import-test-swap")).Sky, Is.EqualTo("#112233"));
+        }
+        finally
+        {
+            await using var db = Db();
+            db.LookVariants.RemoveRange(await db.LookVariants.Where(v => v.Id.StartsWith("import-test-")).ToListAsync());
+            await db.SaveChangesAsync();
         }
     }
 

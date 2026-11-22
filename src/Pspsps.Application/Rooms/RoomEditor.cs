@@ -94,7 +94,8 @@ public interface IRoomEditor
     /// <summary>Makes a draft of an earlier version, and publishes it.</summary>
     Task RollbackAsync(string roomId, int number, Guid adminId, CancellationToken cancellationToken);
 
-    Task SaveOverlayAsync(RoomOverlay overlay, Guid adminId, CancellationToken cancellationToken);
+    /// <summary>Saves an overlay; checkAgainstLive false (the import, for a room it is also loading) leaves its props to be checked against the room's draft.</summary>
+    Task SaveOverlayAsync(RoomOverlay overlay, Guid adminId, CancellationToken cancellationToken, bool checkAgainstLive = true);
 
     Task DeleteOverlayAsync(string roomId, string overlayId, Guid adminId, CancellationToken cancellationToken);
 
@@ -253,7 +254,7 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             }
             else
             {
-                problems.Add($"variant {variant.Id}: differs from the live variant; change it in the admin.");
+                await Attempt($"variant {variant.Id}", () => SaveVariantAsync(variant.Id, new LookVariant(variant.Sky, variant.WallColour, variant.Floor), adminId, cancellationToken), "replaced (the file differs)");
             }
         }
 
@@ -310,7 +311,8 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             }
             else
             {
-                problems.Add($"overlay {overlay.RoomId}/{overlay.Id}: differs from the live overlay; change it in the admin (it would change a live room).");
+                var roomIsInTheFile = file.RoomList.Any(r => r.Id == overlay.RoomId);
+                await Attempt($"overlay {overlay.RoomId}/{overlay.Id}", () => SaveOverlayAsync(overlay, adminId, cancellationToken, checkAgainstLive: !roomIsInTheFile), "replaced (the file differs)");
             }
         }
 
@@ -524,11 +526,11 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
         await PublishAsync([back], adminId, "rolled-back", _ => $" (a copy of version {number})", cancellationToken);
     }
 
-    public async Task SaveOverlayAsync(RoomOverlay overlay, Guid adminId, CancellationToken cancellationToken)
+    public async Task SaveOverlayAsync(RoomOverlay overlay, Guid adminId, CancellationToken cancellationToken, bool checkAgainstLive = true)
     {
         ArgumentNullException.ThrowIfNull(overlay);
         var published = await PublishedLayoutsAsync(cancellationToken);
-        if (published.ContainsKey(overlay.RoomId))
+        if (checkAgainstLive && published.ContainsKey(overlay.RoomId))
         {
             var overlays = OverlaysOfRooms(published, (await db.RoomOverlays.AsNoTracking().ToListAsync(cancellationToken))
                 .Select(entry => entry.ToOverlay())
