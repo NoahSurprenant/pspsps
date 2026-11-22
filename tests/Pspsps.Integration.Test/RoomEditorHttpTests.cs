@@ -816,6 +816,28 @@ public sealed class RoomEditorHttpTests
     });
 
     [Test]
+    public Task ANewOverlayInTheFile_OfARoomTheFileAlsoChanges_IsCheckedAgainstTheDraft_NotTheLiveRoom() => WithCafeAsync(async (editor, admin, before) =>
+    {
+        var gone = before.Published!.Props[^1];
+        var draft = before.Published with { Props = [.. before.Published.Props.Take(before.Published.Props.Count - 1)] };
+        var overlay = new RoomOverlay("import-test-new", "cafe", "Takes its place", new OverlayWindow(new DateTimeOffset(2090, 1, 1, 0, 0, 0, TimeSpan.Zero), new DateTimeOffset(2090, 1, 2, 0, 0, 0, TimeSpan.Zero))) { Adds = [gone] };
+        try
+        {
+            var report = await editor.ImportAsync(new ContentFile(Rooms: [new DraftRoom("cafe", draft)], Overlays: [overlay]), admin, CancellationToken.None);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(report.Problems, Is.Empty);
+                Assert.That(report.Applied, Has.Some.Contains("overlay cafe/import-test-new"));
+            });
+        }
+        finally
+        {
+            await editor.DeleteOverlayAsync("cafe", "import-test-new", admin, CancellationToken.None);
+        }
+    });
+
+    [Test]
     public Task ADraftsLook_CanBeCleared_AndAFileRoomWithoutALookClearsIt() => WithCafeAsync(async (editor, admin, before) =>
     {
         var look = new RoomLook("#102030", "#405060", "#708090", new LookBackdrop([]));

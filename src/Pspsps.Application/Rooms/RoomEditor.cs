@@ -303,7 +303,7 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
                     continue;
                 }
 
-                await Attempt($"overlay {overlay.RoomId}/{overlay.Id}", () => SaveOverlayAsync(overlay, adminId, cancellationToken));
+                await Attempt($"overlay {overlay.RoomId}/{overlay.Id}", () => SaveOverlayAsync(overlay, adminId, cancellationToken, checkAgainstLive: file.RoomList.All(r => r.Id != overlay.RoomId)));
             }
             else if (Same(existing, overlay))
             {
