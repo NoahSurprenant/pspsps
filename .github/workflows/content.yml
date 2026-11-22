@@ -6,7 +6,9 @@ name: Content
 #   list     the rooms, with which have a draft
 #   export   the live content as JSON, kept as an artifact (and printed in the log summary's size line)
 #   import   loads ContentDrafts.json from the image that is deployed (merge the change and let it deploy first) as drafts
-#   publish  publishes the room's draft (with: comma-separated rooms that go live together; at: an ISO time to schedule)
+#   publish  publishes the room's draft (with: comma-separated rooms that go live together; at: an ISO time to schedule;
+#            retire: comma-separated live rooms taken out of the game in the same step, so doors to them can go with it)
+#   retire   takes the room (and those in "with") out of the game; the old version stays in the history
 
 on:
   workflow_dispatch:
@@ -14,7 +16,7 @@ on:
       action:
         description: What to do
         type: choice
-        options: [list, export, import, publish]
+        options: [list, export, import, publish, retire]
         required: true
       room:
         description: publish - the room whose draft goes live
@@ -22,6 +24,10 @@ on:
         required: false
       with:
         description: publish - other rooms published together with it (comma-separated), e.g. a new room and the doors to it
+        type: string
+        required: false
+      retire:
+        description: publish - live rooms taken out of the game together with the publish (comma-separated)
         type: string
         required: false
       at:
@@ -47,6 +53,7 @@ jobs:
       ROOM: ${{ inputs.room }}
       WITH: ${{ inputs.with }}
       AT: ${{ inputs.at }}
+      RETIRE: ${{ inputs.retire }}
     steps:
       - name: Check the settings
         run: |
@@ -92,9 +99,30 @@ jobs:
                 [[ "$other" =~ ^[a-z0-9-]+$ ]] || { echo "::error::with: '$other' is not a room ID"; exit 1; }
                 query="$query&with=$other"
               done
+              IFS=',' read -ra going <<< "$RETIRE"
+              for gone in "${going[@]}"; do
+                gone="${gone// /}"
+                [ -z "$gone" ] && continue
+                [[ "$gone" =~ ^[a-z0-9-]+$ ]] || { echo "::error::retire: '$gone' is not a room ID"; exit 1; }
+                query="$query&retire=$gone"
+              done
               [ -z "$AT" ] || query="$query&at=$(jq -rn --arg v "$AT" '$v|@uri')"
               call -X POST "$GAME_URL/api/content/rooms/$ROOM/publish?${query#&}"
               echo "Published (or scheduled) $ROOM."
+              ;;
+            retire)
+              [ -n "$ROOM" ] || { echo "::error::retire needs room"; exit 1; }
+              [[ "$ROOM" =~ ^[a-z0-9-]+$ ]] || { echo "::error::room is lower-case letters, digits and hyphens"; exit 1; }
+              query=""
+              IFS=',' read -ra others <<< "$WITH"
+              for other in "${others[@]}"; do
+                other="${other// /}"
+                [ -z "$other" ] && continue
+                [[ "$other" =~ ^[a-z0-9-]+$ ]] || { echo "::error::with: '$other' is not a room ID"; exit 1; }
+                query="$query&with=$other"
+              done
+              call -X POST "$GAME_URL/api/content/rooms/$ROOM/retire?${query#&}"
+              echo "Retired $ROOM ${WITH:+and $WITH}."
               ;;
           esac
 

@@ -28,19 +28,32 @@ public static class ContentApiEndpoints
         api.MapPost("/import", (HttpRequest request, IConfiguration config, IModerationService moderation, IRoomEditor editor) =>
             Act(request, config, moderation, async adminId => Results.Ok(await editor.ImportAsync(ContentFile.Embedded(), adminId, CancellationToken.None))));
 
-        api.MapPost("/rooms/{roomId}/publish", (string roomId, [Microsoft.AspNetCore.Mvc.FromQuery(Name = "with")] string[]? together, DateTimeOffset? at,
+        api.MapPost("/rooms/{roomId}/publish", (string roomId, [Microsoft.AspNetCore.Mvc.FromQuery(Name = "with")] string[]? together, [Microsoft.AspNetCore.Mvc.FromQuery(Name = "retire")] string[]? retire, DateTimeOffset? at,
             HttpRequest request, IConfiguration config, IModerationService moderation, IRoomEditor editor) =>
             Act(request, config, moderation, async adminId =>
             {
+                if (at is not null && retire is { Length: > 0 })
+                {
+                    return Results.BadRequest(new { message = "Retiring rooms goes with publishing now, not with a schedule." });
+                }
+
                 if (at is null)
                 {
-                    await editor.PublishAsync(roomId, together ?? [], adminId, CancellationToken.None);
+                    await editor.PublishAsync(roomId, together ?? [], adminId, CancellationToken.None, retire ?? []);
                 }
                 else
                 {
                     await editor.ScheduleAsync(roomId, together ?? [], at.Value, adminId, CancellationToken.None);
                 }
 
+                return Results.NoContent();
+            }));
+
+        api.MapPost("/rooms/{roomId}/retire", ([Microsoft.AspNetCore.Mvc.FromRoute] string roomId, [Microsoft.AspNetCore.Mvc.FromQuery(Name = "with")] string[]? together,
+            HttpRequest request, IConfiguration config, IModerationService moderation, IRoomEditor editor) =>
+            Act(request, config, moderation, async adminId =>
+            {
+                await editor.RetireAsync([roomId, .. together ?? []], adminId, CancellationToken.None);
                 return Results.NoContent();
             }));
     }
