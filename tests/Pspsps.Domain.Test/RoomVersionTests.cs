@@ -81,6 +81,29 @@ public sealed class RoomVersionTests
     }
 
     [Test]
+    public void ALook_TravelsWithTheDraft_IsKeptByALayoutOnlyEdit_AndCarriedToTheNextDraft()
+    {
+        var look = new RoomLook("#112233", "#445566", "#778899", new LookBackdrop([]));
+        var other = look with { Sky = "#abcdef" };
+        var draft = RoomVersion.Draft("shop", 2, Layout, null, Now, look);
+
+        draft.Edit(Layout with { Name = "Edited" });
+        var kept = draft.Look;
+        draft.Edit(Layout, other);
+        var replaced = draft.Look;
+        draft.Publish(Now);
+        var next = draft.DraftFrom(3, null, Now);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(kept, Is.EqualTo(look), "an edit with no look leaves it");
+            Assert.That(replaced, Is.EqualTo(other));
+            Assert.That(next.Look, Is.EqualTo(other), "the next draft starts from the published look");
+            Assert.That(RoomVersion.Draft("shop", 4, Layout, null, Now).Look, Is.Null);
+        });
+    }
+
+    [Test]
     public void ADraft_ScheduledForLater_IsTakenOffByEditingItOrPublishingIt()
     {
         var admin = Guid.NewGuid();

@@ -20,14 +20,14 @@ public sealed class ContentDraftsTests
     {
         var starting = RoomLookSeeder.StartingLooks().ToDictionary(l => l.Id, l => l.Look);
         var looks = new Dictionary<string, RoomLook>(starting);
-        foreach (var look in Content.LookList)
+        foreach (var look in Content.AllLooks)
         {
             looks[look.Id] = look.Look;
         }
 
         var names = LookNames.BuiltIn.With(Content.PainterList.Select(p => (p.Surface, p.Id)), Content.WildlifeList.Select(w => w.Id));
         var problems = Content.RoomList.Where(room => !looks.ContainsKey(room.Layout.Look ?? room.Id)).Select(room => $"{room.Id}: has no look")
-            .Concat(Content.LookList.SelectMany(look => look.Look.Problems(look.Id, names)))
+            .Concat(Content.AllLooks.SelectMany(look => look.Look.Problems(look.Id, names)))
             .Concat(Content.PainterList.SelectMany(p => LookRecipes.PainterProblems(p.Id, p.Surface, p.Steps)))
             .Concat(Content.WildlifeList.SelectMany(w => LookRecipes.WildlifeProblems(w.Id, w.Parts, w.Motion)));
 
@@ -71,7 +71,7 @@ public sealed class ContentDraftsTests
     [Test]
     public void TheDojo_IsIndoors_SoItHasNoOpenLandscapeAndIsNotOnTheIslandMap()
     {
-        var dojo = Content.LookList.Single(look => look.Id == "dojo").Look;
+        var dojo = Content.AllLooks.Single(look => look.Id == "dojo").Look;
 
         Assert.Multiple(() =>
         {
@@ -93,7 +93,7 @@ public sealed class ContentDraftsTests
     {
         var layouts = LayoutsWithTheDrafts();
         var problems = new List<string>();
-        foreach (var look in Content.LookList.Where(look => look.Look.Wildlife is not null && Content.RoomList.Any(room => room.Id == look.Id)))
+        foreach (var look in Content.AllLooks.Where(look => look.Look.Wildlife is not null && Content.RoomList.Any(room => room.Id == look.Id)))
         {
             var layout = layouts[look.Id];
             switch (look.Look.Wildlife)
@@ -116,7 +116,7 @@ public sealed class ContentDraftsTests
     public void TheBackdropOfTheDojoRooms_KeepsClearOfTheWalksThePropsAndThePond(string id)
     {
         var layout = Content.RoomList.Single(room => room.Id == id).Layout;
-        var parts = Content.LookList.Single(look => look.Id == id).Look.Backdrop.Parts;
+        var parts = Content.AllLooks.Single(look => look.Id == id).Look.Backdrop.Parts;
 
         Assert.That(BackdropClearance.Problems(id, layout, parts), Is.Empty);
     }
@@ -229,7 +229,7 @@ public sealed class ContentDraftsTests
     public void TheCove_HasWaterOnlyInItsBottomRight()
     {
         var cove = Content.RoomList.Single(room => room.Id == "cove").Layout;
-        var painter = Content.PainterList.Single(p => p.Id == Content.LookList.Single(look => look.Id == "cove").Look.Floor!.Painter);
+        var painter = Content.PainterList.Single(p => p.Id == Content.AllLooks.Single(look => look.Id == "cove").Look.Floor!.Painter);
         var water = painter.Steps.Where(step => step.Colour == "#5fb3d9").ToList();
 
         Assert.Multiple(() =>
@@ -308,7 +308,7 @@ public sealed class ContentDraftsTests
     {
         const double wallBand = 0.4;
         var layout = Content.RoomList.Single(room => room.Id == id).Layout;
-        var parts = Content.LookList.Single(look => look.Id == id).Look.Backdrop.Parts;
+        var parts = Content.AllLooks.Single(look => look.Id == id).Look.Backdrop.Parts;
         var props = layout.Props.Concat(Content.OverlayList.Where(o => o.RoomId == id).SelectMany(o => o.Adds)).ToList();
         var problems = new List<string>();
         for (var i = 0; i < parts.Count; i++)
@@ -466,7 +466,7 @@ public sealed class ContentDraftsTests
     public void TheBackdropOf_KeepsClearOfTheWalksThePropsAndThePond(string id)
     {
         var layout = Content.RoomList.Single(room => room.Id == id).Layout;
-        var parts = Content.LookList.Single(look => look.Id == id).Look.Backdrop.Parts;
+        var parts = Content.AllLooks.Single(look => look.Id == id).Look.Backdrop.Parts;
 
         Assert.That(BackdropClearance.Problems(id, layout, parts), Is.Empty);
     }
@@ -489,7 +489,7 @@ public sealed class ContentDraftsTests
     [TestCase("dojo-courtyard", "town-forecourt", 110)]
     public void TheMineAndTheCourtyard_AreSummerFloorsFromTheirOwnPainters_AndRichlyDecorated(string id, string painter, int parts)
     {
-        var look = Content.LookList.Single(l => l.Id == id).Look;
+        var look = Content.AllLooks.Single(l => l.Id == id).Look;
 
         Assert.Multiple(() =>
         {
@@ -633,8 +633,8 @@ public sealed class ContentDraftsTests
                 }
             }
 
-            Assert.That(Content.LookList.Single(look => look.Id == "mine").Look.Backdrop.Parts.Count, Is.GreaterThanOrEqualTo(120), "the mine shack's scenery is thin");
-            Assert.That(Content.LookList.Single(look => look.Id == "mine-tunnels").Look.Backdrop.Parts.Count, Is.GreaterThanOrEqualTo(120), "the old tunnels' scenery is thin");
+            Assert.That(Content.AllLooks.Single(look => look.Id == "mine").Look.Backdrop.Parts.Count, Is.GreaterThanOrEqualTo(120), "the mine shack's scenery is thin");
+            Assert.That(Content.AllLooks.Single(look => look.Id == "mine-tunnels").Look.Backdrop.Parts.Count, Is.GreaterThanOrEqualTo(120), "the old tunnels' scenery is thin");
         });
     }
 
@@ -644,7 +644,7 @@ public sealed class ContentDraftsTests
     public void TheBackdropOfTheMineRooms_KeepsClearOfTheWalksAndTheProps(string id)
     {
         var layout = Content.RoomList.Single(room => room.Id == id).Layout;
-        var parts = Content.LookList.Single(look => look.Id == id).Look.Backdrop.Parts;
+        var parts = Content.AllLooks.Single(look => look.Id == id).Look.Backdrop.Parts;
 
         Assert.That(BackdropClearance.Problems(id, layout, parts), Is.Empty);
     }
@@ -656,7 +656,7 @@ public sealed class ContentDraftsTests
     {
         const double clearance = 0.4;
         var layout = Content.RoomList.Single(room => room.Id == id).Layout;
-        var parts = Content.LookList.Single(look => look.Id == id).Look.Backdrop.Parts;
+        var parts = Content.AllLooks.Single(look => look.Id == id).Look.Backdrop.Parts;
         var doors = layout.ToDefinition(id).Doors;
         Assert.That(doors.Select(door => door.Id), Is.EquivalentTo(doorIds.Split(',')));
         var problems = new List<string>();

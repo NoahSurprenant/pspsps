@@ -33,6 +33,8 @@ export interface RoomLook {
   wildlife?: string;
   /** The seasonal variant whose own floor replaces the room's (set only then): what that painted floor is kept under, apart from the room's own. */
   floorVariant?: string;
+  /** Set on a look an admin is previewing from a draft: what its paintings are kept under, so a room's drafts and its live look never share one. */
+  paintKey?: string;
   /** What stands behind the back wall (and round the room), in the room's own space. */
   backdrop(plan: Floorplan, wallHeight: number): Part[];
 }
@@ -158,6 +160,15 @@ export function setLooks(data: LooksData): void {
     variants.set(variant.id, variant);
   }
   setOpenLandscapes(data.rooms.filter(({ look }) => look.openLandscape).map(({ id }) => id));
+}
+
+let drafts = 0;
+
+/** Shows a room in a look that is only in its draft (the admin's preview), in place of the live one until the looks are read again. */
+export function setDraftLook(roomId: string, data: RoomLookData): void {
+  drafts += 1;
+  rooms.set(roomId, { ...lookFromData(data), paintKey: `draft${drafts}` });
+  setOpenLandscapes([...rooms].filter(([, look]) => look.openLandscape).map(([id]) => id));
 }
 
 /** Reads the looks from the server: every page load, so a new room's look needs no new client. */

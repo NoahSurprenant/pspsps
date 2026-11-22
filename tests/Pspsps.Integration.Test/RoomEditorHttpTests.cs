@@ -630,6 +630,45 @@ public sealed class RoomEditorHttpTests
     }
 
     [Test]
+    public async Task ARoomsLook_IsKeptInItsDraft_GoesLiveOnPublish_AndIsExportedWithTheRoom()
+    {
+        var (adminPlayer, _) = await Game.SignInGuestAsync();
+        Game.Admins.Add(adminPlayer.Id);
+        var editor = Game.Get<IRoomEditor>();
+        var before = await editor.GetAsync("cafe", CancellationToken.None);
+        var number = before!.Versions.Single(v => v.State == RoomVersionState.Published).Number;
+        var look = new RoomLook("#102030", "#405060", "#708090", new LookBackdrop([]));
+        try
+        {
+            await editor.SaveDraftAsync("cafe", before.Published!, adminPlayer.Id, null, CancellationToken.None, look);
+            var drafted = await editor.GetAsync("cafe", CancellationToken.None);
+            var liveBefore = await Db().RoomLooks.AsNoTracking().SingleOrDefaultAsync(l => l.Id == "cafe");
+
+            await editor.PublishAsync("cafe", [], adminPlayer.Id, CancellationToken.None);
+            var published = await editor.GetAsync("cafe", CancellationToken.None);
+            var liveAfter = await Db().RoomLooks.AsNoTracking().SingleOrDefaultAsync(l => l.Id == "cafe");
+            var exported = (await editor.ExportAsync(CancellationToken.None)).Rooms.Single(r => r.Id == "cafe");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(drafted!.DraftLook, Is.EqualTo(look), "the look sits in the draft");
+                Assert.That(liveBefore?.Look, Is.Not.EqualTo(look), "and is not live yet");
+                Assert.That(published!.DraftLook, Is.Null);
+                Assert.That(liveAfter?.Look, Is.EqualTo(look), "publishing puts it live");
+                Assert.That(exported.Look, Is.EqualTo(look), "an export carries the room's look with it");
+            });
+        }
+        finally
+        {
+            await editor.DiscardDraftAsync("cafe", adminPlayer.Id, CancellationToken.None);
+            await editor.RollbackAsync("cafe", number, adminPlayer.Id, CancellationToken.None);
+            await using var db = Db();
+            db.RoomLooks.RemoveRange(await db.RoomLooks.Where(l => l.Id == "cafe").ToListAsync());
+            await db.SaveChangesAsync();
+        }
+    }
+
+    [Test]
     public async Task LoadingTheContentFile_SavesWildlifeBeforeTheLookThatNamesIt()
     {
         var (adminPlayer, _) = await Game.SignInGuestAsync();

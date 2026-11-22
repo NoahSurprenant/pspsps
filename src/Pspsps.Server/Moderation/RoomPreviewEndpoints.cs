@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Pspsps.Application.Moderation;
 using Pspsps.Application.Rooms;
 using Pspsps.Domain;
@@ -10,6 +12,17 @@ namespace Pspsps.Server.Moderation;
 /// <summary>The admin page's preview of a room: what the browser would be sent on joining it, with its draft (and an overlay) in place and no cats.</summary>
 public static class RoomPreviewEndpoints
 {
+    // As the server's other responses are written (names in camelCase, enums as text), so the page reads this like a room it joins.
+    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter() },
+    };
+
+    private static readonly JsonSerializerOptions LookJson = new(Json)
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    };
+
     public static void MapRoomPreview(this RouteGroupBuilder admin) =>
         admin.MapGet("/rooms/{roomId}/preview", async (
             string roomId, string? overlay, ClaimsPrincipal user, IModerationService moderation, IRoomPreviewer previewer, TimeProvider time, CancellationToken ct) =>
@@ -21,7 +34,15 @@ public static class RoomPreviewEndpoints
 
             try
             {
-                return Results.Ok(SnapshotOf(await previewer.PreviewAsync(roomId, overlay, time.GetUtcNow(), ct)));
+                var preview = await previewer.PreviewAsync(roomId, overlay, time.GetUtcNow(), ct);
+                var body = JsonSerializer.SerializeToNode(SnapshotOf(preview), Json)!.AsObject();
+                if (preview.DraftLook is { } draftLook)
+                {
+                    // The look the draft brings, for the page to draw the room in (the live looks it already has don't include it).
+                    body["draftLook"] = JsonSerializer.SerializeToNode(draftLook, LookJson);
+                }
+
+                return Results.Json(body, Json);
             }
             catch (DomainException e)
             {

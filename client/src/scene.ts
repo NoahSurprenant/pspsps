@@ -293,7 +293,7 @@ export class RoomScene {
     const plan: Floorplan = { width: room.width, depth: room.depth, pond: room.pond, doors: room.doors, props: look.floorNeedsProps ? room.props : undefined };
     const floor = CreateGround("floor", { width: room.width, height: room.depth }, this.scene);
     floor.material = look.paintFloor
-      ? painted(this.scene, "floor", `${room.roomId}/floor/${look.floorVariant ?? ""}/${JSON.stringify(plan)}`, textureSize(room.width, room.depth, floorPixelsPerMetre),
+      ? painted(this.scene, "floor", `${room.roomId}/floor/${look.floorVariant ?? ""}${look.paintKey ?? ""}/${JSON.stringify(plan)}`, textureSize(room.width, room.depth, floorPixelsPerMetre),
         (brush, scale) => look.paintFloor?.(brush, plan, scale))
       : flat(this.scene, "floor", look.floorColour);
     // The floor's dark edge: a little larger and just below it. Not renderOutline, whose pass, from far off (a narrow
@@ -310,7 +310,7 @@ export class RoomScene {
       ground.position.set(0, -0.03, (room.depth / 2 + 40 - 200) / 2);
       const { colour, paint } = look.ground;
       ground.material = paint
-        ? painted(this.scene, "ground", `${room.roomId}/ground`, textureSize(streetTile, streetTile, floorPixelsPerMetre), paint,
+        ? painted(this.scene, "ground", `${room.roomId}/ground${look.paintKey ?? ""}`, textureSize(streetTile, streetTile, floorPixelsPerMetre), paint,
           { u: width / streetTile, v: depth / streetTile })
         : flat(this.scene, "ground", colour);
       ground.isPickable = false;
@@ -327,7 +327,7 @@ export class RoomScene {
       // Painted round the doorways in it (the doors by the wall: the ones drawDoor draws a doorway for).
       const doorways = room.doors.filter((door) => hasDoorway(door, room.depth, room.roomId));
       front.material = painted(this.scene, "back-wall-front",
-        `${room.roomId}/wall/${room.width}/${JSON.stringify(doorways)}`, textureSize(room.width, wallHeight, wallPixelsPerMetre),
+        `${room.roomId}/wall${look.paintKey ?? ""}/${room.width}/${JSON.stringify(doorways)}`, textureSize(room.width, wallHeight, wallPixelsPerMetre),
         (brush, scale) => look.paintWall?.(brush, room.width, wallHeight, scale, doorways));
       front.isPickable = false;
     }

@@ -3,7 +3,7 @@ import seed from "../../src/Pspsps.Application/Rooms/RoomLooks.json?raw";
 import serverLook from "../../src/Pspsps.Domain/Rooms/RoomLook.cs?raw";
 import { openLandscape } from "./doors";
 import {
-  backdropGenerators, floorPainters, groundPainters, lookOf, setLooks, wallPainters, wildlifeKinds, type LooksData, type RoomLookData,
+  backdropGenerators, floorPainters, groundPainters, lookOf, setDraftLook, setLooks, wallPainters, wildlifeKinds, type LooksData, type RoomLookData,
 } from "./looks";
 import type { Floorplan } from "./paint";
 
@@ -160,6 +160,23 @@ describe("looks as data", () => {
     setLooks({ rooms: [{ id: "loft", look: { ...newRoom, floor: { painter: "marble" } } }], variants: [] });
 
     expect(lookOf("loft").paintFloor).toBeUndefined();
+  });
+
+  it("shows a draft's look in place of the live one, with a new paint key each time so pictures are redrawn", () => {
+    setLooks({ rooms: [{ id: "loft", look: newRoom }], variants: [] });
+    const live = lookOf("loft");
+
+    setDraftLook("loft", { ...newRoom, sky: "#abcdef", openLandscape: true });
+    const first = lookOf("loft");
+    setDraftLook("loft", { ...newRoom, sky: "#fedcba" });
+    const second = lookOf("loft");
+
+    expect(live.paintKey).toBeUndefined();
+    expect(first.sky).toBe("#abcdef");
+    expect(second.sky).toBe("#fedcba");
+    expect(first.paintKey).toBeDefined();
+    expect(second.paintKey).not.toBe(first.paintKey);
+    expect(openLandscape("loft")).toBe(false);
   });
 
   it("knows which rooms are open countryside, from their looks", () => {

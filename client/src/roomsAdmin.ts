@@ -111,6 +111,8 @@ export interface RoomDetail {
   /** Overlays of this room in the reviewed content file that are not saved yet (they wait for the room to be published); previewable. */
   draftRevision?: number | null;
   goLiveAt?: string | null;
+  /** The look the draft brings, which goes live when the room is published; missing when the draft leaves the room's look as it is. */
+  draftLook?: unknown | null;
 }
 
 /** When a draft goes live by itself, as the admin reads it; empty for a draft that waits to be published by hand. */
@@ -354,7 +356,7 @@ export function roomsSection(say: (message: string) => void): HTMLElement {
     layout.addEventListener("change", showPicture);
     showPicture();
     const lookText = textArea(12, `${roomId} look as JSON`);
-    lookText.value = JSON.stringify(looks?.rooms.find((entry) => entry.id === roomId)?.look ?? newLookTemplate(), null, 2);
+    lookText.value = JSON.stringify(detail?.draftLook ?? looks?.rooms.find((entry) => entry.id === roomId)?.look ?? newLookTemplate(), null, 2);
     const variantText = textArea(4, "Look variants as JSON: name, sky, wallColour");
     variantText.value = JSON.stringify(looks?.variants ?? [], null, 2);
 
@@ -411,13 +413,13 @@ export function roomsSection(say: (message: string) => void): HTMLElement {
           await refresh();
         }))),
       el("h3", { text: "Look" }),
-      el("p", { className: "quiet", text: "How the browser paints this room. A room needs a look before it can be published." }),
+      el("p", { className: "quiet", text: "How the browser paints this room. Saved in the room's draft, it goes live when the room is published (with the layout, scheduled or rolled back the same way). A room needs a look before it can be published." }),
       lookText,
       button("Save look", () => void run(async () => {
         const parsed = parseJson(lookText.value);
         if (parsed === null) { say("That isn't valid JSON."); return; }
         await send("PUT", `/api/admin/looks/rooms/${encodeURIComponent(roomId)}`, parsed);
-        say(`The look of ${roomId} is saved.`);
+        say(`The look of ${roomId} is saved in its draft: publish the room to put it live.`);
         await refresh();
       })),
       el("pre", { className: "quiet", text: options ? optionsText(options) : "" }),

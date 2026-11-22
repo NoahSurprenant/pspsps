@@ -5,7 +5,8 @@ using Pspsps.Domain.Rooms;
 
 namespace Pspsps.Application.Rooms;
 
-public sealed record DraftRoom(string Id, RoomLayout Layout);
+/// <summary>A room: its layout and, when it changes, the look that goes live with it.</summary>
+public sealed record DraftRoom(string Id, RoomLayout Layout, RoomLook? Look = null);
 
 public sealed record DraftLook(string Id, RoomLook Look);
 
@@ -51,7 +52,11 @@ public sealed record ContentFile(
 
     public IReadOnlyList<DraftRoom> RoomList => Rooms ?? [];
 
+    /// <summary>The looks of places that are no room of the book (a player's home); a room's look is in its own entry.</summary>
     public IReadOnlyList<DraftLook> LookList => Looks?.Rooms ?? [];
+
+    /// <summary>Every look the file holds: the rooms' own, then the others.</summary>
+    public IReadOnlyList<DraftLook> AllLooks => [.. RoomList.Where(room => room.Look is not null).Select(room => new DraftLook(room.Id, room.Look!)), .. LookList];
 
     public IReadOnlyList<DraftVariant> VariantList => Looks?.Variants ?? [];
 

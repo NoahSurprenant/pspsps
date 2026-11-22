@@ -6,7 +6,7 @@ using Pspsps.Domain.Rooms;
 namespace Pspsps.Application.Rooms;
 
 /// <summary>A room as it would be, with every room beside it (for the map and the doors' names).</summary>
-public sealed record RoomPreview(RoomDefinition Room, IReadOnlyList<RoomDefinition> All);
+public sealed record RoomPreview(RoomDefinition Room, IReadOnlyList<RoomDefinition> All, RoomLook? DraftLook = null);
 
 public interface IRoomPreviewer
 {
@@ -31,6 +31,8 @@ public sealed class RoomPreviewer(IApplicationDbContext db) : IRoomPreviewer
             layouts[version.RoomId] = version.Layout;
         }
 
+        var draftLook = versions.FirstOrDefault(v => v.RoomId == roomId && v.State == RoomVersionState.Draft)?.Look;
+
         if (!layouts.ContainsKey(roomId))
         {
             throw new DomainException($"There is no room {roomId}.");
@@ -49,6 +51,6 @@ public sealed class RoomPreviewer(IApplicationDbContext db) : IRoomPreviewer
         }
 
         var book = RoomBook.Create(layouts, overlays);
-        return new RoomPreview(book.Find(roomId, now) ?? throw new DomainException($"There is no room {roomId}."), book.At(now));
+        return new RoomPreview(book.Find(roomId, now) ?? throw new DomainException($"There is no room {roomId}."), book.At(now), draftLook);
     }
 }

@@ -601,6 +601,10 @@ namespace Pspsps.Infrastructure.Migrations
                         .HasColumnType("jsonb")
                         .HasColumnName("layout");
 
+                    b.Property<string>("Look")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("look");
+
                     b.Property<int>("Number")
                         .HasColumnType("integer")
                         .HasColumnName("number");

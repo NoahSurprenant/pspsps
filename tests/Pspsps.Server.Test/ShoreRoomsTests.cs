@@ -17,7 +17,7 @@ public sealed class ShoreRoomsTests
     public void TheBackdropOf_KeepsClearOfTheWalksThePropsAndThePond(string id)
     {
         var layout = Content.RoomList.Single(room => room.Id == id).Layout;
-        var parts = Content.LookList.Single(look => look.Id == id).Look.Backdrop.Parts;
+        var parts = Content.AllLooks.Single(look => look.Id == id).Look.Backdrop.Parts;
 
         Assert.That(BackdropClearance.Problems(id, layout, parts), Is.Empty);
     }
@@ -34,7 +34,7 @@ public sealed class ShoreRoomsTests
     public void TheShoreRoom_IsRichlyDecorated_WithItsOwnPaintedFloor(string id)
     {
         var layout = Content.RoomList.Single(room => room.Id == id).Layout;
-        var look = Content.LookList.Single(l => l.Id == id).Look;
+        var look = Content.AllLooks.Single(l => l.Id == id).Look;
 
         Assert.Multiple(() =>
         {
