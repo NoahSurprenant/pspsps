@@ -180,16 +180,92 @@ public sealed class ContentDraftsTests
     {
         var rink = Content.RoomList.Single(room => room.Id == "ice-rink").Layout;
         var winter = Content.OverlayList.Single(o => o.RoomId == "ice-rink" && o.Id == "winter");
-        var facing = rink.Props.Concat(winter.Adds).Where(p => p.Kind is PropKinds.Goal or PropKinds.RinkBoard).Where(p => Math.Abs(p.Spot.Z) > 5).ToList();
+        var facing = rink.Props.Concat(winter.Adds).Where(p => p.Kind is PropKinds.Goal or PropKinds.RinkBoard).Where(p => p.Spot.DistanceTo(new Position(0, 0)) > 5).ToList();
 
         Assert.That(facing, Is.Not.Empty);
         foreach (var prop in facing)
         {
-            // A prop's front is -z, turned by its facing; the front must point at the middle (the origin, along z).
-            var frontZ = -Math.Cos(prop.Facing);
-            var towardsMiddleZ = -prop.Spot.Z;
-            Assert.That(frontZ * towardsMiddleZ, Is.GreaterThan(0), $"{prop.Kind} at z={prop.Spot.Z} faces away from the pitch");
+            // A prop's front is -z turned by its facing, (-sin, -cos); the front must point at the middle of the pitch (the origin).
+            var dot = (-Math.Sin(prop.Facing) * -prop.Spot.X) + (-Math.Cos(prop.Facing) * -prop.Spot.Z);
+            Assert.That(dot, Is.GreaterThan(0), $"{prop.Kind} at {prop.Spot.X},{prop.Spot.Z} faces away from the pitch");
         }
+    }
+
+    [Test]
+    public void ThePitch_RunsLeftToRight_WithTheFortDoorOnItsNearTouchline()
+    {
+        var rink = Content.RoomList.Single(room => room.Id == "ice-rink").Layout;
+        var goals = rink.Props.Where(p => p.Kind == PropKinds.Goal).ToList();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(rink.Width, Is.GreaterThan(rink.Depth), "landscape");
+            Assert.That(rink.Doors.Single().Edge, Is.EqualTo(RoomEdge.South));
+            Assert.That(goals.Select(g => Math.Sign(g.Spot.X)), Is.EquivalentTo(new[] { -1, 1 }), "a goal at each end");
+            Assert.That(goals.All(g => Math.Abs(g.Spot.Z) < 1), Is.True, "in the middle of the end line");
+        });
+    }
+
+    [Test]
+    public void TheFortHasTwoSandcastlesWithFlags_TheForestALittleTreesAndRockCentrepiece_TheCoveAShackAndABonfire()
+    {
+        var props = Content.RoomList.ToDictionary(room => room.Id, room => room.Layout.Props.Select(p => p.Kind).ToList());
+        var designs = Content.PropDesignList.ToDictionary(d => d.Kind);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(props["fort"].Count(k => k.StartsWith("field-sandcastle", StringComparison.Ordinal)), Is.EqualTo(2));
+            Assert.That(props["forest"], Does.Contain(PropKinds.FieldRock).And.Contain(PropKinds.FieldSapling));
+            Assert.That(props["forest"].Count(k => k is PropKinds.FieldPine or PropKinds.FieldSapling), Is.GreaterThanOrEqualTo(4), "little trees round the rock");
+            Assert.That(props["cove"], Does.Contain(PropKinds.FieldSurfShack).And.Contain(PropKinds.FieldBonfire));
+            foreach (var castle in new[] { PropKinds.FieldSandcastle, PropKinds.FieldSandcastleSmall })
+            {
+                Assert.That(designs[castle].Parts.Any(part => part.Shape == "cylinder" && part.Diameter < 0.2 && part.Height > 0.3), Is.True, $"{castle} has a flag pole");
+            }
+        });
+    }
+
+    [Test]
+    public void TheCove_HasWaterOnlyInItsBottomRight()
+    {
+        var cove = Content.RoomList.Single(room => room.Id == "cove").Layout;
+        var painter = Content.PainterList.Single(p => p.Id == Content.LookList.Single(look => look.Id == "cove").Look.Floor!.Painter);
+        var water = painter.Steps.Where(step => step.Colour == "#5fb3d9").ToList();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(cove.Pond!.Center.X, Is.GreaterThan(0));
+            Assert.That(cove.Pond.Center.Z, Is.LessThan(0));
+            Assert.That(water, Is.Not.Empty);
+            Assert.That(water.All(step => step.X > cove.Width / 4 && step.Y > cove.Depth / 6), Is.True, "no water in the top or left of the floor");
+        });
+    }
+
+    [Test]
+    public void EveryFieldPropDesign_IsDrawnInsideItsSize_AndHasAKindOnTheList()
+    {
+        var fields = Content.PropDesignList.Where(d => d.Kind.StartsWith("field-", StringComparison.Ordinal)).ToList();
+        var problems = new List<string>();
+        foreach (var design in fields)
+        {
+            foreach (var part in design.Parts.Where(part => part.Turn is null || part.Turn.All(angle => angle == 0)))
+            {
+                var reach = part.Shape == "box"
+                    ? new[] { -1, 1 }.SelectMany(sx => new[] { -1, 1 }.Select(sz => Math.Sqrt(Math.Pow(part.At[0] + (sx * (part.Width ?? 0) / 2), 2) + Math.Pow(part.At[2] + (sz * (part.Depth ?? 0) / 2), 2)))).Max()
+                    : Math.Sqrt((part.At[0] * part.At[0]) + (part.At[2] * part.At[2])) + (Math.Max(part.Diameter ?? 0, part.Top ?? 0) / 2);
+                if (reach > design.Size)
+                {
+                    problems.Add($"{design.Kind}: a {part.Shape} reaches {reach:0.00} (size {design.Size})");
+                }
+            }
+        }
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(fields, Has.Count.GreaterThanOrEqualTo(19));
+            Assert.That(fields.Select(d => d.Kind), Is.SubsetOf(PropKinds.All));
+            Assert.That(problems, Is.Empty);
+        });
     }
 
     [Test]
@@ -225,6 +301,9 @@ public sealed class ContentDraftsTests
     /// walkable floor (apart from a 0.4 m band against the wall, for trim) and off every prop, base and winter alike.
     /// </summary>
     [TestCase("ice-rink")]
+    [TestCase("fort")]
+    [TestCase("forest")]
+    [TestCase("cove")]
     public void TheBackdropOf_StaysClearOfTheWalkableFloorAndTheProps(string id)
     {
         const double wallBand = 0.4;
