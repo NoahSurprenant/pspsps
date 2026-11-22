@@ -99,8 +99,15 @@
             "toDoor": "town-square"
           },
           {
-            "id": "plaza",
+            "id": "cove",
             "edge": "East",
+            "offset": -3.5,
+            "toRoom": "cove",
+            "toDoor": "town-square"
+          },
+          {
+            "id": "plaza",
+            "edge": "West",
             "offset": 0,
             "toRoom": "plaza",
             "toDoor": "town-square"
@@ -121,8 +128,8 @@
           },
           {
             "id": "ice-rink",
-            "edge": "North",
-            "offset": 0.5,
+            "edge": "West",
+            "offset": 5,
             "toRoom": "ice-rink",
             "toDoor": "town-square"
           }
@@ -223,10 +230,10 @@
         ],
         "doors": [
           {
-            "id": "plaza",
+            "id": "town-square",
             "edge": "West",
             "offset": 0,
-            "toRoom": "plaza",
+            "toRoom": "town-square",
             "toDoor": "cove"
           },
           {
@@ -645,7 +652,7 @@
         "doors": [
           {
             "id": "town-square",
-            "edge": "West",
+            "edge": "East",
             "offset": 0,
             "toRoom": "town-square",
             "toDoor": "plaza"
@@ -653,7 +660,7 @@
           {
             "id": "garden",
             "edge": "West",
-            "offset": 3.5,
+            "offset": 0,
             "toRoom": "garden",
             "toDoor": "plaza"
           },
@@ -683,13 +690,6 @@
             "edge": "North",
             "offset": 10.8,
             "toRoom": "pizza-parlor",
-            "toDoor": "plaza"
-          },
-          {
-            "id": "cove",
-            "edge": "East",
-            "offset": 0,
-            "toRoom": "cove",
             "toDoor": "plaza"
           }
         ]
