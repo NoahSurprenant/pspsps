@@ -1767,8 +1767,8 @@
           },
           {
             "id": "town-square",
-            "edge": "East",
-            "offset": 6,
+            "edge": "South",
+            "offset": 5.6,
             "toRoom": "town-square",
             "toDoor": "ice-rink"
           }
@@ -2124,7 +2124,7 @@
           {
             "kind": "bookshelf",
             "spot": {
-              "x": 7.2,
+              "x": 6.6,
               "z": 0.4
             },
             "radius": 0.9,
