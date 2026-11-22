@@ -13,6 +13,7 @@ test("a guest visits every open place on the world map", async ({ page, browser 
   const places = await map.locator(".map-place[data-place]").evaluateAll((nodes) => nodes.map((node) => ({
     id: node.getAttribute("data-place") ?? "",
     label: node.getAttribute("aria-label") ?? "",
+    room: node.getAttribute("data-room") ?? "",
   })));
   await page.keyboard.press("Escape");
   const open = places.filter((place) => !/coming soon|you are here/i.test(place.label));
@@ -22,7 +23,7 @@ test("a guest visits every open place on the world map", async ({ page, browser 
   for (const place of open) {
     await openMap.click();
     await map.locator(`.map-place[data-place="${place.id}"]`).click();
-    await expect.poll(() => page.evaluate(() => window.pspsps?.room()?.snapshot.roomId), `arriving at ${place.id}`).toBe(place.id);
+    await expect.poll(() => page.evaluate(() => window.pspsps?.room()?.snapshot.roomId), `arriving at ${place.id}`).toBe(place.room);
     const snapshot = await page.evaluate(() => window.pspsps?.room()?.snapshot);
     expect(snapshot?.roomName, `${place.id} has a name`).toBeTruthy();
     await expect(page, `${place.id}'s title`).toHaveTitle(`${snapshot?.roomName} · pspsps`);

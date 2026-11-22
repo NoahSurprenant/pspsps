@@ -56,6 +56,7 @@ export function drawMap(room: RoomSnapshot, travel: (roomId: string) => void): H
     const marker = el("button", { className: "map-place" }, el("span", { className: "map-dot" }), el("span", { className: "map-name", text: place.name }));
     marker.type = "button";
     marker.dataset.place = place.id;
+    marker.dataset.room = place.roomId ?? "";
     marker.dataset.category = place.category;
     marker.classList.toggle("map-closed", !isOpen(place));
     marker.setAttribute("aria-label", placeName(place, room.roomId));
