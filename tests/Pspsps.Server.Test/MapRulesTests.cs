@@ -34,13 +34,13 @@ public sealed class MapRulesTests
         var breaks = new List<string>();
         foreach (var (id, layout) in layouts.Where(l => onMap.ContainsKey(l.Key)))
         {
-            foreach (var door in layout.Doors.Where(d => d.Edge is not null && onMap.ContainsKey(d.ToRoom)))
+            foreach (var door in layout.Doors.Where(d => onMap.ContainsKey(d.ToRoom)))
             {
                 var from = onMap[id];
                 var to = onMap[door.ToRoom];
                 var (dx, dz) = (to.X - from.X, to.Z - from.Z);
                 var distance = Math.Sqrt((dx * dx) + (dz * dz));
-                var (ex, ez) = door.Edge!.Value switch
+                var (ex, ez) = door.Edge switch
                 {
                     RoomEdge.North => (0.0, 1.0),
                     RoomEdge.East => (1.0, 0.0),
