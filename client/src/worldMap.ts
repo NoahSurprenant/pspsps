@@ -44,7 +44,9 @@ export function drawMap(room: RoomSnapshot, travel: (roomId: string) => void): H
       caption.textContent = "Choose a place on the island.";
       return;
     }
-    const state = place.roomId === room.roomId ? "You are here." : isOpen(place) ? "" : "Coming soon.";
+    let state = "Coming soon.";
+    if (place.roomId === room.roomId) state = "You are here.";
+    else if (isOpen(place)) state = "";
     caption.textContent = [place.name, place.blurb, state].filter(Boolean).join(" · ");
     go.textContent = `Go to ${place.name}`;
   };

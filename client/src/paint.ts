@@ -279,26 +279,31 @@ export function paintGardenWall(brush: Brush, width: number, height: number, sca
   // Fan trellises on the stonework, trained roses climbing each spoke.
   for (const centre of [width * 0.2, width * 0.55, width * 0.85]) {
     for (const spread of [-1.15, -0.55, 0, 0.55, 1.15]) {
-      brush.strokeStyle = "#907156";
-      brush.lineWidth = scale * 0.1;
+      trellisSpoke(brush, centre, spread, height, scale);
+    }
+  }
+}
+
+/** One spoke of a fan trellis, from <centre> at the foot leaning <spread> metres at the top, with its leaves and roses. */
+function trellisSpoke(brush: Brush, centre: number, spread: number, height: number, scale: number): void {
+  brush.strokeStyle = "#907156";
+  brush.lineWidth = scale * 0.1;
+  brush.beginPath();
+  brush.moveTo(centre * scale, height * scale);
+  brush.lineTo((centre + spread) * scale, height * 0.17 * scale);
+  brush.stroke();
+  for (let n = 1; n <= 5; n++) {
+    const x = centre + spread * n / 6;
+    const y = height * (1 - n * 0.83 / 6);
+    brush.fillStyle = n % 2 ? "#799953" : "#608053";
+    brush.beginPath();
+    brush.ellipse(x * scale, y * scale, 0.19 * scale, 0.08 * scale, n % 2 ? -0.6 : 0.6, 0, Math.PI * 2);
+    brush.fill();
+    if (n % 3 === 0 || n === 5) {
+      brush.fillStyle = "#d5828d";
       brush.beginPath();
-      brush.moveTo(centre * scale, height * scale);
-      brush.lineTo((centre + spread) * scale, height * 0.17 * scale);
-      brush.stroke();
-      for (let n = 1; n <= 5; n++) {
-        const x = centre + spread * n / 6;
-        const y = height * (1 - n * 0.83 / 6);
-        brush.fillStyle = n % 2 ? "#799953" : "#608053";
-        brush.beginPath();
-        brush.ellipse(x * scale, y * scale, 0.19 * scale, 0.08 * scale, n % 2 ? -0.6 : 0.6, 0, Math.PI * 2);
-        brush.fill();
-        if (n % 3 === 0 || n === 5) {
-          brush.fillStyle = "#d5828d";
-          brush.beginPath();
-          brush.arc((x + 0.09) * scale, (y - 0.1) * scale, 0.115 * scale, 0, Math.PI * 2);
-          brush.fill();
-        }
-      }
+      brush.arc((x + 0.09) * scale, (y - 0.1) * scale, 0.115 * scale, 0, Math.PI * 2);
+      brush.fill();
     }
   }
 }
@@ -350,9 +355,8 @@ const doorAwning = 2.4;
  */
 const windowClearOfDoor = 0.95 + doorAwning / 2;
 
-/** The square's back wall: the ground floors of the houses behind it, shopfronts with striped awnings. */
-export function paintTownSquareWall(brush: Brush, width: number, height: number, scale: number, doors: readonly DoorView[]): void {
-  const houses = townHouses();
+/** The hillside, sun and fence behind the storefronts of the square's wall. */
+function paintSquareBackdrop(brush: Brush, width: number, height: number, scale: number): void {
   // A painted hillside between storefronts. Paint the whole surface first so an alley of any width has a finish.
   brush.fillStyle = "#bfdbcb";
   brush.fillRect(0, 0, width * scale, height * scale);
@@ -381,6 +385,44 @@ export function paintTownSquareWall(brush: Brush, width: number, height: number,
     brush.lineTo((i + 0.28) * scale, top + 0.42 * scale);
     brush.fill();
   }
+}
+
+/** Where a house's shop windows go (their middles, in metres), spread along the front, but never where a door is. */
+function shopWindowSpots(house: { from: number; to: number }, width: number, doors: readonly DoorView[]): number[] {
+  const windows = Math.max(1, Math.round((house.to - house.from) / 2.8));
+  const step = (house.to - house.from) / windows;
+  const spots: number[] = [];
+  for (let i = 0; i < windows; i++) {
+    const middle = house.from + step * (i + 0.5);
+    const offWall = middle < -width / 2 + 0.8 || middle > width / 2 - 0.8;
+    if (!offWall && !doors.some((door) => Math.abs(door.x - middle) < windowClearOfDoor)) {
+      spots.push(middle);
+    }
+  }
+  return spots;
+}
+
+/**
+ * Whether a span (from, to) of a wall <width> metres wide fits on it, clear of the doorways and of the spans that
+ * already fitted; a span that fits is taken.
+ */
+function wallSpace(width: number, doors: readonly DoorView[]): (from: number, to: number) => boolean {
+  const taken: [number, number][] = [];
+  return (from, to) => {
+    const ok = from >= -width / 2 + 0.1 && to <= width / 2 - 0.1
+      && !doors.some((door) => door.x + 1 > from && door.x - 1 < to)
+      && !taken.some(([a, b]) => b > from && a < to);
+    if (ok) {
+      taken.push([from, to]);
+    }
+    return ok;
+  };
+}
+
+/** The square's back wall: the ground floors of the houses behind it, shopfronts with striped awnings. */
+export function paintTownSquareWall(brush: Brush, width: number, height: number, scale: number, doors: readonly DoorView[]): void {
+  const houses = townHouses();
+  paintSquareBackdrop(brush, width, height, scale);
   const x = (metres: number) => (metres + width / 2) * scale;
   const y = (metres: number) => (height - metres) * scale;
   for (const house of houses) {
@@ -391,13 +433,7 @@ export function paintTownSquareWall(brush: Brush, width: number, height: number,
     brush.fillStyle = house.facade;
     brush.fillRect(x(left), 0, (right - left) * scale, height * scale);
     // Shop windows, spread along the front, but never where a door is.
-    const windows = Math.max(1, Math.round((house.to - house.from) / 2.8));
-    const step = (house.to - house.from) / windows;
-    for (let i = 0; i < windows; i++) {
-      const middle = house.from + step * (i + 0.5);
-      if (middle < -width / 2 + 0.8 || middle > width / 2 - 0.8 || doors.some((door) => Math.abs(door.x - middle) < windowClearOfDoor)) {
-        continue;
-      }
+    for (const middle of shopWindowSpots(house, width, doors)) {
       shopWindow(brush, x(middle), y, scale, house.roof);
     }
     // An awning over each door in this house.
@@ -539,16 +575,7 @@ export function paintCafeWall(brush: Brush, width: number, height: number, scale
 
   // What hangs on the wall, each placed from the wall's ends or its middle, and painted only where it fits: on the wall,
   // clear of the doorways and of what is already up.
-  const taken: [number, number][] = [];
-  const fits = (from: number, to: number) => {
-    const ok = from >= -width / 2 + 0.1 && to <= width / 2 - 0.1
-      && !doors.some((door) => door.x + 1 > from && door.x - 1 < to)
-      && !taken.some(([a, b]) => b > from && a < to);
-    if (ok) {
-      taken.push([from, to]);
-    }
-    return ok;
-  };
+  const fits = wallSpace(width, doors);
   // A window onto the street, near the left end.
   const window = -width / 2 + 0.4;
   if (fits(window, window + 1.4)) {
@@ -666,16 +693,7 @@ export function paintHomeWall(brush: Brush, width: number, height: number, scale
   brush.fillRect(0, y(0.38), width * scale, 0.05 * scale);
   brush.fillRect(0, y(3.25), width * scale, 0.07 * scale);
 
-  const taken: [number, number][] = [];
-  const fits = (from: number, to: number) => {
-    const ok = from >= -width / 2 + 0.1 && to <= width / 2 - 0.1
-      && !doors.some((door) => door.x + 1 > from && door.x - 1 < to)
-      && !taken.some(([a, b]) => b > from && a < to);
-    if (ok) {
-      taken.push([from, to]);
-    }
-    return ok;
-  };
+  const fits = wallSpace(width, doors);
   // A window, a little right of the middle: sky, a sill, and pink curtains drawn back either side.
   const window = 0.6;
   if (fits(window - 0.5, window + 2.1)) {
@@ -873,16 +891,7 @@ export function paintShopWall(brush: Brush, width: number, height: number, scale
     brush.stroke();
   }
 
-  const taken: [number, number][] = [];
-  const fits = (from: number, to: number) => {
-    const ok = from >= -width / 2 + 0.1 && to <= width / 2 - 0.1
-      && !doors.some((door) => door.x + 1 > from && door.x - 1 < to)
-      && !taken.some(([a, b]) => b > from && a < to);
-    if (ok) {
-      taken.push([from, to]);
-    }
-    return ok;
-  };
+  const fits = wallSpace(width, doors);
   // The sign, over the shelves: a wooden board with the shop's name, and a party hat each side of it.
   const sign = -2.2;
   if (fits(sign, sign + 3.6)) {

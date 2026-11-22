@@ -11,4 +11,48 @@
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
+  <!--
+    SonarCloud's C# rules (SonarAnalyzer.CSharp) in every build: `dotnet build` fails on what SonarCloud would raise.
+    TreatWarningsAsErrors makes every warning an error, so analyzers/sonar-*.globalconfig sets each Sonar rule: an error for
+    the rules SonarCloud's profile has, off for the others. A finding reviewed as safe is suppressed where
+    it is, with #pragma warning disable and the reason. After Renovate changes the version, run .github/scripts/sonar-rules.sh (SonarRulesTests fails until then).
+    The package alone turns on all of Sonar way; the globalconfig keeps the rules SonarCloud's "core" profile has, and on
+    test code only the test rules. Not where analyzers are off (RunAnalyzers=false: the Docker image's build), which also
+    spares it the restore of these packages.
+  -->
+  <!-- An analyzer the compiler can't load (CS8032) or built against a newer Roslyn than the SDK's (CS9057) is only a warning and its rules quietly stop; errors here so they can't drop out unnoticed. -->
+  <PropertyGroup Condition="'$(MSBuildProjectExtension)' == '.csproj' And '$(RunAnalyzers)' != 'false'">
+    <WarningsAsErrors>$(WarningsAsErrors);CS9057;CS8032</WarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(MSBuildProjectExtension)' == '.csproj' And '$(RunAnalyzers)' != 'false'">
+    <PackageReference Include="SonarAnalyzer.CSharp" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
+    <GlobalAnalyzerConfigFiles Include="$(MSBuildThisFileDirectory)analyzers/sonar-main.globalconfig" Condition="'$(IsTestProject)' != 'true'" />
+    <GlobalAnalyzerConfigFiles Include="$(MSBuildThisFileDirectory)analyzers/sonar-tests.globalconfig" Condition="'$(IsTestProject)' == 'true'" />
+  </ItemGroup>
+  <!--
+    Async misuse fails the build: Microsoft.VisualStudio.Threading.Analyzers (the VSTHRD rules), configured in
+    analyzers/threading.globalconfig (the .NET async correctness rules errors, the Visual Studio main-thread ones off).
+  -->
+  <ItemGroup Condition="'$(MSBuildProjectExtension)' == '.csproj' And '$(RunAnalyzers)' != 'false'">
+    <PackageReference Include="Microsoft.VisualStudio.Threading.Analyzers" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
+    <GlobalAnalyzerConfigFiles Include="$(MSBuildThisFileDirectory)analyzers/threading.globalconfig" />
+  </ItemGroup>
+  <!--
+    EF Core's AddAsync and AddRangeAsync are banned (BannedSymbols.txt, RS0030 an error in analyzers/banned-api.globalconfig):
+    they matter only for HiLo key generation, which pspsps doesn't use.
+  -->
+  <ItemGroup Condition="'$(MSBuildProjectExtension)' == '.csproj' And '$(RunAnalyzers)' != 'false'">
+    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)BannedSymbols.txt" />
+    <GlobalAnalyzerConfigFiles Include="$(MSBuildThisFileDirectory)analyzers/banned-api.globalconfig" />
+  </ItemGroup>
+  <!--
+    pspsps's own analyzers (Pspsps.Analyzers, errors in analyzers/pspsps-analyzers.globalconfig): PSPS001 holds async code
+    to EF Core's async operators, which VSTHRD103 doesn't for Enumerable's ToList, ToArray and the others. Not in the
+    analyzers' own projects, and not where analyzers are off (RunAnalyzers=false: the Docker image's build).
+  -->
+  <ItemGroup Condition="'$(MSBuildProjectExtension)' == '.csproj' And '$(RunAnalyzers)' != 'false' And '$(MSBuildProjectName)' != 'Pspsps.Analyzers' And '$(MSBuildProjectName)' != 'Pspsps.Analyzers.Test'">
+    <ProjectReference Include="$(MSBuildThisFileDirectory)src/Pspsps.Analyzers/Pspsps.Analyzers.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <GlobalAnalyzerConfigFiles Include="$(MSBuildThisFileDirectory)analyzers/pspsps-analyzers.globalconfig" />
+  </ItemGroup>
 </Project>

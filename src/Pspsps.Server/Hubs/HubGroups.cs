@@ -35,7 +35,7 @@ internal static class HubGroups
         }
     }
 
-    private static void Observe(Task task) => task.ContinueWith(
+    private static void Observe(Task task) => _ = task.ContinueWith(
         static t => _ = t.Exception,
         CancellationToken.None,
         TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,

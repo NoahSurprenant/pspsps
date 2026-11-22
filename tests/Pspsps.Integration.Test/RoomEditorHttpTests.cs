@@ -199,7 +199,7 @@ public sealed class RoomEditorHttpTests
         using var gone = await SendAsync(admin, HttpMethod.Post, "rooms/garden/rollback/999");
         using var restored = await SendAsync(admin, HttpMethod.Get, "rooms/garden");
 
-        Assert.Multiple(async () =>
+        await Assert.MultipleAsync(async () =>
         {
             Assert.That(back.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
             Assert.That(gone.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
@@ -226,7 +226,7 @@ public sealed class RoomEditorHttpTests
         using var removeLook = await SendAsync(admin, HttpMethod.Delete, "looks/variants/autumn");
         using var deleted = await SendAsync(admin, HttpMethod.Delete, "rooms/garden/overlays/spring-http");
 
-        Assert.Multiple(async () =>
+        await Assert.MultipleAsync(async () =>
         {
             Assert.That(unknown.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
             Assert.That(await unknown.Content.ReadAsStringAsync(), Does.Contain("no-such-look"));
@@ -271,7 +271,7 @@ public sealed class RoomEditorHttpTests
             var looks = await JsonOfAsync(served);
             var library = Game.Get<IRoomLibrary>();
 
-            Assert.Multiple(async () =>
+            await Assert.MultipleAsync(async () =>
             {
                 Assert.That(loftDraft.StatusCode, Is.EqualTo(HttpStatusCode.OK));
                 Assert.That(gardenSaved.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -290,8 +290,8 @@ public sealed class RoomEditorHttpTests
         finally
         {
             await using var db = Db();
-            db.RoomVersions.RemoveRange(db.RoomVersions.Where(v => v.RoomId == "loft"));
-            db.RoomLooks.RemoveRange(db.RoomLooks.Where(l => l.Id == "loft"));
+            db.RoomVersions.RemoveRange(await db.RoomVersions.Where(v => v.RoomId == "loft").ToListAsync());
+            db.RoomLooks.RemoveRange(await db.RoomLooks.Where(l => l.Id == "loft").ToListAsync());
             await db.SaveChangesAsync();
             using var discard = await SendAsync(admin, HttpMethod.Delete, "rooms/garden/draft");
             using var back = await SendAsync(admin, HttpMethod.Post, $"rooms/garden/rollback/{gardenNumber}");
@@ -315,7 +315,7 @@ public sealed class RoomEditorHttpTests
             using var refusedMoth = await SendAsync(admin, HttpMethod.Delete, "looks/wildlife/recipe-moth");
             var looks = await JsonOfAsync(served);
 
-            Assert.Multiple(async () =>
+            await Assert.MultipleAsync(async () =>
             {
                 Assert.That(badPainter.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
                 Assert.That(painter.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
@@ -329,7 +329,7 @@ public sealed class RoomEditorHttpTests
             });
 
             await using var db = Db();
-            db.RoomLooks.RemoveRange(db.RoomLooks.Where(l => l.Id == "recipe-loft"));
+            db.RoomLooks.RemoveRange(await db.RoomLooks.Where(l => l.Id == "recipe-loft").ToListAsync());
             await db.SaveChangesAsync();
             using var deletedPainter = await SendAsync(admin, HttpMethod.Delete, "looks/painters/recipe-stripes");
             using var deletedMoth = await SendAsync(admin, HttpMethod.Delete, "looks/wildlife/recipe-moth");
@@ -343,9 +343,9 @@ public sealed class RoomEditorHttpTests
         finally
         {
             await using var db = Db();
-            db.RoomLooks.RemoveRange(db.RoomLooks.Where(l => l.Id == "recipe-loft"));
-            db.PainterRecipes.RemoveRange(db.PainterRecipes.Where(p => p.Id == "recipe-stripes"));
-            db.WildlifeRecipes.RemoveRange(db.WildlifeRecipes.Where(w => w.Id == "recipe-moth"));
+            db.RoomLooks.RemoveRange(await db.RoomLooks.Where(l => l.Id == "recipe-loft").ToListAsync());
+            db.PainterRecipes.RemoveRange(await db.PainterRecipes.Where(p => p.Id == "recipe-stripes").ToListAsync());
+            db.WildlifeRecipes.RemoveRange(await db.WildlifeRecipes.Where(w => w.Id == "recipe-moth").ToListAsync());
             await db.SaveChangesAsync();
         }
     }
@@ -534,7 +534,7 @@ public sealed class RoomEditorHttpTests
         finally
         {
             await using var db = Db();
-            db.LookVariants.RemoveRange(db.LookVariants.Where(v => v.Id.StartsWith("import-test-")));
+            db.LookVariants.RemoveRange(await db.LookVariants.Where(v => v.Id.StartsWith("import-test-")).ToListAsync());
             await db.SaveChangesAsync();
         }
     }
@@ -564,8 +564,8 @@ public sealed class RoomEditorHttpTests
         finally
         {
             await using var db = Db();
-            db.LookVariants.RemoveRange(db.LookVariants.Where(v => v.Id.StartsWith("import-test-")));
-            db.PainterRecipes.RemoveRange(db.PainterRecipes.Where(r => r.Id.StartsWith("import-test-")));
+            db.LookVariants.RemoveRange(await db.LookVariants.Where(v => v.Id.StartsWith("import-test-")).ToListAsync());
+            db.PainterRecipes.RemoveRange(await db.PainterRecipes.Where(r => r.Id.StartsWith("import-test-")).ToListAsync());
             await db.SaveChangesAsync();
         }
     }
@@ -650,8 +650,8 @@ public sealed class RoomEditorHttpTests
         finally
         {
             await using var db = Db();
-            db.RoomLooks.RemoveRange(db.RoomLooks.Where(l => l.Id == "import-test-look"));
-            db.WildlifeRecipes.RemoveRange(db.WildlifeRecipes.Where(w => w.Id == "import-test-moth"));
+            db.RoomLooks.RemoveRange(await db.RoomLooks.Where(l => l.Id == "import-test-look").ToListAsync());
+            db.WildlifeRecipes.RemoveRange(await db.WildlifeRecipes.Where(w => w.Id == "import-test-moth").ToListAsync());
             await db.SaveChangesAsync();
         }
     }

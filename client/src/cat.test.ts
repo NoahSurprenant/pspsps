@@ -243,7 +243,7 @@ describe("Cat", () => {
     expect(cat.wearing.hat).toBe("crown");
     expect(scene.meshes.filter((mesh) => mesh.name.startsWith("cat-a-hat-cone"))).toEqual([]);
     expect(scene.materials.filter((material) => material.name.startsWith("cat-a-hat-cone"))).toEqual([]);
-    expect(scene.meshes.filter((mesh) => mesh.name.startsWith("cat-a-hat-point")).length).toBe(5);
+    expect(scene.meshes.filter((mesh) => mesh.name.startsWith("cat-a-hat-point"))).toHaveLength(5);
   });
 
   it("takes things off, and leaves off what it can't draw", async () => {

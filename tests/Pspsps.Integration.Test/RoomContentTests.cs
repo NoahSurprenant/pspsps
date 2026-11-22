@@ -147,7 +147,7 @@ public sealed class RoomContentTests
             Assert.That((back.Name, back.Look, back.RoomId), Is.EqualTo(("Winter", "winter", "town-square")));
         });
 
-        read.RoomOverlays.RemoveRange(read.RoomOverlays.Where(o => o.Id == "winter-test"));
+        read.RoomOverlays.RemoveRange(await read.RoomOverlays.Where(o => o.Id == "winter-test").ToListAsync());
         await read.SaveChangesAsync();
     }
 

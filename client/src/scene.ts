@@ -103,6 +103,7 @@ export class RoomScene {
   private catClicked: (playerId: string) => void = () => {};
   private standClicked: (stand: PropView) => void = () => {};
   private editTapped: (x: number, z: number) => void = () => {};
+
   // The room showing's back wall and props (one mesh, rebuilt when a home's furniture changes), and the ring round the
   // piece of furniture selected while decorating.
   private wall: Part | undefined;
@@ -209,6 +210,17 @@ export class RoomScene {
   /** A tap while decorating: where on the floor, under the furniture or the floor tapped. */
   onEditTapped(handler: (x: number, z: number) => void): void {
     this.editTapped = handler;
+  }
+
+  /** The nearest furniture or floor along the ray (not the wall, which is in the same mesh): the spot on the floor under it. */
+  private editTap(hits: PickingInfo[], floor: AbstractMesh, decor: AbstractMesh | undefined): void {
+    const onFurniture = (point: Vector3) => this.props.some((p) => Math.hypot(point.x - p.x, point.z - p.z) <= p.radius);
+    const spot = hits.map((pick) => pick.pickedMesh === floor || (pick.pickedMesh === decor && pick.pickedPoint && onFurniture(pick.pickedPoint))
+      ? pick.pickedPoint
+      : null).find((point) => point);
+    if (spot) {
+      this.editTapped(spot.x, spot.z);
+    }
   }
 
   /** Replaces whatever room was showing. */
@@ -361,15 +373,7 @@ export class RoomScene {
       const hits = picks.filter((pick) => pick.hit && pick.pickedMesh).sort((a, b) => a.distance - b.distance);
       const decor = this.decor;
       if (this.editing) {
-        // The nearest furniture or floor along the ray (not the wall, which is in the same mesh): the spot on the floor
-        // under it.
-        const onFurniture = (point: Vector3) => this.props.some((p) => Math.hypot(point.x - p.x, point.z - p.z) <= p.radius);
-        const spot = hits.map((pick) => pick.pickedMesh === floor || (pick.pickedMesh === decor && pick.pickedPoint && onFurniture(pick.pickedPoint))
-          ? pick.pickedPoint
-          : null).find((point) => point);
-        if (spot) {
-          this.editTapped(spot.x, spot.z);
-        }
+        this.editTap(hits, floor, decor);
         return;
       }
       const catIds = hits.map((pick) => catPlayerIdOf(pick.pickedMesh));

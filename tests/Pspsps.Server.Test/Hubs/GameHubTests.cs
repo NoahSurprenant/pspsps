@@ -260,8 +260,8 @@ public sealed class GameHubTests
 
         Received.InOrder(() =>
         {
-            hub.Groups.RemoveFromGroupAsync(Connection, "tabby/town-square");
-            _room.LeaveThrough(Tom.Id, Connection, "cafe");
+            _ = hub.Groups.RemoveFromGroupAsync(Connection, "tabby/town-square");
+            _ = _room.LeaveThrough(Tom.Id, Connection, "cafe");
         });
     }
 
@@ -341,8 +341,8 @@ public sealed class GameHubTests
         Assert.That(reel, Is.EqualTo(new ReelView("caught", "koi", "Golden koi", 100, TotalCoins: 140)));
         Received.InOrder(() =>
         {
-            _players.EarnCoinsAsync(Tom.Id, 100, CancellationToken.None);
-            room.CatFished(new CatchView(Tom.Id, "koi", "Golden koi", 100));
+            _ = _players.EarnCoinsAsync(Tom.Id, 100, CancellationToken.None);
+            _ = room.CatFished(new CatchView(Tom.Id, "koi", "Golden koi", 100));
         });
     }
 
@@ -486,10 +486,10 @@ public sealed class GameHubTests
 
         Received.InOrder(() =>
         {
-            calico.TryEnter(Tom.Id, Connection);
-            calicoCafe.Join(Arg.Any<PlayerCard>(), Connection, null);
-            _room.Leave(Tom.Id, Connection);
-            _world.Leave(Tom.Id, Connection);
+            _ = calico.TryEnter(Tom.Id, Connection);
+            _ = calicoCafe.Join(Arg.Any<PlayerCard>(), Connection, null);
+            _ = _room.Leave(Tom.Id, Connection);
+            _ = _world.Leave(Tom.Id, Connection);
         });
         Assert.That(_heartbeat.PlaceOf(Connection), Is.EqualTo(new ConnectionPlace(Tom.Id, "calico", "calico/cafe")));
         await _session.Received(1).Arrived(Connection, "calico/cafe");
@@ -1730,7 +1730,7 @@ public sealed class GameHubTests
         var refused = Assert.ThrowsAsync<HubException>(() => hub.Moderate(Felix, "ban", "Spam", "permanent"));
 
         Assert.That(refused!.Message, Is.EqualTo(Moderator.OnlyAdmins));
-        _effects.DidNotReceiveWithAnyArgs().AppliedAsync(default, default, default!);
+        _ = _effects.DidNotReceiveWithAnyArgs().AppliedAsync(default, default, default!);
     }
 
     [Test]
@@ -1742,7 +1742,7 @@ public sealed class GameHubTests
         Assert.ThrowsAsync<HubException>(() => hub.Moderate(Felix, "mute", "Spam", "permanent"));
         Assert.ThrowsAsync<HubException>(() => hub.Moderate(Felix, "ban", "Spam", "1h"));
 
-        _moderation.DidNotReceiveWithAnyArgs().ModerateAsync(default, default, default!, default);
+        _ = _moderation.DidNotReceiveWithAnyArgs().ModerateAsync(default, default, default!, default);
     }
 
     [Test]

@@ -51,7 +51,7 @@ public class HealthCheckExtensionsTests
     {
         await using var app = await StartApp(PostgresFixture.ConnectionString);
 
-        Assert.Multiple(async () =>
+        await Assert.MultipleAsync(async () =>
         {
             Assert.That(await Get(app, "/health/live"), Is.EqualTo((200, "Healthy")));
             Assert.That(await Get(app, "/health/ready"), Is.EqualTo((200, "Healthy")));
@@ -64,7 +64,7 @@ public class HealthCheckExtensionsTests
     {
         await using var app = await StartApp(UnreachableDatabase);
 
-        Assert.Multiple(async () =>
+        await Assert.MultipleAsync(async () =>
         {
             Assert.That(await Get(app, "/health/live"), Is.EqualTo((200, "Healthy")));
             Assert.That(await Get(app, "/health/ready"), Is.EqualTo((503, "Unhealthy")));
@@ -77,7 +77,7 @@ public class HealthCheckExtensionsTests
     {
         await using var app = await StartApp(PostgresFixture.ConnectionString, maxAllocatedMegabytes: 1);
 
-        Assert.Multiple(async () =>
+        await Assert.MultipleAsync(async () =>
         {
             Assert.That(await Get(app, "/health/live"), Is.EqualTo((200, "Healthy")));
             Assert.That(await Get(app, "/health/ready"), Is.EqualTo((200, "Healthy")));
@@ -158,7 +158,7 @@ public class HealthCheckExtensionsTests
         var context = new DefaultHttpContext { RequestServices = app.Services };
         context.Request.Path = "/readyz";
 
-        Assert.Multiple(async () =>
+        await Assert.MultipleAsync(async () =>
         {
             Assert.That(await Get(app, "/livez"), Is.EqualTo((200, "Healthy")));
             Assert.That(await Get(app, "/readyz"), Is.EqualTo((200, "Healthy")));
@@ -190,7 +190,7 @@ public class HealthCheckExtensionsTests
         foreach (var path in new[] { "/health/live", "/health/ready", "/health" })
         {
             using var response = await client.GetAsync(path);
-            Assert.Multiple(async () =>
+            await Assert.MultipleAsync(async () =>
             {
                 Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), path);
                 Assert.That(response.Content.Headers.ContentType?.MediaType, Is.EqualTo("text/plain"), path);

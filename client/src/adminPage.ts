@@ -73,9 +73,9 @@ function show(overview: AdminOverview): void {
         : el("ol", { className: "list log" }, ...overview.recent.map((line) => el("li", { text: logLine(line) })))),
   );
   // Back where it was; or, when that went (a report decided, a ban lifted), at the top of its list.
-  const list = /^(act|dismiss|reason|decision)-/.test(active)
-    ? "reports-title"
-    : active.startsWith("lift-network-") && document.getElementById("networks-title") ? "networks-title" : "sanctioned-title";
+  let list = "sanctioned-title";
+  if (/^(act|dismiss|reason|decision)-/.test(active)) list = "reports-title";
+  else if (active.startsWith("lift-network-") && document.getElementById("networks-title")) list = "networks-title";
   (document.getElementById(active) ?? (active ? document.getElementById(list) : null))?.focus();
 }
 

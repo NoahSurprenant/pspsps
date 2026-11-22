@@ -4,11 +4,13 @@
     <Project Path="src/Pspsps.Application/Pspsps.Application.csproj" />
     <Project Path="src/Pspsps.Infrastructure/Pspsps.Infrastructure.csproj" />
     <Project Path="src/Pspsps.Server/Pspsps.Server.csproj" />
+    <Project Path="src/Pspsps.Analyzers/Pspsps.Analyzers.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Pspsps.Domain.Test/Pspsps.Domain.Test.csproj" />
     <Project Path="tests/Pspsps.Server.Test/Pspsps.Server.Test.csproj" />
     <Project Path="tests/Pspsps.Architecture.Test/Pspsps.Architecture.Test.csproj" />
     <Project Path="tests/Pspsps.Integration.Test/Pspsps.Integration.Test.csproj" />
+    <Project Path="tests/Pspsps.Analyzers.Test/Pspsps.Analyzers.Test.csproj" />
   </Folder>
 </Solution>

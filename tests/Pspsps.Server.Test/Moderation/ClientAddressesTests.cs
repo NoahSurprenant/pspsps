@@ -148,7 +148,9 @@ public sealed class ClientAddressesTests
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
         builder.Configuration.AddInMemoryCollection(BehindTheProxy);
+#pragma warning disable VSTHRD103 // the sync overload is what runs without fetching Cloudflare's ranges
         builder.Services.ConfigureAppForwardedHeaders(builder.Configuration);
+#pragma warning restore VSTHRD103
         await using var app = builder.Build();
         app.UseForwardedHeaders();
         app.Run(context => context.Response.WriteAsync(Addresses.HashOf(context) ?? ""));

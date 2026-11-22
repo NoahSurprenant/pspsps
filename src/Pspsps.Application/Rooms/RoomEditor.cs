@@ -152,7 +152,9 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
                     problems.Add($"prop design {design.Kind}: {exception.Message}");
                 }
             }
+#pragma warning disable S1244 // exact on purpose: has the saved size changed at all, not "is it close"
             else if (existing.Size == design.Size && Same(existing.Parts, design.Parts) && Same(existing.Growth, design.Growth ?? []))
+#pragma warning restore S1244
             {
                 unchanged.Add($"prop design {design.Kind}");
             }

@@ -123,7 +123,8 @@ export function roomLine(room: RoomSummary): string {
   const live = room.published === null ? "not published" : `version ${room.published} live`;
   if (room.draft === null) return `${room.name} (${live})`;
   const when = goLiveText(room.goLiveAt);
-  return `${room.name} (${live}, draft ${room.draft}${when === "" ? "" : `, ${when}`})`;
+  const goLive = when === "" ? "" : `, ${when}`;
+  return `${room.name} (${live}, draft ${room.draft}${goLive})`;
 }
 
 /** The layout or overlay as text for editing; null when it isn't valid JSON. */
@@ -357,6 +358,12 @@ export function roomsSection(say: (message: string) => void): HTMLElement {
     const variantText = textArea(4, "Look variants as JSON: name, sky, wallColour");
     variantText.value = JSON.stringify(looks?.variants ?? [], null, 2);
 
+    const deleteRecipe = (kind: "painters" | "wildlife", id: string): HTMLElement => button("Delete", () => void run(async () => {
+      await send("DELETE", `/api/admin/looks/${kind}/${encodeURIComponent(id)}`);
+      say(`${id} is gone.`);
+      await refresh();
+    }));
+
     const recipeEditor = (kind: "painters" | "wildlife", title: string, existing: { id: string }[], template: unknown): HTMLElement[] => {
       const text = textArea(10, `${title} as JSON`);
       text.value = JSON.stringify(existing, null, 2);
@@ -373,12 +380,7 @@ export function roomsSection(say: (message: string) => void): HTMLElement {
           say(`The ${title.toLowerCase()} are saved.`);
           await refresh();
         })),
-        el("ul", { className: "list" }, ...existing.map((entry) => el("li", { text: `${entry.id} ` },
-          button("Delete", () => void run(async () => {
-            await send("DELETE", `/api/admin/looks/${kind}/${encodeURIComponent(entry.id)}`);
-            say(`${entry.id} is gone.`);
-            await refresh();
-          }))))),
+        el("ul", { className: "list" }, ...existing.map((entry) => el("li", { text: `${entry.id} ` }, deleteRecipe(kind, entry.id)))),
       ];
     };
 

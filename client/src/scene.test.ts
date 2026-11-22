@@ -39,9 +39,10 @@ class NoCanvas {
   height = 1;
 
   getContext(): unknown {
+    const fakeMember = (key: string | symbol) => (key === "measureText" ? () => ({ width: 0 }) : () => undefined);
     return new Proxy({}, {
       get: (target: Record<string | symbol, unknown>, key) =>
-        key in target ? target[key] : key === "measureText" ? () => ({ width: 0 }) : () => undefined,
+        key in target ? target[key] : fakeMember(key),
     });
   }
 }

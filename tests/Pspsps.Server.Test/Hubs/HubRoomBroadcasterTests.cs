@@ -37,8 +37,8 @@ public sealed class HubRoomBroadcasterTests
 
         Received.InOrder(() =>
         {
-            hub.Groups.RemoveFromGroupAsync("felix-tab", "tabby/cafe", Arg.Any<CancellationToken>());
-            tab.SentOut(Guid.Empty, "Banned.");
+            _ = hub.Groups.RemoveFromGroupAsync("felix-tab", "tabby/cafe", Arg.Any<CancellationToken>());
+            _ = tab.SentOut(Guid.Empty, "Banned.");
         });
     }
 

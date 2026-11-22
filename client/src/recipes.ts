@@ -72,25 +72,61 @@ export const painterRecipe = (surface: "floor" | "wall", name: string) => recipe
 export const wildlifeRecipe = (name: string) => recipes.wildlife.get(name);
 
 function colourOf(reference: string | undefined, amount: number | undefined, colours: PaintColours): string {
-  const base = reference === "accent" ? accentOf(colours) : reference?.startsWith("#") ? reference : colours.colour;
+  let base = colours.colour;
+  if (reference === "accent") base = accentOf(colours);
+  else if (reference?.startsWith("#")) base = reference;
   return amount ? shade(base, amount) : base;
+}
+
+/** How many rectangles a recipe has drawn so far (there is a most). */
+interface Drawn {
+  count: number;
+}
+
+function drawRect(brush: Brush, drawn: Drawn, step: PaintStep, x: number, y: number, scale: number): void {
+  if (drawn.count++ >= mostRects) {
+    return;
+  }
+  const [w, h] = [(step.width ?? 0) * scale, (step.height ?? 0) * scale];
+  if (step.outline) {
+    brush.lineWidth = Math.max(1, (step.line ?? 0.03) * scale);
+    brush.strokeRect(x * scale, y * scale, w, h);
+  } else {
+    brush.fillRect(x * scale, y * scale, w, h);
+  }
+}
+
+function paintChecker(brush: Brush, drawn: Drawn, step: PaintStep, size: [number, number], scale: number, colours: PaintColours): void {
+  const [width, height] = size;
+  const colour = colourOf(step.colour, step.shade, colours);
+  const cell = Math.max(0.1, step.cell ?? 1);
+  const other = colourOf(step.accent ?? "accent", step.shade, colours);
+  for (let row = 0, y = 0; y < height && drawn.count < mostRects; row++, y += cell) {
+    for (let column = 0, x = 0; x < width && drawn.count < mostRects; column++, x += cell) {
+      brush.fillStyle = (row + column) % 2 === 0 ? colour : other;
+      drawn.count++;
+      brush.fillRect(x * scale, y * scale, cell * scale, cell * scale);
+    }
+  }
+}
+
+function paintRepeatedRects(brush: Brush, drawn: Drawn, step: PaintStep, size: [number, number], scale: number): void {
+  const [width, height] = size;
+  const { dx = 0, dy = 0, shift = 0, cycle = 2 } = step.repeat ?? {};
+  const [x0, y0] = [step.x ?? 0, step.y ?? 0];
+  const rowStep = step.repeat && dy >= 0.1 ? dy : height + 1;
+  for (let row = 0, y = y0; y < height && drawn.count < mostRects; row++, y += rowStep) {
+    const along = x0 + (row % Math.max(1, cycle)) * shift;
+    const columnStep = step.repeat && dx >= 0.1 ? dx : width + 1;
+    for (let x = along; x < width && drawn.count < mostRects; x += columnStep) {
+      drawRect(brush, drawn, step, x, y, scale);
+    }
+  }
 }
 
 /** Draws a recipe's steps over a surface of <width> by <height> metres. */
 export function paintSteps(brush: Brush, steps: readonly PaintStep[], width: number, height: number, scale: number, colours: PaintColours): void {
-  let drawn = 0;
-  const rect = (step: PaintStep, x: number, y: number) => {
-    if (drawn++ >= mostRects) {
-      return;
-    }
-    const [w, h] = [(step.width ?? 0) * scale, (step.height ?? 0) * scale];
-    if (step.outline) {
-      brush.lineWidth = Math.max(1, (step.line ?? 0.03) * scale);
-      brush.strokeRect(x * scale, y * scale, w, h);
-    } else {
-      brush.fillRect(x * scale, y * scale, w, h);
-    }
-  };
+  const drawn: Drawn = { count: 0 };
   for (const step of steps) {
     const colour = colourOf(step.colour, step.shade, colours);
     brush.fillStyle = colour;
@@ -98,26 +134,9 @@ export function paintSteps(brush: Brush, steps: readonly PaintStep[], width: num
     if (step.op === "fill") {
       brush.fillRect(0, 0, width * scale, height * scale);
     } else if (step.op === "checker") {
-      const cell = Math.max(0.1, step.cell ?? 1);
-      const other = colourOf(step.accent ?? "accent", step.shade, colours);
-      for (let row = 0, y = 0; y < height && drawn < mostRects; row++, y += cell) {
-        for (let column = 0, x = 0; x < width && drawn < mostRects; column++, x += cell) {
-          brush.fillStyle = (row + column) % 2 === 0 ? colour : other;
-          drawn++;
-          brush.fillRect(x * scale, y * scale, cell * scale, cell * scale);
-        }
-      }
+      paintChecker(brush, drawn, step, [width, height], scale, colours);
     } else if (step.op === "rect") {
-      const { dx = 0, dy = 0, shift = 0, cycle = 2 } = step.repeat ?? {};
-      const [x0, y0] = [step.x ?? 0, step.y ?? 0];
-      const rowStep = step.repeat && dy >= 0.1 ? dy : height + 1;
-      for (let row = 0, y = y0; y < height && drawn < mostRects; row++, y += rowStep) {
-        const along = x0 + (row % Math.max(1, cycle)) * shift;
-        const columnStep = step.repeat && dx >= 0.1 ? dx : width + 1;
-        for (let x = along; x < width && drawn < mostRects; x += columnStep) {
-          rect(step, x, y);
-        }
-      }
+      paintRepeatedRects(brush, drawn, step, [width, height], scale);
     }
   }
 }
