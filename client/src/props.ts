@@ -207,9 +207,9 @@ function modelShape(name: string, scale: number, grow: number): VertexData {
   if (!mesh) {
     return data;
   }
-  // glTF is right-handed and Babylon left-handed: mirror it in Z and turn the triangles round (the model's front then faces -Z, the camera).
+  // glTF is right-handed and Babylon left-handed: mirror it in Z (the triangles then wind the way Babylon draws, and the model's front faces -Z, the camera).
   const positions = mesh.positions.map((v, i) => (i % 3 === 2 ? -v : v) * scale);
-  const indices = mesh.indices.flatMap((_, i, all) => (i % 3 === 0 ? [all[i] ?? 0, all[i + 2] ?? 0, all[i + 1] ?? 0] : []));
+  const indices = [...mesh.indices];
   const normals: number[] = [];
   VertexData.ComputeNormals(positions, indices, normals);
   if (grow > 0) {
