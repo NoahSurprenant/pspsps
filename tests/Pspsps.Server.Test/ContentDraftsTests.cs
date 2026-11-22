@@ -392,6 +392,34 @@ public sealed class ContentDraftsTests
         Assert.That(BackdropClearance.Problems(id, layout, parts), Is.Empty);
     }
 
+    /// <summary>The Town Square's look is the one a new game starts with (RoomLooks.json), so its shop fronts are checked from there.</summary>
+    [Test]
+    public void TheTownSquaresStartingBackdrop_HasTheShopFronts_AndKeepsClearOfTheWalksThePropsAndThePond()
+    {
+        var layout = Content.RoomList.Single(room => room.Id == "town-square").Layout;
+        var look = RoomLookSeeder.StartingLooks().Single(l => l.Id == "town-square").Look;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(look.Backdrop.Parts.Count, Is.GreaterThanOrEqualTo(150), "the town square's fronts are thin");
+            Assert.That(BackdropClearance.Problems("town-square", layout, look.Backdrop.Parts), Is.Empty);
+        });
+    }
+
+    [TestCase("mine", "town-mine-ground", 120)]
+    [TestCase("dojo-courtyard", "town-forecourt", 110)]
+    public void TheMineAndTheCourtyard_AreSummerFloorsFromTheirOwnPainters_AndRichlyDecorated(string id, string painter, int parts)
+    {
+        var look = Content.LookList.Single(l => l.Id == id).Look;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(look.Floor?.Painter, Is.EqualTo(painter));
+            Assert.That(Content.PainterList.Any(p => p.Id == painter && p.Surface == "floor"), Is.True, $"{painter} is not in the file");
+            Assert.That(look.Backdrop.Parts.Count, Is.GreaterThanOrEqualTo(parts), $"{id}'s scenery is thin");
+        });
+    }
+
     [Test]
     public void EveryPropDesignInTheFile_CanBeDrawn() =>
         Assert.That(Content.PropDesignList.SelectMany(d => PropDesign.Problems(d.Kind, d.Size, d.Parts, d.Growth)), Is.Empty);
