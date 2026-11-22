@@ -15,6 +15,15 @@ internal static class RoomJson
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
+    public static ValueConverter<T?, string> NullableConverter<T>() where T : class =>
+        new(value => JsonSerializer.Serialize(value, Options), json => JsonSerializer.Deserialize<T>(json, Options));
+
+    public static ValueComparer<T?> NullableComparer<T>() where T : class =>
+        new(
+            (a, b) => JsonSerializer.Serialize(a, Options) == JsonSerializer.Serialize(b, Options),
+            value => JsonSerializer.Serialize(value, Options).GetHashCode(StringComparison.Ordinal),
+            value => value);
+
     public static ValueConverter<T, string> Converter<T>() where T : class =>
         new(value => JsonSerializer.Serialize(value, Options), json => JsonSerializer.Deserialize<T>(json, Options)!);
 
