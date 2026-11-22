@@ -61,7 +61,10 @@ describe("lookOf", () => {
   });
 
   it("gives rooms with different painters distinct outdoor looks", () => {
-    const outdoors = { ...newRoom, ground: { colour: "#b7cf98" }, openLandscape: true };
+    const outdoors: RoomLookData = {
+      sky: "#d1eaf3", floorColour: "#9fd38a", wallColour: "#f0ddba", ground: { colour: "#b7cf98" }, openLandscape: true,
+      backdrop: { parts: [{ shape: "box", width: 1, height: 1, depth: 1, at: [0, 3, 8], colour: "#ffffff" }] },
+    };
     setLooks({
       rooms: [
         { id: "meadow", look: { ...outdoors, floor: { painter: "garden" }, wall: { painter: "garden" }, backdrop: { parts: [] } } },
