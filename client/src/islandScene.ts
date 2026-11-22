@@ -136,6 +136,15 @@ export function drawIsland(engine: AbstractEngine, places: readonly MapPlaceView
       box(p, 8, 0.4, 2, -2, 0.15, 3.5, colours.wood);
       box(p, 3.6, 0.7, 1.4, 4, 0.5, 1.8, colours.red);
     },
+    dock: (p) => {
+      box(p, 2.4, 0.4, 10, 0, 0.2, 0, colours.wood);
+      box(p, 7, 0.4, 2.4, 0, 0.2, 5, colours.wood);
+      for (const z of [-4, 0, 4]) {
+        box(p, 0.3, 1.2, 0.3, -1.2, 0, z, colours.dark);
+        box(p, 0.3, 1.2, 0.3, 1.2, 0, z, colours.dark);
+      }
+      box(p, 3.4, 0.9, 1.4, 4.6, 0.1, -1, colours.red);
+    },
     mountain: (p) => {
       for (const [x, z, size] of [[0, 0, 1.4], [-6, -2, 1], [6, -1, 1.1]] as const) {
         cone(p, 10 * size, 11 * size, x, 0, z, colours.rock);

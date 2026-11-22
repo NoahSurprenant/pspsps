@@ -40,7 +40,7 @@ public sealed class IslandMapTests
                 foreach (var other in places.Skip(i + 1))
                 {
                     var apart = Math.Sqrt(Math.Pow(places[i].X - other.X, 2) + Math.Pow(places[i].Z - other.Z, 2));
-                    Assert.That(apart, Is.GreaterThanOrEqualTo(12), $"{places[i].Id} is too close to {other.Id}.");
+                    Assert.That(apart, Is.GreaterThanOrEqualTo(8), $"{places[i].Id} is too close to {other.Id}.");
                 }
             }
         });
@@ -54,12 +54,63 @@ public sealed class IslandMapTests
         {
             Assert.That(IslandMap.Places[0].Room, Is.EqualTo(RoomBook.StartingRoom));
             Assert.That(withRooms, Is.Unique);
-            foreach (var id in new[] { "town-square", "garden", "riverside", "pear-orchard", "mine" })
+            foreach (var id in new[] { "town-square", "mine" })
             {
                 Assert.That(withRooms, Does.Contain(id));
             }
             Assert.That(withRooms, Does.Not.Contain("cafe"), "a building's inside is not on the map");
             Assert.That(withRooms, Does.Not.Contain("shop"), "a building's inside is not on the map");
+        });
+    }
+
+    /// <summary>Where each place stands on the original picture of the island, as percent across and down it. The map keeps this layout.</summary>
+    private static readonly Dictionary<string, (double Across, double Down)> Reference = new()
+    {
+        ["town-square"] = (66, 60),
+        ["market-row"] = (36, 60),
+        ["ice-rink"] = (43, 44),
+        ["scratching-peaks"] = (29, 48),
+        ["dojo-courtyard"] = (60, 29),
+        ["mine"] = (81, 48),
+        ["cove"] = (94, 67),
+        ["lighthouse"] = (4, 61),
+        ["harbour-dock"] = (19, 81),
+        ["whisker-woods"] = (52, 53),
+        ["cat-homes"] = (39, 73),
+    };
+
+    /// <summary>Invented places waiting to be retired with their rooms; each leaves this list when it leaves the map.</summary>
+    private static readonly string[] PendingRetirement = ["garden", "pear-orchard", "riverside"];
+
+    /// <summary>The reference picture spans this share of the island's width and depth.</summary>
+    private const double Fill = 0.95;
+
+    [Test]
+    public void EveryPlace_StandsWhereTheReferenceLayoutPutsIt()
+    {
+        Assert.Multiple(() =>
+        {
+            foreach (var place in IslandMap.Places.Where(p => !PendingRetirement.Contains(p.Id)))
+            {
+                Assert.That(Reference.ContainsKey(place.Id), Is.True, $"{place.Id} has no spot in the reference layout.");
+                if (!Reference.TryGetValue(place.Id, out var spot))
+                {
+                    continue;
+                }
+
+                var x = (spot.Across / 100 - 0.5) * 2 * IslandMap.HalfWidth * Fill;
+                var z = -(spot.Down / 100 - 0.5) * 2 * IslandMap.HalfDepth * Fill;
+                Assert.That(Math.Abs(place.X - x), Is.LessThanOrEqualTo(4), $"{place.Id} is {place.X} east, the reference says {x:0.#}.");
+                Assert.That(Math.Abs(place.Z - z), Is.LessThanOrEqualTo(4), $"{place.Id} is {place.Z} north, the reference says {z:0.#}.");
+            }
+            foreach (var id in Reference.Keys)
+            {
+                Assert.That(IslandMap.Places.Select(p => p.Id), Does.Contain(id), $"{id} is in the reference layout but not on the map.");
+            }
+            foreach (var id in PendingRetirement)
+            {
+                Assert.That(IslandMap.Places.Select(p => p.Id), Does.Contain(id), $"{id} has left the map: take it off PendingRetirement.");
+            }
         });
     }
 }

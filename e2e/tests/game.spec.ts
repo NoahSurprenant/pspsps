@@ -647,13 +647,13 @@ test("a cat walks the garden loop and travels to a room's spawn from the world m
   const map = page.getByRole("dialog", { name: "World map" });
   await expect(map.getByRole("button", { name: "Town Square, you are here" })).toHaveAttribute("aria-current", "location");
   // Every outdoor place of the island is on the map; a building's inside is not. Places not built yet can't be entered.
-  await expect(map.locator(".map-place[data-place]")).toHaveCount(16);
+  await expect(map.locator(".map-place[data-place]")).toHaveCount(14);
   await expect(map.locator('[data-place="cafe"], [data-place="shop"]')).toHaveCount(0);
-  await expect(map.getByRole("button", { name: "Old Mill, coming soon" })).toBeVisible();
+  await expect(map.getByRole("button", { name: "Lighthouse Point, coming soon" })).toBeVisible();
   await map.getByRole("button", { name: "Games", exact: true }).click();
   await expect(map.locator('.map-place[data-category="shops"]').first()).toHaveClass(/map-dim/);
   await expect(map.locator('.map-place[data-category="games"]').first()).not.toHaveClass(/map-dim/);
-  await map.getByRole("button", { name: "Old Mill, coming soon" }).click();
+  await map.getByRole("button", { name: "Lighthouse Point, coming soon" }).click();
   await expect(map.getByText("Coming soon.")).toBeVisible();
   await expect(page.getByRole("dialog", { name: "World map" })).toBeVisible();
   await page.keyboard.press("Escape");
