@@ -3286,6 +3286,15 @@
             "facing": 0
           },
           {
+            "kind": "flower-bed",
+            "spot": {
+              "x": -3,
+              "z": -6.6
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
             "kind": "bench",
             "spot": {
               "x": 7.8,

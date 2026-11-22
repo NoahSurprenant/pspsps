@@ -220,7 +220,7 @@ public sealed class ContentDraftsTests
             Assert.That(props["cove"], Does.Contain(PropKinds.FieldSurfShack).And.Contain(PropKinds.FieldBonfire));
             foreach (var castle in new[] { PropKinds.FieldSandcastle, PropKinds.FieldSandcastleSmall })
             {
-                Assert.That(designs[castle].Parts.Any(part => part.Shape == "box" && part.Width < 0.2 && part.Height > 0.3), Is.True, $"{castle} has a flag pole");
+                Assert.That(designs[castle].Parts.Any(part => part.Shape == "cylinder" && part.Diameter < 0.2 && part.Height > 0.3), Is.True, $"{castle} has a flag pole");
             }
         });
     }
