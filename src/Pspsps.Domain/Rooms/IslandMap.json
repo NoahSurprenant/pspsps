@@ -1,10 +1,7 @@
 [
   { "id": "town-square", "name": "Town Square", "category": "places", "landmark": "plaza", "x": 14, "z": -8, "room": "town-square", "blurb": "Where every cat arrives. The café and the shop are here." },
-  { "id": "garden", "name": "Garden Courtyard", "category": "places", "landmark": "garden", "x": -8, "z": 22, "room": "garden", "blurb": "Flower beds and a quiet bench." },
-  { "id": "pear-orchard", "name": "Pear Orchard", "category": "places", "landmark": "orchard", "x": -34, "z": 12, "room": "pear-orchard", "blurb": "Pears to pick, shade to nap in." },
   { "id": "cat-homes", "name": "Cat Homes Lane", "category": "places", "landmark": "homes", "x": -9, "z": -21, "room": null, "blurb": "A lane of little houses, one for each cat." },
   { "id": "lighthouse", "name": "Lighthouse Point", "category": "places", "landmark": "lighthouse", "x": -40, "z": -9, "room": null, "blurb": "A tall light over the waves." },
-  { "id": "riverside", "name": "Riverside Trail", "category": "games", "landmark": "river", "x": 16, "z": -22, "room": "riverside", "blurb": "Fish from the bank." },
   { "id": "cove", "name": "Sunny Cove", "category": "games", "landmark": "cove", "x": 38, "z": -14, "room": "cove", "blurb": "A boardwalk, a pond and a boat shed." },
   { "id": "scratching-peaks", "name": "Scratching Peaks", "category": "games", "landmark": "mountain", "x": -22, "z": 5, "room": null, "blurb": "Climb the scratching posts to the top." },
   { "id": "market-row", "name": "Market Row", "category": "shops", "landmark": "market", "x": -11, "z": -8, "room": "market-row", "blurb": "Stalls of hats, toys and treats." },

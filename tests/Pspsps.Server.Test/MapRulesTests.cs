@@ -12,15 +12,6 @@ public sealed class MapRulesTests
     /// <summary>The farthest apart, in map metres, two places joined by a door may be.</summary>
     private const double FarthestNeighbour = 32;
 
-    /// <summary>Doors that break the rules until their rooms are rebuilt; each leaves this list when it is fixed.</summary>
-    private static readonly string[] KnownBreaks =
-    [
-        "garden/pear-orchard",
-        "pear-orchard/garden",
-        "pear-orchard/riverside",
-        "riverside/pear-orchard",
-    ];
-
     [Test]
     public void EveryDoorBetweenTwoPlacesOnTheMap_FacesTheOtherPlace_AndLeadsToANeighbour()
     {
@@ -55,6 +46,6 @@ public sealed class MapRulesTests
             }
         }
 
-        Assert.That(breaks, Is.EquivalentTo(KnownBreaks), "a door breaks the map rules, or a known break is fixed: take it off KnownBreaks");
+        Assert.That(breaks, Is.Empty, "a door breaks the map rules");
     }
 }

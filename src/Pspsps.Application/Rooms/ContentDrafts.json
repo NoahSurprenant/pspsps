@@ -108,13 +108,6 @@
             "toDoor": "town-square"
           },
           {
-            "id": "riverside",
-            "edge": "South",
-            "offset": 6.4,
-            "toRoom": "riverside",
-            "toDoor": "town-square"
-          },
-          {
             "id": "cove",
             "edge": "East",
             "offset": -3.5,

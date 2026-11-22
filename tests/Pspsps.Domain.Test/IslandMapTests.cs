@@ -79,9 +79,6 @@ public sealed class IslandMapTests
         ["cat-homes"] = (39, 73),
     };
 
-    /// <summary>Invented places waiting to be retired with their rooms; each leaves this list when it leaves the map.</summary>
-    private static readonly string[] PendingRetirement = ["garden", "pear-orchard", "riverside"];
-
     /// <summary>The reference picture spans this share of the island's width and depth.</summary>
     private const double Fill = 0.95;
 
@@ -90,7 +87,7 @@ public sealed class IslandMapTests
     {
         Assert.Multiple(() =>
         {
-            foreach (var place in IslandMap.Places.Where(p => !PendingRetirement.Contains(p.Id)))
+            foreach (var place in IslandMap.Places.)
             {
                 Assert.That(Reference.ContainsKey(place.Id), Is.True, $"{place.Id} has no spot in the reference layout.");
                 if (!Reference.TryGetValue(place.Id, out var spot))
@@ -106,10 +103,6 @@ public sealed class IslandMapTests
             foreach (var id in Reference.Keys)
             {
                 Assert.That(IslandMap.Places.Select(p => p.Id), Does.Contain(id), $"{id} is in the reference layout but not on the map.");
-            }
-            foreach (var id in PendingRetirement)
-            {
-                Assert.That(IslandMap.Places.Select(p => p.Id), Does.Contain(id), $"{id} has left the map: take it off PendingRetirement.");
             }
         });
     }
