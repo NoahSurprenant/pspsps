@@ -121,7 +121,7 @@ public sealed class ContentDraftsTests
     }
 
     [Test]
-    public void TheIceRink_IsReachableFromTownSquare_ThroughMarketRow()
+    public void TheIceRink_IsReachableFromTownSquare()
     {
         var layouts = RoomCatalog.All.ToDictionary(room => room.Id, RoomLayout.Of);
         foreach (var room in Content.RoomList)
@@ -131,9 +131,9 @@ public sealed class ContentDraftsTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(layouts["plaza"].Doors.Any(door => door.ToRoom == "ice-rink" && door.ToDoor == "plaza"), Is.True, "a way from the market row");
-            Assert.That(layouts["ice-rink"].Doors.Any(door => door.ToRoom == "plaza" && door.ToDoor == "ice-rink"), Is.True, "and back");
-            Assert.That(layouts["town-square"].Doors.Any(door => door.ToRoom == "plaza"), Is.True, "the plaza is reached from the square");
+            Assert.That(layouts["town-square"].Doors.Any(door => door.ToRoom == "ice-rink" && door.ToDoor == "town-square"), Is.True, "a way from the square");
+            Assert.That(layouts["ice-rink"].Doors.Any(door => door.ToRoom == "town-square" && door.ToDoor == "ice-rink"), Is.True, "and back");
+            Assert.That(layouts["plaza"].Doors.Any(door => door.ToRoom == "ice-rink"), Is.False, "the rink is outdoors, not behind a shop door");
         });
     }
 
@@ -291,19 +291,11 @@ public sealed class ContentDraftsTests
         Assert.Multiple(() =>
         {
             Assert.That(IslandMap.Places.Single(place => place.Id == "plaza").Room, Is.EqualTo("plaza"));
-            foreach (var (room, other) in new[] { ("town-square", "plaza"), ("plaza", "pizza-parlor"), ("plaza", "pet-shop"), ("town-square", "night-club") })
+            foreach (var (room, other) in new[] { ("town-square", "plaza"), ("plaza", "pizza-parlor"), ("plaza", "pet-shop"), ("plaza", "hotel"), ("plaza", "mall"), ("town-square", "night-club") })
             {
                 var there = layouts[room].Doors.Single(door => door.ToRoom == other);
                 var back = layouts[other].Doors.Single(door => door.ToRoom == room);
                 Assert.That((there.ToDoor, back.ToDoor), Is.EqualTo((back.Id, there.Id)), $"{room} and {other} name each other's doors");
-            }
-
-            // A shop door in the street is under its own sign: the way back out of a shop stands at the same x along the street.
-            foreach (var shop in new[] { "pizza-parlor", "pet-shop" })
-            {
-                var street = layouts["plaza"].Doors.Single(door => door.ToRoom == shop);
-                var inside = layouts[shop].Doors.Single(door => door.ToRoom == "plaza");
-                Assert.That(inside.Offset, Is.EqualTo(street.Offset), $"{shop}'s way out is at the street door's offset");
             }
         });
     }
