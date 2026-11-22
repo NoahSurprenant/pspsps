@@ -731,5 +731,8 @@
   {"shape":"ball","diameter":0.06,"at":[0,1.07,-0.3],"colour":"#f29bc1","outlined":false},
   {"shape":"cylinder","diameter":0.68,"height":0.1,"at":[0,0.82,0],"colour":"#c0505a","sides":12},
   {"shape":"box","width":0.1,"height":0.4,"depth":0.04,"at":[0.2,0.62,-0.4],"colour":"#c0505a"}
+ ]},
+ {"kind": "town-house", "size": 2.4, "parts": [
+  {"shape":"model","model":"town-house","scale":4.6,"at":[0,0,0],"turn":[0,3.14159,0],"colour":"#ffffff"}
  ]}
 ]

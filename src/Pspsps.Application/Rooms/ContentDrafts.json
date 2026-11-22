@@ -22759,28 +22759,6 @@
           "colour": "#c0505a"
         }
       ]
-    },
-    {
-      "kind": "town-house",
-      "size": 2.4,
-      "parts": [
-        {
-          "shape": "model",
-          "at": [
-            0,
-            0,
-            0
-          ],
-          "colour": "#ffffff",
-          "model": "town-house",
-          "scale": 4.6,
-          "turn": [
-            0,
-            3.141592653589793,
-            0
-          ]
-        }
-      ]
     }
   ]
 }

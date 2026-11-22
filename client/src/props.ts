@@ -165,7 +165,10 @@ function piece(part: Part, grow: number, hex: string): VertexData {
   const own = grow === 0 && part.shape === "model" ? modelData(part.model)?.colours : undefined;
   for (let i = 0; i < count; i++) {
     const faceUp = (normals[i * 3 + 1] ?? 0) > 0.7;
-    const c = own ? Color3.FromHexString(own[i] ?? hex) : faceUp ? top : colour;
+    let c = faceUp ? top : colour;
+    if (own) {
+      c = Color3.FromHexString(own[i] ?? hex);
+    }
     colours.set([c.r, c.g, c.b, 1], i * 4);
   }
   data.colors = colours;

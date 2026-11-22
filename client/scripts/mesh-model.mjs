@@ -59,20 +59,22 @@ function readPng(bytes) {
     offset += 12 + length;
   }
   const { width, height, channels } = header;
-  const raw = inflateSync(Buffer.concat(data));
-  const row = width * channels;
+  return { width, height, channels, pixels: unfilter(inflateSync(Buffer.concat(data)), width * channels, height, channels) };
+}
+
+/** The pixel bytes of PNG scanlines (<row> bytes each, a filter byte before every one). */
+function unfilter(raw, row, height, channels) {
   const pixels = Buffer.alloc(row * height);
   for (let y = 0; y < height; y++) {
     const filter = raw[y * (row + 1)];
     for (let i = 0; i < row; i++) {
-      const value = raw[y * (row + 1) + 1 + i];
       const left = i >= channels ? pixels[y * row + i - channels] : 0;
       const up = y > 0 ? pixels[(y - 1) * row + i] : 0;
       const upLeft = i >= channels && y > 0 ? pixels[(y - 1) * row + i - channels] : 0;
-      pixels[y * row + i] = (value + predict(filter, left, up, upLeft)) & 255;
+      pixels[y * row + i] = (raw[y * (row + 1) + 1 + i] + predict(filter, left, up, upLeft)) & 255;
     }
   }
-  return { width, height, channels, pixels };
+  return pixels;
 }
 
 function predict(filter, left, up, upLeft) {
