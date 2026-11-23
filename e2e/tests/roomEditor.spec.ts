@@ -44,6 +44,21 @@ test("the 3D preview sits beside the picture and follows what is typed, before a
   await expect(page.getByText("editing the draft")).toHaveCount(0);
 });
 
+test("the look is a form whose changes show in the 3D preview at once", async ({ page, context, baseURL }) => {
+  await signInAsAdmin(context, baseURL!);
+  await page.goto("/admin/rooms/shop");
+
+  await page.getByRole("link", { name: "Look", exact: true }).click();
+  await expect(page.getByLabel("Floor painter", { exact: true })).toBeVisible();
+  const asked = page.waitForRequest((request) => request.method() === "POST" && request.url().endsWith("/rooms/shop/preview")
+    && (request.postDataJSON() as { look?: { sky?: string } }).look?.sky === "#102030");
+  await page.getByLabel("Sky").fill("#102030");
+  const response = await (await asked).response();
+
+  expect(response?.status()).toBe(200);
+  expect(((await response!.json()) as { draftLook: { sky: string } }).draftLook.sky).toBe("#102030");
+});
+
 test("a new room is saved as a draft from its own page, and the draft can be discarded", async ({ page, context, baseURL }) => {
   await signInAsAdmin(context, baseURL!);
   await page.goto("/admin/rooms");

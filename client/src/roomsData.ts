@@ -76,3 +76,13 @@ export function problemsText(problems: string[]): string {
   return problems.length === 0 ? "Saved. It can be published." : `Saved, but it can't be published yet: ${problems.join(" ")}`;
 }
 
+
+/** The names a look may use, which the server checks it against. */
+export interface LookOptions {
+  propKinds: string[];
+  floors: string[];
+  walls: string[];
+  grounds: string[];
+  generators: string[];
+  wildlife: string[];
+}

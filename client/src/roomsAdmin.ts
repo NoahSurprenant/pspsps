@@ -1,20 +1,11 @@
 import { el } from "./dom";
 import { roomPreview } from "./roomPreview";
 import { calendar, fieldsOf, monthNames, summary, windowOf, windowProblem, type WindowFields, type WindowJson } from "./overlayWindow";
-import { auditText, draftQuery, draftSetUrl, goLiveInstant, goLiveText, parseJson, problemsText, publishQuery, roomLine, type AuditLine, type RoomDetail, type RoomSummary } from "./roomsData";
+import { auditText, draftQuery, draftSetUrl, goLiveInstant, goLiveText, parseJson, problemsText, publishQuery, roomLine, type AuditLine, type LookOptions, type RoomDetail, type RoomSummary } from "./roomsData";
 import { type CanvasDoor, type CanvasLayout, isLayout, newRoomTemplate, roomCanvas } from "./roomCanvas";
 
 export { auditText, draftQuery, draftSetUrl, goLiveInstant, goLiveText, parseJson, problemsText, publishQuery, roomLine };
-export type { AuditLine, RoomDetail, RoomSummary, VersionSummary } from "./roomsData";
-
-export interface LookOptions {
-  propKinds: string[];
-  floors: string[];
-  walls: string[];
-  grounds: string[];
-  generators: string[];
-  wildlife: string[];
-}
+export type { AuditLine, LookOptions, RoomDetail, RoomSummary, VersionSummary } from "./roomsData";
 
 export interface LooksData {
   rooms: { id: string; look: unknown }[];

@@ -3,15 +3,19 @@ import { Router, RouterLink } from "@angular/router";
 import { type CanvasDoor, type CanvasLayout, isLayout, newRoomTemplate } from "../../src/roomCanvas";
 import { parseJson, problemsText, type RoomDetail } from "../../src/roomsData";
 import { messageOf } from "./http";
+import { blankLook } from "../../src/lookForm";
+import type { RoomLookData } from "../../src/looks";
+import type { LookOptions } from "../../src/roomsData";
+import { RoomLookForm } from "./roomLookForm";
 import { RoomCanvasHost } from "./roomCanvasHost";
 import { RoomPreviewFrame } from "./roomPreviewFrame";
 import { RoomsApi } from "./roomsApi";
 
-type Section = "layout" | "versions";
+type Section = "layout" | "look" | "versions";
 
 @Component({
   selector: "app-room-editor",
-  imports: [RouterLink, RoomCanvasHost, RoomPreviewFrame],
+  imports: [RouterLink, RoomCanvasHost, RoomLookForm, RoomPreviewFrame],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <p><a routerLink="/rooms">&larr; All rooms</a></p>
@@ -27,13 +31,28 @@ type Section = "layout" | "versions";
     <div class="editor">
       <nav class="sections" aria-label="Parts of the room">
         <a href="" [class.current]="section() === 'layout'" (click)="show($event, 'layout')">Layout</a>
+        <a href="" [class.current]="section() === 'look'" (click)="show($event, 'look')">Look</a>
         <a href="" [class.current]="section() === 'versions'" (click)="show($event, 'versions')">Versions</a>
       </nav>
       <section class="card">
-        @if (section() === "layout") {
-          <h2>Layout</h2>
+        @if (section() !== "versions") {
+          <h2>{{ section() === "look" ? "Look" : "Layout" }}</h2>
           <div class="workspace">
             <div>
+              @if (section() === "look") {
+                @if (look(); as shown) {
+                  @if (options(); as names) {
+                    <app-room-look-form [look]="shown" [options]="names" (changed)="look.set($event)" />
+                  }
+                  <div class="actions">
+                    <button type="button" class="primary" [disabled]="busy()" (click)="saveLook()">Save look</button>
+                    <button type="button" [disabled]="busy() || !detail()?.draftLook" (click)="clearLook()">Take the look out of the draft</button>
+                  </div>
+                } @else {
+                  <p class="quiet">This room has no look yet: it needs one before it can be published.</p>
+                  <button type="button" class="primary" (click)="look.set(blank())">Start a look</button>
+                }
+              } @else {
               @if (layout(); as shown) {
                 <app-room-canvas [layout]="shown" [roomId]="id()" [propKinds]="propKinds()" [rooms]="roomIds()" [addWayBack]="wayBack" (changed)="canvasChanged($event)" />
               } @else {
@@ -43,9 +62,10 @@ type Section = "layout" | "versions";
                 <summary>Layout as JSON</summary>
                 <textarea rows="18" spellcheck="false" [attr.aria-label]="id() + ' layout as JSON'" [value]="layoutText()" (input)="typed($event)"></textarea>
               </details>
+              }
             </div>
             <div>
-              <app-room-preview [roomId]="id()" [layout]="parsed()" [look]="detail()?.draftLook ?? null" />
+              <app-room-preview [roomId]="id()" [layout]="parsed()" [look]="look()" />
             </div>
           </div>
           <div class="actions">
@@ -58,7 +78,7 @@ type Section = "layout" | "versions";
             <input aria-label="Publish together with these rooms" placeholder="room-a, room-b" [value]="together()" (input)="togetherTyped($event)" />
           </label>
           <p class="quiet">
-            The look, variants, overlays, painters and wildlife are still on the
+            Variants, overlays, painters and wildlife are still on the
             <a href="/admin">old admin page</a> while they are moved here.
           </p>
         } @else {
@@ -94,7 +114,10 @@ export class RoomEditorPage {
   protected readonly versions = computed(() => this.detail()?.versions ?? []);
   protected readonly parsed = computed(() => parseJson(this.layoutText()));
   protected readonly layout = computed(() => { const value = this.parsed(); return isLayout(value) ? value : null; });
-  protected readonly propKinds = signal<string[]>([]);
+  protected readonly propKinds = computed(() => this.options()?.propKinds ?? []);
+  protected readonly look = signal<RoomLookData | null>(null);
+  protected readonly options = signal<LookOptions | null>(null);
+  protected readonly blank = blankLook;
   protected readonly roomIds = signal<string[]>([]);
   protected readonly wayBack = async (door: CanvasDoor, back: CanvasDoor): Promise<void> => {
     await this.api.addWayBack(door, back);
@@ -107,7 +130,7 @@ export class RoomEditorPage {
       const fresh = this.isNew() !== undefined;
       void this.load(id, fresh);
     });
-    void this.api.propKinds().then((kinds) => this.propKinds.set(kinds), () => undefined);
+    void this.api.options().then((options) => this.options.set(options), () => undefined);
     void this.api.list().then((rooms) => this.roomIds.set(rooms.map((room) => room.roomId)), () => undefined);
   }
 
@@ -136,6 +159,24 @@ export class RoomEditorPage {
       await this.load(this.id(), false);
       if (this.isNew() !== undefined) void this.router.navigate([], { queryParams: { new: null }, replaceUrl: true });
       return problemsText(saved?.problems ?? []);
+    });
+  }
+
+  protected saveLook(): Promise<void> {
+    return this.act(async () => {
+      const look = this.look();
+      if (!look) return "There is no look to save.";
+      await this.api.saveLook(this.id(), look);
+      await this.load(this.id(), false);
+      return `The look of ${this.id()} is saved in its draft: publish the room to put it live.`;
+    });
+  }
+
+  protected clearLook(): Promise<void> {
+    return this.act(async () => {
+      await this.api.clearDraftLook(this.id());
+      await this.load(this.id(), false);
+      return `The draft of ${this.id()} goes live with the look the room has now.`;
     });
   }
 
@@ -180,6 +221,7 @@ export class RoomEditorPage {
       const detail = fresh ? null : await this.api.detail(id);
       this.detail.set(detail);
       this.layoutText.set(JSON.stringify(detail?.draft ?? detail?.published ?? newRoomTemplate(id), null, 2));
+      this.look.set((detail?.draftLook ?? (fresh ? null : await this.api.liveLook(id))) as RoomLookData | null);
     } catch (error) {
       this.message.set(messageOf(error));
     }
