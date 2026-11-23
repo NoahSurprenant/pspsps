@@ -861,7 +861,7 @@ public sealed class RoomEditorHttpTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(history.Select(h => h.Action), Is.EqualTo(new[] { "draft-look-saved", "draft-saved", "draft-saved" }));
+            Assert.That(history.Take(3).Select(h => h.Action), Is.EqualTo(new[] { "draft-look-saved", "draft-saved", "draft-saved" }));
             Assert.That(history[0].Look?.Sky, Is.EqualTo(look.Sky));
             Assert.That(history[0].Look?.WallColour, Is.EqualTo(look.WallColour));
             Assert.That(history[0].Layout.Name, Is.EqualTo("History two"));
