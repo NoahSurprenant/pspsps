@@ -7,7 +7,7 @@ import { RoomMapPage } from "./roomMapPage";
 export const routes: Routes = [
   { path: "", pathMatch: "full", redirectTo: "rooms" },
   { path: "rooms", component: RoomListPage },
-  { path: "map", component: RoomMapPage },
+  { path: "rooms/map", component: RoomMapPage },
   { path: "rooms/:id", component: RoomEditorPage },
   { path: "library", component: LibraryPage },
   { path: "**", redirectTo: "rooms" },

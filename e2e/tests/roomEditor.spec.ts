@@ -174,7 +174,7 @@ test("every saved draft appears in the room's history, can be shown, and put bac
 
 test("the world map places rooms side by side and shows two rooms on the same floor as a clash", async ({ page, context, baseURL }) => {
   await signInAsAdmin(context, baseURL!);
-  await page.goto("/admin/map");
+  await page.goto("/admin/rooms/map");
   await expect(page.getByRole("heading", { name: "World map" })).toBeVisible();
   const rooms = page.locator("ul.rooms button");
   await expect(rooms.nth(1)).toBeVisible();

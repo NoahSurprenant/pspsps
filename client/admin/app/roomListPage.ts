@@ -54,7 +54,7 @@ import { RoomsApi } from "./roomsApi";
     <section class="card">
       <h2>World map</h2>
       <p class="quiet">Where the outdoor rooms sit on the world grid.</p>
-      <a routerLink="/map">Open the world map</a>
+      <a routerLink="/rooms/map">Open the world map</a>
     </section>
     <section class="card">
       <h2>Content file</h2>

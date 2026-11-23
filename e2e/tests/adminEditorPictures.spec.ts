@@ -38,7 +38,7 @@ test("every screen of the room editor is pictured on a contact sheet", async ({ 
   await page.getByRole("link", { name: "Looks library" }).click();
   await take("Looks library");
 
-  await page.goto("/admin/map");
+  await page.goto("/admin/rooms/map");
   await expect(page.getByRole("heading", { name: "World map" })).toBeVisible();
   await take("World map");
 
