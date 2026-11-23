@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FILTERS, VIEW, filterLabel, isOpen, matches, placeName, screenPoint, shouldTravel } from "./islandMap";
+import { FILTERS, MARKER_HEIGHT, VIEW, filterLabel, isOpen, matches, placeName, screenPoint, shouldTravel } from "./islandMap";
 import type { MapPlaceView } from "./types";
 
 const place = (over: Partial<MapPlaceView> = {}): MapPlaceView => ({
@@ -44,5 +44,11 @@ describe("the island map", () => {
     expect(shouldTravel(true, "touch")).toBe(true);
     expect(shouldTravel(false, "mouse")).toBe(true);
     expect(shouldTravel(false, "")).toBe(true);
+  });
+});
+
+describe("the map markers", () => {
+  it("sit above the miniature they name, so a finger-sized dot does not cover it", () => {
+    expect(screenPoint(0, 0, MARKER_HEIGHT).top).toBeLessThan(screenPoint(0, 0, 3).top);
   });
 });

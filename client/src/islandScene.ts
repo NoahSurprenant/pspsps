@@ -15,12 +15,15 @@ import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import { Scene } from "@babylonjs/core/scene";
 import { VIEW, matches, type Filter } from "./islandMap";
+import { cameraEdges, type Frame } from "./mapZoom";
 import type { MapPlaceView } from "./types";
 
 export interface IslandScene {
   /** Shrinks the places that aren't in the tab, so the ones that are stand out. */
   filter(filter: Filter): void;
   resize(): void;
+  /** Shows only part of the island, zoomed in. */
+  view(frame: Frame): void;
   dispose(): void;
 }
 
@@ -236,6 +239,14 @@ export function drawIsland(engine: AbstractEngine, places: readonly MapPlaceView
     },
     resize() {
       engine.resize();
+      dirty = true;
+    },
+    view(frame) {
+      const edges = cameraEdges(frame);
+      camera.orthoLeft = edges.left;
+      camera.orthoRight = edges.right;
+      camera.orthoTop = edges.top;
+      camera.orthoBottom = edges.bottom;
       dirty = true;
     },
     dispose() {

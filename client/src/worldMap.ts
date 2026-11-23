@@ -1,5 +1,8 @@
 import { el } from "./dom";
-import { FILTERS, filterLabel, isOpen, matches, placeName, screenPoint, shouldTravel, type Filter } from "./islandMap";
+import { followSize } from "./followSize";
+import { FILTERS, MARKER_HEIGHT, filterLabel, isOpen, matches, placeName, screenPoint, shouldTravel, type Filter } from "./islandMap";
+import type { IslandScene } from "./islandScene";
+import { WHOLE, ZOOM, panBy, project, zoomAt, type Frame } from "./mapZoom";
 import type { MapPlaceView, RoomSnapshot } from "./types";
 
 /**
@@ -26,6 +29,17 @@ export function drawMap(room: RoomSnapshot, travel: (roomId: string) => void): H
   const canvas = el("canvas", { className: "map-canvas" });
   canvas.setAttribute("aria-hidden", "true");
   const picture = el("div", { className: "map-picture" }, canvas);
+  const zoomButton = (label: string, text: string) => {
+    const button = el("button", { className: "map-zoom-button", text });
+    button.type = "button";
+    button.setAttribute("aria-label", label);
+    return button;
+  };
+  const zoomIn = zoomButton("Zoom in", "+");
+  const zoomOut = zoomButton("Zoom out", "\u2212");
+  const zoomControls = el("div", { className: "map-zoom" }, zoomIn, zoomOut);
+  zoomIn.addEventListener("click", () => setFrame(zoomAt(frame, ZOOM.step)));
+  zoomOut.addEventListener("click", () => setFrame(zoomAt(frame, 1 / ZOOM.step)));
   const caption = el("p", { className: "map-caption" });
   caption.setAttribute("aria-live", "polite");
   const go = el("button", { className: "map-go" });
@@ -33,9 +47,22 @@ export function drawMap(room: RoomSnapshot, travel: (roomId: string) => void): H
   const info = el("div", { className: "map-info" }, caption, go);
   let selected: MapPlaceView | null = null;
   let filter: Filter = "all";
-  let island: { filter(filter: Filter): void; resize(): void; dispose(): void } | undefined;
+  let island: IslandScene | undefined;
 
   const markers = new Map<string, HTMLButtonElement>();
+  const home = new Map<string, { left: number; top: number }>();
+  let frame: Frame = WHOLE;
+  const setFrame = (next: Frame) => {
+    frame = next;
+    for (const [id, marker] of markers) {
+      const at = project(home.get(id)?.left ?? 0, home.get(id)?.top ?? 0, frame);
+      marker.style.left = `${at.left}%`;
+      marker.style.top = `${at.top}%`;
+    }
+    zoomIn.disabled = frame.zoom >= ZOOM.max;
+    zoomOut.disabled = frame.zoom <= ZOOM.min;
+    island?.view(frame);
+  };
   const show = (place: MapPlaceView | null) => {
     selected = place;
     for (const [id, marker] of markers) marker.classList.toggle("selected", id === place?.id);
@@ -61,9 +88,7 @@ export function drawMap(room: RoomSnapshot, travel: (roomId: string) => void): H
     marker.classList.toggle("map-closed", !isOpen(place));
     marker.setAttribute("aria-label", placeName(place, room.roomId));
     if (place.roomId === room.roomId) marker.setAttribute("aria-current", "location");
-    const { left, top } = screenPoint(place.x, place.z, 3);
-    marker.style.left = `${left}%`;
-    marker.style.top = `${top}%`;
+    home.set(place.id, screenPoint(place.x, place.z, MARKER_HEIGHT));
     marker.addEventListener("click", (event) => {
       const touch = (event as PointerEvent).pointerType ?? "";
       const again = selected?.id === place.id;
@@ -96,29 +121,32 @@ export function drawMap(room: RoomSnapshot, travel: (roomId: string) => void): H
     tabs.append(tab);
   }
 
+  followGestures(picture, () => frame, setFrame);
+  picture.append(zoomControls);
+  setFrame(WHOLE);
   show(null);
   wrap.append(tabs, picture, info);
   void startPicture(canvas, places).then((started) => {
     island = started;
     island?.filter(filter);
+    island?.view(frame);
   });
   return wrap;
 }
 
 /** The 3D picture loads when the map opens, not with the game; without WebGL the buttons still work. */
-async function startPicture(canvas: HTMLCanvasElement, places: MapPlaceView[]): Promise<{ filter(filter: Filter): void; resize(): void; dispose(): void } | undefined> {
+async function startPicture(canvas: HTMLCanvasElement, places: MapPlaceView[]): Promise<IslandScene | undefined> {
   try {
     const [{ Engine }, { drawIsland }] = await Promise.all([import("@babylonjs/core/Engines/engine"), import("./islandScene")]);
     if (!canvas.isConnected) return undefined;
     const engine = new Engine(canvas, true, { canvasTabIndex: -1 });
     const island = drawIsland(engine, places);
-    const resize = () => island.resize();
-    window.addEventListener("resize", resize);
+    const stopFollowing = followSize(canvas, () => island.resize());
     // The sheet takes its canvas away when it closes.
     const watch = new MutationObserver(() => {
       if (!canvas.isConnected) {
         watch.disconnect();
-        window.removeEventListener("resize", resize);
+        stopFollowing();
         island.dispose();
       }
     });
@@ -127,4 +155,62 @@ async function startPicture(canvas: HTMLCanvasElement, places: MapPlaceView[]): 
   } catch {
     return undefined;
   }
+}
+
+/** The wheel zooms, two fingers pinch, one finger or the mouse drags; a drag does not count as a tap on a place. */
+function followGestures(picture: HTMLElement, frame: () => Frame, set: (frame: Frame) => void): void {
+  const touches = new Map<number, { x: number; y: number }>();
+  let pinch = 0;
+  let moved = 0;
+  const percent = (event: { clientX: number; clientY: number }) => {
+    const box = picture.getBoundingClientRect();
+    return { x: (100 * (event.clientX - box.left)) / (box.width || 1), y: (100 * (event.clientY - box.top)) / (box.height || 1), box };
+  };
+  const spread = () => {
+    const [a, b] = [...touches.values()];
+    return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 0;
+  };
+  picture.addEventListener("wheel", (event) => {
+    event.preventDefault();
+    const at = percent(event);
+    set(zoomAt(frame(), event.deltaY < 0 ? ZOOM.step : 1 / ZOOM.step, at.x, at.y));
+  }, { passive: false });
+  picture.addEventListener("pointerdown", (event) => {
+    touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    moved = 0;
+    pinch = spread();
+  });
+  picture.addEventListener("pointermove", (event) => {
+    const last = touches.get(event.pointerId);
+    if (!last) return;
+    const now = { x: event.clientX, y: event.clientY };
+    touches.set(event.pointerId, now);
+    const box = picture.getBoundingClientRect();
+    if (touches.size === 2) {
+      const next = spread();
+      if (pinch > 0 && next > 0) {
+        const mid = percent({ clientX: [...touches.values()].reduce((sum, t) => sum + t.x, 0) / 2, clientY: [...touches.values()].reduce((sum, t) => sum + t.y, 0) / 2 });
+        set(zoomAt(frame(), next / pinch, mid.x, mid.y));
+      }
+      pinch = next;
+      moved += 10;
+    } else if (touches.size === 1 && frame().zoom > ZOOM.min) {
+      moved += Math.abs(now.x - last.x) + Math.abs(now.y - last.y);
+      set(panBy(frame(), (100 * (now.x - last.x)) / (box.width || 1), (100 * (now.y - last.y)) / (box.height || 1)));
+    }
+  });
+  const lift = (event: PointerEvent) => {
+    touches.delete(event.pointerId);
+    pinch = spread();
+  };
+  picture.addEventListener("pointerup", lift);
+  picture.addEventListener("pointercancel", lift);
+  picture.addEventListener("pointerleave", lift);
+  picture.addEventListener("click", (event) => {
+    if (moved > 8) {
+      event.stopPropagation();
+      event.preventDefault();
+    }
+    moved = 0;
+  }, true);
 }
