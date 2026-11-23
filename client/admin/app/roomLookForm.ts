@@ -10,10 +10,13 @@ import { parseJson } from "../../src/roomsData";
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="form">
+      <div class="group">
+        <strong>Colours</strong>
       <label>Sky <input type="color" [value]="look().sky" (input)="field('sky', $event)" /></label>
       <label>Floor colour <input type="color" [value]="look().floorColour" (input)="field('floorColour', $event)" /></label>
       <label>Wall colour <input type="color" [value]="look().wallColour" (input)="field('wallColour', $event)" /></label>
-      <label>
+      </div>
+      <label class="check">
         <input type="checkbox" [checked]="!!look().openLandscape" (change)="open($event)" />
         Open countryside (no back wall, a path through the north edge)
       </label>
