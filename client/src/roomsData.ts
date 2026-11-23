@@ -1,3 +1,4 @@
+import type { OverlayData } from "./overlayData";
 // What the admin reads about rooms, and the small pure rules for talking to the server about them. No DOM and no 3D, so the
 // room editor app can use it as well as the admin page.
 
@@ -40,7 +41,7 @@ export interface RoomDetail {
   versions: VersionSummary[];
   published: unknown | null;
   draft: unknown | null;
-  overlays: { id: string }[];
+  overlays: OverlayData[];
   /** Overlays of this room in the reviewed content file that are not saved yet (they wait for the room to be published); previewable. */
   draftRevision?: number | null;
   goLiveAt?: string | null;

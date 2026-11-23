@@ -32,6 +32,8 @@ export class RoomsApi {
   deleteVariant = (id: string): Promise<null> => request("DELETE", `/api/admin/looks/variants/${encodeURIComponent(id)}`);
   saveRecipe = (kind: "painters" | "wildlife", id: string, body: unknown): Promise<null> => request("PUT", `/api/admin/looks/${kind}/${encodeURIComponent(id)}`, body);
   deleteRecipe = (kind: "painters" | "wildlife", id: string): Promise<null> => request("DELETE", `/api/admin/looks/${kind}/${encodeURIComponent(id)}`);
+  saveOverlay = (roomId: string, id: string, overlay: unknown): Promise<null> => request("PUT", `${base(roomId)}/overlays/${encodeURIComponent(id)}`, overlay);
+  deleteOverlay = (roomId: string, id: string): Promise<null> => request("DELETE", `${base(roomId)}/overlays/${encodeURIComponent(id)}`);
 
   /** The look the room has live (null when it has none yet). */
   liveLook = async (roomId: string): Promise<RoomLookData | null> =>
@@ -39,8 +41,8 @@ export class RoomsApi {
   saveLook = (roomId: string, look: RoomLookData): Promise<null> => request("PUT", `/api/admin/looks/rooms/${encodeURIComponent(roomId)}`, look);
   clearDraftLook = (roomId: string): Promise<null> => request("DELETE", `/api/admin/looks/rooms/${encodeURIComponent(roomId)}/draft`);
   /** The room as it would be with this layout (and look) in it, as the browser is sent a room: what the preview draws. */
-  preview = (roomId: string, layout: unknown, look: unknown): Promise<RoomSnapshotWithLook> =>
-    request("POST", unsavedPreviewUrl(roomId), { layout, look: look ?? null });
+  preview = (roomId: string, layout: unknown, look: unknown, overlayId?: string): Promise<RoomSnapshotWithLook> =>
+    request("POST", unsavedPreviewUrl(roomId, overlayId), { layout, look: look ?? null });
 
   /** Adds the way back to another room's draft, which a new door here needs. */
   addWayBack = async (door: CanvasDoor, back: CanvasDoor): Promise<void> => {

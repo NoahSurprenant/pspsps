@@ -98,3 +98,30 @@ test("a signed-out visitor does not get the room editor", async ({ request }) =>
 
   expect(response.status()).toBe(401);
 });
+
+test("an overlay is added with a date window, saved, previewed, and deleted", async ({ page, context, baseURL }) => {
+  await signInAsAdmin(context, baseURL!);
+  await page.goto("/admin/rooms/shop");
+
+  await page.getByRole("link", { name: "Overlays", exact: true }).click();
+  await page.getByRole("button", { name: "New overlay" }).click();
+  await page.getByLabel("Overlay name").fill("Editor Test Overlay");
+  await page.getByLabel("Overlay starts").fill("2026-12-01");
+  await page.getByLabel("Overlay ends (this day is off)").fill("2027-01-01");
+  await expect(page.getByText(/every year|2026/).first()).toBeVisible();
+  const saved = page.waitForResponse((response) => response.request().method() === "PUT" && response.url().includes("/rooms/shop/overlays/"));
+  await page.getByRole("button", { name: "Save overlay" }).click();
+  const id = new URL((await saved).url()).pathname.split("/").pop()!;
+
+  expect((await saved).status()).toBe(204);
+  const row = page.getByRole("listitem").filter({ hasText: `(${id})` });
+  await expect(row).toBeVisible();
+
+  const asked = page.waitForRequest((request) => request.method() === "POST" && request.url().endsWith(`/rooms/shop/preview?overlay=${id}`));
+  await row.getByRole("button", { name: "Preview" }).click();
+  expect((await (await asked).response())?.status()).toBe(200);
+
+  await page.getByRole("link", { name: "Overlays", exact: true }).click();
+  await page.getByRole("listitem").filter({ hasText: `(${id})` }).getByRole("button", { name: "Delete" }).click();
+  await expect(page.getByRole("listitem").filter({ hasText: `(${id})` })).toHaveCount(0);
+});

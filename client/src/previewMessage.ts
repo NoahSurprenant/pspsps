@@ -13,8 +13,9 @@ export interface PreviewMessage {
 export const PREVIEW_READY = { type: "room-preview-ready" } as const;
 
 /** Where the server makes a snapshot of an unsaved layout. */
-export function unsavedPreviewUrl(roomId: string): string {
-  return `/api/admin/rooms/${encodeURIComponent(roomId)}/preview`;
+export function unsavedPreviewUrl(roomId: string, overlayId?: string): string {
+  const query = overlayId ? `?overlay=${encodeURIComponent(overlayId)}` : "";
+  return `/api/admin/rooms/${encodeURIComponent(roomId)}/preview${query}`;
 }
 
 /** The message in a page message's data, or null when it is not one (the browser, and extensions, send others). */

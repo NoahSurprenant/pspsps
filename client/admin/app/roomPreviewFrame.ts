@@ -23,6 +23,7 @@ export class RoomPreviewFrame {
   readonly roomId = input.required<string>();
   readonly layout = input.required<unknown>();
   readonly look = input<unknown>(null);
+  readonly overlay = input<string | undefined>(undefined);
   protected readonly problem = signal("");
   private readonly frame = viewChild.required<ElementRef<HTMLIFrameElement>>("frame");
   private ready = false;
@@ -34,7 +35,8 @@ export class RoomPreviewFrame {
       const roomId = this.roomId();
       const layout = this.layout();
       const look = this.look();
-      const timer = setTimeout(() => void this.refresh(roomId, layout, look), PREVIEW_DELAY_MS);
+      const overlay = this.overlay();
+      const timer = setTimeout(() => void this.refresh(roomId, layout, look, overlay), PREVIEW_DELAY_MS);
       onCleanup(() => clearTimeout(timer));
     });
   }
@@ -47,10 +49,10 @@ export class RoomPreviewFrame {
     }
   }
 
-  private async refresh(roomId: string, layout: unknown, look: unknown): Promise<void> {
+  private async refresh(roomId: string, layout: unknown, look: unknown, overlay?: string): Promise<void> {
     const mine = ++this.asked;
     try {
-      const { draftLook, ...snapshot } = await this.api.preview(roomId, layout, look);
+      const { draftLook, ...snapshot } = await this.api.preview(roomId, layout, look, overlay);
       if (mine !== this.asked) return;
       this.problem.set("");
       this.waiting = { type: "room-preview", roomId, snapshot, draftLook };
