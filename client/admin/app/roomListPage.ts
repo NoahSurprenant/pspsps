@@ -52,6 +52,11 @@ import { RoomsApi } from "./roomsApi";
       </section>
     }
     <section class="card">
+      <h2>World map</h2>
+      <p class="quiet">Where the outdoor rooms sit on the world grid.</p>
+      <a routerLink="/rooms/map">Open the world map</a>
+    </section>
+    <section class="card">
       <h2>Content file</h2>
       <p><a [href]="exportUrl" download="content.json">Download everything as JSON (rooms, looks, recipes, prop designs)</a></p>
       <button type="button" [disabled]="busy()" (click)="importContent()">Load the reviewed content as drafts</button>

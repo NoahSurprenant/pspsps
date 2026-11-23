@@ -38,6 +38,10 @@ test("every screen of the room editor is pictured on a contact sheet", async ({ 
   await page.getByRole("link", { name: "Looks library" }).click();
   await take("Looks library");
 
+  await page.goto("/admin/rooms/map");
+  await expect(page.getByRole("heading", { name: "World map" })).toBeVisible();
+  await take("World map");
+
   await mkdir("screenshots", { recursive: true });
   const sheet = await browser.newPage({ viewport: { width: 2000, height: 900 } });
   try {

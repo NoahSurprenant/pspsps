@@ -36,3 +36,9 @@ details { margin-top: 0.6rem; }
 .form label.check { display: flex; align-items: center; gap: 0.5rem; }
 .group > strong { flex: 0 0 100%; }
 .group label { display: inline-flex; align-items: center; gap: 0.4rem; }
+.world-map { width: 100%; max-height: 36rem; border: 2px solid var(--ink); border-radius: 0.6rem; background: var(--sky); touch-action: none; user-select: none; }
+.world-grid { fill: #efe6d2; stroke: var(--ink); stroke-width: 0.1; }
+.world-room { fill: #b8e6b0; stroke: var(--ink); stroke-width: 0.15; cursor: grab; }
+.world-room.chosen { stroke-width: 0.4; fill: #ffd98a; }
+.world-room.clash { fill: #f2a9a0; }
+.world-label { font-size: 1.2px; pointer-events: none; fill: var(--ink); }

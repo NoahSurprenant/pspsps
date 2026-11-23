@@ -81,6 +81,18 @@ public sealed class RoomBook
             }
         }
 
+        var placed = layouts.Where(pair => pair.Value.Place is not null).OrderBy(pair => pair.Key, StringComparer.Ordinal).ToList();
+        for (var i = 0; i < placed.Count; i++)
+        {
+            for (var j = i + 1; j < placed.Count; j++)
+            {
+                if (WorldPlace.Overlap(placed[i].Value.Place!, placed[i].Value, placed[j].Value.Place!, placed[j].Value))
+                {
+                    problems.Add($"{placed[i].Key} and {placed[j].Key}: overlap on the world map.");
+                }
+            }
+        }
+
         if (problems.Count > 0)
         {
             return problems;
@@ -148,6 +160,11 @@ public sealed class RoomBook
         if (layout.Capacity <= 0)
         {
             yield return $"{id}: holds no cats.";
+        }
+
+        if (layout.Place is not null && (!WorldPlace.IsWholeCells(layout.Width) || !WorldPlace.IsWholeCells(layout.Depth)))
+        {
+            yield return $"{id}: a placed room's floor is whole {WorldPlace.Cell} m cells (it is {layout.Width} by {layout.Depth}).";
         }
     }
 }

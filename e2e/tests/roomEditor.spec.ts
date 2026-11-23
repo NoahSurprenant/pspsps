@@ -171,3 +171,27 @@ test("every saved draft appears in the room's history, can be shown, and put bac
   await page.getByRole("button", { name: "Discard draft" }).click();
   await expect(page).toHaveURL(/\/admin\/rooms$/);
 });
+
+test("the world map places rooms side by side and shows two rooms on the same floor as a clash", async ({ page, context, baseURL }) => {
+  await signInAsAdmin(context, baseURL!);
+  await page.goto("/admin/rooms/map");
+  await expect(page.getByRole("heading", { name: "World map" })).toBeVisible();
+  const rooms = page.locator("ul.rooms button");
+  await expect(rooms.nth(1)).toBeVisible();
+
+  for (const index of [0, 1]) {
+    await rooms.nth(index).click();
+    await page.getByRole("button", { name: "Put on the map" }).click();
+  }
+  await expect(page.locator(".world-room")).toHaveCount(2);
+  await expect(page.getByRole("alert")).toHaveCount(0);
+
+  await page.getByLabel(/ cell east$/).fill("0");
+  await page.getByLabel(/ cell east$/).dispatchEvent("change");
+  await page.getByLabel(/ cell north$/).fill("0");
+  await page.getByLabel(/ cell north$/).dispatchEvent("change");
+  await expect(page.getByRole("alert")).toContainText("share floor");
+
+  await page.getByRole("button", { name: "Undo them" }).click();
+  await expect(page.locator(".world-room")).toHaveCount(0);
+});
