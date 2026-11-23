@@ -24,11 +24,18 @@ public sealed class RoomAuditEntry
 
     public string Detail { get; private set; }
 
-    public static RoomAuditEntry Of(Guid? adminId, string action, string target, string detail, DateTimeOffset at)
+    /// <summary>The room as this change left its draft or version, so the history can show it and put it back; null for changes that are not to one room.</summary>
+    public RoomContent? Content { get; private set; }
+
+    public static RoomAuditEntry Of(Guid? adminId, string action, string target, string detail, DateTimeOffset at, RoomContent? content = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(action);
         ArgumentException.ThrowIfNullOrWhiteSpace(target);
         ArgumentNullException.ThrowIfNull(detail);
-        return new RoomAuditEntry { Id = Guid.NewGuid(), At = at, AdminId = adminId, Action = action, Target = target, Detail = detail };
+        return new RoomAuditEntry { Id = Guid.NewGuid(), At = at, AdminId = adminId, Action = action, Target = target, Detail = detail, Content = content };
     }
 }
+
+/// <summary>A room's layout with the look that goes with it, as one change left them.</summary>
+public sealed record RoomContent(RoomLayout Layout, RoomLook? Look);
+

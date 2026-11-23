@@ -1,4 +1,5 @@
 import type { OverlayData } from "./overlayData";
+import type { RoomLookData } from "./looks";
 // What the admin reads about rooms, and the small pure rules for talking to the server about them. No DOM and no 3D, so the
 // room editor app can use it as well as the admin page.
 
@@ -27,6 +28,7 @@ export function draftQuery(revision: number | null | undefined): string {
 }
 
 export interface AuditLine { at: string; adminId: string | null; action: string; target: string; detail: string }
+export interface HistoryEntry { id: string; at: string; adminId: string | null; action: string; detail: string; layout: unknown; look: RoomLookData | null }
 
 /** One line of what admins did: when, what, to which room and the detail. */
 export function auditText(line: AuditLine): string {

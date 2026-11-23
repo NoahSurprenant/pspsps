@@ -481,6 +481,10 @@ namespace Pspsps.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("at");
 
+                    b.Property<string>("Content")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("content");
+
                     b.Property<string>("Detail")
                         .IsRequired()
                         .HasMaxLength(500)
@@ -501,6 +505,9 @@ namespace Pspsps.Infrastructure.Migrations
 
                     b.HasIndex("At")
                         .HasDatabaseName("ix_room_audit_at");
+
+                    b.HasIndex("Target")
+                        .HasDatabaseName("ix_room_audit_target");
 
                     b.ToTable("room_audit", (string)null);
                 });

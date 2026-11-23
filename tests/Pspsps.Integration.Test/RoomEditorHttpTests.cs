@@ -848,6 +848,28 @@ public sealed class RoomEditorHttpTests
     });
 
     [Test]
+    public Task EverySavedDraft_KeepsItsLayoutAndLook_InTheRoomsHistory_NewestFirst() => WithCafeAsync(async (editor, admin, before) =>
+    {
+        var first = before.Published! with { Name = "History one" };
+        var second = before.Published with { Name = "History two" };
+        var look = new RoomLook("#102030", "#405060", "#708090", new LookBackdrop([]));
+        await editor.SaveDraftAsync("cafe", first, admin, null, CancellationToken.None);
+        await editor.SaveDraftAsync("cafe", second, admin, null, CancellationToken.None);
+        await editor.SaveLookAsync("cafe", look, admin, CancellationToken.None);
+        var history = await editor.HistoryAsync("cafe", 10, CancellationToken.None);
+        var others = await editor.HistoryAsync("elsewhere", 10, CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(history.Select(h => h.Action), Is.EqualTo(new[] { "draft-look-saved", "draft-saved", "draft-saved" }));
+            Assert.That(history[0].Look, Is.EqualTo(look));
+            Assert.That(history[0].Layout.Name, Is.EqualTo("History two"));
+            Assert.That(history[2].Layout.Name, Is.EqualTo("History one"));
+            Assert.That(others, Is.Empty);
+        });
+    });
+
+    [Test]
     public Task ANewOverlayInTheFile_OfARoomTheFileAlsoChanges_IsCheckedAgainstTheDraft_NotTheLiveRoom() => WithCafeAsync(async (editor, admin, before) =>
     {
         var gone = before.Published!.Props[^1];

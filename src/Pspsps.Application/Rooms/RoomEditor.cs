@@ -35,6 +35,8 @@ public sealed record ExportedLooks(IReadOnlyList<object> Rooms, IReadOnlyList<ob
 
 public sealed record AuditLine(DateTimeOffset At, Guid? AdminId, string Action, string Target, string Detail);
 
+public sealed record HistoryEntry(Guid Id, DateTimeOffset At, Guid? AdminId, string Action, string Detail, RoomLayout Layout, RoomLook? Look);
+
 /// <summary>What admins do to rooms: draft, check, publish and roll back layouts, and set overlays. Every change is checked as a whole book first.</summary>
 public interface IRoomEditor
 {
@@ -126,6 +128,9 @@ public interface IRoomEditor
 
     /// <summary>What admins did to rooms and looks, the latest first.</summary>
     Task<IReadOnlyList<AuditLine>> AuditAsync(int limit, CancellationToken cancellationToken);
+
+    /// <summary>The changes saved to one room's drafts (layout and look as each left them), the latest first.</summary>
+    Task<IReadOnlyList<HistoryEntry>> HistoryAsync(string roomId, int limit, CancellationToken cancellationToken);
 }
 
 public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, TimeProvider time) : IRoomEditor
@@ -405,7 +410,7 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             draft.Edit(layout, look);
         }
 
-        Audit(adminId, "draft-saved", roomId, draft is null ? "a new draft" : $"draft over revision {draft.Revision - 1}");
+        Audit(adminId, "draft-saved", roomId, draft is null ? "a new draft" : $"draft over revision {draft.Revision - 1}", new RoomContent(layout, look ?? draft?.Look));
         await SaveAsync(cancellationToken);
         return await ProblemsWithAsync(roomId, layout, look ?? draft?.Look, cancellationToken);
     }
@@ -629,7 +634,7 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
                 scheduleRemoved = wasScheduled ? " (its schedule was taken off)" : string.Empty;
             }
 
-            Audit(adminId, "draft-look-saved", id, $"version {draft.Number}{scheduleRemoved}");
+            Audit(adminId, "draft-look-saved", id, $"version {draft.Number}{scheduleRemoved}", new RoomContent(draft.Layout, look));
             await SaveAsync(cancellationToken);
             return;
         }
@@ -773,8 +778,12 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
         [.. (await db.RoomAudit.AsNoTracking().OrderByDescending(a => a.At).Take(Math.Clamp(limit, 1, 500)).ToListAsync(cancellationToken))
             .Select(a => new AuditLine(a.At, a.AdminId, a.Action, a.Target, a.Detail))];
 
-    private void Audit(Guid? adminId, string action, string target, string detail) =>
-        db.RoomAudit.Add(RoomAuditEntry.Of(adminId, action, target, detail, time.GetUtcNow()));
+    public async Task<IReadOnlyList<HistoryEntry>> HistoryAsync(string roomId, int limit, CancellationToken cancellationToken) =>
+        [.. (await db.RoomAudit.AsNoTracking().Where(a => a.Target == roomId && a.Content != null).OrderByDescending(a => a.At).Take(Math.Clamp(limit, 1, 200)).ToListAsync(cancellationToken))
+            .Select(a => new HistoryEntry(a.Id, a.At, a.AdminId, a.Action, a.Detail, a.Content!.Layout, a.Content.Look))];
+
+    private void Audit(Guid? adminId, string action, string target, string detail, RoomContent? content = null) =>
+        db.RoomAudit.Add(RoomAuditEntry.Of(adminId, action, target, detail, time.GetUtcNow(), content));
 
     private static bool SameLook(RoomLook a, RoomLook b) => JsonSerializer.Serialize(a, ContentFile.Json) == JsonSerializer.Serialize(b, ContentFile.Json);
 
