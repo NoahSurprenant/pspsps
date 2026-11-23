@@ -72,7 +72,7 @@ test("the looks library lists the variants and recipes, and a variant's colours 
   await page.getByRole("button", { name: "Save editor-test-variant" }).click();
   await expect(page.getByRole("status")).toContainText("editor-test-variant is saved");
 
-  await page.getByRole("button", { name: "Delete" }).last().click();
+  await page.getByRole("group", { name: "editor-test-variant" }).getByRole("button", { name: "Delete" }).click();
   await expect(page.getByRole("status")).toContainText("editor-test-variant is gone");
 });
 
