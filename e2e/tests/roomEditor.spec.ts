@@ -125,3 +125,29 @@ test("an overlay is added with a date window, saved, previewed, and deleted", as
   await page.getByRole("listitem").filter({ hasText: `(${id})` }).getByRole("button", { name: "Delete" }).click();
   await expect(page.getByRole("listitem").filter({ hasText: `(${id})` })).toHaveCount(0);
 });
+
+test("the rooms list offers the content download and the latest changes", async ({ page, context, baseURL }) => {
+  await signInAsAdmin(context, baseURL!);
+  await page.goto("/admin/rooms");
+
+  await expect(page.getByRole("link", { name: /Download everything as JSON/ })).toHaveAttribute("href", "/api/admin/export");
+  const asked = page.waitForResponse((response) => response.url().includes("/api/admin/rooms/audit"));
+  await page.getByRole("button", { name: "Show the latest changes" }).click();
+  expect((await asked).status()).toBe(200);
+});
+
+test("a draft is scheduled to go live later and taken off the schedule again", async ({ page, context, baseURL }) => {
+  await signInAsAdmin(context, baseURL!);
+  await page.goto("/admin/rooms/shop");
+  await page.getByRole("button", { name: "Save draft" }).click();
+  await expect(page.getByText("editing the draft")).toBeVisible();
+
+  await page.getByLabel("Go live at (your time)").fill("2099-01-01T09:00");
+  await page.getByRole("button", { name: "Publish at that time" }).click();
+  await expect(page.getByRole("button", { name: "Take off the schedule" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Take off the schedule" }).click();
+  await expect(page.getByRole("button", { name: "Take off the schedule" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Discard draft" }).click();
+  await expect(page.getByText("editing the draft")).toHaveCount(0);
+});

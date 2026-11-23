@@ -1,5 +1,5 @@
 import { Injectable } from "@angular/core";
-import { draftQuery, publishQuery, type LookOptions, type RoomDetail, type RoomSummary } from "../../src/roomsData";
+import { draftQuery, publishQuery, type AuditLine, type ImportReport, type LookOptions, type RoomDetail, type RoomSummary } from "../../src/roomsData";
 import { unsavedPreviewUrl } from "../../src/previewMessage";
 import { type CanvasDoor, isLayout } from "../../src/roomCanvas";
 import type { RoomLookData, VariantData } from "../../src/looks";
@@ -24,7 +24,10 @@ export class RoomsApi {
   saveDraft = (roomId: string, layout: unknown, revision: number | null | undefined): Promise<{ problems: string[] } | null> =>
     request("PUT", `${base(roomId)}/draft${draftQuery(revision)}`, layout);
   discardDraft = (roomId: string): Promise<null> => request("DELETE", `${base(roomId)}/draft`);
-  publish = (roomId: string, together: string): Promise<null> => request("POST", `${base(roomId)}/publish${publishQuery(together)}`);
+  publish = (roomId: string, together: string, goLiveAt?: string): Promise<null> => request("POST", `${base(roomId)}/publish${publishQuery(together, goLiveAt)}`);
+  takeOffSchedule = (roomId: string): Promise<null> => request("DELETE", `${base(roomId)}/schedule`);
+  audit = (limit = 50): Promise<AuditLine[]> => request("GET", `/api/admin/rooms/audit?limit=${limit}`);
+  importContent = (): Promise<ImportReport | null> => request("POST", "/api/admin/import");
   rollback = (roomId: string, version: number): Promise<null> => request("POST", `${base(roomId)}/rollback/${version}`);
   options = (): Promise<LookOptions> => request("GET", "/api/admin/looks/options");
   looks = (): Promise<LooksLibrary> => request("GET", "/api/looks");
