@@ -68,7 +68,7 @@ export class RoomOverlaysForm {
   readonly overlays = input.required<OverlayData[]>();
   readonly variants = input<string[]>([]);
   readonly previewing = output<string>();
-  readonly saved = output<void>();
+  readonly saved = output<null>();
   protected readonly editing = signal<OverlayData | null>(null);
   protected readonly message = signal("");
   protected readonly problem = signal("");
@@ -133,7 +133,7 @@ export class RoomOverlaysForm {
     }
     return this.act(async () => {
       await this.api.saveOverlay(this.roomId(), overlay.id, overlay);
-      this.saved.emit();
+      this.saved.emit(null);
       return `${overlay.name} is saved.`;
     });
   }
@@ -142,7 +142,7 @@ export class RoomOverlaysForm {
     return this.act(async () => {
       await this.api.deleteOverlay(this.roomId(), id);
       if (this.editing()?.id === id) this.editing.set(null);
-      this.saved.emit();
+      this.saved.emit(null);
       return `${id} is gone.`;
     });
   }
