@@ -59,6 +59,23 @@ test("the look is a form whose changes show in the 3D preview at once", async ({
   expect(((await response!.json()) as { draftLook: { sky: string } }).draftLook.sky).toBe("#102030");
 });
 
+test("the looks library lists the variants and recipes, and a variant's colours are a form", async ({ page, context, baseURL }) => {
+  await signInAsAdmin(context, baseURL!);
+  await page.goto("/admin/rooms");
+
+  await page.getByRole("link", { name: "Looks library" }).click();
+  await expect(page.getByRole("heading", { name: "Looks library" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Painters" })).toBeVisible();
+  await page.getByLabel("New variant name").fill("editor-test-variant");
+  await page.getByRole("button", { name: "Add variant" }).click();
+  await page.getByLabel("editor-test-variant sky").fill("#102030");
+  await page.getByRole("button", { name: "Save editor-test-variant" }).click();
+  await expect(page.getByRole("status")).toContainText("editor-test-variant is saved");
+
+  await page.getByRole("button", { name: "Delete" }).last().click();
+  await expect(page.getByRole("status")).toContainText("editor-test-variant is gone");
+});
+
 test("a new room is saved as a draft from its own page, and the draft can be discarded", async ({ page, context, baseURL }) => {
   await signInAsAdmin(context, baseURL!);
   await page.goto("/admin/rooms");

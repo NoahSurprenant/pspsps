@@ -8,6 +8,7 @@ import { RouterLink, RouterOutlet } from "@angular/router";
   template: `
     <header class="bar">
       <a routerLink="/rooms" class="brand">Rooms</a>
+      <a routerLink="/library">Looks library</a>
       <a href="/admin">Moderation</a>
       <a href="/">Back to the game</a>
     </header>

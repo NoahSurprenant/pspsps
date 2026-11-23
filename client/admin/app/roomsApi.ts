@@ -2,9 +2,15 @@ import { Injectable } from "@angular/core";
 import { draftQuery, publishQuery, type LookOptions, type RoomDetail, type RoomSummary } from "../../src/roomsData";
 import { unsavedPreviewUrl } from "../../src/previewMessage";
 import { type CanvasDoor, isLayout } from "../../src/roomCanvas";
-import type { RoomLookData } from "../../src/looks";
+import type { RoomLookData, VariantData } from "../../src/looks";
 import type { RoomSnapshot } from "../../src/types";
 import { request } from "./http";
+
+export interface LooksLibrary {
+  variants: VariantData[];
+  painters?: Record<string, unknown>[];
+  wildlife?: Record<string, unknown>[];
+}
 
 export type RoomSnapshotWithLook = RoomSnapshot & { draftLook?: RoomLookData };
 
@@ -21,6 +27,12 @@ export class RoomsApi {
   publish = (roomId: string, together: string): Promise<null> => request("POST", `${base(roomId)}/publish${publishQuery(together)}`);
   rollback = (roomId: string, version: number): Promise<null> => request("POST", `${base(roomId)}/rollback/${version}`);
   options = (): Promise<LookOptions> => request("GET", "/api/admin/looks/options");
+  looks = (): Promise<LooksLibrary> => request("GET", "/api/looks");
+  saveVariant = (id: string, variant: unknown): Promise<null> => request("PUT", `/api/admin/looks/variants/${encodeURIComponent(id)}`, variant);
+  deleteVariant = (id: string): Promise<null> => request("DELETE", `/api/admin/looks/variants/${encodeURIComponent(id)}`);
+  saveRecipe = (kind: "painters" | "wildlife", id: string, body: unknown): Promise<null> => request("PUT", `/api/admin/looks/${kind}/${encodeURIComponent(id)}`, body);
+  deleteRecipe = (kind: "painters" | "wildlife", id: string): Promise<null> => request("DELETE", `/api/admin/looks/${kind}/${encodeURIComponent(id)}`);
+
   /** The look the room has live (null when it has none yet). */
   liveLook = async (roomId: string): Promise<RoomLookData | null> =>
     (await request<{ rooms: { id: string; look: RoomLookData }[] }>("GET", "/api/looks")).rooms.find((entry) => entry.id === roomId)?.look ?? null;
