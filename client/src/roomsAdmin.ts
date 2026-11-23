@@ -1,14 +1,14 @@
 import { el } from "./dom";
 import { roomPreview } from "./roomPreview";
 import { calendar, fieldsOf, monthNames, summary, windowOf, windowProblem, type WindowFields, type WindowJson } from "./overlayWindow";
-import { auditText, draftQuery, draftSetUrl, goLiveInstant, goLiveText, parseJson, problemsText, publishQuery, roomLine, type AuditLine, type LookOptions, type RoomDetail, type RoomSummary } from "./roomsData";
+import { auditText, draftQuery, exportUrl, importText, type ImportReport, draftSetUrl, goLiveInstant, goLiveText, parseJson, problemsText, publishQuery, roomLine, type AuditLine, type LookOptions, type RoomDetail, type RoomSummary } from "./roomsData";
 import { type CanvasDoor, type CanvasLayout, isLayout, newRoomTemplate, roomCanvas } from "./roomCanvas";
 import { newPainterTemplate, newWildlifeTemplate, recipeBody } from "./libraryData";
 
 export { newPainterTemplate, newWildlifeTemplate, recipeBody };
 
-export { auditText, draftQuery, draftSetUrl, goLiveInstant, goLiveText, parseJson, problemsText, publishQuery, roomLine };
-export type { AuditLine, LookOptions, RoomDetail, RoomSummary, VersionSummary } from "./roomsData";
+export { auditText, draftQuery, exportUrl, importText, draftSetUrl, goLiveInstant, goLiveText, parseJson, problemsText, publishQuery, roomLine };
+export type { AuditLine, ImportReport, LookOptions, RoomDetail, RoomSummary, VersionSummary } from "./roomsData";
 
 export interface LooksData {
   rooms: { id: string; look: unknown }[];
@@ -17,17 +17,6 @@ export interface LooksData {
   wildlife?: { id: string; parts: unknown[]; motion: unknown }[];
 }
 
-export interface ImportReport { applied: string[]; unchanged: string[]; problems: string[] }
-
-/** What loading the repository's content file did, in words for the admin. */
-export function importText(report: ImportReport | null): string {
-  if (report === null) return "Nothing came back.";
-  const lines = [...report.applied, ...report.problems.map((problem) => `Not applied: ${problem}`)];
-  return lines.length > 0 ? lines.join("\n") : `Nothing to load: ${report.unchanged.length} items already match.`;
-}
-
-/** Where the published content is downloaded as JSON, to commit to the repository for review. */
-export const exportUrl = "/api/admin/export";
 
 function exportLink(): HTMLElement {
   const link = el("a", { text: "Download everything as JSON (rooms, looks, recipes, prop designs)" });

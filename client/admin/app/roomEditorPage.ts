@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from "@angular/core";
 import { Router, RouterLink } from "@angular/router";
 import { type CanvasDoor, type CanvasLayout, isLayout, newRoomTemplate } from "../../src/roomCanvas";
-import { parseJson, problemsText, type RoomDetail } from "../../src/roomsData";
+import { goLiveInstant, goLiveText, parseJson, problemsText, type RoomDetail } from "../../src/roomsData";
 import { messageOf } from "./http";
 import { blankLook } from "../../src/lookForm";
 import type { RoomLookData } from "../../src/looks";
@@ -84,6 +84,14 @@ type Section = "layout" | "look" | "overlays" | "versions";
             Publish together with
             <input aria-label="Publish together with these rooms" placeholder="room-a, room-b" [value]="together()" (input)="togetherTyped($event)" />
           </label>
+          <div class="actions">
+            <input type="datetime-local" aria-label="Go live at (your time)" (input)="goLive.set($any($event.target).value)" />
+            <button type="button" [disabled]="busy() || !detail()?.draft" (click)="publishAt()">Publish at that time</button>
+            @if (detail()?.goLiveAt) {
+              <span class="quiet">{{ liveText() }}</span>
+              <button type="button" [disabled]="busy()" (click)="unschedule()">Take off the schedule</button>
+            }
+          </div>
           <p class="quiet">
             Painters and wildlife are still on the
             <a href="/admin">old admin page</a> while they are moved here.
@@ -126,6 +134,8 @@ export class RoomEditorPage {
   protected readonly options = signal<LookOptions | null>(null);
   protected readonly blank = blankLook;
   protected readonly roomIds = signal<string[]>([]);
+  protected readonly goLive = signal("");
+  protected readonly liveText = computed(() => goLiveText(this.detail()?.goLiveAt));
   protected readonly previewOverlay = signal<string | undefined>(undefined);
   protected readonly variantNames = signal<string[]>([]);
   protected readonly wayBack = async (door: CanvasDoor, back: CanvasDoor): Promise<void> => {
@@ -199,6 +209,24 @@ export class RoomEditorPage {
       await this.api.publish(this.id(), this.together());
       await this.load(this.id(), false);
       return `${this.id()} is published.`;
+    });
+  }
+
+  protected publishAt(): Promise<void> {
+    return this.act(async () => {
+      const when = goLiveInstant(this.goLive());
+      if (when === null) return "Pick the time to go live at.";
+      await this.api.publish(this.id(), this.together(), when);
+      await this.load(this.id(), false);
+      return `${this.id()} will go live at ${this.goLive()}.`;
+    });
+  }
+
+  protected unschedule(): Promise<void> {
+    return this.act(async () => {
+      await this.api.takeOffSchedule(this.id());
+      await this.load(this.id(), false);
+      return "It will wait to be published by hand.";
     });
   }
 

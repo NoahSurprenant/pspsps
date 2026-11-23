@@ -87,3 +87,15 @@ export interface LookOptions {
   generators: string[];
   wildlife: string[];
 }
+
+export interface ImportReport { applied: string[]; unchanged: string[]; problems: string[] }
+
+/** What loading the repository's content file did, in words for the admin. */
+export function importText(report: ImportReport | null): string {
+  if (report === null) return "Nothing came back.";
+  const lines = [...report.applied, ...report.problems.map((problem) => `Not applied: ${problem}`)];
+  return lines.length > 0 ? lines.join("\n") : `Nothing to load: ${report.unchanged.length} items already match.`;
+}
+
+/** Where the published content is downloaded as JSON, to commit to the repository for review. */
+export const exportUrl = "/api/admin/export";
