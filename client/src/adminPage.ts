@@ -4,7 +4,6 @@ import {
   reportHeading, sanctionLine, when, type AdminOverview, type NetworkBan, type OpenReport, type SanctionedPlayer,
 } from "./admin";
 import { maxReasonLength } from "./moderation";
-import { roomsSection } from "./roomsAdmin";
 import { startTelemetry } from "./telemetry/core";
 
 // Its uncaught errors go to the browser's telemetry, when on. Not its calls' spans or failures: their paths carry player
@@ -31,7 +30,6 @@ root.replaceChildren(el("div", { className: "admin" },
     link("Back to the game", "/")),
   status,
   content,
-  roomsSection(say),
 ));
 
 void load();

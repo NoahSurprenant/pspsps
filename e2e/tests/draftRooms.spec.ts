@@ -2,7 +2,7 @@ import { mkdir, readFile } from "node:fs/promises";
 import { expect, signInAsAdmin, test } from "./game";
 
 // The rooms waiting in ContentDrafts.json, end to end before they are merged: the game this PR built loads the file as
-// drafts (no problems), and the admin page's 3D preview draws each draft room with every draft in place, with no
+// drafts (no problems), and the room editor's 3D preview draws each draft room with every draft in place, with no
 // console errors, a floor and every door leading to a room that exists. The pictures go on one contact sheet, three to a row
 // (screenshots/draft-rooms.png), which CI links on the PR, so the rooms are seen before anything is published.
 
@@ -21,8 +21,6 @@ test("every draft room loads, previews without errors, and is pictured on a cont
   expect(report.problems, "the import's problems").toEqual([]);
 
   const pictures: { name: string; png: Buffer }[] = [];
-  await page.goto("/admin");
-  await expect(page.getByRole("heading", { name: "Rooms", exact: true })).toBeVisible();
   for (const draft of drafts) {
     const preview = await page.request.get(`/api/admin/rooms/${draft.id}/preview`);
     expect(preview.ok(), `${draft.id}'s preview`).toBe(true);
@@ -32,10 +30,9 @@ test("every draft room loads, previews without errors, and is pictured on a cont
       expect(snapshot.rooms.map((room) => room.id), `${draft.id}'s door ${door.id} leads to a room`).toContain(door.toRoomId);
     }
 
-    await page.getByRole("button", { name: new RegExp(`^${draft.layout.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} \\(`) }).click();
-    await expect(page.getByRole("heading", { name: new RegExp(`^${draft.id} \\(editing`) })).toBeVisible();
-    await page.getByRole("button", { name: "Preview in 3D" }).click();
-    const canvas = page.getByLabel(`Preview of ${draft.id} in 3D`);
+    await page.goto(`/admin/rooms/${draft.id}`);
+    await expect(page.getByText("editing the draft")).toBeVisible();
+    const canvas = page.frameLocator("iframe[title='3D preview of the room']").locator("canvas");
     await expect(canvas).toBeVisible();
     await page.waitForTimeout(1500);
     pictures.push({ name: draft.layout.name, png: await canvas.screenshot() });
@@ -43,8 +40,11 @@ test("every draft room loads, previews without errors, and is pictured on a cont
     // The room's seasonal overlays (the import saves them even while the room is a draft), each pictured
     // with its look on, so a winter rink is judged as well as the pitch it is the rest of the year.
     for (const overlay of (file.overlays ?? []).filter((o) => o.roomId === draft.id)) {
-      await page.locator("li", { hasText: new RegExp(`^${overlay.id} `) }).getByRole("button", { name: "Preview" }).click();
-      await expect(page.getByText(`${draft.id} with ${overlay.id} on`)).toBeVisible();
+      await page.getByRole("link", { name: "Overlays", exact: true }).click();
+      const drawn = page.waitForResponse((response) => response.url().endsWith(`/rooms/${draft.id}/preview?overlay=${overlay.id}`));
+      await page.getByRole("listitem").filter({ hasText: `(${overlay.id})` }).getByRole("button", { name: "Preview" }).click();
+      expect((await drawn).ok(), `${overlay.id} preview`).toBe(true);
+      await expect(canvas).toBeVisible();
       await page.waitForTimeout(1500);
       pictures.push({ name: `${draft.layout.name}: ${overlay.name}`, png: await canvas.screenshot() });
     }

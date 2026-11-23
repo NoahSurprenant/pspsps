@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { auditText, draftQuery, draftSetUrl, goLiveInstant, goLiveText, exportUrl, importText, newLookTemplate, optionsText, parseJson, problemsText, publishQuery, roomLine } from "./roomsAdmin";
+import { auditText, draftQuery, draftSetUrl, goLiveInstant, goLiveText, exportUrl, importText, parseJson, problemsText, publishQuery, roomLine } from "./roomsData";
 
 describe("roomLine", () => {
   it("says what is live and whether a draft waits", () => {
@@ -54,19 +54,6 @@ describe("publishQuery", () => {
   it("asks to publish with the rooms named, however they are separated", () => {
     expect(publishQuery("")).toBe("");
     expect(publishQuery(" loft, attic  cellar ")).toBe("?with=loft&with=attic&with=cellar");
-  });
-});
-
-describe("the editor's aids", () => {
-  it("lists the names a look may use", () => {
-    const text = optionsText({ propKinds: ["rug", "tree"], floors: ["planks"], walls: ["bricks"], grounds: ["street"], generators: ["town"], wildlife: ["fish"] });
-
-    expect(text).toContain("Prop kinds: rug, tree");
-    expect(text).toContain("Wildlife: fish");
-  });
-
-  it("starts a new look from a floor and a wall that exist", () => {
-    expect(newLookTemplate()).toMatchObject({ floor: { painter: "planks" }, wall: { painter: "panelled" } });
   });
 });
 
