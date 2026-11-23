@@ -75,16 +75,18 @@ type Section = "layout" | "look" | "overlays" | "versions";
               <app-room-preview [roomId]="id()" [layout]="parsed()" [look]="look()" [overlay]="previewOverlay()" />
             </div>
           </div>
-          <div class="actions">
+          <div class="group">
+          <strong>Draft</strong>
             <button type="button" class="primary" [disabled]="busy()" (click)="save()">Save draft</button>
             <button type="button" [disabled]="busy() || !detail()?.draft" (click)="publish()">Publish draft</button>
             <button type="button" [disabled]="busy() || !detail()?.draft" (click)="discard()">Discard draft</button>
           </div>
+          <div class="group">
+            <strong>Publish</strong>
           <label>
-            Publish together with
+            Together with
             <input aria-label="Publish together with these rooms" placeholder="room-a, room-b" [value]="together()" (input)="togetherTyped($event)" />
           </label>
-          <div class="actions">
             <input type="datetime-local" aria-label="Go live at (your time)" (input)="goLive.set($any($event.target).value)" />
             <button type="button" [disabled]="busy() || !detail()?.draft" (click)="publishAt()">Publish at that time</button>
             @if (detail()?.goLiveAt) {
