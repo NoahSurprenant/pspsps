@@ -1,7 +1,7 @@
 import { asPreviewMessage, PREVIEW_READY } from "./previewMessage";
 import { roomPreview } from "./roomPreview";
 
-const canvas = document.querySelector<HTMLCanvasElement>("#view")!;
+const canvas = document.getElementById("view") as HTMLCanvasElement;
 const preview = roomPreview(canvas);
 let latest = 0;
 
