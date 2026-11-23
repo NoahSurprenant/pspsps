@@ -214,4 +214,27 @@ public sealed class OverworldTests
             Assert.That(world.Renew(lost, "s-" + lost, Now.AddSeconds(150)), Is.EqualTo(CatRenewal.Gone));
         });
     }
+
+    [Test]
+    public void ACat_IsOnlyHeardBy_ThoseWhoseScreenItIsOn()
+    {
+        var (world, listener) = WithCat();
+        for (var i = 0; i < WorldSpace.MaxVisibleCats; i++)
+        {
+            var (_, nearer) = WithCat(world);
+            world.Move(nearer, new Position(11, 10));
+        }
+
+        var (_, speaker) = WithCat(world);
+        world.Move(speaker, new Position(20, 10));
+
+        var (_, heard) = world.Say(speaker, "hello", Open, Now);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(world.VisibleTo(listener).Select(cat => cat.PlayerId), Does.Not.Contain(speaker), "the speaker is past the sixty nearest");
+            Assert.That(heard, Does.Not.Contain(listener), "so the listener doesn't hear a cat their screen doesn't show");
+            Assert.That(heard, Does.Contain(speaker));
+        });
+    }
 }

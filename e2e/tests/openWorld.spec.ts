@@ -63,6 +63,12 @@ test("cats in the open world see and hear only what is near, and walk from one r
     expect(second.cats.map((cat) => cat.playerId), "the second cat is told of the first").toContain(tab.a.id);
     await expect.poll(() => heardByA.joined).toContain(tab.b.id);
 
+    // A friend's list says which room they are in, not the open world's key.
+    await tab.a.hub.invoke("AddFriend", tab.b.id);
+    await tab.b.hub.invoke("AcceptFriend", tab.a.id);
+    const friends = await tab.a.hub.invoke<{ playerId: string; place: { roomId: string } | null }[]>("GetFriends");
+    expect(friends.find((friend) => friend.playerId === tab.b.id)?.place?.roomId, "where the friend is").toBe("town-square");
+
     // Across the world from each other: out of sight, and what is said there isn't heard.
     const west = 1;
     const east = ROOMS.reduce((sum, id) => sum + width(id), 0) - 1;
@@ -73,7 +79,6 @@ test("cats in the open world see and hear only what is near, and walk from one r
     await expect.poll(() => heardByB.left).toContain(tab.a.id);
     await tab.b.hub.invoke("Say", "far away");
     await expect.poll(() => heardByB.heard).toContain("far away");
-    expect(heardByA.heard, "a cat across the world doesn't hear it").toEqual([]);
 
     // Close together, in the next room over: seen again, and heard.
     const inCafe = width("town-square") + 2;
@@ -82,6 +87,8 @@ test("cats in the open world see and hear only what is near, and walk from one r
     await expect.poll(() => heardByA.joined.filter((id) => id === tab.b.id).length).toBe(2);
     await tab.b.hub.invoke("Say", "close by");
     await expect.poll(() => heardByA.heard).toContain("close by");
+    // A's tab gets what it is sent in order: had it been sent the line from across the world, it would be here first.
+    expect(heardByA.heard, "a cat across the world isn't heard").toEqual(["close by"]);
 
     // The café's floor is past Town Square's edge: a cat there isn't held at the seam.
     await tab.b.hub.invoke("Move", inCafe + 5, 8);
