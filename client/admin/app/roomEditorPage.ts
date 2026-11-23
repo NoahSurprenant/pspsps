@@ -93,8 +93,7 @@ type Section = "layout" | "look" | "overlays" | "versions";
             }
           </div>
           <p class="quiet">
-            Painters and wildlife are still on the
-            <a href="/admin">old admin page</a> while they are moved here.
+            Painters, wildlife and the look variants are in the <a routerLink="/library">Looks library</a>.
           </p>
         } @else {
           <h2>Versions</h2>

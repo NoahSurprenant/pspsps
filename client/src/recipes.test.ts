@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { lookOf, setLooks, type LooksData } from "./looks";
 import { mostRects, paintSteps, setRecipes, type PaintStep } from "./recipes";
-import { newPainterTemplate, newWildlifeTemplate, recipeBody } from "./roomsAdmin";
+import { newPainterTemplate, newWildlifeTemplate, recipeBody } from "./libraryData";
 
 function recorder() {
   const calls: string[] = [];
