@@ -21,6 +21,9 @@ public static class AdminEndpoints
     /// <summary>The admin page as built (by the client) into wwwroot.</summary>
     public const string PageFile = "admin.html";
 
+    /// <summary>The room editor (the client's Angular admin app) as built into wwwroot; served at <c>/admin/rooms</c>.</summary>
+    public const string RoomEditorFile = "admin-app/index.html";
+
     public static IServiceCollection AddModeration(this IServiceCollection services, IConfiguration configuration)
     {
         services.Configure<ModerationOptions>(configuration.GetSection(ModerationOptions.SectionName));
@@ -79,26 +82,11 @@ public static class AdminEndpoints
         // Admins get the page; a player who isn't one is told so (403), with their own player ID, which is what goes in
         // the admin list; nobody signed in is sent to sign in first (401).
         app.MapGet("/admin", (ClaimsPrincipal user, IAdmins admins, IWebHostEnvironment environment) =>
-        {
-            if (user.GetPlayerId() is not { } playerId)
-            {
-                return Page(StatusCodes.Status401Unauthorized, "Sign in first",
-                    "<p>Sign in to the game first (as a guest, too), then come back here.</p>");
-            }
-
-            if (!admins.Current.Contains(playerId))
-            {
-                return Page(StatusCodes.Status403Forbidden, "Not an admin",
-                    "<p>This page is for the game's admins. Admins are listed by player ID in the server's settings "
-                    + "(<code>Moderation:AdminPlayerIds</code>; the chart's <code>moderation.adminPlayerIds</code>).</p>"
-                    + $"<p>Your player ID: <code id=\"player-id\">{playerId}</code></p>");
-            }
-
-            var file = environment.WebRootFileProvider.GetFileInfo(PageFile);
-            return file.Exists
-                ? Results.Stream(file.CreateReadStream(), "text/html; charset=utf-8")
-                : Results.NotFound();
-        });
+            AdminPage(user, admins, environment, PageFile));
+        app.MapGet("/admin/rooms", (ClaimsPrincipal user, IAdmins admins, IWebHostEnvironment environment) =>
+            AdminPage(user, admins, environment, RoomEditorFile));
+        app.MapGet("/admin/rooms/{**path}", (ClaimsPrincipal user, IAdmins admins, IWebHostEnvironment environment) =>
+            AdminPage(user, admins, environment, RoomEditorFile));
 
         var admin = app.MapGroup("/api/admin");
 
@@ -197,6 +185,28 @@ public static class AdminEndpoints
                 return Results.BadRequest(new { message = e.Message });
             }
         });
+
+    private static IResult AdminPage(ClaimsPrincipal user, IAdmins admins, IWebHostEnvironment environment, string pageFile)
+    {
+        if (user.GetPlayerId() is not { } playerId)
+        {
+            return Page(StatusCodes.Status401Unauthorized, "Sign in first",
+                "<p>Sign in to the game first (as a guest, too), then come back here.</p>");
+        }
+
+        if (!admins.Current.Contains(playerId))
+        {
+            return Page(StatusCodes.Status403Forbidden, "Not an admin",
+                "<p>This page is for the game's admins. Admins are listed by player ID in the server's settings "
+                + "(<code>Moderation:AdminPlayerIds</code>; the chart's <code>moderation.adminPlayerIds</code>).</p>"
+                + $"<p>Your player ID: <code id=\"player-id\">{playerId}</code></p>");
+        }
+
+        var file = environment.WebRootFileProvider.GetFileInfo(pageFile);
+        return file.Exists
+            ? Results.Stream(file.CreateReadStream(), "text/html; charset=utf-8")
+            : Results.NotFound();
+    }
 
     // A small page of the server's own: the game's colours, readable on a phone.
     private static IResult Page(int status, string title, string body) => Results.Content(

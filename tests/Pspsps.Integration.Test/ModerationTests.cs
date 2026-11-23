@@ -198,6 +198,31 @@ public sealed class ModerationTests
     }
 
     [Test]
+    public async Task TheRoomEditorPage_IsForAdminsOnly_AtEveryRoomAddress()
+    {
+        var (admin, adminHub) = await AdminAsync();
+        await using var _ = adminHub;
+        var (_, tomCookie) = await Game.SignInGuestAsync();
+        using var anonymous = Game.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = false });
+        using var asTom = ClientFor(tomCookie);
+        using var asAdmin = ClientFor(AdminCookies[admin.Id]);
+
+        foreach (var address in new[] { "/admin/rooms", "/admin/rooms/cafe", "/admin/rooms/cafe/looks" })
+        {
+            using var signedOut = await anonymous.GetAsync(new Uri(address, UriKind.Relative));
+            using var player = await asTom.GetAsync(new Uri(address, UriKind.Relative));
+            using var admins = await asAdmin.GetAsync(new Uri(address, UriKind.Relative));
+            Assert.Multiple(() =>
+            {
+                Assert.That(signedOut.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized), address);
+                Assert.That(player.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), address);
+                // The page itself is built by the client, which these tests don't build.
+                Assert.That(admins.StatusCode, Is.AnyOf(HttpStatusCode.OK, HttpStatusCode.NotFound), address);
+            });
+        }
+    }
+
+    [Test]
     public async Task TheAdminPage_IsForAdminsOnly_AndListsWhoIsBannedOrMuted()
     {
         var (admin, adminHub) = await AdminAsync();

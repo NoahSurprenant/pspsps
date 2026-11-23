@@ -16,13 +16,18 @@ const asErrors = Object.fromEntries(
 );
 
 export default tseslint.config(
-  { ignores: ["dist"] },
+  { ignores: ["dist", "dist-admin", ".angular"] },
   js.configs.recommended,
   ...tseslint.configs.strict,
   {
     plugins: recommended.plugins,
     linterOptions: { reportUnusedDisableDirectives: "error" },
     rules: { ...asErrors, eqeqeq: "error" },
+  },
+  // An Angular component may be only its template: a decorated class with nothing in it.
+  {
+    files: ["admin/**/*.ts"],
+    rules: { "@typescript-eslint/no-extraneous-class": ["error", { allowWithDecorator: true }] },
   },
   // The scripts run in Node.
   {

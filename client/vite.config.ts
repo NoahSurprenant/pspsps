@@ -29,6 +29,8 @@ export default defineConfig({
       "/api": server,
       // The page itself only (the server checks who asks); admin.html, in development, is Vite's.
       "^/admin$": server,
+      "^/admin/rooms": server,
+      "/admin-app": server,
       "/hubs": { target: server, ws: true },
     },
   },
