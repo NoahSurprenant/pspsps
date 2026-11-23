@@ -23,32 +23,42 @@ public static class RoomPreviewEndpoints
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
-    public static void MapRoomPreview(this RouteGroupBuilder admin) =>
-        admin.MapGet("/rooms/{roomId}/preview", async (
+    public static void MapRoomPreview(this RouteGroupBuilder admin)
+    {
+        admin.MapPost("/rooms/{roomId}/preview", (
+            string roomId, string? overlay, UnsavedRoom unsaved, ClaimsPrincipal user, IModerationService moderation, IRoomPreviewer previewer, TimeProvider time, CancellationToken ct) =>
+            PreviewAsync(roomId, overlay, unsaved, user, moderation, previewer, time, ct));
+
+        admin.MapGet("/rooms/{roomId}/preview", (
             string roomId, string? overlay, ClaimsPrincipal user, IModerationService moderation, IRoomPreviewer previewer, TimeProvider time, CancellationToken ct) =>
+            PreviewAsync(roomId, overlay, null, user, moderation, previewer, time, ct));
+    }
+
+    private static async Task<IResult> PreviewAsync(
+        string roomId, string? overlay, UnsavedRoom? unsaved, ClaimsPrincipal user, IModerationService moderation, IRoomPreviewer previewer, TimeProvider time, CancellationToken ct)
+    {
+        if (user.GetPlayerId() is not { } adminId || !moderation.IsAdmin(adminId))
         {
-            if (user.GetPlayerId() is not { } adminId || !moderation.IsAdmin(adminId))
+            return Results.StatusCode(StatusCodes.Status403Forbidden);
+        }
+
+        try
+        {
+            var preview = await previewer.PreviewAsync(roomId, overlay, time.GetUtcNow(), ct, unsaved);
+            var body = JsonSerializer.SerializeToNode(SnapshotOf(preview), Json)!.AsObject();
+            if (preview.DraftLook is { } draftLook)
             {
-                return Results.StatusCode(StatusCodes.Status403Forbidden);
+                // The look the draft brings, for the page to draw the room in (the live looks it already has don't include it).
+                body["draftLook"] = JsonSerializer.SerializeToNode(draftLook, LookJson);
             }
 
-            try
-            {
-                var preview = await previewer.PreviewAsync(roomId, overlay, time.GetUtcNow(), ct);
-                var body = JsonSerializer.SerializeToNode(SnapshotOf(preview), Json)!.AsObject();
-                if (preview.DraftLook is { } draftLook)
-                {
-                    // The look the draft brings, for the page to draw the room in (the live looks it already has don't include it).
-                    body["draftLook"] = JsonSerializer.SerializeToNode(draftLook, LookJson);
-                }
-
-                return Results.Json(body, Json);
-            }
-            catch (DomainException e)
-            {
-                return Results.BadRequest(new { message = e.Message });
-            }
-        });
+            return Results.Json(body, Json);
+        }
+        catch (DomainException e)
+        {
+            return Results.BadRequest(new { message = e.Message });
+        }
+    }
 
     internal static RoomSnapshot SnapshotOf(RoomPreview preview)
     {

@@ -146,6 +146,38 @@ public sealed class RoomEditorHttpTests
     }
 
     [Test]
+    public async Task APreviewOfAnUnsavedLayout_ShowsThatLayout_SavesNothing_AndRefusesOneThatIsWrong()
+    {
+        var (_, cookie) = await Game.SignInGuestAsync();
+        using var guest = ClientFor(cookie);
+        using var admin = await AdminClientAsync();
+        using var opened = await SendAsync(admin, HttpMethod.Get, "rooms/shop");
+        var layout = (await JsonOfAsync(opened))["published"]!.DeepClone();
+        layout["name"] = "Typed But Not Saved";
+        var look = JsonNode.Parse("""{"sky":"#102030","floorColour":"#405060","wallColour":"#708090","backdrop":{"parts":[]}}""")!;
+        var body = new JsonObject { ["layout"] = layout.DeepClone(), ["look"] = look };
+        var wrong = new JsonObject { ["layout"] = layout.DeepClone() };
+        wrong["layout"]!["doors"] = JsonNode.Parse("""[{"id":"d","edge":"North","offset":0,"toRoom":"nowhere","toDoor":"x"}]""");
+
+        using var refused = await SendAsync(guest, HttpMethod.Post, "rooms/shop/preview", body);
+        using var preview = await SendAsync(admin, HttpMethod.Post, "rooms/shop/preview", body);
+        using var broken = await SendAsync(admin, HttpMethod.Post, "rooms/shop/preview", wrong);
+        using var afterwards = await SendAsync(admin, HttpMethod.Get, "rooms/shop");
+        var snapshot = await JsonOfAsync(preview);
+        var after = await JsonOfAsync(afterwards);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(refused.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+            Assert.That(preview.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(snapshot["roomName"]!.GetValue<string>(), Is.EqualTo("Typed But Not Saved"));
+            Assert.That(snapshot["draftLook"]!["sky"]!.GetValue<string>(), Is.EqualTo("#102030"));
+            Assert.That(broken.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+            Assert.That(after["draft"]?.GetValueKind(), Is.Null.Or.EqualTo(System.Text.Json.JsonValueKind.Null), "nothing was saved");
+        });
+    }
+
+    [Test]
     public async Task SavingOverADraftThatChangedSinceItWasOpened_IsRefused_AndEveryChangeIsRecorded()
     {
         using var admin = await AdminClientAsync();
