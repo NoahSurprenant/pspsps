@@ -18,6 +18,9 @@ public sealed record RoomLayout(string Name, double Width, double Depth, Positio
 
     public IReadOnlyList<DoorLayout> Doors { get; init; } = [];
 
+    /// <summary>Where the room sits on the world grid, for an outdoor room that cats can walk out of into its neighbours; null for an indoor room.</summary>
+    public WorldPlace? Place { get; init; }
+
     public static RoomLayout Of(RoomDefinition room)
     {
         ArgumentNullException.ThrowIfNull(room);
