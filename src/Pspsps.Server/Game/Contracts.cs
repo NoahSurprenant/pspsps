@@ -107,7 +107,25 @@ public sealed record RoomSnapshot(
     [property: Id(11)] HomeView? Home = null,
     [property: Id(12)] string? Notice = null,
     [property: Id(13)] WorldMapView? WorldMap = null,
-    [property: Id(14)] string? Look = null);
+    [property: Id(14)] string? Look = null,
+    [property: Id(15)] IReadOnlyList<ChunkView>? Chunks = null);
+
+/// <summary>
+/// One outdoor room of the open world, for drawing it in place: its middle in world metres (X, Z), its floor, and its
+/// pond, doors and props in metres from that middle.
+/// </summary>
+[GenerateSerializer, Immutable]
+public sealed record ChunkView(
+    [property: Id(0)] string RoomId,
+    [property: Id(1)] string Name,
+    [property: Id(2)] double X,
+    [property: Id(3)] double Z,
+    [property: Id(4)] double Width,
+    [property: Id(5)] double Depth,
+    [property: Id(6)] PondView? Pond,
+    [property: Id(7)] IReadOnlyList<DoorView> Doors,
+    [property: Id(8)] IReadOnlyList<PropView> Props,
+    [property: Id(9)] string? Look);
 
 /// <summary>
 /// A player's home, as the browser draws it and its owner decorates it: whose it is, who may visit ("Friends", "Anyone"

@@ -179,3 +179,15 @@ type RoomSnapshot 13: WorldMapView WorldMap
 type RoomSnapshot 14: String Look
 
 type WorldMapView 0: IReadOnlyList<MapPlaceView> Places
+type RoomSnapshot 15: IReadOnlyList<ChunkView> Chunks
+
+type ChunkView 0: String RoomId
+type ChunkView 1: String Name
+type ChunkView 2: Double X
+type ChunkView 3: Double Z
+type ChunkView 4: Double Width
+type ChunkView 5: Double Depth
+type ChunkView 6: PondView Pond
+type ChunkView 7: IReadOnlyList<DoorView> Doors
+type ChunkView 8: IReadOnlyList<PropView> Props
+type ChunkView 9: String Look

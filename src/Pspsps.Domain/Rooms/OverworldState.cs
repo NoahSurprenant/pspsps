@@ -253,6 +253,9 @@ public sealed class OverworldState(WorldSpace space, int capacity)
 
     public bool Has(Guid playerId, string session) => _cats.ContainsKey(playerId) && Controls(playerId, session);
 
+    /// <summary>The cat, or null when it isn't here.</summary>
+    public CatInRoom? Find(Guid playerId) => _cats.GetValueOrDefault(playerId);
+
     /// <summary>The session controlling the cat, to tell; null when the cat isn't here.</summary>
     public string? SessionOf(Guid playerId) => _leases.TryGetValue(playerId, out var lease) ? lease.Session : null;
 

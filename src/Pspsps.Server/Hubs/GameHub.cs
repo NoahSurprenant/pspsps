@@ -930,6 +930,14 @@ public sealed partial class GameHub(
             throw new HubException(ClosedMessage);
         }
 
+        // A room on the world map is part of the open world: its cats are in the world's one grain, told where to put this one.
+        var roomId = RoomKey.Parse(key).RoomId;
+        if (RoomKey.HomeOwner(key) is null && rooms.Find(roomId)?.Place is not null)
+        {
+            throughDoor = RoomKey.Arrival(roomId, throughDoor);
+            key = RoomKey.ForOverworld(worldId);
+        }
+
         var profile = await players.FindAsync(PlayerId, Context.ConnectionAborted)
             ?? throw new HubException("Your cat wasn't found. Sign in again.");
         var room = grains.GetGrain<IRoomGrain>(key);

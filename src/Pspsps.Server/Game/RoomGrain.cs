@@ -17,7 +17,7 @@ namespace Pspsps.Server.Game;
 /// (<see cref="RoomKey.HomeOwner"/>) is read from the database, its furniture and all, when it activates.
 /// </summary>
 [KeepAlive]
-internal sealed class RoomGrain(
+internal sealed partial class RoomGrain(
     IRoomBroadcaster broadcaster,
     ChatFilters chatFilters,
     [FromKeyedServices(TimeProviderNames.Grains)] TimeProvider time,
@@ -49,6 +49,12 @@ internal sealed class RoomGrain(
     public override async Task OnActivateAsync(CancellationToken cancellationToken)
     {
         _key = this.GetPrimaryKeyString();
+        if (RoomKey.IsOverworld(_key))
+        {
+            ActivateOverworld();
+            return;
+        }
+
         RoomDefinition room;
         if (RoomKey.HomeOwner(_key) is { } owner)
         {
@@ -89,6 +95,10 @@ internal sealed class RoomGrain(
         {
             await TellLost(_state.Sessions, broadcaster, cancellationToken);
         }
+        else if (_world is { Cats.Count: > 0 })
+        {
+            await TellLost(_world.Sessions, broadcaster, cancellationToken);
+        }
     }
 
     /// <summary>
@@ -120,6 +130,11 @@ internal sealed class RoomGrain(
 
     public async Task<RoomSnapshot> Join(PlayerCard player, string session, string? throughDoor)
     {
+        if (_world is not null)
+        {
+            return await JoinOverworld(player, session, throughDoor);
+        }
+
         var fur = Enum.Parse<FurColor>(player.FurColor);
         var cat = Rule(() => _state.Join(
             player.PlayerId, player.DisplayName, fur, session, time.GetUtcNow(), throughDoor, player.Hat, player.Collar,
@@ -154,6 +169,12 @@ internal sealed class RoomGrain(
 
     public async Task Leave(Guid playerId, string session)
     {
+        if (_world is not null)
+        {
+            await LeaveOverworld(playerId, session);
+            return;
+        }
+
         if (_state.Leave(playerId, session))
         {
             await broadcaster.CatLeft(_key, playerId);
@@ -164,6 +185,11 @@ internal sealed class RoomGrain(
 
     public async Task<DoorTarget> LeaveThrough(Guid playerId, string session, string doorId)
     {
+        if (_world is not null)
+        {
+            return await LeaveOverworldThrough(playerId, session, doorId);
+        }
+
         var door = Rule(() => _state.LeaveThrough(playerId, session, doorId));
         await broadcaster.CatLeft(_key, playerId);
         GoIfEmpty();
@@ -173,6 +199,17 @@ internal sealed class RoomGrain(
     public Task<IReadOnlyList<string>> Renew(IReadOnlyList<PlayerSession> sessions)
     {
         var now = time.GetUtcNow();
+        if (_world is not null)
+        {
+            var world = _world;
+            var gone = sessions
+                .Where(s => world.Renew(s.PlayerId, s.Session, now) == CatRenewal.Gone)
+                .Select(s => s.Session)
+                .ToList();
+            GoIfEmpty();
+            return Task.FromResult<IReadOnlyList<string>>(gone);
+        }
+
         var lost = sessions
             .Where(s => _state.Renew(s.PlayerId, s.Session, now) == CatRenewal.Gone)
             .Select(s => s.Session)
@@ -190,6 +227,12 @@ internal sealed class RoomGrain(
 
     public Task<bool> Has(Guid playerId, string session)
     {
+        if (_world is not null)
+        {
+            GoIfEmpty();
+            return Task.FromResult(_world.Has(playerId, session));
+        }
+
         // Asking can be what activated this room (it came back empty after its pod died): an empty room goes again.
         if (_state.Cats.Count == 0)
         {
@@ -201,18 +244,36 @@ internal sealed class RoomGrain(
 
     public async Task Move(Guid playerId, double x, double z)
     {
+        if (_world is not null)
+        {
+            await MoveInOverworld(playerId, x, z);
+            return;
+        }
+
         var position = Rule(() => _state.Move(playerId, new Position(x, z)));
         await broadcaster.CatMoved(_key, playerId, position.X, position.Z);
     }
 
     public async Task Say(Guid playerId, string text)
     {
+        if (_world is not null)
+        {
+            await SayInOverworld(playerId, text);
+            return;
+        }
+
         var line = Rule(() => _state.Say(playerId, text, chatFilters.Current, time.GetUtcNow()));
         await broadcaster.ChatSaid(_key, ChatView.From(line));
     }
 
     public async Task Emote(Guid playerId, string emote)
     {
+        if (_world is not null)
+        {
+            await EmoteInOverworld(playerId, emote);
+            return;
+        }
+
         var done = Rule(() => _state.Emote(playerId, emote, time.GetUtcNow()));
         await broadcaster.CatEmoted(_key, EmoteView.From(done));
     }
@@ -220,6 +281,12 @@ internal sealed class RoomGrain(
     public async Task Dress(OutfitView outfit)
     {
         ArgumentNullException.ThrowIfNull(outfit);
+        if (_world is not null)
+        {
+            await DressInOverworld(outfit);
+            return;
+        }
+
         var fur = Enum.Parse<FurColor>(outfit.FurColor);
         if (_state.Dress(outfit.PlayerId, fur, outfit.Hat, outfit.Collar, outfit.Version) is { } cat)
         {
@@ -235,6 +302,11 @@ internal sealed class RoomGrain(
 
     public Task Cast(Guid playerId)
     {
+        if (_world is not null)
+        {
+            throw new GameRuleException("There is no fishing out in the open yet.");
+        }
+
         var now = time.GetUtcNow();
         var line = Rule(() => _state.Cast(playerId, now, random.NextDouble()));
         // One shot, at the bite. The grain timer runs on the grain clock and inside the grain, like every call here; it
@@ -261,6 +333,11 @@ internal sealed class RoomGrain(
 
     public Task<ReelView> Reel(Guid playerId)
     {
+        if (_world is not null)
+        {
+            throw new GameRuleException("There is no fishing out in the open yet.");
+        }
+
         var result = Rule(() => _state.Reel(playerId, time.GetUtcNow(), random.NextDouble()));
         Unschedule(playerId);
         return Task.FromResult(ReelView.From(result));
@@ -269,6 +346,12 @@ internal sealed class RoomGrain(
     public async Task Furnish(HomeView home)
     {
         ArgumentNullException.ThrowIfNull(home);
+        if (_world is not null)
+        {
+            GoIfEmpty();
+            return;
+        }
+
         // A home only, and not an older change than it has (two changes told out of order).
         if (_home is not null && home.OwnerId == _home.OwnerId && home.Version >= _home.Version)
         {
@@ -283,6 +366,13 @@ internal sealed class RoomGrain(
 
     public Task<IReadOnlyList<Guid>> CatsHere()
     {
+        if (_world is not null)
+        {
+            IReadOnlyList<Guid> inWorld = [.. _world.Cats.Select(cat => cat.PlayerId)];
+            GoIfEmpty();
+            return Task.FromResult(inWorld);
+        }
+
         IReadOnlyList<Guid> here = [.. _state.Cats.Select(cat => cat.PlayerId)];
         GoIfEmpty();
         return Task.FromResult(here);
@@ -290,6 +380,12 @@ internal sealed class RoomGrain(
 
     public Task<IReadOnlyList<ChatView>> RecentChat()
     {
+        if (_world is not null)
+        {
+            GoIfEmpty();
+            return Task.FromResult<IReadOnlyList<ChatView>>([]);
+        }
+
         IReadOnlyList<ChatView> chat = [.. _state.RecentChat.Select(ChatView.From)];
         // Asked of a room nobody is in (it came back empty, say): it goes again.
         GoIfEmpty();
@@ -299,6 +395,12 @@ internal sealed class RoomGrain(
     public async Task SendOut(IReadOnlyList<Guid> playerIds, string message)
     {
         ArgumentNullException.ThrowIfNull(playerIds);
+        if (_world is not null)
+        {
+            await SendOutOfOverworld(playerIds, message);
+            return;
+        }
+
         foreach (var playerId in playerIds)
         {
             if (_state.SendOut(playerId) is { } session)
@@ -315,6 +417,12 @@ internal sealed class RoomGrain(
 
     public async Task Rename(Guid playerId, string displayName)
     {
+        if (_world is not null)
+        {
+            await RenameInOverworld(playerId, displayName);
+            return;
+        }
+
         if (_state.Rename(playerId, displayName) is { } cat)
         {
             await broadcaster.CatRenamed(_key, RenameView.From(cat));
@@ -365,6 +473,12 @@ internal sealed class RoomGrain(
     // Cats whose pod died without closing their connections: nothing renews their leases.
     private async Task RemoveExpired()
     {
+        if (_world is not null)
+        {
+            await RemoveExpiredFromOverworld();
+            return;
+        }
+
         if (_home is null && !(library.Find(RoomKey.Parse(_key).RoomId)?.SameAs(_state.Room) ?? false))
         {
             // Published again or an overlay changed: start over, and the tabs walk back in to the new room (OnDeactivateAsync).
@@ -389,7 +503,7 @@ internal sealed class RoomGrain(
     // The last cat out: the room goes, and forgets everything.
     private void GoIfEmpty()
     {
-        if (_state.Cats.Count == 0)
+        if ((_world?.Cats.Count ?? _state.Cats.Count) == 0)
         {
             DeactivateOnIdle();
         }

@@ -13,6 +13,25 @@ public static class RoomKey
 
     public static string For(string worldId, string roomId) => $"{worldId}/{roomId}";
 
+    /// <summary>The room ID of a world's open world: every outdoor room, as one room grain.</summary>
+    public const string Overworld = "overworld";
+
+    /// <summary>The key of the open world of <paramref name="worldId"/>.</summary>
+    public static string ForOverworld(string worldId) => For(worldId, Overworld);
+
+    /// <summary>Whether the key is a world's open world.</summary>
+    public static bool IsOverworld(string key) => Parse(key).RoomId == Overworld;
+
+    /// <summary>What a cat joining the open world passes in place of a door: the room it comes in at, and the door of it if any ("room" or "room/door").</summary>
+    public static string Arrival(string roomId, string? doorId) => doorId is null ? roomId : $"{roomId}/{doorId}";
+
+    public static (string RoomId, string? DoorId) ParseArrival(string? arrival)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(arrival);
+        var slash = arrival.IndexOf('/', StringComparison.Ordinal);
+        return slash < 0 ? (arrival, null) : (arrival[..slash], arrival[(slash + 1)..]);
+    }
+
     /// <summary>The key of <paramref name="ownerId"/>'s home.</summary>
     public static string ForHome(Guid ownerId) => For(Homes, ownerId.ToString());
 
