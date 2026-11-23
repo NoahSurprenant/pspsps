@@ -451,6 +451,14 @@ jobs:
           archive: false
           retention-days: 30
           overwrite: true
+      - name: Upload the room editor contact sheet
+        if: ${{ !cancelled() && hashFiles('e2e/screenshots/admin-editor.png') != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          path: e2e/screenshots/admin-editor.png
+          archive: false
+          retention-days: 30
+          overwrite: true
       - name: Verify screenshot uploads and collect links
         id: screenshot_links
         if: ${{ !cancelled() && (needs.e2e-shards.result == 'success' || hashFiles('e2e/screenshots/*.png') != '') }}
