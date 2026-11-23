@@ -71,7 +71,7 @@ internal sealed class RoomAuditConfiguration : IEntityTypeConfiguration<RoomAudi
         builder.Property(a => a.Target).HasMaxLength(RoomOverlayConfiguration.IdLength * 2 + 1);
         builder.Property(a => a.Detail).HasMaxLength(500);
         builder.Property(a => a.Content).HasColumnType("jsonb")
-            .HasConversion(RoomJson.Converter<RoomContent>(), RoomJson.Comparer<RoomContent>());
+            .HasConversion(RoomJson.NullableConverter<RoomContent>(), RoomJson.NullableComparer<RoomContent>());
         builder.HasIndex(a => a.Target);
         builder.HasIndex(a => a.At);
         builder.HasOne<Player>().WithMany().HasForeignKey(a => a.AdminId).OnDelete(DeleteBehavior.SetNull);
