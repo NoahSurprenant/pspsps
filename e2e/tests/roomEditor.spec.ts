@@ -22,6 +22,28 @@ test("an admin picks a room from the list and sees just that room's layout and v
   await expect(page.getByText(/^Version \d+: /).first()).toBeVisible();
 });
 
+test("the 3D preview sits beside the picture and follows what is typed, before anything is saved", async ({ page, context, baseURL }) => {
+  await signInAsAdmin(context, baseURL!);
+  await page.goto("/admin/rooms/shop");
+  await expect(page.getByLabel("Top-down view of the room")).toBeVisible();
+  const frame = page.frameLocator("iframe[title='3D preview of the room']");
+  await expect(frame.locator("canvas")).toBeVisible();
+
+  await page.getByText("Layout as JSON").click();
+  const layout = page.getByLabel(/layout as JSON$/);
+  const typed = JSON.parse(await layout.inputValue()) as { name: string };
+  typed.name = "Typed But Not Saved";
+  const asked = page.waitForRequest((request) => request.method() === "POST" && request.url().endsWith("/rooms/shop/preview")
+    && (request.postDataJSON() as { layout: { name: string } }).layout.name === "Typed But Not Saved");
+  await layout.fill(JSON.stringify(typed));
+  const request = await asked;
+  const response = await request.response();
+
+  expect(response?.status()).toBe(200);
+  expect(((await response!.json()) as { roomName: string }).roomName).toBe("Typed But Not Saved");
+  await expect(page.getByText("editing the draft")).toHaveCount(0);
+});
+
 test("a new room is saved as a draft from its own page, and the draft can be discarded", async ({ page, context, baseURL }) => {
   await signInAsAdmin(context, baseURL!);
   await page.goto("/admin/rooms");
