@@ -4,7 +4,7 @@ import { wildlifeRecipe, type WildlifeMotion } from "./recipes";
 import type { RoomSnapshot } from "./types";
 
 /** A pair of fish under the blue shallows or a butterfly visiting the courtyard flowers. Both let taps through. */
-export function wildlife(scene: Scene, room: RoomSnapshot, kind: string | undefined): ((seconds: number) => void) | undefined {
+export function wildlife(scene: Scene, room: Pick<RoomSnapshot, "pond" | "props">, kind: string | undefined): ((seconds: number) => void) | undefined {
   let parts: Part[];
   let position: (time: number) => [number, number, number];
   if (kind === "fish" && room.pond) {
@@ -56,7 +56,7 @@ export function wildlife(scene: Scene, room: RoomSnapshot, kind: string | undefi
 }
 
 /** Where an admin's creature is at a time, or nothing where the room has nothing for it to move by. */
-function motionOf(motion: WildlifeMotion, room: RoomSnapshot): ((time: number) => [number, number, number]) | undefined {
+function motionOf(motion: WildlifeMotion, room: Pick<RoomSnapshot, "pond" | "props">): ((time: number) => [number, number, number]) | undefined {
   const { speed, height, bob = 0, sway = 0 } = motion;
   if (motion.kind === "orbit") {
     const pond = room.pond;

@@ -29,6 +29,7 @@ import { pageTitle } from "./title";
 import { WalkKeys } from "./walkKeys";
 import { FRAME_RATE_KEY, maxFps, savedFrameRate, type FrameRate } from "./frameLimit";
 import { stepInRoom } from "./walking";
+import { stepInWorld, worldDoors } from "./overworld";
 import type {
   DoorView, HomeView, HomeVisitors, MutedView, OutfitView, Player, PlayerCard, PropView, RoomSnapshot, Shop,
 } from "./types";
@@ -88,7 +89,7 @@ async function makeStage(): Promise<RoomScene> {
     }
     markWalk(x, z);
     // Walking onto a door goes through it.
-    const door = doorAt(room.snapshot.doors, x, z);
+    const door = doorAt(worldDoors(room.snapshot), x, z);
     if (door) {
       void goThrough(door);
       return;
@@ -464,11 +465,13 @@ async function walkByKey(dx: number, dz: number): Promise<void> {
     return;
   }
   const position = scene?.positionOf(cat.playerId) ?? cat;
-  const target = stepInRoom(position, dx, dz, here.snapshot);
+  const target = here.snapshot.chunks?.length
+    ? stepInWorld(here.snapshot.chunks, position, dx, dz)
+    : stepInRoom(position, dx, dz, here.snapshot);
   if (target.x === cat.x && target.z === cat.z) {
     return;
   }
-  const door = doorAt(here.snapshot.doors, target.x, target.z);
+  const door = doorAt(worldDoors(here.snapshot), target.x, target.z);
   if (door) {
     await goThrough(door);
   } else {
