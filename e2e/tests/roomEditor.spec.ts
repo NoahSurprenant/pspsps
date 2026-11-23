@@ -49,7 +49,7 @@ test("the look is a form whose changes show in the 3D preview at once", async ({
   await page.goto("/admin/rooms/shop");
 
   await page.getByRole("link", { name: "Look", exact: true }).click();
-  await expect(page.getByLabel("Floor painter")).toBeVisible();
+  await expect(page.getByLabel("Floor painter", { exact: true })).toBeVisible();
   const asked = page.waitForRequest((request) => request.method() === "POST" && request.url().endsWith("/rooms/shop/preview")
     && (request.postDataJSON() as { look?: { sky?: string } }).look?.sky === "#102030");
   await page.getByLabel("Sky").fill("#102030");
