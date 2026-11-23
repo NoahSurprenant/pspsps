@@ -24,6 +24,11 @@ export default tseslint.config(
     linterOptions: { reportUnusedDisableDirectives: "error" },
     rules: { ...asErrors, eqeqeq: "error" },
   },
+  // An Angular component may be only its template: a decorated class with nothing in it.
+  {
+    files: ["admin/**/*.ts"],
+    rules: { "@typescript-eslint/no-extraneous-class": ["error", { allowWithDecorator: true }] },
+  },
   // The scripts run in Node.
   {
     files: ["scripts/**/*.mjs"],
