@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from "@angular/core";
 import { Router, RouterLink } from "@angular/router";
 import { type CanvasDoor, type CanvasLayout, isLayout, newRoomTemplate } from "../../src/roomCanvas";
-import { goLiveInstant, goLiveText, parseJson, problemsText, type RoomDetail } from "../../src/roomsData";
+import { goLiveInstant, goLiveText, parseJson, problemsText, type HistoryEntry, type RoomDetail } from "../../src/roomsData";
 import { messageOf } from "./http";
 import { blankLook } from "../../src/lookForm";
 import type { RoomLookData } from "../../src/looks";
@@ -75,16 +75,18 @@ type Section = "layout" | "look" | "overlays" | "versions";
               <app-room-preview [roomId]="id()" [layout]="parsed()" [look]="look()" [overlay]="previewOverlay()" />
             </div>
           </div>
-          <div class="actions">
+          <div class="group">
+          <strong>Draft</strong>
             <button type="button" class="primary" [disabled]="busy()" (click)="save()">Save draft</button>
             <button type="button" [disabled]="busy() || !detail()?.draft" (click)="publish()">Publish draft</button>
             <button type="button" [disabled]="busy() || !detail()?.draft" (click)="discard()">Discard draft</button>
           </div>
+          <div class="group">
+            <strong>Publish</strong>
           <label>
-            Publish together with
+            Together with
             <input aria-label="Publish together with these rooms" placeholder="room-a, room-b" [value]="together()" (input)="togetherTyped($event)" />
           </label>
-          <div class="actions">
             <input type="datetime-local" aria-label="Go live at (your time)" (input)="goLive.set($any($event.target).value)" />
             <button type="button" [disabled]="busy() || !detail()?.draft" (click)="publishAt()">Publish at that time</button>
             @if (detail()?.goLiveAt) {
@@ -109,6 +111,22 @@ type Section = "layout" | "look" | "overlays" | "versions";
               <li class="quiet">No versions yet.</li>
             }
           </ul>
+          <h3>Changes saved to the draft</h3>
+          <ul class="rooms">
+            @for (entry of history(); track entry.id) {
+              <li class="actions">
+                <span>{{ entry.at }}: {{ entry.action }} {{ entry.detail }}</span>
+                <button type="button" (click)="viewed.set(entry)">Show it</button>
+                <button type="button" [disabled]="busy()" (click)="restore(entry)">Put it back in the draft</button>
+              </li>
+            } @empty {
+              <li class="quiet">No saved changes yet.</li>
+            }
+          </ul>
+          @if (viewed(); as entry) {
+            <p class="quiet">The room as it was saved at {{ entry.at }}:</p>
+            <app-room-preview [roomId]="id()" [layout]="entry.layout" [look]="entry.look" />
+          }
         }
       </section>
     </div>
@@ -137,6 +155,8 @@ export class RoomEditorPage {
   protected readonly liveText = computed(() => goLiveText(this.detail()?.goLiveAt));
   protected readonly previewOverlay = signal<string | undefined>(undefined);
   protected readonly variantNames = signal<string[]>([]);
+  protected readonly history = signal<HistoryEntry[]>([]);
+  protected readonly viewed = signal<HistoryEntry | null>(null);
   protected readonly wayBack = async (door: CanvasDoor, back: CanvasDoor): Promise<void> => {
     await this.api.addWayBack(door, back);
     this.message.set(`The way back is in ${door.toRoom}'s draft: publish both rooms together.`);
@@ -246,6 +266,19 @@ export class RoomEditorPage {
     });
   }
 
+  protected restore(entry: HistoryEntry): Promise<void> {
+    return this.act(async () => {
+      await this.api.saveDraft(this.id(), entry.layout, this.detail()?.draftRevision);
+      if (entry.look) {
+        await this.api.saveLook(this.id(), entry.look);
+      }
+
+      await this.load(this.id(), false);
+      this.section.set("layout");
+      return `The room as saved at ${entry.at} is the draft again.`;
+    });
+  }
+
   private async act(action: () => Promise<string>): Promise<void> {
     this.busy.set(true);
     try {
@@ -261,6 +294,8 @@ export class RoomEditorPage {
     try {
       const detail = fresh ? null : await this.api.detail(id);
       this.detail.set(detail);
+      this.viewed.set(null);
+      this.history.set(fresh ? [] : await this.api.history(id).catch(() => []));
       this.layoutText.set(JSON.stringify(detail?.draft ?? detail?.published ?? newRoomTemplate(id), null, 2));
       this.look.set((detail?.draftLook ?? (fresh ? null : await this.api.liveLook(id))) as RoomLookData | null);
     } catch (error) {

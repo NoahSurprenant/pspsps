@@ -264,8 +264,8 @@ export function roomCanvas(
     }
     const pond = layout.pond;
     parts.push(pond
-      ? el("span", {}, number("Pond radius", pond.radius, 0.25, (radius) => change(setPond(layout, { ...pond, radius }))), button("Remove pond", () => change(setPond(layout, null))))
-      : button("Add pond", () => change(setPond(layout, { center: { x: 0, z: 0 }, radius: 2 }))));
+      ? el("div", { className: "group" }, el("strong", { text: "Pond" }), number("Pond radius", pond.radius, 0.25, (radius) => change(setPond(layout, { ...pond, radius }))), button("Remove pond", () => change(setPond(layout, null))))
+      : el("div", { className: "group" }, el("strong", { text: "Pond" }), button("Add pond", () => change(setPond(layout, { center: { x: 0, z: 0 }, radius: 2 })))));
     if (options.addDoorPair && options.rooms && options.roomId) parts.push(doorPairForm(options.addDoorPair, options.rooms, options.roomId));
     controls.replaceChildren(...parts);
   };
@@ -277,7 +277,7 @@ export function roomCanvas(
     const edge = el("select", {});
     edge.setAttribute("aria-label", "Edge of this room for the new door");
     for (const name of ["North", "East", "South", "West"]) edge.append(el("option", { text: name }));
-    return el("span", {}, el("label", { text: "New door to " }, target), el("label", { text: " on " }, edge),
+    return el("div", { className: "group" }, el("strong", { text: "Doors" }), el("label", { text: "New door to " }, target), el("label", { text: " on " }, edge),
       button("Add door with its way back", () => {
         if (!target.value) return;
         const door = newDoor(layout, edge.value as CanvasDoor["edge"], target.value, roomId);

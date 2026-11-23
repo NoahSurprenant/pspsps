@@ -1,5 +1,5 @@
 import { Injectable } from "@angular/core";
-import { draftQuery, publishQuery, type AuditLine, type ImportReport, type LookOptions, type RoomDetail, type RoomSummary } from "../../src/roomsData";
+import { draftQuery, publishQuery, type AuditLine, type HistoryEntry, type ImportReport, type LookOptions, type RoomDetail, type RoomSummary } from "../../src/roomsData";
 import { unsavedPreviewUrl } from "../../src/previewMessage";
 import { type CanvasDoor, isLayout } from "../../src/roomCanvas";
 import type { RoomLookData, VariantData } from "../../src/looks";
@@ -26,6 +26,7 @@ export class RoomsApi {
   discardDraft = (roomId: string): Promise<null> => request("DELETE", `${base(roomId)}/draft`);
   publish = (roomId: string, together: string, goLiveAt?: string): Promise<null> => request("POST", `${base(roomId)}/publish${publishQuery(together, goLiveAt)}`);
   takeOffSchedule = (roomId: string): Promise<null> => request("DELETE", `${base(roomId)}/schedule`);
+  history = (roomId: string, limit = 30): Promise<HistoryEntry[]> => request("GET", `${base(roomId)}/history?limit=${limit}`);
   audit = (limit = 50): Promise<AuditLine[]> => request("GET", `/api/admin/rooms/audit?limit=${limit}`);
   importContent = (): Promise<ImportReport | null> => request("POST", "/api/admin/import");
   rollback = (roomId: string, version: number): Promise<null> => request("POST", `${base(roomId)}/rollback/${version}`);

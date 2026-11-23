@@ -36,6 +36,9 @@ public static class RoomEditorEndpoints
         rooms.MapGet("/{roomId}", (string roomId, ClaimsPrincipal user, IModerationService moderation, IRoomEditor editor, CancellationToken ct) =>
             Admin(user, moderation, async _ => await editor.GetAsync(roomId, ct) is { } detail ? Results.Ok(detail) : Results.NotFound()));
 
+        rooms.MapGet("/{roomId}/history", (string roomId, int? limit, ClaimsPrincipal user, IModerationService moderation, IRoomEditor editor, CancellationToken ct) =>
+            Admin(user, moderation, async _ => Results.Ok(await editor.HistoryAsync(roomId, limit ?? 50, ct))));
+
         rooms.MapPut("/{roomId}/draft", (string roomId, RoomLayout layout, int? revision, HttpRequest request, ClaimsPrincipal user, IModerationService moderation, IRoomEditor editor) =>
             Change(request, user, moderation, async adminId =>
                 Results.Ok(new { problems = await editor.SaveDraftAsync(roomId, layout, adminId, revision, CancellationToken.None) })));

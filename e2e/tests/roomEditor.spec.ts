@@ -151,3 +151,23 @@ test("a draft is scheduled to go live later and taken off the schedule again", a
   await page.getByRole("button", { name: "Discard draft" }).click();
   await expect(page.getByText("editing the draft")).toHaveCount(0);
 });
+
+test("every saved draft appears in the room's history, can be shown, and put back", async ({ page, context, baseURL }) => {
+  await signInAsAdmin(context, baseURL!);
+  await page.goto("/admin/rooms");
+  await page.getByLabel("New room ID").fill("history-test-room");
+  await page.getByRole("button", { name: "New room" }).click();
+  await page.getByRole("button", { name: "Save draft" }).click();
+  await expect(page.getByRole("status")).toContainText("Saved");
+
+  await page.getByRole("link", { name: "Versions" }).click();
+  await expect(page.getByText("draft-saved")).toHaveCount(1);
+  await page.getByRole("button", { name: "Show it" }).click();
+  await expect(page.getByText("The room as it was saved at")).toBeVisible();
+  await expect(page.locator("iframe")).toBeVisible();
+  await page.getByRole("button", { name: "Put it back in the draft" }).click();
+  await expect(page.getByRole("status")).toContainText("is the draft again");
+
+  await page.getByRole("button", { name: "Discard draft" }).click();
+  await expect(page).toHaveURL(/\/admin\/rooms$/);
+});
