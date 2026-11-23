@@ -7,15 +7,16 @@ import { blankLook } from "../../src/lookForm";
 import type { RoomLookData } from "../../src/looks";
 import type { LookOptions } from "../../src/roomsData";
 import { RoomLookForm } from "./roomLookForm";
+import { RoomOverlaysForm } from "./roomOverlaysForm";
 import { RoomCanvasHost } from "./roomCanvasHost";
 import { RoomPreviewFrame } from "./roomPreviewFrame";
 import { RoomsApi } from "./roomsApi";
 
-type Section = "layout" | "look" | "versions";
+type Section = "layout" | "look" | "overlays" | "versions";
 
 @Component({
   selector: "app-room-editor",
-  imports: [RouterLink, RoomCanvasHost, RoomLookForm, RoomPreviewFrame],
+  imports: [RouterLink, RoomCanvasHost, RoomLookForm, RoomOverlaysForm, RoomPreviewFrame],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <p><a routerLink="/rooms">&larr; All rooms</a></p>
@@ -32,11 +33,17 @@ type Section = "layout" | "look" | "versions";
       <nav class="sections" aria-label="Parts of the room">
         <a href="" [class.current]="section() === 'layout'" (click)="show($event, 'layout')">Layout</a>
         <a href="" [class.current]="section() === 'look'" (click)="show($event, 'look')">Look</a>
+        <a href="" [class.current]="section() === 'overlays'" (click)="show($event, 'overlays')">Overlays</a>
         <a href="" [class.current]="section() === 'versions'" (click)="show($event, 'versions')">Versions</a>
       </nav>
       <section class="card">
-        @if (section() !== "versions") {
+        @if (section() === "overlays") {
+          <app-room-overlays [roomId]="id()" [overlays]="detail()?.overlays ?? []" [variants]="variantNames()" (previewing)="previewOverlay.set($event); section.set('layout')" (saved)="reload()" />
+        } @else if (section() !== "versions") {
           <h2>{{ section() === "look" ? "Look" : "Layout" }}</h2>
+          @if (previewOverlay(); as on) {
+            <p class="quiet">Previewing with the overlay {{ on }} on. <button type="button" (click)="previewOverlay.set(undefined)">Show the room without it</button></p>
+          }
           <div class="workspace">
             <div>
               @if (section() === "look") {
@@ -65,7 +72,7 @@ type Section = "layout" | "look" | "versions";
               }
             </div>
             <div>
-              <app-room-preview [roomId]="id()" [layout]="parsed()" [look]="look()" />
+              <app-room-preview [roomId]="id()" [layout]="parsed()" [look]="look()" [overlay]="previewOverlay()" />
             </div>
           </div>
           <div class="actions">
@@ -78,7 +85,7 @@ type Section = "layout" | "look" | "versions";
             <input aria-label="Publish together with these rooms" placeholder="room-a, room-b" [value]="together()" (input)="togetherTyped($event)" />
           </label>
           <p class="quiet">
-            Variants, overlays, painters and wildlife are still on the
+            Painters and wildlife are still on the
             <a href="/admin">old admin page</a> while they are moved here.
           </p>
         } @else {
@@ -119,6 +126,8 @@ export class RoomEditorPage {
   protected readonly options = signal<LookOptions | null>(null);
   protected readonly blank = blankLook;
   protected readonly roomIds = signal<string[]>([]);
+  protected readonly previewOverlay = signal<string | undefined>(undefined);
+  protected readonly variantNames = signal<string[]>([]);
   protected readonly wayBack = async (door: CanvasDoor, back: CanvasDoor): Promise<void> => {
     await this.api.addWayBack(door, back);
     this.message.set(`The way back is in ${door.toRoom}'s draft: publish both rooms together.`);
@@ -131,7 +140,12 @@ export class RoomEditorPage {
       void this.load(id, fresh);
     });
     void this.api.options().then((options) => this.options.set(options), () => undefined);
+    void this.api.looks().then((library) => this.variantNames.set(library.variants.map((variant) => variant.id)), () => undefined);
     void this.api.list().then((rooms) => this.roomIds.set(rooms.map((room) => room.roomId)), () => undefined);
+  }
+
+  protected reload(): Promise<void> {
+    return this.load(this.id(), false);
   }
 
   protected show(event: Event, section: Section): void {

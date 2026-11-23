@@ -17,4 +17,5 @@ describe("asPreviewMessage", () => {
 
 describe("unsavedPreviewUrl", () => {
   it("names the room, escaped", () => expect(unsavedPreviewUrl("a b")).toBe("/api/admin/rooms/a%20b/preview"));
+  it("adds the overlay to switch on, escaped", () => expect(unsavedPreviewUrl("a", "x y")).toBe("/api/admin/rooms/a/preview?overlay=x%20y"));
 });
