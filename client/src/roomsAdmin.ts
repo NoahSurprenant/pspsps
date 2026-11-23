@@ -3,6 +3,9 @@ import { roomPreview } from "./roomPreview";
 import { calendar, fieldsOf, monthNames, summary, windowOf, windowProblem, type WindowFields, type WindowJson } from "./overlayWindow";
 import { auditText, draftQuery, draftSetUrl, goLiveInstant, goLiveText, parseJson, problemsText, publishQuery, roomLine, type AuditLine, type LookOptions, type RoomDetail, type RoomSummary } from "./roomsData";
 import { type CanvasDoor, type CanvasLayout, isLayout, newRoomTemplate, roomCanvas } from "./roomCanvas";
+import { newPainterTemplate, newWildlifeTemplate, recipeBody } from "./libraryData";
+
+export { newPainterTemplate, newWildlifeTemplate, recipeBody };
 
 export { auditText, draftQuery, draftSetUrl, goLiveInstant, goLiveText, parseJson, problemsText, publishQuery, roomLine };
 export type { AuditLine, LookOptions, RoomDetail, RoomSummary, VersionSummary } from "./roomsData";
@@ -12,11 +15,6 @@ export interface LooksData {
   variants: { id: string; sky: string; wallColour: string }[];
   painters?: { id: string; surface: string; steps: unknown[] }[];
   wildlife?: { id: string; parts: unknown[]; motion: unknown }[];
-}
-
-/** The body a recipe is saved with (its name is in the address), from the entry the list shows. */
-export function recipeBody(kind: "painters" | "wildlife", entry: Record<string, unknown>): Record<string, unknown> {
-  return kind === "painters" ? { surface: entry.surface, steps: entry.steps } : { parts: entry.parts, motion: entry.motion };
 }
 
 export interface ImportReport { applied: string[]; unchanged: string[]; problems: string[] }
@@ -36,14 +34,6 @@ function exportLink(): HTMLElement {
   link.href = exportUrl;
   link.download = "content.json";
   return el("p", {}, link);
-}
-
-export function newPainterTemplate(): unknown {
-  return { id: "stripes", surface: "floor", steps: [{ op: "fill", colour: "main" }, { op: "rect", colour: "accent", x: 0, y: 0, width: 0.5, height: 100, repeat: { dx: 1, dy: 0 } }] };
-}
-
-export function newWildlifeTemplate(): unknown {
-  return { id: "moth", parts: [{ shape: "ball", diameter: 0.2, height: 0.05, at: [0, 0, 0], colour: "#d9d2c3" }], motion: { kind: "wander", speed: 0.6, height: 1.2, reach: 3 } };
 }
 
 /** The names a room look may use, one line each, for the editor to show beside the JSON. */
