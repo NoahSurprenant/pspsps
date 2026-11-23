@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from "@angular/core";
-import { RouterLink } from "@angular/router";
+import { Router, RouterLink } from "@angular/router";
 import { newRoomTemplate } from "../../src/roomCanvas";
 import { parseJson, problemsText, type RoomDetail } from "../../src/roomsData";
 import { messageOf } from "./http";
@@ -65,6 +65,7 @@ type Section = "layout" | "versions";
 })
 export class RoomEditorPage {
   private readonly api = inject(RoomsApi);
+  private readonly router = inject(Router);
   readonly id = input.required<string>();
   readonly isNew = input<string | undefined>(undefined, { alias: "new" });
   protected readonly detail = signal<RoomDetail | null>(null);
@@ -102,6 +103,7 @@ export class RoomEditorPage {
       if (parsed === null) return "That isn't valid JSON.";
       const saved = await this.api.saveDraft(this.id(), parsed, this.detail()?.draftRevision);
       await this.load(this.id(), false);
+      if (this.isNew() !== undefined) void this.router.navigate([], { queryParams: { new: null }, replaceUrl: true });
       return problemsText(saved?.problems ?? []);
     });
   }
@@ -116,7 +118,12 @@ export class RoomEditorPage {
 
   protected discard(): Promise<void> {
     return this.act(async () => {
+      const neverLive = this.detail()?.published == null;
       await this.api.discardDraft(this.id());
+      if (neverLive) {
+        await this.router.navigate(["/rooms"]);
+        return "The draft is gone.";
+      }
       await this.load(this.id(), false);
       return "The draft is gone.";
     });

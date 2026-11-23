@@ -13,7 +13,9 @@ test("an admin picks a room from the list and sees just that room's layout and v
   await rooms.first().click();
   await expect(page).toHaveURL(/\/admin\/rooms\/[^/]+$/);
   await expect(page.getByRole("link", { name: "All rooms" })).toBeVisible();
-  const text = await page.getByLabel(/layout as JSON$/).inputValue();
+  const layout = page.getByLabel(/layout as JSON$/);
+  await expect(layout).not.toHaveValue("");
+  const text = await layout.inputValue();
   expect(JSON.parse(text), "the room's layout is JSON").toMatchObject({ width: expect.any(Number), props: expect.any(Array) });
 
   await page.getByRole("link", { name: "Versions" }).click();
@@ -33,7 +35,8 @@ test("a new room is saved as a draft from its own page, and the draft can be dis
   await expect(page.getByText("editing the draft")).toBeVisible();
 
   await page.getByRole("button", { name: "Discard draft" }).click();
-  await expect(page.getByRole("status")).toContainText("The draft is gone.");
+  await expect(page).toHaveURL(/\/admin\/rooms$/);
+  await expect(page.getByRole("link", { name: /editor-test-room/ })).toHaveCount(0);
 });
 
 test("a signed-out visitor does not get the room editor", async ({ request }) => {
