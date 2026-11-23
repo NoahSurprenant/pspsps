@@ -202,6 +202,7 @@ internal sealed partial class RoomGrain
     private async Task Departed(Guid playerId)
     {
         var watchers = WatchersOf(playerId);
+        var viewers = _known.Where(entry => entry.Value.Contains(playerId)).Select(entry => entry.Key).ToList();
         _known.Remove(playerId);
         foreach (var known in _known.Values)
         {
@@ -211,6 +212,12 @@ internal sealed partial class RoomGrain
         if (watchers.Count > 0)
         {
             await broadcaster.CatLeft(watchers, playerId);
+        }
+
+        // The freed place on each screen goes to the next nearest cat, if there is one.
+        foreach (var viewer in viewers)
+        {
+            await Sync(viewer);
         }
     }
 

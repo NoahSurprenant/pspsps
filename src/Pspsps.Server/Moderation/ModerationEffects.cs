@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.SignalR;
 using Pspsps.Application.Moderation;
+using Pspsps.Application.Rooms;
 using Pspsps.Domain.Moderation;
 using Pspsps.Server.Game;
 using Pspsps.Server.Hubs;
@@ -35,7 +36,8 @@ internal sealed partial class ModerationEffects(
     StandingCache standings,
     IGrainFactory grains,
     ILogger<ModerationEffects> logger,
-    AddressBanCache? networks = null) : IModerationEffects
+    AddressBanCache? networks = null,
+    IRoomLibrary? rooms = null) : IModerationEffects
 {
     public async Task AppliedAsync(Guid playerId, ModerationAction action, Standing standing)
     {
@@ -118,7 +120,7 @@ internal sealed partial class ModerationEffects(
     {
         if (await grains.GetGrain<IPlayerSessionGrain>(playerId).Locate() is { } place)
         {
-            await grains.GetGrain<IRoomGrain>(RoomKey.For(place.WorldId, place.RoomId)).SendOut([playerId], ban.SaysBanned());
+            await grains.GetGrain<IRoomGrain>(RoomKey.Grain(place.WorldId, place.RoomId, rooms?.Find(place.RoomId)?.Place is not null)).SendOut([playerId], ban.SaysBanned());
         }
     }
 

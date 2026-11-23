@@ -494,7 +494,8 @@ export class RoomScene {
     const animate = wildlife(this.scene, chunk, look.wildlife);
     if (animate) {
       animations.push(animate);
-    }  }
+    }
+  }
 
   /** The ground round the room, below the floor's edge: out past where the camera sees; under the whole world when there is one. */
   private drawGround(

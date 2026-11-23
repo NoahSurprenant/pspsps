@@ -190,7 +190,7 @@ public sealed class OverworldState(WorldSpace space, int capacity)
 
     /// <summary>
     /// Says a line, through <paramref name="filter"/>, where the cat stands. Returns the line and who heard it: every cat
-    /// within <see cref="WorldSpace.ViewDistance"/> of the speaker, the speaker too. Each listener keeps it in what they
+    /// that is shown the speaker (within <see cref="WorldSpace.ViewDistance"/>, among its nearest <see cref="WorldSpace.MaxVisibleCats"/>), the speaker too. Each listener keeps it in what they
     /// heard (<see cref="HeardBy"/>).
     /// </summary>
     public (ChatLine Line, IReadOnlyList<Guid> Heard) Say(Guid playerId, string text, ChatFilter filter, DateTimeOffset now)
@@ -210,7 +210,7 @@ public sealed class OverworldState(WorldSpace space, int capacity)
 
         var line = new ChatLine(playerId, filter.Apply(trimmed), now);
         var heard = _cats.Values
-            .Where(cat => cat.PlayerId == playerId || cat.Position.DistanceTo(speaker.Position) <= WorldSpace.ViewDistance)
+            .Where(cat => cat.PlayerId == playerId || VisibleTo(cat.PlayerId).Any(seen => seen.PlayerId == playerId))
             .Select(cat => cat.PlayerId)
             .ToList();
         foreach (var listener in heard)

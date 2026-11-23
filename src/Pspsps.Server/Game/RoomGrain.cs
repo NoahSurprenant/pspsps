@@ -225,6 +225,18 @@ internal sealed partial class RoomGrain(
         return Task.FromResult<IReadOnlyList<string>>(lost);
     }
 
+    public async Task<string?> WhereIs(Guid playerId, string session)
+    {
+        if (!await Has(playerId, session))
+        {
+            return null;
+        }
+
+        return _world is { } world && world.Find(playerId) is { } cat
+            ? world.Space.RoomAt(cat.Position)?.Id
+            : RoomKey.Parse(_key).RoomId;
+    }
+
     public Task<bool> Has(Guid playerId, string session)
     {
         if (_world is not null)

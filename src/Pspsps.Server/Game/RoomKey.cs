@@ -19,6 +19,9 @@ public static class RoomKey
     /// <summary>The key of the open world of <paramref name="worldId"/>.</summary>
     public static string ForOverworld(string worldId) => For(worldId, Overworld);
 
+    /// <summary>The key of the grain that holds a cat standing in the room <paramref name="roomId"/>: the open world's when the room is on the world map (<paramref name="placed"/>).</summary>
+    public static string Grain(string worldId, string roomId, bool placed) => placed ? ForOverworld(worldId) : For(worldId, roomId);
+
     /// <summary>Whether the key is a world's open world.</summary>
     public static bool IsOverworld(string key) => Parse(key).RoomId == Overworld;
 
