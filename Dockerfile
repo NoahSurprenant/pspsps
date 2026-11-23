@@ -22,6 +22,8 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
 COPY --from=server /app ./
 COPY --from=client /client/dist ./wwwroot
+# The room editor (an Angular app, built after the game's pages), under /admin-app; the server serves its page at /admin/rooms.
+COPY --from=client /client/dist-admin/browser ./wwwroot/admin-app
 USER $APP_UID
 ENV ASPNETCORE_HTTP_PORTS=8080
 # HTTP, then Orleans' silo-to-silo and gateway ports.

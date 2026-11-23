@@ -27,6 +27,7 @@ const content = el("div", { className: "content" });
 root.replaceChildren(el("div", { className: "admin" },
   el("header", {},
     el("h1", { text: "Moderation" }),
+    link("Room editor", "/admin/rooms"),
     link("Back to the game", "/")),
   status,
   content,

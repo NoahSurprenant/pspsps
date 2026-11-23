@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": [],
+    "noEmit": false,
+    "outDir": "./out-tsc/admin",
+    "experimentalDecorators": false
+  },
+  "include": ["admin/**/*.ts"],
+  "exclude": ["admin/**/*.test.ts"],
+  "angularCompilerOptions": {
+    "strictInjectionParameters": true,
+    "strictTemplates": true
+  }
+}

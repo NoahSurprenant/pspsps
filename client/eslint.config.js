@@ -16,7 +16,7 @@ const asErrors = Object.fromEntries(
 );
 
 export default tseslint.config(
-  { ignores: ["dist"] },
+  { ignores: ["dist", "dist-admin", ".angular"] },
   js.configs.recommended,
   ...tseslint.configs.strict,
   {

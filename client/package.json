@@ -4,18 +4,28 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && ng build",
     "lint": "eslint . --max-warnings 0",
     "test": "vitest run"
   },
   "dependencies": {
+    "@angular/common": "^22.3.0",
+    "@angular/compiler": "^22.3.0",
+    "@angular/core": "^22.3.0",
+    "@angular/platform-browser": "^22.3.0",
+    "@angular/router": "^22.3.0",
     "@babylonjs/core": "^9.37.0",
     "@babylonjs/gui": "^9.37.0",
     "@babylonjs/loaders": "^9.37.0",
     "@microsoft/signalr": "^11.0.0",
+    "rxjs": "~7.8.0",
+    "tslib": "^2.3.0",
     "web-vitals": "^6.2.3"
   },
   "devDependencies": {
+    "@angular/build": "^22.3.0",
+    "@angular/cli": "^22.3.0",
+    "@angular/compiler-cli": "^22.3.0",
     "@eslint/js": "^10.0.1",
     "eslint": "^10.15.0",
     "eslint-plugin-sonarjs": "^4.2.2",
