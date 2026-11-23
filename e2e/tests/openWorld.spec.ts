@@ -55,8 +55,8 @@ test("cats in the open world see and hear only what is near, and walk from one r
 
     const heardByA = listen(tab.a.hub);
     const heardByB = listen(tab.b.hub);
-    const first = await tab.a.hub.invoke<Snapshot>("EnterWorld", "Calico");
-    const second = await tab.b.hub.invoke<Snapshot>("EnterWorld", "Calico");
+    const first = await tab.a.hub.invoke<Snapshot>("EnterWorld", "calico");
+    const second = await tab.b.hub.invoke<Snapshot>("EnterWorld", "calico");
 
     expect(first.roomId, "the cat arrives in Town Square").toBe("town-square");
     expect(first.chunks?.length, "with the three placed rooms drawn around it").toBe(3);
