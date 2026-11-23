@@ -118,13 +118,9 @@ export class RoomEditorPage {
 
   protected discard(): Promise<void> {
     return this.act(async () => {
-      const neverLive = this.detail()?.published == null;
+      const neverLive = !this.detail()?.published;
       await this.api.discardDraft(this.id());
-      if (neverLive) {
-        await this.router.navigate(["/rooms"]);
-        return "The draft is gone.";
-      }
-      await this.load(this.id(), false);
+      await (neverLive ? this.router.navigate(["/rooms"]) : this.load(this.id(), false));
       return "The draft is gone.";
     });
   }
