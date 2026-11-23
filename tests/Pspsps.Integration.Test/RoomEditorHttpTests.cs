@@ -812,7 +812,7 @@ public sealed class RoomEditorHttpTests
     }
 
     [Test]
-    public Task ARoomsPlaceOnTheWorldGrid_IsKeptInItsDraft_AndANonWholeCellFloorIsRefused() => WithCafeAsync(async (editor, admin, before) =>
+    public Task ARoomsPlaceOnTheWorldGrid_IsKeptInItsDraft_AndANonWholeCellFloorIsReported() => WithCafeAsync(async (editor, admin, before) =>
     {
         var placed = before.Published! with { Width = 20, Depth = 16, Place = new WorldPlace(3, -2) };
         await editor.SaveDraftAsync("cafe", placed, admin, null, CancellationToken.None);
@@ -821,9 +821,9 @@ public sealed class RoomEditorHttpTests
         Assert.That(drafted.Place, Is.EqualTo(new WorldPlace(3, -2)));
 
         var crooked = placed with { Width = 21 };
-        Assert.That(
-            async () => await editor.SaveDraftAsync("cafe", crooked, admin, null, CancellationToken.None),
-            Throws.Exception.Message.Contains("whole"));
+        var problems = await editor.SaveDraftAsync("cafe", crooked, admin, null, CancellationToken.None);
+
+        Assert.That(problems, Has.Some.Contains("whole"));
     });
 
     private static async Task WithCafeAsync(Func<IRoomEditor, Guid, RoomDetail, Task> test)
