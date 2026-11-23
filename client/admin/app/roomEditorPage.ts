@@ -1,15 +1,17 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from "@angular/core";
 import { Router, RouterLink } from "@angular/router";
-import { newRoomTemplate } from "../../src/roomCanvas";
+import { type CanvasDoor, type CanvasLayout, isLayout, newRoomTemplate } from "../../src/roomCanvas";
 import { parseJson, problemsText, type RoomDetail } from "../../src/roomsData";
 import { messageOf } from "./http";
+import { RoomCanvasHost } from "./roomCanvasHost";
+import { RoomPreviewFrame } from "./roomPreviewFrame";
 import { RoomsApi } from "./roomsApi";
 
 type Section = "layout" | "versions";
 
 @Component({
   selector: "app-room-editor",
-  imports: [RouterLink],
+  imports: [RouterLink, RoomCanvasHost, RoomPreviewFrame],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <p><a routerLink="/rooms">&larr; All rooms</a></p>
@@ -30,7 +32,22 @@ type Section = "layout" | "versions";
       <section class="card">
         @if (section() === "layout") {
           <h2>Layout</h2>
-          <textarea rows="26" spellcheck="false" [attr.aria-label]="id() + ' layout as JSON'" [value]="layoutText()" (input)="typed($event)"></textarea>
+          <div class="workspace">
+            <div>
+              @if (layout(); as shown) {
+                <app-room-canvas [layout]="shown" [roomId]="id()" [propKinds]="propKinds()" [rooms]="roomIds()" [addWayBack]="wayBack" (changed)="canvasChanged($event)" />
+              } @else {
+                <p class="quiet">The picture needs a layout with a floor size, props and doors.</p>
+              }
+              <details>
+                <summary>Layout as JSON</summary>
+                <textarea rows="18" spellcheck="false" [attr.aria-label]="id() + ' layout as JSON'" [value]="layoutText()" (input)="typed($event)"></textarea>
+              </details>
+            </div>
+            <div>
+              <app-room-preview [roomId]="id()" [layout]="parsed()" [look]="detail()?.draftLook ?? null" />
+            </div>
+          </div>
           <div class="actions">
             <button type="button" class="primary" [disabled]="busy()" (click)="save()">Save draft</button>
             <button type="button" [disabled]="busy() || !detail()?.draft" (click)="publish()">Publish draft</button>
@@ -41,7 +58,7 @@ type Section = "layout" | "versions";
             <input aria-label="Publish together with these rooms" placeholder="room-a, room-b" [value]="together()" (input)="togetherTyped($event)" />
           </label>
           <p class="quiet">
-            The top-down picture, the live 3D preview, the look, variants, overlays, painters and wildlife are still on the
+            The look, variants, overlays, painters and wildlife are still on the
             <a href="/admin">old admin page</a> while they are moved here.
           </p>
         } @else {
@@ -75,6 +92,14 @@ export class RoomEditorPage {
   protected readonly busy = signal(false);
   protected readonly section = signal<Section>("layout");
   protected readonly versions = computed(() => this.detail()?.versions ?? []);
+  protected readonly parsed = computed(() => parseJson(this.layoutText()));
+  protected readonly layout = computed(() => { const value = this.parsed(); return isLayout(value) ? value : null; });
+  protected readonly propKinds = signal<string[]>([]);
+  protected readonly roomIds = signal<string[]>([]);
+  protected readonly wayBack = async (door: CanvasDoor, back: CanvasDoor): Promise<void> => {
+    await this.api.addWayBack(door, back);
+    this.message.set(`The way back is in ${door.toRoom}'s draft: publish both rooms together.`);
+  };
 
   constructor() {
     effect(() => {
@@ -82,11 +107,17 @@ export class RoomEditorPage {
       const fresh = this.isNew() !== undefined;
       void this.load(id, fresh);
     });
+    void this.api.propKinds().then((kinds) => this.propKinds.set(kinds), () => undefined);
+    void this.api.list().then((rooms) => this.roomIds.set(rooms.map((room) => room.roomId)), () => undefined);
   }
 
   protected show(event: Event, section: Section): void {
     event.preventDefault();
     this.section.set(section);
+  }
+
+  protected canvasChanged(layout: CanvasLayout): void {
+    this.layoutText.set(JSON.stringify(layout, null, 2));
   }
 
   protected typed(event: Event): void {

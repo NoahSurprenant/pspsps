@@ -8,6 +8,8 @@ export function previewUrl(roomId: string, overlayId?: string): string {
 }
 
 export interface RoomPreview {
+  /** Draws a room already in hand (a snapshot, with the look its draft brings). */
+  draw(roomId: string, snapshot: RoomSnapshot, draftLook?: RoomLookData): Promise<void>;
   /** Draws the room as the server says it would be (the draft and the overlay in place); throws the server's message when it can't be. */
   show(roomId: string, overlayId?: string): Promise<void>;
 }
@@ -36,6 +38,9 @@ export function roomPreview(canvas: HTMLCanvasElement): RoomPreview {
         throw new Error(said?.message ?? `The preview could not be made (${response.status}).`);
       }
       const { draftLook, ...snapshot } = (await response.json()) as RoomSnapshot & { draftLook?: RoomLookData };
+      await this.draw(roomId, snapshot, draftLook);
+    },
+    async draw(roomId, snapshot, draftLook) {
       // The scene first (making it reads the live looks, which would wipe a draft look set before it), then the live looks as
       // they are now with the draft's over its room's: a draft that has been discarded or published leaves nothing behind.
       scene ??= make();

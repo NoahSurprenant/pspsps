@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <title>Room preview · pspsps</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #bfe3f2; overflow: hidden; }
+      canvas { width: 100%; height: 100%; display: block; touch-action: none; outline: none; }
+    </style>
+  </head>
+  <body>
+    <!-- The real 3D scene with no cats: the room editor frames this and sends it the room being typed (src/previewMessage.ts). -->
+    <canvas id="view" aria-label="3D preview of the room"></canvas>
+    <script type="module" src="/src/previewPage.ts"></script>
+  </body>
+</html>

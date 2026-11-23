@@ -20,6 +20,7 @@ export default defineConfig({
       input: {
         game: "index.html",
         admin: "admin.html",
+        preview: "preview.html",
       },
     },
   },

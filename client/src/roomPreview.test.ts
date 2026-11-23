@@ -37,3 +37,21 @@ describe("roomPreview", () => {
     expect(calls.indexOf("draftLook shop")).toBeLessThan(calls.indexOf("show"));
   });
 });
+
+describe("roomPreview.draw", () => {
+  beforeEach(() => {
+    calls.length = 0;
+    vi.stubGlobal("window", { addEventListener: () => {} });
+  });
+
+  it("draws a snapshot it is given, with its look, without asking the server", async () => {
+    const fetched = vi.fn();
+    vi.stubGlobal("fetch", fetched);
+
+    await roomPreview({} as HTMLCanvasElement).draw("shop", { roomId: "shop" } as never, { sky: "#123456" } as never);
+
+    expect(calls).toContain("draftLook shop");
+    expect(calls).toContain("show");
+    expect(fetched).not.toHaveBeenCalled();
+  });
+});
