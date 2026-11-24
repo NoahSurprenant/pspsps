@@ -51,8 +51,7 @@ public sealed class OverworldCrowdCostTests
         foreach (var id in ids)
         {
             world.Join(id, "Cat", FurColor.Orange, id.ToString(), Start, "big");
-            clock = clock.AddMinutes(1);
-            world.Move(id, Spot(), clock);
+            clock = OverworldCrowdViewTests.PlaceAt(world, id, Spot(), clock);
         }
 
         foreach (var id in ids)

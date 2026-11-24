@@ -16,7 +16,7 @@ public sealed class ViewLedgerTests
         {
             var id = OverworldCrowdViewTests.Id(i);
             world.Join(id, "Cat", FurColor.Orange, id.ToString(), Start, "big");
-            world.Move(id, spot(i), clock = clock.AddMinutes(1));
+            clock = OverworldCrowdViewTests.PlaceAt(world, id, spot(i), clock);
         }
 
         return (world, clock);
@@ -46,14 +46,60 @@ public sealed class ViewLedgerTests
     }
 
     [Test]
-    public void ACatNeverSet_IsAlwaysNamed()
+    public void ACatNeverSet_IsNamedWhenInRange_AndNotWhenOutOfIt()
     {
-        var (world, _) = Crowd(2, i => new Position(i * 100, 0));
+        var (world, _) = Crowd(3, i => i == 3 ? new Position(180, 0) : new Position(i, 0));
         var views = new ViewLedger();
+        var mover = world.Find(OverworldCrowdViewTests.Id(2))!;
 
-        Assert.That(views.Affected(world, world.Find(OverworldCrowdViewTests.Id(2))!), Does.Contain(OverworldCrowdViewTests.Id(1)).Or.Not.Contain(OverworldCrowdViewTests.Id(1)));
-        views.Set(OverworldCrowdViewTests.Id(2), world.Find(OverworldCrowdViewTests.Id(2))!.Position, []);
-        Assert.That(views.Affected(world, world.Find(OverworldCrowdViewTests.Id(2))!), Does.Contain(OverworldCrowdViewTests.Id(1)));
+        var named = views.Affected(world, mover);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(named, Does.Contain(OverworldCrowdViewTests.Id(1)), "in range, never set");
+            Assert.That(named, Does.Not.Contain(OverworldCrowdViewTests.Id(3)), "out of range: the move shows it nothing");
+        });
+    }
+
+    [Test]
+    public void WhatAViewerWasTold_IsRecordedOneCatAtATime_SoAFailurePartWayLeavesItExact()
+    {
+        var (world, _) = Crowd(3, i => new Position(i, 0));
+        var views = new ViewLedger();
+        var one = OverworldCrowdViewTests.Id(1);
+        var visible = world.VisibleTo(one);
+
+        var (gone, appeared) = views.Changes(one, visible);
+        views.Told(one, appeared[0].PlayerId);
+        views.MarkStale(one);
+        var (_, left) = views.Changes(one, visible);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(gone, Is.Empty);
+            Assert.That(appeared.Select(c => c.PlayerId), Is.EquivalentTo(visible.Select(c => c.PlayerId)));
+            Assert.That(left.Select(c => c.PlayerId), Is.EquivalentTo(visible.Skip(1).Select(c => c.PlayerId)), "only what was not yet told is left to tell");
+            Assert.That(views.Watching(appeared[0].PlayerId), Is.EqualTo(new[] { one }));
+        });
+
+        views.Untold(one, appeared[0].PlayerId);
+        Assert.That(views.Watching(appeared[0].PlayerId), Is.Empty);
+    }
+
+    [Test]
+    public void AViewerNamedByAMove_IsMarkedStale_SoAFailedSyncHeals()
+    {
+        var (world, _) = Crowd(3, i => i == 3 ? new Position(150, 100) : new Position(i, 0));
+        var views = new ViewLedger();
+        var one = OverworldCrowdViewTests.Id(1);
+        views.Set(one, world.Find(one)!.Position, world.VisibleTo(one));
+        var near = world.Find(OverworldCrowdViewTests.Id(2))!;
+        var far = world.Find(OverworldCrowdViewTests.Id(3))!;
+
+        Assert.That(views.Affected(world, near), Does.Contain(one), "the mover is shown to it, so it is named");
+        Assert.That(views.Affected(world, far), Does.Contain(one), "a far move names it too: named before, never settled");
+        views.Settle(one, world.Find(one)!.Position, world.VisibleTo(one));
+        Assert.That(views.Affected(world, far), Does.Not.Contain(one), "settled");
     }
 
     [Test]

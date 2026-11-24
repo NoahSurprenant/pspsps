@@ -183,18 +183,22 @@ internal sealed partial class RoomGrain
             metrics.LeasesExpired("room", expired.Count);
         }
 
-        foreach (var playerId in expired)
+        // Forget them all before telling anyone, so a failure telling about one leaves none of the others half-forgotten.
+        var forgotten = expired.Select(playerId => (playerId, Viewers: _views.Forget(playerId))).ToList();
+        foreach (var (playerId, viewers) in forgotten)
         {
-            await Departed(playerId);
+            await Departed(playerId, viewers);
         }
 
         GoIfEmpty();
     }
 
     // The cat is out of the world already: everyone who knew it is told it is gone.
-    private async Task Departed(Guid playerId)
+    private Task Departed(Guid playerId) => Departed(playerId, _views.Forget(playerId));
+
+    // The ledger has forgotten the cat already (see RemoveExpiredFromOverworld, which forgets every expired cat before telling anyone).
+    private async Task Departed(Guid playerId, List<Guid> viewers)
     {
-        var viewers = _views.Forget(playerId);
         var watchers = SessionsOf(viewers);
         if (watchers.Count > 0)
         {
@@ -215,11 +219,6 @@ internal sealed partial class RoomGrain
         var affected = _views.Affected(world, cat);
         foreach (var viewer in affected)
         {
-            _views.MarkStale(viewer);
-        }
-
-        foreach (var viewer in affected)
-        {
             await Sync(viewer);
         }
     }
@@ -233,21 +232,23 @@ internal sealed partial class RoomGrain
         }
 
         var visible = world.VisibleTo(viewer);
-        var now = visible.Select(c => c.PlayerId).ToHashSet();
-        var known = _views.KnownBy(viewer).ToHashSet();
+        var (gone, appeared) = _views.Changes(viewer, visible);
         var toSession = new[] { session };
-        foreach (var gone in known.Where(id => !now.Contains(id)))
+        // Each tell is recorded as it succeeds: a failure part-way leaves the viewer stale with exactly what its tab was told,
+        // and the next move carries on from there without repeating what the tab already handled.
+        foreach (var id in gone)
         {
-            await broadcaster.CatLeft(toSession, gone);
+            await broadcaster.CatLeft(toSession, id);
+            _views.Untold(viewer, id);
         }
 
-        foreach (var appeared in visible.Where(c => !known.Contains(c.PlayerId)))
+        foreach (var cat in appeared)
         {
-            await broadcaster.CatJoined(toSession, CatView.From(appeared));
+            await broadcaster.CatJoined(toSession, CatView.From(cat));
+            _views.Told(viewer, cat.PlayerId);
         }
 
-        // Recorded only once the tab has been told: a failure above leaves the viewer stale, and the next move tells it again.
-        _views.Set(viewer, world.Find(viewer)!.Position, visible);
+        _views.Settle(viewer, world.Find(viewer)!.Position, visible);
     }
 
     // The tabs to tell about a cat: its own, and every tab that has been told about it.

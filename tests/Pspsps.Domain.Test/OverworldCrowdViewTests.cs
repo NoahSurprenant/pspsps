@@ -7,6 +7,18 @@ public sealed class OverworldCrowdViewTests
 {
     private static readonly DateTimeOffset Start = new(2026, 11, 24, 12, 0, 0, TimeSpan.Zero);
 
+    // Walks the cat to the spot in steps (a move is held to the walking pace), the clock running on a minute at each, so a crowd can be truly spread.
+    internal static DateTimeOffset PlaceAt(OverworldState world, Guid id, Position target, DateTimeOffset clock)
+    {
+        for (var i = 0; i < 10 && world.Find(id)!.Position.DistanceTo(target) > 0.001; i++)
+        {
+            clock = clock.AddMinutes(1);
+            world.Move(id, target, clock);
+        }
+
+        return clock;
+    }
+
     internal static Guid Id(int n) => new(n, 0, 0, [0, 0, 0, 0, 0, 0, 0, 1]);
 
     private static OverworldState Big(int cats) =>
@@ -34,8 +46,7 @@ public sealed class OverworldCrowdViewTests
         {
             var id = Id(++next);
             world.Join(id, "Cat", FurColor.Orange, id.ToString(), Start, "big");
-            clock = clock.AddMinutes(1);
-            world.Move(id, Spot(), clock);
+            clock = OverworldCrowdViewTests.PlaceAt(world, id, Spot(), clock);
             live.Add(id);
             crowd.Seen(id);
             crowd.Moved(world.Find(id)!);
