@@ -15,6 +15,7 @@ public sealed class OverworldCrowdCostTests
     private static readonly DateTimeOffset Start = new(2026, 11, 24, 12, 0, 0, TimeSpan.Zero);
 
     [Test]
+    [Explicit("A measurement, not a check: run it to see the numbers.")]
     public void Measure_WhatAMoveCosts_WithACrowd()
     {
         var report = new StringBuilder();
@@ -30,7 +31,6 @@ public sealed class OverworldCrowdCostTests
         }
 
         Console.WriteLine(report);
-        Assert.Fail("Measurement (remove this failure once read):\n" + report);
     }
 
     private static string Measure(string name, bool spread, int cats, bool indexed)
