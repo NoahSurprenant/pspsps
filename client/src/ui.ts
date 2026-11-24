@@ -199,14 +199,29 @@ export class Overlay {
       }
     });
 
-    const emotes = el("div", { className: "emote-bar" },
+    const choices = el("div", { className: "emote-list" },
       ...emoteBar.map(({ emote: name, label, key }) => {
-        const pick = button(label, () => emote(name));
+        const pick = button(label, () => {
+          closeEmotes();
+          emote(name);
+        });
         pick.title = `${label} (${key})`;
         pick.setAttribute("aria-keyshortcuts", key);
         return pick;
       }),
     );
+    choices.hidden = true;
+    const openEmotes = button("😺 Emotes", () => {
+      choices.hidden = !choices.hidden;
+      openEmotes.setAttribute("aria-expanded", String(!choices.hidden));
+    }, "emote-toggle");
+    openEmotes.setAttribute("aria-haspopup", "true");
+    openEmotes.setAttribute("aria-expanded", "false");
+    const closeEmotes = () => {
+      choices.hidden = true;
+      openEmotes.setAttribute("aria-expanded", "false");
+    };
+    const emotes = el("div", { className: "emote-bar" }, openEmotes, choices);
     const map = button("", () => this.showMap(room, keys.travel), "map-toggle");
     map.setAttribute("aria-label", "World map");
     map.setAttribute("aria-haspopup", "dialog");
@@ -233,6 +248,18 @@ export class Overlay {
     document.title = pageTitle(room.roomName);
 
     // After replace(), which ends the last view's listeners.
+    // The emote choices close on Escape or a click anywhere else.
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !choices.hidden) {
+        closeEmotes();
+        openEmotes.focus();
+      }
+    }, { signal: this.showing.signal });
+    document.addEventListener("pointerdown", (event) => {
+      if (!choices.hidden && !emotes.contains(event.target as Node)) {
+        closeEmotes();
+      }
+    }, { signal: this.showing.signal });
     document.addEventListener("keydown", (event) => {
       // Never while typing in the chat box.
       const name = emoteForKey(event);

@@ -3,7 +3,7 @@ import type { Page } from "@playwright/test";
 import {
   animation, catEyes, cats, clickCat, emotes, enterWorld, expect, fishFor, goHome, goThroughDoor, hubGuest, newPlayer,
   pixelsNear, pondBlue, roomBarButtons, tapFloor, test, watchErrors, expectRoom, openCatalogue, partyHatPink, portrait, focusByTab,
-  enterWorldSignedIn, holdDrawing, signInAsAdmin, fakeNetwork, pinchRoom,
+  enterWorldSignedIn, pickEmote, holdDrawing, signInAsAdmin, fakeNetwork, pinchRoom,
 } from "./game";
 
 test("read the square map", async ({ page }) => {
@@ -219,6 +219,24 @@ test("filtered words never reach another cat", async ({ page: tom, browser }) =>
   }
 });
 
+test("the emotes are one button that opens the choices, and close again", async ({ page }) => {
+  await enterWorld(page, "Tabby");
+  const choices = ["Sit", "Meow", "Wave", "Sleep"].map((name) => page.getByRole("button", { name, exact: true }));
+  for (const choice of choices) await expect(choice).toBeHidden();
+
+  await page.getByRole("button", { name: "Emotes" }).click();
+  for (const choice of choices) await expect(choice).toBeVisible();
+  await page.keyboard.press("Escape");
+  for (const choice of choices) await expect(choice).toBeHidden();
+
+  await page.getByRole("button", { name: "Emotes" }).click();
+  await page.mouse.click(5, 5);
+  await expect(choices[0]).toBeHidden();
+
+  await pickEmote(page, "Wave");
+  await expect(choices[2]).toBeHidden();
+});
+
 test("a cat's emotes show on the other cat's screen", async ({ page: tom, browser }) => {
   const felix = await newPlayer(browser);
   try {
@@ -227,7 +245,7 @@ test("a cat's emotes show on the other cat's screen", async ({ page: tom, browse
     await expect.poll(async () => Object.keys(await cats(tom))).toContain(felixId);
 
     // From the emote bar.
-    await felix.page.getByRole("button", { name: "Wave" }).click();
+    await pickEmote(felix.page, "Wave");
     await expect.poll(async () => (await emotes(tom))[felixId]).toBe("wave");
 
     // A number typed in the chat box is just typing. Past the one-second wait after the wave, so a "4" that did reach
@@ -288,11 +306,11 @@ test("a cat is drawn, walks with its walk animation and idles when it stops", as
   await expect.poll(() => animation(page, playerId)).toBe("idle");
 
   // The poses and the wave are animations too.
-  await page.getByRole("button", { name: "Sit" }).click();
+  await pickEmote(page, "Sit");
   await expect.poll(() => animation(page, playerId)).toBe("sit");
   // The server takes one emote a second.
   await page.waitForTimeout(1_100);
-  await page.getByRole("button", { name: "Wave" }).click();
+  await pickEmote(page, "Wave");
   await expect.poll(() => animation(page, playerId), { intervals: [50] }).toBe("wave");
   await expect.poll(() => animation(page, playerId)).toBe("sit");
 });
@@ -398,7 +416,7 @@ test("Space at a bite reels in, without also pressing the button that has focus"
   await page.getByRole("button", { name: "🎣 Fish" }).click();
   await expect(page.getByText("Waiting for a bite…")).toBeVisible();
   // The last button clicked keeps the focus: Space at the bite mustn't wave as well.
-  await page.getByRole("button", { name: "Wave" }).focus();
+  await page.getByRole("button", { name: "Emotes" }).focus();
   await expect(page.getByRole("button", { name: "Reel!" })).toBeVisible({ timeout: 15_000 });
   await page.keyboard.press("Space");
 
