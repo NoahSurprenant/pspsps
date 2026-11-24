@@ -327,13 +327,20 @@ public sealed class OverworldState(WorldSpace space, int capacity)
             }
 
             var d = cat.Position.DistanceTo(viewer.Position);
-            if (d > farthest.Distance || (d == farthest.Distance && id.CompareTo(farthest.Id) > 0))
+            if (Compare(d, id, farthest.Distance, farthest.Id) > 0)
             {
                 farthest = (d, id);
             }
         }
 
-        return distance < farthest.Distance || (distance == farthest.Distance && mover.PlayerId.CompareTo(farthest.Id) < 0);
+        return Compare(distance, mover.PlayerId, farthest.Distance, farthest.Id) < 0;
+    }
+
+    // The order a screen lists cats in: nearest first, ties by ID.
+    private static int Compare(double distance, Guid id, double otherDistance, Guid otherId)
+    {
+        var byDistance = distance.CompareTo(otherDistance);
+        return byDistance != 0 ? byDistance : id.CompareTo(otherId);
     }
 
     /// <summary>The cat's line in the water, if any: a bite applies only to the line it was cast for.</summary>
