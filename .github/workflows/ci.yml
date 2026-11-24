@@ -485,30 +485,35 @@ jobs:
             exit 1
           fi
 
+          # The run's artifact list lags an upload by a few seconds: look again before calling a sheet missing.
           run="repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
-          artifacts="$(gh api "$run/artifacts" --paginate --jq '.artifacts[] | select(.expired == false) | [.name, .id] | @tsv')"
-          links=()
-          missing=()
-          for sheet in "${sheets[@]}"; do
-            name="${sheet##*/}"
-            id="$(awk -F '\t' -v name="$name" '$1 == name { print $2; exit }' <<< "$artifacts")"
-            if [[ -z "$id" ]]; then
-              missing+=("$name")
-              continue
-            fi
+          for attempt in {1..12}; do
+            artifacts="$(gh api "$run/artifacts" --paginate --jq '.artifacts[] | select(.expired == false) | [.name, .id] | @tsv')"
+            links=()
+            missing=()
+            for sheet in "${sheets[@]}"; do
+              name="${sheet##*/}"
+              id="$(awk -F '\t' -v name="$name" '$1 == name { print $2; exit }' <<< "$artifacts")"
+              if [[ -z "$id" ]]; then
+                missing+=("$name")
+                continue
+              fi
 
-            # Preserve display names for older filenames. New filenames automatically become titles.
-            case "$name" in
-              cafe.png) label='Cat Café' ;;
-              garden.png) label='Garden Courtyard' ;;
-              riverside.png) label='Riverside Trail' ;;
-              shop-room.png) label='Cat Shop' ;;
-              worlds.png) label='World list' ;;
-              *) label="$(sed -E 's/-/ /g; s/\b(.)/\U\1/g' <<< "${name%.png}")" ;;
-            esac
-            links+=("- [$label]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts/$id)")
+              # Preserve display names for older filenames. New filenames automatically become titles.
+              case "$name" in
+                cafe.png) label='Cat Café' ;;
+                garden.png) label='Garden Courtyard' ;;
+                riverside.png) label='Riverside Trail' ;;
+                shop-room.png) label='Cat Shop' ;;
+                worlds.png) label='World list' ;;
+                *) label="$(sed -E 's/-/ /g; s/\b(.)/\U\1/g' <<< "${name%.png}")" ;;
+              esac
+              links+=("- [$label]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts/$id)")
+            done
+
+            (( ${#missing[@]} == 0 )) && break
+            sleep 5
           done
-
           if (( ${#missing[@]} > 0 )); then
             printf '::error::Missing screenshot upload for %s\n' "${missing[@]}"
             exit 1

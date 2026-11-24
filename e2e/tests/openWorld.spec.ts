@@ -7,7 +7,7 @@ import { adminCookie, expect, hubGuest, test } from "./game";
 
 interface Layout { name: string; width: number; depth: number; place?: { x: number; z: number } | null }
 interface Detail { published: Layout; versions: { number: number; publishedAt: string | null }[] }
-interface Snapshot { roomId: string; chunks?: { x: number; z: number; width: number; depth: number }[] | null; cats: { playerId: string }[] }
+interface Snapshot { roomId: string; rooms?: { id: string }[]; chunks?: { x: number; z: number; width: number; depth: number }[] | null; cats: { playerId: string }[] }
 
 const ROOMS = ["town-square", "cafe", "shop"];
 
@@ -60,6 +60,10 @@ test("cats in the open world see and hear only what is near, and walk from one r
 
     expect(first.roomId, "the cat arrives in Town Square").toBe("town-square");
     expect(first.chunks?.length, "with the three placed rooms drawn around it").toBe(3);
+    // The map button is shown when there are other rooms to go to: the open world names them too.
+    const others = first.rooms?.map((room) => room.id) ?? [];
+    expect(others, "the other rooms the map can go to").toEqual(expect.arrayContaining(["cafe", "shop"]));
+    expect(others, "not the room the cat is in").not.toContain("town-square");
     expect(second.cats.map((cat) => cat.playerId), "the second cat is told of the first").toContain(tab.a.id);
     await expect.poll(() => heardByA.joined).toContain(tab.b.id);
 
