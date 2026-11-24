@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { intrudesOnAnotherRoom, keepOnScreen, onAnotherRoom, outlineStrips, stackLevels } from "./scene";
+import { intrudesOnAnotherRoom, onAnotherRoom } from "./scenery";
+import { keepOnScreen, outlineStrips, stackLevels } from "./scene";
 
 describe("stackLevels", () => {
   it("leaves names that don't touch on the first line", () => {

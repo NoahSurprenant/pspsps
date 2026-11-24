@@ -554,7 +554,7 @@ function show(snapshot: RoomSnapshot, view: RoomScene): Room {
     if (room !== shown || picking || !me) return;
     walkKeys.stop();
     doorWalks.callOff();
-    if (prop.kind === "map-board") return overlay.showMap(snapshot, travel);
+    if (prop.kind === "map-board") return overlay.showMap(shown.snapshot, travel);
     if (prop.kind === "mirror") return openOwnCard();
     if (prop.kind === "rod-rack") return fish();
     if (prop.kind === "piano") {
