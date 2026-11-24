@@ -186,3 +186,14 @@ describe("Room's snapshot with muted cats", () => {
     expect(room.snapshot.chat.map((l) => l.text)).toEqual(["hello"]);
   });
 });
+
+describe("Room in the open world", () => {
+  it("names the room the cat walked into, keeping the rest of the snapshot", () => {
+    const room = new Room(snapshot([tom]));
+
+    room.enter("cafe", "Cat Café");
+
+    expect(room.snapshot).toMatchObject({ roomId: "cafe", roomName: "Cat Café", width: 24 });
+    expect(room.cats.get("tom")).toEqual(tom);
+  });
+});

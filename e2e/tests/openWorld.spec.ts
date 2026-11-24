@@ -93,6 +93,11 @@ test("cats in the open world see and hear only what is near, and walk from one r
     // The café's floor is past Town Square's edge: a cat there isn't held at the seam.
     await tab.b.hub.invoke("Move", inCafe + 5, 8);
     await expect.poll(() => heardByA.moved.get(tab.b.id)).toBe(inCafe + 5);
+
+    // Visiting a friend from across the open world puts the cat beside them, in sight.
+    await tab.a.hub.invoke("Move", west, 8);
+    const visit = await tab.a.hub.invoke<Snapshot>("GoToFriend", tab.b.id);
+    expect(visit.cats.map((cat) => cat.playerId), "the friend is in sight on arrival").toContain(tab.b.id);
   } finally {
     await Promise.all([tab.a.hub.stop(), tab.b.hub.stop()]);
     for (const id of ROOMS) {

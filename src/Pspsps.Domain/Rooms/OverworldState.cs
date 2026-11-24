@@ -1,3 +1,4 @@
+using Pspsps.Domain.Fishing;
 using Pspsps.Domain.Players;
 
 namespace Pspsps.Domain.Rooms;
@@ -17,11 +18,20 @@ public sealed class OverworldState(WorldSpace space, int capacity)
     private readonly Dictionary<Guid, SessionLease> _leases = [];
     private readonly Dictionary<Guid, DateTimeOffset> _lastEmotes = [];
     private readonly Dictionary<Guid, Queue<HeardLine>> _heard = [];
+    private readonly Dictionary<Guid, FishingLine> _lines = [];
+    private readonly Dictionary<Guid, DateTimeOffset> _lastCasts = [];
+    private readonly Dictionary<Guid, (double Metres, DateTimeOffset At)> _walks = [];
 
     public WorldSpace Space { get; } = space;
 
     /// <summary>Cats out in the open at once, over every outdoor room.</summary>
     public int Capacity { get; } = capacity;
+
+    /// <summary>The fastest a cat may cross the world, in metres a second: twice the browser's walking pace.</summary>
+    public const double MaxWalkSpeed = 8;
+
+    /// <summary>How far a cat may go at once before its walking pace limits it: a tap across the screen, and some.</summary>
+    public const double WalkBurst = 60;
 
     /// <summary>The cats here, at world positions.</summary>
     public IReadOnlyCollection<CatInRoom> Cats => _cats.Values;
@@ -47,6 +57,11 @@ public sealed class OverworldState(WorldSpace space, int capacity)
     {
         if (_cats.TryGetValue(playerId, out var existing))
         {
+            if (!Controls(playerId, session))
+            {
+                _lines.Remove(playerId);
+            }
+
             _leases[playerId] = SessionLease.Start(session, now);
             return Dress(playerId, furColor, hat, collar, outfitVersion) ?? existing;
         }
@@ -62,6 +77,7 @@ public sealed class OverworldState(WorldSpace space, int capacity)
             playerId, displayName, furColor, Space.ToWorld(roomId, local), Hat: hat, Collar: collar, OutfitVersion: outfitVersion);
         _cats.Add(playerId, cat);
         _leases[playerId] = SessionLease.Start(session, now);
+        _walks[playerId] = (WalkBurst, now);
         return cat;
     }
 
@@ -128,8 +144,12 @@ public sealed class OverworldState(WorldSpace space, int capacity)
         return expired;
     }
 
-    /// <summary>Walks the cat towards <paramref name="target"/>, a world spot, stopping at the edge of the world's floor.</summary>
-    public Position Move(Guid playerId, Position target)
+    /// <summary>
+    /// Walks the cat towards <paramref name="target"/>, a world spot, at <paramref name="now"/>, stopping at the edge of the
+    /// world's floor and where the cat's pace runs out: it may cross <see cref="MaxWalkSpeed"/> metres a second, with
+    /// <see cref="WalkBurst"/> metres in hand. A cat that walks off reels its line in, with nothing on it.
+    /// </summary>
+    public Position Move(Guid playerId, Position target, DateTimeOffset now)
     {
         var cat = Get(playerId);
         if (!double.IsFinite(target.X) || !double.IsFinite(target.Z))
@@ -137,8 +157,21 @@ public sealed class OverworldState(WorldSpace space, int capacity)
             throw new DomainException("That isn't a spot in the world.");
         }
 
+        var (metres, at) = _walks.GetValueOrDefault(playerId, (WalkBurst, now));
+        metres = Math.Min(WalkBurst, metres + (Math.Max(0, (now - at).TotalSeconds) * MaxWalkSpeed));
         var position = Space.Clamp(target);
+        var distance = position.DistanceTo(cat.Position);
+        if (distance > metres)
+        {
+            var fraction = metres / distance;
+            position = Space.Clamp(new Position(
+                cat.Position.X + ((position.X - cat.Position.X) * fraction), cat.Position.Z + ((position.Z - cat.Position.Z) * fraction)));
+            distance = metres;
+        }
+
+        _walks[playerId] = (metres - distance, now);
         _cats[playerId] = cat with { Position = position, Pose = CatPose.Standing };
+        _lines.Remove(playerId);
         return position;
     }
 
@@ -251,6 +284,100 @@ public sealed class OverworldState(WorldSpace space, int capacity)
             .Select(x => x.Cat)];
     }
 
+    /// <summary>The cat's line in the water, if any: a bite applies only to the line it was cast for.</summary>
+    public FishingLine? LineOf(Guid playerId) => _lines.GetValueOrDefault(playerId);
+
+    /// <summary>
+    /// Casts the cat's line into a pond: it must stand at the water's edge, in whichever room the pond is, with no line
+    /// already out. <paramref name="roll"/> in [0, 1) picks when the fish bites.
+    /// </summary>
+    public FishingLine Cast(Guid playerId, DateTimeOffset now, double roll)
+    {
+        var cat = Get(playerId);
+        if (!Space.Rooms.Any(room => room.Pond is not null))
+        {
+            throw new DomainException("There's no water to fish in here.");
+        }
+
+        if (!Space.Rooms.Any(room => room.Pond is { } pond && pond.InReach(Space.ToLocal(room.Id, cat.Position))))
+        {
+            throw new DomainException("Walk up to the pond to fish.");
+        }
+
+        if (_lines.ContainsKey(playerId))
+        {
+            throw new DomainException("Your line is already in the water.");
+        }
+
+        if (_lastCasts.TryGetValue(playerId, out var last) && now - last < RoomState.CastCooldown)
+        {
+            throw new DomainException("Not so fast: wait a moment before casting again.");
+        }
+
+        var line = FishingLine.Cast(now, roll);
+        _lines[playerId] = line;
+        _lastCasts[playerId] = now;
+        return line;
+    }
+
+    /// <summary>The fish bites <paramref name="line"/>, if it is still the cat's line: returns the session to tell, or null.</summary>
+    public string? Bite(Guid playerId, FishingLine line, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(line);
+        if (!ReferenceEquals(LineOf(playerId), line) || !_leases.TryGetValue(playerId, out var lease))
+        {
+            return null;
+        }
+
+        line.Bite(now);
+        return lease.Session;
+    }
+
+    /// <summary>A bite not reeled in gets away once its window is over: the line comes out empty. Returns the session to tell, or null.</summary>
+    public string? LetGetAway(Guid playerId, FishingLine line, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(line);
+        if (!ReferenceEquals(LineOf(playerId), line) || !line.HasGotAway(now) || !_leases.TryGetValue(playerId, out var lease))
+        {
+            return null;
+        }
+
+        _lines.Remove(playerId);
+        return lease.Session;
+    }
+
+    /// <summary>Reels the cat's line in: a fish within the bite window, nothing if too early or too late. The line is out of the water after.</summary>
+    public ReelResult Reel(Guid playerId, DateTimeOffset now, double roll)
+    {
+        Get(playerId);
+        if (!_lines.Remove(playerId, out var line))
+        {
+            throw new DomainException("Cast your line first.");
+        }
+
+        _lastCasts[playerId] = now;
+        return line.Reel(now, roll);
+    }
+
+    /// <summary>
+    /// Puts the cat at the cat <paramref name="friendId"/>, a step to its side, and returns where. Null when it already
+    /// stands within <paramref name="near"/> metres of it.
+    /// </summary>
+    public Position? GoTo(Guid playerId, Guid friendId, double near)
+    {
+        var cat = Get(playerId);
+        var friend = _cats.TryGetValue(friendId, out var found) ? found : throw new DomainException("They aren't in the world.");
+        if (cat.Position.DistanceTo(friend.Position) <= near)
+        {
+            return null;
+        }
+
+        var position = Space.Clamp(new Position(friend.Position.X + 1.5, friend.Position.Z));
+        _cats[playerId] = cat with { Position = position, Pose = CatPose.Standing };
+        _lines.Remove(playerId);
+        return position;
+    }
+
     public bool Has(Guid playerId, string session) => _cats.ContainsKey(playerId) && Controls(playerId, session);
 
     /// <summary>The cat, or null when it isn't here.</summary>
@@ -271,6 +398,9 @@ public sealed class OverworldState(WorldSpace space, int capacity)
         _leases.Remove(playerId);
         _lastEmotes.Remove(playerId);
         _heard.Remove(playerId);
+        _lines.Remove(playerId);
+        _lastCasts.Remove(playerId);
+        _walks.Remove(playerId);
     }
 }
 

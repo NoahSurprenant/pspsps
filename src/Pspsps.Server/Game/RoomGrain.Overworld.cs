@@ -60,12 +60,22 @@ internal sealed partial class RoomGrain
             metrics.RoomActivated();
         }
 
-        // A tab that comes back (or a second one) is shown everything afresh, so it is told nothing as news.
-        var visible = world.VisibleTo(player.PlayerId);
-        _known[player.PlayerId] = [.. visible.Select(c => c.PlayerId)];
+        return await ReseenFrom(world, player.PlayerId, roomId);
+    }
+
+    // How near counts as "already with" a friend: they are in sight and a few steps away.
+    private const double GoToNear = 4;
+
+    // The world as the cat sees it now: a tab that comes (back), or whose cat was put somewhere, is shown everything
+    // afresh, so it is told nothing as news; the cats around its old and new spot are brought up to date.
+    private async Task<RoomSnapshot> ReseenFrom(OverworldState world, Guid playerId, string? fallbackRoom = null)
+    {
+        var cat = world.Find(playerId)!;
+        var visible = world.VisibleTo(playerId);
+        _known[playerId] = [.. visible.Select(c => c.PlayerId)];
         await SyncNear(cat);
 
-        var here = world.Space.RoomAt(cat.Position) ?? world.Space.Rooms.First(r => r.Id == roomId);
+        var here = world.Space.RoomAt(cat.Position) ?? world.Space.Rooms.First(r => fallbackRoom is null || r.Id == fallbackRoom);
         var (worldId, _) = RoomKey.Parse(_key);
         return new RoomSnapshot(
             worldId,
@@ -74,7 +84,7 @@ internal sealed partial class RoomGrain
             here.Width,
             here.Depth,
             [CatView.From(cat), .. visible.Select(CatView.From)],
-            [.. world.HeardBy(player.PlayerId).Select(h => ChatView.From(h.Line))],
+            [.. world.HeardBy(playerId).Select(h => ChatView.From(h.Line))],
             [],
             here.Pond is { } pond ? new PondView(pond.Center.X, pond.Center.Z, pond.Radius) : null,
             [.. here.Doors.Select(door => DoorView.From(door, library))],
@@ -109,7 +119,7 @@ internal sealed partial class RoomGrain
     private async Task MoveInOverworld(Guid playerId, double x, double z)
     {
         var world = _world!;
-        var position = Rule(() => world.Move(playerId, new Position(x, z)));
+        var position = Rule(() => world.Move(playerId, new Position(x, z), time.GetUtcNow()));
         var cat = world.Find(playerId)!;
         await SyncNear(cat);
         await broadcaster.CatMoved(WatchersOf(playerId), playerId, position.X, position.Z);

@@ -25,6 +25,11 @@ export class Room {
     this.chat.push(...this.snapshot.chat);
   }
 
+  /** The cat walked into another room of the open world: the room it is in now. */
+  enter(roomId: string, roomName: string): void {
+    this.snapshot = { ...this.snapshot, roomId, roomName };
+  }
+
   join(cat: CatView): void {
     this.cats.set(cat.playerId, cat);
   }

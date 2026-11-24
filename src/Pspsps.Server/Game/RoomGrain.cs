@@ -314,26 +314,21 @@ internal sealed partial class RoomGrain(
 
     public Task Cast(Guid playerId)
     {
-        if (_world is not null)
-        {
-            throw new GameRuleException("There is no fishing out in the open yet.");
-        }
-
         var now = time.GetUtcNow();
-        var line = Rule(() => _state.Cast(playerId, now, random.NextDouble()));
+        var line = Rule(() => _world is { } world ? world.Cast(playerId, now, random.NextDouble()) : _state.Cast(playerId, now, random.NextDouble()));
         // One shot, at the bite. The grain timer runs on the grain clock and inside the grain, like every call here; it
         // can fire late (a busy room), and the reel window runs from when it does.
         Schedule(playerId, line.BiteAt - now, async () =>
         {
             // Nobody to tell when the line is gone (reeled early, walked off, left, or taken over by another tab).
-            if (_state.Bite(playerId, line, time.GetUtcNow()) is { } controlling)
+            if ((_world is { } world ? world.Bite(playerId, line, time.GetUtcNow()) : _state.Bite(playerId, line, time.GetUtcNow())) is { } controlling)
             {
                 await broadcaster.FishBit(controlling);
                 // Then, a little after the window closes (a timer can fire early by a tick), a bite not reeled in
                 // gets away.
                 Schedule(playerId, FishingLine.BiteWindow + GetAwayGrace, async () =>
                 {
-                    if (_state.LetGetAway(playerId, line, time.GetUtcNow()) is { } told)
+                    if ((_world is { } open ? open.LetGetAway(playerId, line, time.GetUtcNow()) : _state.LetGetAway(playerId, line, time.GetUtcNow())) is { } told)
                     {
                         await broadcaster.FishGotAway(told);
                     }
@@ -345,12 +340,9 @@ internal sealed partial class RoomGrain(
 
     public Task<ReelView> Reel(Guid playerId)
     {
-        if (_world is not null)
-        {
-            throw new GameRuleException("There is no fishing out in the open yet.");
-        }
-
-        var result = Rule(() => _state.Reel(playerId, time.GetUtcNow(), random.NextDouble()));
+        var result = Rule(() => _world is { } world
+            ? world.Reel(playerId, time.GetUtcNow(), random.NextDouble())
+            : _state.Reel(playerId, time.GetUtcNow(), random.NextDouble()));
         Unschedule(playerId);
         return Task.FromResult(ReelView.From(result));
     }
@@ -402,6 +394,34 @@ internal sealed partial class RoomGrain(
         // Asked of a room nobody is in (it came back empty, say): it goes again.
         GoIfEmpty();
         return Task.FromResult(chat);
+    }
+
+    public Task<IReadOnlyList<ChatView>> RecentChatHeardBy(Guid playerId)
+    {
+        IReadOnlyList<ChatView> heard = _world is { } world ? [.. world.HeardBy(playerId).Select(h => ChatView.From(h.Line))] : [];
+        GoIfEmpty();
+        return Task.FromResult(heard);
+    }
+
+    public async Task<RoomSnapshot?> GoToCat(PlayerCard player, string session, Guid friendId)
+    {
+        ArgumentNullException.ThrowIfNull(player);
+        if (_world is not { } world)
+        {
+            throw new GameRuleException("You can only go to a cat out in the open from there.");
+        }
+
+        if (!world.Has(player.PlayerId, session))
+        {
+            throw new GameRuleException("You aren't in the world.");
+        }
+
+        if (Rule(() => world.GoTo(player.PlayerId, friendId, GoToNear)) is null)
+        {
+            return null;
+        }
+
+        return await ReseenFrom(world, player.PlayerId);
     }
 
     public async Task SendOut(IReadOnlyList<Guid> playerIds, string message)

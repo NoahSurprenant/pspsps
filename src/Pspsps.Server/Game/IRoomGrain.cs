@@ -7,7 +7,7 @@ namespace Pspsps.Server.Game;
 /// Versioned: a change to it is add-only and bumps the version (docs/architecture.md, "Changing what pods say to each
 /// other"), which Pspsps.Server.Test's WireContractTests check against wire-contracts.txt.
 /// </remarks>
-[Version(5)] // WhereIs: the room a cat in the open world is in.
+[Version(6)] // RecentChatHeardBy and GoToCat: what a cat in the open world heard, and going to another cat there.
 public interface IRoomGrain : IGrainWithStringKey
 {
     /// <summary>
@@ -39,6 +39,18 @@ public interface IRoomGrain : IGrainWithStringKey
 
     /// <summary>The ID of the room the player's cat stands in when <paramref name="session"/> controls it (out in the open world, the room whose floor it is on); null when it isn't here.</summary>
     Task<string?> WhereIs(Guid playerId, string session);
+
+    /// <summary>
+    /// What the player's cat heard lately in the open world, oldest first: what a report against someone who spoke to it
+    /// keeps (there is no one chat in the open, as in a room). Empty in a room.
+    /// </summary>
+    Task<IReadOnlyList<ChatView>> RecentChatHeardBy(Guid playerId);
+
+    /// <summary>
+    /// In the open world: puts the player's cat beside the cat of <paramref name="friendId"/>, wherever in the world it is,
+    /// and returns the world as the cat sees it from there; null when it is already near.
+    /// </summary>
+    Task<RoomSnapshot?> GoToCat(PlayerCard player, string session, Guid friendId);
 
     Task Move(Guid playerId, double x, double z);
 

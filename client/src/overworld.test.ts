@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chunkAt, clampToWorld, place, stepInWorld, worldBounds, worldDoors } from "./overworld";
+import { chunkAt, clampToWorld, nearestPond, place, stepInWorld, worldBounds, worldDoors } from "./overworld";
 import type { ChunkView } from "./types";
 
 function chunk(roomId: string, x: number, z: number, width = 20, depth = 10): ChunkView {
@@ -51,5 +51,15 @@ describe("overworld walking", () => {
   it("steps across the edge between chunks, and stops at the edge of the world", () => {
     expect(stepInWorld(chunks, { x: 9.9, z: 0 }, 1, 0)).toEqual({ x: 10.6, z: 0 });
     expect(stepInWorld(chunks, { x: 29.9, z: 0 }, 1, 0)).toEqual({ x: 30, z: 0 });
+  });
+});
+
+describe("nearestPond", () => {
+  it("picks the pond closest to the spot, in world metres, and none when no chunk has one", () => {
+    const west = place(chunk("west", 0, 0));
+    const east = place(chunk("east", 100, 0));
+    expect(nearestPond([west, east], { x: 90, z: 0 })).toMatchObject({ x: 101 });
+    expect(nearestPond([west, east], { x: 5, z: 0 })).toMatchObject({ x: 1 });
+    expect(nearestPond([place({ ...chunk("dry", 0, 0), pond: null })], { x: 0, z: 0 })).toBeUndefined();
   });
 });
