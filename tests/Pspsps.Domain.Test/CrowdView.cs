@@ -58,10 +58,10 @@ internal sealed class CrowdView(OverworldState world, bool indexed)
         }
     }
 
-    private IEnumerable<Guid> WatchersOf(Guid id) =>
+    private List<Guid> WatchersOf(Guid id) =>
         indexed
-            ? _watchers.GetValueOrDefault(id)?.ToList() ?? []
-            : Known.Where(entry => entry.Value.Contains(id)).Select(entry => entry.Key).ToList();
+            ? [.. _watchers.GetValueOrDefault(id) ?? []]
+            : [.. Known.Where(entry => entry.Value.Contains(id)).Select(entry => entry.Key)];
 
     private void Sync(Guid viewer)
     {
