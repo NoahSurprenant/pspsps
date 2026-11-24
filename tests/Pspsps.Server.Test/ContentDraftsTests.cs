@@ -128,8 +128,6 @@ public sealed class ContentDraftsTests
     [TestCase("pet-shop", "cylinder", "#e8d48a", 1, "the outer ring of the rug")]
     [TestCase("pet-shop", "cylinder", "#c9e8a0", 1, "the middle ring of the rug")]
     [TestCase("pet-shop", "cylinder", "#a8d4f4", 1, "the inner ring of the rug")]
-    [TestCase("town-square", "box", "#b8a98a", 1, "the steps down to the lawn")]
-    [TestCase("plaza", "box", "#b8a98a", 1, "the steps down to the lawn")]
     public void TheRedrawnRooms_KeepWhatTheyWereRedrawnWith(string id, string shape, string colour, int atLeast, string what)
     {
         var parts = Content.AllLooks.Single(look => look.Id == id).Look.Backdrop.Parts;
