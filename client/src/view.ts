@@ -48,3 +48,6 @@ export function cameraFocus(
   const limitZ = Math.max(0, room.depth / 2 - halfView / Math.cos(roomPitch(aspect)));
   return { x: Math.max(-limitX, Math.min(cat.x, limitX)), z: Math.max(-limitZ, Math.min(cat.z, limitZ)) };
 }
+
+/** How much floor the open world's camera fits at its furthest zoom, in metres: about one room, so a cat is as big on screen as in a room of its own. */
+export const openView = { width: 28, depth: 18 };
