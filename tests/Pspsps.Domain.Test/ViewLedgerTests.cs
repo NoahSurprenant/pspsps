@@ -78,4 +78,34 @@ public sealed class ViewLedgerTests
             Assert.That(() => views.Set(OverworldCrowdViewTests.Id(1), new Position(1, 0), []), Throws.Nothing, "a set after a forget");
         });
     }
+
+    [Test]
+    public void AStaleViewerWhoseCatIsGone_IsDroppedNotNamedOnEveryMove()
+    {
+        var (world, _) = Crowd(3, i => new Position(i * 150 - 300, 0));
+        var views = new ViewLedger();
+        var gone = OverworldCrowdViewTests.Id(1);
+        views.Set(gone, world.Find(gone)!.Position, []);
+        views.MarkStale(gone);
+        world.Leave(gone, gone.ToString());
+
+        Assert.That(views.Affected(world, world.Find(OverworldCrowdViewTests.Id(3))!), Does.Not.Contain(gone));
+    }
+
+    [Test]
+    public void WhatAViewerWasShown_IsACopy_ThatAForgetDoesNotChange()
+    {
+        var (world, _) = Crowd(2, i => new Position(i, 0));
+        var views = new ViewLedger();
+        foreach (var i in new[] { 1, 2 })
+        {
+            var id = OverworldCrowdViewTests.Id(i);
+            views.Set(id, world.Find(id)!.Position, world.VisibleTo(id));
+        }
+
+        var before = views.KnownBy(OverworldCrowdViewTests.Id(1));
+        views.Forget(OverworldCrowdViewTests.Id(2));
+
+        Assert.That(before, Does.Contain(OverworldCrowdViewTests.Id(2)));
+    }
 }
