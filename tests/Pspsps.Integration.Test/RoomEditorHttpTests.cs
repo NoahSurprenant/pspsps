@@ -1229,4 +1229,42 @@ public sealed class RoomEditorHttpTests
             using var discard = await SendAsync(admin, HttpMethod.Delete, "rooms/shop/draft");
         }
     }
+
+    [Test]
+    public async Task ARoomThatIsOnlyADraft_IsInThePreviewWorld_AndNotInThePublishedOnes()
+    {
+        using var admin = await AdminClientAsync();
+        using var shopRead = await SendAsync(admin, HttpMethod.Get, "rooms/shop");
+        var shop = await JsonOfAsync(shopRead);
+        var shopDraft = shop["published"]!.DeepClone();
+        shopDraft["doors"]!.AsArray().Add(JsonNode.Parse("""{"id":"loft","edge":"West","offset":0,"toRoom":"loft","toDoor":"shop"}"""));
+        var loft = JsonNode.Parse("""
+            {"name":"The Draft Loft","width":10,"depth":8,"spawn":{"x":0,"z":0},"capacity":12,"props":[],
+             "doors":[{"id":"shop","edge":"East","offset":0,"toRoom":"shop","toDoor":"loft"}]}
+            """)!;
+        var library = Game.Get<IRoomLibrary>();
+        try
+        {
+            using var loftSaved = await SendAsync(admin, HttpMethod.Put, "rooms/loft/draft", loft);
+            using var shopSaved = await SendAsync(admin, HttpMethod.Put, "rooms/shop/draft", shopDraft);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(loftSaved.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+                Assert.That(shopSaved.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+                Assert.That(library.OfWorld("preview").Find("loft")?.Name, Is.EqualTo("The Draft Loft"));
+                Assert.That(library.OfWorld("preview").Find("shop")!.Doors.Any(d => d.Id == "loft"), Is.True);
+                Assert.That(library.Find("loft"), Is.Null);
+                Assert.That(library.OfWorld("tabby").Find("loft"), Is.Null);
+            });
+        }
+        finally
+        {
+            using var discardShop = await SendAsync(admin, HttpMethod.Delete, "rooms/shop/draft");
+            using var discardLoft = await SendAsync(admin, HttpMethod.Delete, "rooms/loft/draft");
+            await using var db = Db();
+            db.RoomVersions.RemoveRange(await db.RoomVersions.Where(v => v.RoomId == "loft").ToListAsync());
+            await db.SaveChangesAsync();
+        }
+    }
 }

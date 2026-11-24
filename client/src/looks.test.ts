@@ -3,7 +3,7 @@ import seed from "../../src/Pspsps.Application/Rooms/RoomLooks.json?raw";
 import serverLook from "../../src/Pspsps.Domain/Rooms/RoomLook.cs?raw";
 import { openLandscape } from "./doors";
 import {
-  backdropGenerators, floorPainters, groundPainters, loadLooks, lookOf, setDraftLook, setLooks, wallPainters, wildlifeKinds, type LooksData, type RoomLookData,
+  backdropGenerators, floorPainters, groundPainters, loadLooks, lookOf, syncLooks, setDraftLook, setLooks, wallPainters, wildlifeKinds, type LooksData, type RoomLookData,
 } from "./looks";
 import type { Floorplan } from "./paint";
 
@@ -235,6 +235,24 @@ describe("loadLooks", () => {
     await loadLooks(true);
 
     expect(asked).toEqual(["/api/looks", "/api/looks?preview=true"]);
+    vi.unstubAllGlobals();
+  });
+  it("reads the looks again only when the world kind changes, and a failed read of the published ones doesn't block", async () => {
+    const asked: string[] = [];
+    let fail = false;
+    vi.stubGlobal("fetch", async (url: string) => {
+      asked.push(url);
+      return fail ? { ok: false, status: 500 } : { ok: true, json: async () => ({ rooms: [], variants: [], painters: [], wildlife: [] }) };
+    });
+
+    await syncLooks("tabby");
+    await syncLooks("preview");
+    await syncLooks("preview");
+    await syncLooks("");
+    fail = true;
+    await syncLooks("calico");
+
+    expect(asked).toEqual(["/api/looks?preview=true", "/api/looks"]);
     vi.unstubAllGlobals();
   });
 });

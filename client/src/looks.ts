@@ -187,6 +187,25 @@ export async function loadLooks(preview = false): Promise<void> {
   setLooks((await response.json()) as LooksData);
 }
 
+let showingDrafts = false;
+
+/** Reads the looks again only when the world kind changes: the admins' preview world has draft looks, every other world the published ones (read at page load). A home (no world) keeps what is shown. */
+export async function syncLooks(worldId: string): Promise<void> {
+  if (!worldId || (worldId === "preview") === showingDrafts) {
+    return;
+  }
+
+  try {
+    await loadLooks(worldId === "preview");
+    showingDrafts = worldId === "preview";
+  } catch (error) {
+    // The looks already read still draw every published room; only the preview can't do without its own.
+    if (worldId === "preview") {
+      throw error;
+    }
+  }
+}
+
 export function lookOf(roomId: string, variant?: string | null): RoomLook {
   const base = rooms.get(roomId) ?? plain;
   const changes = variant ? variants.get(variant) : undefined;

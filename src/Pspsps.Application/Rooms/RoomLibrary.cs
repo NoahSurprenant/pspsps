@@ -10,6 +10,7 @@ public sealed class RoomLibrary(IServiceScopeFactory scopes, TimeProvider time) 
 {
     private volatile RoomBook? _book;
     private volatile RoomBook? _preview;
+    private PreviewRooms? _previewRooms;
 
     private RoomBook Book => _book ?? throw new InvalidOperationException("The rooms haven't been loaded yet.");
 
@@ -19,7 +20,7 @@ public sealed class RoomLibrary(IServiceScopeFactory scopes, TimeProvider time) 
 
     public RoomDefinition Start => All[0];
 
-    public IRoomLibrary OfWorld(string worldId) => worldId == WorldCatalog.PreviewId ? new PreviewRooms(() => _preview ?? Book, time) : this;
+    public IRoomLibrary OfWorld(string worldId) => worldId == WorldCatalog.PreviewId ? _previewRooms ??= new PreviewRooms(() => _preview ?? Book, time) : this;
 
     public async Task RefreshAsync(CancellationToken cancellationToken)
     {
@@ -32,12 +33,19 @@ public sealed class RoomLibrary(IServiceScopeFactory scopes, TimeProvider time) 
         IReadOnlyList<RoomOverlay> overlays = [.. entries.Where(entry => layouts.ContainsKey(entry.RoomId)).Select(entry => entry.ToOverlay())];
         _book = RoomBook.Create(layouts, overlays);
 
-        var drafts = await db.RoomVersions.AsNoTracking()
+        var drafts = (await db.RoomVersions.AsNoTracking()
             .Where(v => v.State == RoomVersionState.Draft)
-            .ToDictionaryAsync(v => v.RoomId, v => v.Layout, cancellationToken);
-        var played = layouts.ToDictionary(pair => pair.Key, pair => drafts.GetValueOrDefault(pair.Key) ?? pair.Value);
-        // Drafts that don't fit together yet (an admin part way through an edit) leave the preview as it was; the published rooms are never touched.
-        _preview = RoomBook.Problems(played, overlays).Count == 0 ? RoomBook.Create(played, overlays) : _preview;
+            .ToListAsync(cancellationToken))
+            .GroupBy(v => v.RoomId)
+            .ToDictionary(group => group.Key, group => group.MaxBy(v => v.Revision)!.Layout);
+        var played = new Dictionary<string, RoomLayout>(layouts);
+        foreach (var (roomId, layout) in drafts)
+        {
+            played[roomId] = layout;
+        }
+
+        // Drafts that don't fit together yet (an admin part way through an edit) leave the preview playing the published rooms; they are never touched.
+        _preview = RoomBook.Problems(played, overlays).Count == 0 ? RoomBook.Create(played, overlays) : null;
     }
 
     private sealed class PreviewRooms(Func<RoomBook> book, TimeProvider time) : IRoomLibrary

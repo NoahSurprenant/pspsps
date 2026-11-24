@@ -496,6 +496,25 @@ public sealed class GameHubTests
     }
 
     [Test]
+    public async Task GetFriends_AFriendInThePreviewWorld_IsNowhereToAnyoneButAdmins()
+    {
+        _friends.ListAsync(Tom.Id, Arg.Any<CancellationToken>()).Returns(
+            [new PlayerRelation(Felix, "Felix", FurColor.Black, FriendState.Friends)]);
+        Session(Felix).Locate().Returns(new PlayerPlace("preview", "cafe"));
+        var hub = Hub();
+
+        var player = (await hub.GetFriends()).Single().Place;
+        _moderation.IsAdmin(Tom.Id).Returns(true);
+        var admin = (await hub.GetFriends()).Single().Place;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(player, Is.Null);
+            Assert.That(admin?.WorldId, Is.EqualTo("preview"));
+        });
+    }
+
+    [Test]
     public async Task GoToFriend_InAnotherWorld_TakesAPlaceThereBeforeLeavingThisOne()
     {
         var (calico, calicoCafe) = FriendInCalicoCafe();

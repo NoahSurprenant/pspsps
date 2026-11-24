@@ -1230,7 +1230,7 @@ public sealed partial class GameHub(
     }
 
     private FriendPlaceView? WorldPlaceView(PlayerPlace? place) =>
-        place is not null && WorldCatalog.Find(place.WorldId) is { } world && rooms.OfWorld(world.Id).Find(place.RoomId) is { } room
+        place is not null && WorldCatalog.Find(place.WorldId) is { } world && (!world.AdminOnly || moderation.IsAdmin(PlayerId)) && rooms.OfWorld(world.Id).Find(place.RoomId) is { } room
             ? new FriendPlaceView(world.Id, world.Name, room.Id, room.Name)
             : null;
 

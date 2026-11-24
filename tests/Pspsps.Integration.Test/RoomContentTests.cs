@@ -202,8 +202,8 @@ public sealed class RoomContentTests
 
         try
         {
-            await editor.SaveDraftAsync("shop", original with { Name = "The Unpublished Shop" }, player.Id, null, ct);
             await library.RefreshAsync(ct);
+            await editor.SaveDraftAsync("shop", original with { Name = "The Unpublished Shop" }, player.Id, null, ct);
 
             Assert.Multiple(() =>
             {

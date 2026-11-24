@@ -412,6 +412,8 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
 
         Audit(adminId, "draft-saved", roomId, draft is null ? "a new draft" : $"draft over revision {draft.Revision - 1}", new RoomContent(layout, look ?? draft?.Look));
         await SaveAsync(cancellationToken);
+        // The admins' preview world plays drafts: this pod has it at once, the others within a few seconds.
+        await library.RefreshAsync(cancellationToken);
         return await ProblemsWithAsync(roomId, layout, look ?? draft?.Look, cancellationToken);
     }
 
@@ -422,6 +424,7 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
         db.RoomVersions.Remove(draft);
         Audit(adminId, "draft-discarded", roomId, $"version {draft.Number}");
         await SaveAsync(cancellationToken);
+        await library.RefreshAsync(cancellationToken);
     }
 
     public async Task PublishAsync(string roomId, IReadOnlyList<string> together, Guid adminId, CancellationToken cancellationToken, IReadOnlyList<string>? retire = null)
