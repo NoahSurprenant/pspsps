@@ -1,5 +1,4 @@
 import type { PlacedChunk } from "./overworld";
-import { worldBounds } from "./overworld";
 import type { Part } from "./props";
 
 /** How far past a room's floor scenery still counts as the room's own (its walls, fence and near trees). */
@@ -7,6 +6,11 @@ const attachedReach = 2;
 
 /** A part's body reaching more than this onto another room's floor is a hill lying across it. */
 const intrusion = 1;
+
+/** Whether a spot is within the attached reach (2 m, along each axis, so corners reach further) of a room's floor. */
+export function isAttached(chunk: PlacedChunk, x: number, z: number): boolean {
+  return covers(chunk, x, z, attachedReach);
+}
 
 /** Whether a spot on the ground lies on a placed room's floor (or its edge), <margin> metres beyond it. */
 function covers(chunk: PlacedChunk, x: number, z: number, margin = 0): boolean {
@@ -35,28 +39,29 @@ export function intrudesOnAnotherRoom(world: PlacedChunk[] | undefined, chunk: P
     && Math.min(z + reachZ, other.z + other.depth / 2) - Math.max(z - reachZ, other.z - other.depth / 2) > intrusion) ?? false;
 }
 
+/** A part's identity across rooms: shape, size, colour and spot to the centimetre, so float noise in where two rooms put it doesn't matter. */
+function keyOf(part: Part): string {
+  const round = (n: number) => Math.round(n * 100) / 100;
+  return JSON.stringify(part, (_key, value: unknown) => (typeof value === "number" ? round(value) : value));
+}
+
 /**
- * The backdrop parts (in world metres) a room draws. Attached scenery, on or just beside the room's floor, stays with
- * its room unless it would stand on another. Distant scenery (hills, mountains, far trees) belongs to the world: drawn
- * once (<seen> remembers what is), and only outside the outline of all the rooms, along the world's outer edge.
+ * The backdrop parts (in world metres) a room draws. Scenery on or just beside the room's floor (attached, within
+ * 2 m along each axis) stays with its room unless it would stand on another. Distant scenery (hills, mountains, far
+ * trees) belongs to the world: drawn only off every room's floor, along the outline of the world. Either way a part
+ * is drawn once: <seen> remembers what has been. Parts of different shape, size or spot are different parts; two rooms
+ * that generate one hill differently get two hills.
  */
 export function sceneryFor(world: PlacedChunk[] | undefined, chunk: PlacedChunk, parts: Part[], seen: Set<string>): Part[] {
   if (!world) {
     return parts;
   }
-  const { minX, maxX, minZ, maxZ } = worldBounds(world);
   return parts.filter((part) => {
     const [x, , z] = part.at;
     if (onAnotherRoom(world, chunk, x, z) || intrudesOnAnotherRoom(world, chunk, part)) {
       return false;
     }
-    if (covers(chunk, x, z, attachedReach)) {
-      return true;
-    }
-    if (x >= minX && x <= maxX && z >= minZ && z <= maxZ) {
-      return false;
-    }
-    const key = JSON.stringify(part);
+    const key = keyOf(part);
     if (seen.has(key)) {
       return false;
     }
