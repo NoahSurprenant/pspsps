@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { keepOnScreen, onAnotherRoom, stackLevels } from "./scene";
+import { keepOnScreen, onAnotherRoom, outlineStrips, stackLevels } from "./scene";
 
 describe("stackLevels", () => {
   it("leaves names that don't touch on the first line", () => {
@@ -50,5 +50,27 @@ describe("onAnotherRoom", () => {
 
   it("is false when there is no open world", () => {
     expect(onAnotherRoom(undefined, south, 5, 10)).toBe(false);
+  });
+});
+
+describe("outlineStrips", () => {
+  const room = { x: 10, z: 20, width: 24, depth: 16 } as never;
+
+  it("lies inside the room's exact bounds, so a neighbouring floor can't cover it", () => {
+    for (const strip of outlineStrips(room, 0.5)) {
+      expect(strip.x - strip.width / 2).toBeGreaterThanOrEqual(10 - 12);
+      expect(strip.x + strip.width / 2).toBeLessThanOrEqual(10 + 12);
+      expect(strip.z - strip.depth / 2).toBeGreaterThanOrEqual(20 - 8);
+      expect(strip.z + strip.depth / 2).toBeLessThanOrEqual(20 + 8);
+    }
+  });
+
+  it("has one strip along each of the four edges", () => {
+    const strips = outlineStrips(room, 0.5);
+    expect(strips).toHaveLength(4);
+    expect(strips).toContainEqual({ x: 10, z: 20 + 8 - 0.25, width: 24, depth: 0.5 });
+    expect(strips).toContainEqual({ x: 10, z: 20 - 8 + 0.25, width: 24, depth: 0.5 });
+    expect(strips).toContainEqual({ x: 10 + 12 - 0.25, z: 20, width: 0.5, depth: 15 });
+    expect(strips).toContainEqual({ x: 10 - 12 + 0.25, z: 20, width: 0.5, depth: 15 });
   });
 });

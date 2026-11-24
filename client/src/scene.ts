@@ -890,14 +890,22 @@ export class RoomScene {
   /** The floor's dark edge, a little larger and just below it. Not renderOutline, whose pass, from far off (a narrow
    * screen backs the camera away), covered whatever lay flat on the floor, the pond. A room marked in the preview has a wide pink one, and its name. */
   private drawEdge(chunk: PlacedChunk, marked: boolean): void {
-    const grow = marked ? 1.2 : 0.08;
-    const rim = CreateGround("floor-edge", { width: chunk.width + grow, height: chunk.depth + grow }, this.scene);
+    const rim = CreateGround("floor-edge", { width: chunk.width + 0.08, height: chunk.depth + 0.08 }, this.scene);
     rim.position.set(chunk.x, -0.01, chunk.z);
-    rim.material = flat(this.scene, "floor-edge", marked ? "#ff3b8b" : ink);
+    rim.material = flat(this.scene, "floor-edge", ink);
     rim.isPickable = false;
-    if (marked) {
-      this.nameRoom(chunk);
+    if (!marked) {
+      return;
     }
+    // On top of the floors, inside the room's bounds: a floor that touches this one can't cover it.
+    const pink = flat(this.scene, "room-outline", "#ff3b8b");
+    for (const strip of outlineStrips(chunk, outlineWidth)) {
+      const bar = CreateBox("room-outline", { width: strip.width, height: 0.04, depth: strip.depth }, this.scene);
+      bar.position.set(strip.x, 0.03, strip.z);
+      bar.material = pink;
+      bar.isPickable = false;
+    }
+    this.nameRoom(chunk);
   }
 
   private nameRoom(chunk: PlacedChunk): void {
@@ -1027,6 +1035,22 @@ export function catPlayerIdOf(mesh: BabylonNode | null | undefined): string | un
 /** Whether a spot on the ground lies on a placed room's floor (or its edge). */
 function covers(chunk: PlacedChunk, x: number, z: number): boolean {
   return Math.abs(x - chunk.x) <= chunk.width / 2 && Math.abs(z - chunk.z) <= chunk.depth / 2;
+}
+
+const outlineWidth = 0.6;
+
+/** The four strips (centre and size, in metres) of a room's outline, all inside its bounds. */
+export function outlineStrips(chunk: PlacedChunk, thickness: number): { x: number; z: number; width: number; depth: number }[] {
+  const halfWidth = chunk.width / 2;
+  const halfDepth = chunk.depth / 2;
+  const half = thickness / 2;
+  const sideDepth = chunk.depth - thickness * 2;
+  return [
+    { x: chunk.x, z: chunk.z + halfDepth - half, width: chunk.width, depth: thickness },
+    { x: chunk.x, z: chunk.z - halfDepth + half, width: chunk.width, depth: thickness },
+    { x: chunk.x + halfWidth - half, z: chunk.z, width: thickness, depth: sideDepth },
+    { x: chunk.x - halfWidth + half, z: chunk.z, width: thickness, depth: sideDepth },
+  ];
 }
 
 /** Whether a spot lies on the floor of a placed room other than <chunk>: scenery there would stand on that room. */
