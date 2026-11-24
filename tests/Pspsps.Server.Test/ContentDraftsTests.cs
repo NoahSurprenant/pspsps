@@ -34,32 +34,44 @@ public sealed class ContentDraftsTests
         Assert.That(problems, Is.Empty);
     }
 
-    /// <summary>The ground of the rooms that border open land and the water rooms (a water room's ground is the water itself).</summary>
-    private static readonly string[] WaterRooms = ["dock", "beach", "cove"];
+    /// <summary>The ground each placed room is drawn with, as the first test resolves a look (the room's own, or the shared one its layout names); null when it has none.</summary>
+    private static List<(string Id, LookGround? Ground)> PlacedGrounds()
+    {
+        var looks = Content.AllLooks.ToDictionary(l => l.Id, l => l.Look);
+        return [.. Content.RoomList.Where(room => room.Layout.Place is not null).Select(room =>
+            (room.Id, looks.TryGetValue(room.Layout.Look ?? room.Id, out var look) ? look.Ground : null))];
+    }
+
+    /// <summary>A ground is water when it is bluer than green; a new placed water room (a lake) is recognised by its ground, and must use the one water colour.</summary>
+    private static bool IsWater(LookGround ground) =>
+        Convert.ToInt32(ground.Colour[5..], 16) > Convert.ToInt32(ground.Colour[3..5], 16);
 
     [Test]
     public void PlacedLandRooms_ShareOneGround_SoNoStreetOrColourPatchRunsOnPastTheWorldsEdge()
     {
-        var grounds = Content.RoomList
-            .Where(room => room.Layout.Place is not null && !WaterRooms.Contains(room.Id))
-            .Select(room => (room.Id, Ground: room.Look?.Ground))
-            .ToList();
+        var grounds = PlacedGrounds();
+        var land = grounds.Where(g => g.Ground is not null && !IsWater(g.Ground)).ToList();
 
         Assert.Multiple(() =>
         {
-            Assert.That(grounds.Where(g => g.Ground is null).Select(g => g.Id), Is.Empty, "every placed land room has a ground");
-            Assert.That(grounds.Select(g => g.Ground).Distinct().Count(), Is.EqualTo(1), string.Join(", ", grounds.Select(g => $"{g.Id}={g.Ground?.Colour}/{g.Ground?.Painter}")));
-            Assert.That(grounds.Select(g => g.Ground?.Painter), Has.All.Null, "no cobbled street ground on the open world");
+            Assert.That(grounds.Where(g => g.Ground is null).Select(g => g.Id), Is.Empty, "every placed room has a ground");
+            Assert.That(land.Select(g => g.Ground).Distinct().Count(), Is.EqualTo(1), string.Join(", ", land.Select(g => $"{g.Id}={g.Ground!.Colour}/{g.Ground.Painter}")));
+            Assert.That(land.Select(g => g.Ground!.Painter), Has.All.Null, "no cobbled street ground on the open world");
         });
     }
 
     [Test]
-    public void PlacedWaterRooms_AllHaveWaterAsTheirGround_SoTheLandDoesNotCutOffAgainstTheSea()
+    public void PlacedWaterRooms_ShareOneWaterGround_SoNoSeamShowsAndLandDoesNotCutOffAgainstTheSea()
     {
-        var water = Content.RoomList.Where(room => WaterRooms.Contains(room.Id)).Select(room => room.Look?.Ground?.Colour).ToList();
+        var grounds = PlacedGrounds();
+        var water = grounds.Where(g => g.Ground is not null && IsWater(g.Ground)).ToList();
 
-        Assert.That(water, Has.All.Not.EqualTo(Content.RoomList.Single(room => room.Id == "fort").Look!.Ground!.Colour));
-        Assert.That(water.Select(colour => colour![1..]).All(hex => Convert.ToInt32(hex[4..], 16) > Convert.ToInt32(hex[..2], 16)), Is.True, "bluer than red");
+        Assert.Multiple(() =>
+        {
+            Assert.That(water.Select(g => g.Id), Is.SupersetOf(new[] { "dock", "beach", "cove" }), "the sea rooms have a water ground");
+            Assert.That(water.Select(g => g.Ground).Distinct().Count(), Is.EqualTo(1), string.Join(", ", water.Select(g => $"{g.Id}={g.Ground!.Colour}")));
+            Assert.That(water.Select(g => g.Ground!.Painter), Has.All.Null);
+        });
     }
 
     /// <summary>Rooms made to look like open scenes stay richly decorated: a thin backdrop is sent back.</summary>

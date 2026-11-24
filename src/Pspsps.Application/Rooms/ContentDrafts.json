@@ -2839,7 +2839,7 @@
         "floorColour": "#d9c08a",
         "wallColour": "#cfe6ea",
         "ground": {
-          "colour": "#5fb3d9"
+          "colour": "#79c4de"
         },
         "floor": {
           "painter": "field-cove-floor",
@@ -2863,7 +2863,7 @@
                 -0.03,
                 0
               ],
-              "colour": "#5fb3d9",
+              "colour": "#79c4de",
               "outlined": false
             },
             {
@@ -2876,7 +2876,7 @@
                 -0.03,
                 -27
               ],
-              "colour": "#5fb3d9",
+              "colour": "#79c4de",
               "outlined": false
             },
             {
@@ -21734,7 +21734,7 @@
         "floorColour": "#e9d9a8",
         "wallColour": "#cfe6ea",
         "ground": {
-          "colour": "#9bd0e8"
+          "colour": "#79c4de"
         },
         "floor": {
           "painter": "shore-dock",
