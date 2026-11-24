@@ -73,6 +73,8 @@ export const paints = {
   glass: "#dceff2",
   windowSky: "#cfe8f0",
   plinth: "#cfc2a8",
+  /** The lower box of the town backdrop's paving step (its upper box is the plinth's colour). */
+  pavingStep: "#b8a98a",
   panelLine: "#a8724a",
   homeBoard: "#e2bf98",
   homeBoardLight: "#e8c9a6",

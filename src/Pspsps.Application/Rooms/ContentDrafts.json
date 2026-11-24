@@ -2608,31 +2608,6 @@
               ],
               "colour": "#4a2e1c",
               "outlined": false
-            },
-            {
-              "shape": "box",
-              "width": 24,
-              "height": 0.25,
-              "depth": 0.5,
-              "at": [
-                0,
-                0.12,
-                -8.4
-              ],
-              "colour": "#b8a98a"
-            },
-            {
-              "shape": "box",
-              "width": 24,
-              "height": 0.1,
-              "depth": 0.3,
-              "at": [
-                0,
-                0.3,
-                -8.45
-              ],
-              "colour": "#cfc2a8",
-              "outlined": false
             }
           ]
         }
@@ -9188,31 +9163,6 @@
                 -3.2
               ],
               "colour": "#9a8a68",
-              "outlined": false
-            },
-            {
-              "shape": "box",
-              "width": 28,
-              "height": 0.25,
-              "depth": 0.5,
-              "at": [
-                0,
-                0.12,
-                -6.4
-              ],
-              "colour": "#b8a98a"
-            },
-            {
-              "shape": "box",
-              "width": 28,
-              "height": 0.1,
-              "depth": 0.3,
-              "at": [
-                0,
-                0.3,
-                -6.45
-              ],
-              "colour": "#cfc2a8",
               "outlined": false
             }
           ]

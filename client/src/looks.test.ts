@@ -5,7 +5,7 @@ import { openLandscape } from "./doors";
 import {
   backdropGenerators, floorPainters, groundPainters, loadLooks, lookOf, syncLooks, setDraftLook, setLooks, wallPainters, wildlifeKinds, type LooksData, type RoomLookData,
 } from "./looks";
-import type { Floorplan } from "./paint";
+import { paints, type Floorplan } from "./paint";
 
 const plans = {
   "town-square": { width: 24, depth: 16, pond: { x: -7, z: -3, radius: 2.5 }, doors: [] },
@@ -199,6 +199,16 @@ describe("looks as data", () => {
     const square = lookOf("town-square").backdrop({ width: 24, depth: 16, pond: null, doors: [] }, 4);
 
     expect(square.length).toBeGreaterThan(0);
+  });
+
+  it("lays the town's two-box paving step along the lawn's front edge, whatever the room's size", () => {
+    for (const [width = 0, depth = 0] of [[24, 16], [28, 12]]) {
+      const parts = (backdropGenerators.town ?? (() => []))({ width, depth, pond: null, doors: [] }, 4);
+      const edge = -depth / 2;
+
+      expect(parts).toContainEqual({ shape: "box", width, height: 0.25, depth: 0.5, at: [0, 0.12, edge - 0.4], colour: paints.pavingStep });
+      expect(parts).toContainEqual({ shape: "box", width, height: 0.1, depth: 0.3, at: [0, 0.3, edge - 0.45], colour: paints.plinth, outlined: false });
+    }
   });
 
   it("gives each room the wildlife its look names", () => {
