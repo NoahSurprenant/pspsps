@@ -222,19 +222,19 @@ test("filtered words never reach another cat", async ({ page: tom, browser }) =>
 test("the emotes are one button that opens the choices, and close again", async ({ page }) => {
   await enterWorld(page, "Tabby");
   const choices = ["Sit", "Meow", "Wave", "Sleep"].map((name) => page.getByRole("button", { name, exact: true }));
-  for (const choice of choices) await expect(choice).toBeHidden();
+  for (const choice of choices) await expect(choice).not.toBeVisible();
 
   await page.getByRole("button", { name: "Emotes" }).click();
   for (const choice of choices) await expect(choice).toBeVisible();
   await page.keyboard.press("Escape");
-  for (const choice of choices) await expect(choice).toBeHidden();
+  for (const choice of choices) await expect(choice).not.toBeVisible();
 
   await page.getByRole("button", { name: "Emotes" }).click();
   await page.mouse.click(5, 5);
-  await expect(choices[0]).toBeHidden();
+  await expect(choices[0]).not.toBeVisible();
 
   await pickEmote(page, "Wave");
-  await expect(choices[2]).toBeHidden();
+  await expect(choices[2]).not.toBeVisible();
 });
 
 test("a cat's emotes show on the other cat's screen", async ({ page: tom, browser }) => {
@@ -359,7 +359,7 @@ test("coming back from saving the cat says how it went, once", async ({ page }) 
 
   await page.reload();
   await expect(page.getByRole("heading", { name: /^Hi, Kitty \d{4}!$/ })).toBeVisible();
-  await expect(page.getByText("That account already has its own cat")).toBeHidden();
+  await expect(page.getByText("That account already has its own cat")).not.toBeVisible();
 });
 
 test("the panel fits a phone's screen", async ({ page }) => {
@@ -653,7 +653,7 @@ test("a cat walks through the café and the shop and back and travels to a room'
   await expect(map.getByText("Coming soon.")).toBeVisible();
   await expect(page.getByRole("dialog", { name: "World map" })).toBeVisible();
   await page.keyboard.press("Escape");
-  await expect(map).toBeHidden();
+  await expect(map).not.toBeVisible();
   await expect(openMap).toBeFocused();
 
   await goThroughDoor(page, "cafe", "Cat Café");
@@ -661,7 +661,7 @@ test("a cat walks through the café and the shop and back and travels to a room'
   await map.getByRole("button", { name: "Town Square" }).click();
   await expectRoom(page, "Town Square");
   expect((await cats(page))[me]).toMatchObject({ x: 0, z: 4 });
-  await expect(map).toBeHidden();
+  await expect(map).not.toBeVisible();
 });
 
 // The doors are drawn on the canvas, which the keyboard can't reach: each also has a button, shown once it has focus.
@@ -924,7 +924,7 @@ test("a cat mutes another from its card and stops seeing its chat, while a third
     const list = tom.getByRole("dialog", { name: "Friends" });
     await expect(list.getByRole("heading", { name: "Muted" })).toBeVisible();
     await list.getByRole("button", { name: `Unmute ${felix.name}` }).click();
-    await expect(list.getByRole("heading", { name: "Muted" })).toBeHidden();
+    await expect(list.getByRole("heading", { name: "Muted" })).not.toBeVisible();
     await list.getByRole("button", { name: "Close" }).click();
     await felix.hub.invoke("Say", "hello again");
     await expect.poll(() => said(tom, felix.id)).toEqual(["hello again"]);
@@ -1006,7 +1006,7 @@ test("an admin mutes and warns a cat from its card, bans another, whose tab is s
 
     // Felix can't chat, and sees why and until when.
     await expect(felix.page.locator("#muted-note")).toContainText(/You're muted until .*Why: Rude in chat/);
-    await expect(felix.page.getByPlaceholder("Say something…")).toBeHidden();
+    await expect(felix.page.getByPlaceholder("Say something…")).not.toBeVisible();
 
     // A warning: Felix is shown it once, at once.
     await card.getByLabel("Why (they're shown this)").fill("Please keep it friendly.");
@@ -1031,7 +1031,7 @@ test("an admin mutes and warns a cat from its card, bans another, whose tab is s
     // He can't come back.
     await garfield.page.reload();
     await expect(garfield.page.getByText(/^Your cat is banned until /)).toBeVisible();
-    await expect(garfield.page.getByRole("button", { name: /^Siamese · / })).toBeHidden();
+    await expect(garfield.page.getByRole("button", { name: /^Siamese · / })).not.toBeVisible();
 
     // The admin page lists him, and Lift lets him back.
     await admin.goto("/admin");
@@ -1041,7 +1041,7 @@ test("an admin mutes and warns a cat from its card, bans another, whose tab is s
     await expect(admin.locator("li.player", { hasText: felixId })).toContainText(/Muted until .*: Rude in chat/);
     await listed.getByRole("button", { name: `Lift ${garfieldName}'s ban` }).click();
     await expect(admin.getByRole("status")).toHaveText(`${garfieldName} can play and chat again.`);
-    await expect(listed).toBeHidden();
+    await expect(listed).not.toBeVisible();
     await expect(admin.getByText(new RegExp(`banned ${garfieldName} until .*: Spamming the square`)).first()).toBeVisible();
 
     await garfield.page.reload();
@@ -1144,7 +1144,7 @@ test("an admin decides a report on /admin from its chat: the reported cat is mut
     await report.getByRole("button", { name: `Act on ${tom.name} reported ${felix.name}` }).click();
 
     await expect(admin.getByRole("status")).toHaveText(`${felix.name} is muted for 1 hour; the report is closed.`);
-    await expect(report).toBeHidden();
+    await expect(report).not.toBeVisible();
     await expect(admin.locator("li.player", { hasText: felix.id })).toContainText(/Muted until .*: Mean in chat/);
     await expect(felix.hub.invoke("Say", "still here")).rejects.toThrow(/You're muted until .*Mean in chat/);
   } finally {
