@@ -32,7 +32,10 @@ internal static class RoomLookEndpoints
                 var drafted = await db.RoomVersions.AsNoTracking()
                     .Where(v => v.State == RoomVersionState.Draft && v.Look != null)
                     .ToDictionaryAsync(v => v.RoomId, v => v.Look!, ct);
-                rooms = [.. rooms.Select(l => drafted.TryGetValue(l.Id, out var look) ? new { l.Id, Look = look } : l)];
+                var known = rooms.Select(l => l.Id).ToHashSet();
+                // A room that is only a draft has no live look: it comes in with its draft's, or its neighbours would draw it plain.
+                rooms = [.. rooms.Select(l => drafted.TryGetValue(l.Id, out var look) ? new { l.Id, Look = look } : l),
+                    .. drafted.Where(d => !known.Contains(d.Key)).OrderBy(d => d.Key).Select(d => new { Id = d.Key, Look = d.Value })];
             }
 
             var variants = (await db.LookVariants.AsNoTracking().OrderBy(v => v.Id).ToListAsync(ct)).Select(v => new { v.Id, v.Sky, v.WallColour, v.Floor }).ToList();
