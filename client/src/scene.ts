@@ -114,7 +114,7 @@ export class RoomScene {
   // The chunks showing in world metres: a room alone is one at the middle.
   private chunks: PlacedChunk[] | undefined;
   private groundPatches = 0;
-  private readonly doorLabels: { x: number; z: number; length: number; level: number }[] = [];
+  private readonly doorLabels: { label: TextBlock; spot: Vector3; length: number }[] = [];
   private roomEntered: ((chunk: ChunkView) => void) | undefined;
   private decor: Mesh | undefined;
   private activities = new RoomActivities();
@@ -405,6 +405,7 @@ export class RoomScene {
     this.scene.onBeforeRenderObservable.add(() => {
       const seconds = this.frameSeconds;
       this.step(seconds);
+      this.stackDoorLabels();
       for (const animate of animations) {
         animate(seconds);
       }
@@ -888,14 +889,17 @@ export class RoomScene {
     label.outlineWidth = 3;
     this.gui?.addControl(label);
     label.linkWithMesh(anchor);
-    // A name that would sit on another door's is lifted above it.
-    const length = title.length;
-    let level = 0;
-    while (this.doorLabels.some((other) => other.level === level && Math.abs(other.x - x) < (other.length + length) * 0.3 && Math.abs(other.z - z) < 3)) {
-      level++;
-    }
-    this.doorLabels.push({ x, z, length, level });
-    label.linkOffsetY = -level * 18;
+    this.doorLabels.push({ label, spot: new Vector3(x, y, z), length: title.length });
+  }
+
+  /** Door names that would draw over each other on screen are stacked, the left-most lowest. */
+  private stackDoorLabels(): void {
+    const shown = this.doorLabels.map((door) => ({ door, at: this.project(door.spot) }));
+    const placed = shown.filter((item): item is { door: (typeof item)["door"]; at: { x: number; y: number } } => item.at !== undefined);
+    const levels = stackLevels(placed.map(({ door, at }) => ({ x: at.x, y: at.y, width: door.length * labelCharWidth })));
+    placed.forEach(({ door }, index) => {
+      door.label.linkOffsetY = -(levels[index] ?? 0) * labelLineHeight;
+    });
   }
 
   private step(seconds: number): void {
@@ -969,6 +973,25 @@ export function catPlayerIdOf(mesh: BabylonNode | null | undefined): string | un
     }
   }
   return undefined;
+}
+
+const labelCharWidth = 9;
+const labelLineHeight = 18;
+
+/** How many lines up each name must sit to clear the names already placed to its left: names are centred on (x, y) and as wide as <width>. */
+export function stackLevels(names: { x: number; y: number; width: number }[]): number[] {
+  const levelOf = new Map<{ x: number; y: number; width: number }, number>();
+  const placed: { x: number; y: number; width: number }[] = [];
+  for (const name of [...names].sort((a, b) => a.x - b.x)) {
+    let level = 0;
+    while (placed.some((other) => levelOf.get(other) === level
+      && Math.abs(other.x - name.x) < (other.width + name.width) / 2 && Math.abs(other.y - name.y) < labelLineHeight)) {
+      level++;
+    }
+    levelOf.set(name, level);
+    placed.push(name);
+  }
+  return names.map((name) => levelOf.get(name) ?? 0);
 }
 
 /** How far a room's ground reaches past its edges, fading, in the open world: about as far as the camera sees. */
