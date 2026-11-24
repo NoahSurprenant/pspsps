@@ -26,6 +26,21 @@ internal sealed class HubRoomBroadcaster(IHubContext<GameHub, IGameClient> hub, 
 
     public Task HomeRenamed(string roomKey, string ownerName) => hub.Clients.Group(roomKey).HomeRenamed(ownerName);
 
+    public Task CatJoined(IReadOnlyList<string> sessions, CatView cat) => hub.Clients.Clients(sessions).CatJoined(cat);
+
+    public Task CatLeft(IReadOnlyList<string> sessions, Guid playerId) => hub.Clients.Clients(sessions).CatLeft(playerId);
+
+    public Task CatMoved(IReadOnlyList<string> sessions, Guid playerId, double x, double z) =>
+        hub.Clients.Clients(sessions).CatMoved(playerId, x, z);
+
+    public Task ChatSaid(IReadOnlyList<string> sessions, ChatView line) => hub.Clients.Clients(sessions).ChatSaid(line);
+
+    public Task CatEmoted(IReadOnlyList<string> sessions, EmoteView emote) => hub.Clients.Clients(sessions).CatEmoted(emote);
+
+    public Task CatDressed(IReadOnlyList<string> sessions, OutfitView outfit) => hub.Clients.Clients(sessions).CatDressed(outfit);
+
+    public Task CatRenamed(IReadOnlyList<string> sessions, RenameView rename) => hub.Clients.Clients(sessions).CatRenamed(rename);
+
     public Task FishBit(string session) => hub.Clients.Client(session).FishBit();
 
     public Task FishGotAway(string session) => hub.Clients.Client(session).FishGotAway();

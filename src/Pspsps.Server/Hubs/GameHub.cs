@@ -233,7 +233,7 @@ public sealed partial class GameHub(
             return null;
         }
 
-        var cameFrom = from.RoomKey is { } was ? RoomKey.WhereaboutsOf(was) : null;
+        var cameFrom = from.RoomKey is { } was ? await WhereaboutsAsync(was) : null;
         var deadline = time.GetUtcNow() + WayOutTimeLimit;
         foreach (var place in WayOut.For(rooms.All, PlayerId, cameFrom, RoomKey.WhereaboutsOf(refused)))
         {
@@ -770,7 +770,7 @@ public sealed partial class GameHub(
         }
 
         // Read after the wait. A home's room is its owner's ID, which is no room of the catalogue: it sells nothing.
-        var roomId = Here?.RoomKey is { } key ? RoomKey.Parse(key).RoomId : null;
+        var roomId = Here?.RoomKey is { } key ? await CurrentRoomIdAsync(key) : null;
         return ShopView.From(await PlayersRule(() => shop.BuyAsync(PlayerId, roomId, itemId, Context.ConnectionAborted)));
     }
 
@@ -839,7 +839,7 @@ public sealed partial class GameHub(
             ?? throw new HubException($"{relation.DisplayName} isn't in a room right now.");
         // Read after the waits: the heartbeat may have moved it meanwhile (a lost room or world).
         var place = Here ?? throw new HubException("Pick a world first.");
-        if (place.RoomKey == RoomKey.For(target.WorldId, target.RoomId))
+        if (place.RoomKey == GrainKeyOf(target))
         {
             throw new HubException($"You're already with {relation.DisplayName}.");
         }
@@ -928,6 +928,14 @@ public sealed partial class GameHub(
         if (heartbeat.IsClosed(Context.ConnectionId))
         {
             throw new HubException(ClosedMessage);
+        }
+
+        // A room on the world map is part of the open world: its cats are in the world's one grain, told where to put this one.
+        var roomId = RoomKey.Parse(key).RoomId;
+        if (RoomKey.HomeOwner(key) is null && rooms.Find(roomId)?.Place is not null)
+        {
+            throughDoor = RoomKey.Arrival(roomId, throughDoor);
+            key = RoomKey.ForOverworld(worldId);
         }
 
         var profile = await players.FindAsync(PlayerId, Context.ConnectionAborted)
@@ -1049,7 +1057,7 @@ public sealed partial class GameHub(
     private async Task<ShopView> Dress(Func<Task<Wardrobe>> change)
     {
         var wardrobe = await PlayersRule(change);
-        var key = await LocateAsync(PlayerId) is { } place ? RoomKey.For(place.WorldId, place.RoomId) : Here?.RoomKey;
+        var key = await LocateAsync(PlayerId) is { } place ? GrainKeyOf(place) : Here?.RoomKey;
 
         if (key is not null)
         {
@@ -1065,6 +1073,34 @@ public sealed partial class GameHub(
 
         return ShopView.From(wardrobe);
     }
+
+    // The room this tab's cat is in: out in the open world, the one whose floor it stands on. Null when that can't be told.
+    private async Task<string?> CurrentRoomIdAsync(string key)
+    {
+        if (!RoomKey.IsOverworld(key))
+        {
+            return RoomKey.Parse(key).RoomId;
+        }
+
+        try
+        {
+            return await grains.GetGrain<IRoomGrain>(key).WhereIs(PlayerId, Context.ConnectionId);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            LogLocateFailed(logger, e, PlayerId);
+            return null;
+        }
+    }
+
+    private async Task<Whereabouts?> WhereaboutsAsync(string key) =>
+        RoomKey.IsOverworld(key)
+            ? await CurrentRoomIdAsync(key) is { } roomId ? Whereabouts.Room(roomId) : null
+            : RoomKey.WhereaboutsOf(key);
+
+    // The grain that holds a cat at <place>: a room on the world map is part of the open world's one grain.
+    private string GrainKeyOf(PlayerPlace place) =>
+        RoomKey.Grain(place.WorldId, place.RoomId, rooms.Find(place.RoomId)?.Place is not null);
 
     // Where the player's cat is, or null when it can't be told (a grain call that failed counts as offline).
     private async Task<PlayerPlace?> LocateAsync(Guid playerId)
@@ -1090,7 +1126,7 @@ public sealed partial class GameHub(
         // hasn't caught up yet. An admin renaming another cat has no "this tab" of theirs to fall back to.
         var current = await LocateAsync(playerId);
         var currentKey = current is { } place
-            ? RoomKey.For(place.WorldId, place.RoomId)
+            ? GrainKeyOf(place)
             : playerId == PlayerId ? Here?.RoomKey : null;
         var keys = new HashSet<string>(StringComparer.Ordinal) { RoomKey.ForHome(playerId) };
         if (currentKey is not null)

@@ -28,6 +28,7 @@ import { wildlife } from "./wildlife";
 import { sceneryTarget } from "./walking";
 import { animationFor, Cat, facing, loadCatModel, MeowClip, type CatAnimation, type Outfit } from "./cat";
 import { hasDoorway, openLandscape, pathEdge } from "./doors";
+import { chunkAt, clampToWorld, place, worldBounds, type PlacedChunk } from "./overworld";
 import { lazily } from "./lazy";
 import { appLog } from "./telemetry";
 import { lookOf } from "./looks";
@@ -57,6 +58,9 @@ const selectionColour = "#f0a04b";
 const there = 0.05;
 /** How tall a room's back wall is, in metres. */
 const wallHeight = 4;
+/** How much floor the open world's camera fits at its furthest zoom, in metres: about the distance a cat sees (WorldSpace.ViewDistance). */
+const openViewWidth = 48;
+const openViewDepth = 30;
 
 // The cat model's bytes: fetched once, on the way into the first room; every room reads them into its own scene. A
 // fetch that failed is tried again by the next room.
@@ -106,7 +110,9 @@ export class RoomScene {
 
   // The room showing's back wall and props (one mesh, rebuilt when a home's furniture changes), and the ring round the
   // piece of furniture selected while decorating.
-  private wall: Part | undefined;
+  private walls: Part[] = [];
+  // The chunks showing in world metres: a room alone is one at the middle.
+  private chunks: PlacedChunk[] | undefined;
   private decor: Mesh | undefined;
   private activities = new RoomActivities();
   private activityClicked: (prop: PropView) => void = () => {};
@@ -197,7 +203,7 @@ export class RoomScene {
   }
 
   approach(prop: PropView, room: RoomSnapshot): { x: number; z: number } | undefined {
-    return besideProp(this.props, room, prop.x, prop.z);
+    return this.besideAt(prop.x, prop.z) ?? besideProp(this.props, room, prop.x, prop.z);
   }
 
   tend(prop: PropView): string {
@@ -213,9 +219,9 @@ export class RoomScene {
   }
 
   /** The nearest furniture or floor along the ray (not the wall, which is in the same mesh): the spot on the floor under it. */
-  private editTap(hits: PickingInfo[], floor: AbstractMesh, decor: AbstractMesh | undefined): void {
+  private editTap(hits: PickingInfo[], floors: ReadonlySet<AbstractMesh>, decor: AbstractMesh | undefined): void {
     const onFurniture = (point: Vector3) => this.props.some((p) => Math.hypot(point.x - p.x, point.z - p.z) <= p.radius);
-    const spot = hits.map((pick) => pick.pickedMesh === floor || (pick.pickedMesh === decor && pick.pickedPoint && onFurniture(pick.pickedPoint))
+    const spot = hits.map((pick) => (pick.pickedMesh && floors.has(pick.pickedMesh)) || (pick.pickedMesh === decor && pick.pickedPoint && onFurniture(pick.pickedPoint))
       ? pick.pickedPoint
       : null).find((point) => point);
     if (spot) {
@@ -260,19 +266,37 @@ export class RoomScene {
     // Keep the viewing direction steady while zooming and following the cat.
     const camera = new ArcRotateCamera("camera", -Math.PI / 2, cameraPitch, 1, Vector3.Zero(), this.scene);
     camera.fov = fieldOfView;
+    // The open world: every outdoor room in place, and a camera that follows the cat over all of it. A room alone is the
+    // same, as one chunk at the middle.
+    const chunks = (room.chunks?.length
+      ? room.chunks
+      : [{ roomId: room.roomId, name: room.roomName, x: 0, z: 0, width: room.width, depth: room.depth, pond: room.pond,
+        doors: room.doors, props: room.props ?? [], look: room.look ?? null }]).map(place);
+    const world = room.chunks?.length ? chunks : undefined;
+    this.chunks = chunks;
+    const arrival = chunks.find((chunk) => chunk.roomId === room.roomId) ?? chunks[0];
+    if (!arrival) {
+      throw new Error("The room has no floor.");
+    }
+    const view = world ? { width: openViewWidth, depth: openViewDepth } : room;
     let aspect = this.engine.getAspectRatio(camera);
-    let fitted = cameraRadius(aspect, room.width, room.depth);
+    let fitted = cameraRadius(aspect, view.width, view.depth);
     const aim = () => {
+      const cat = this.playerId === undefined ? undefined : this.positionOf(this.playerId);
+      if (world) {
+        const focus = cat ?? arrival;
+        camera.target.set(focus.x, 0, focus.z);
+        return;
+      }
       if (camera.radius === fitted) {
         return;
       }
-      const cat = this.playerId === undefined ? undefined : this.positionOf(this.playerId);
       const focus = cameraFocus(room, cat, aspect, camera.radius, fitted);
       camera.target.set(focus.x, 0, focus.z);
     };
     const fit = () => {
       aspect = this.engine.getAspectRatio(camera);
-      fitted = cameraRadius(aspect, room.width, room.depth);
+      fitted = cameraRadius(aspect, view.width, view.depth);
       camera.beta = roomPitch(aspect);
       camera.radius = zoomRadius(fitted, this.zoom ?? startingZoom(aspect, this.touch));
       camera.target.setAll(0);
@@ -288,82 +312,21 @@ export class RoomScene {
     this.scene.onDisposeObservable.add(() => this.engine.onResizeObservable.removeCallback(fit));
     camera.inputs.clear();
 
-    const look = lookOf(room.roomId, room.look);
-    this.scene.clearColor = Color4.FromHexString(`${look.sky}ff`);
-    const plan: Floorplan = { width: room.width, depth: room.depth, pond: room.pond, doors: room.doors, props: look.floorNeedsProps ? room.props : undefined };
-    const floor = CreateGround("floor", { width: room.width, height: room.depth }, this.scene);
-    floor.material = look.paintFloor
-      ? painted(this.scene, "floor", `${room.roomId}/floor/${look.floorVariant ?? ""}${look.paintKey ?? ""}/${JSON.stringify(plan)}`, textureSize(room.width, room.depth, floorPixelsPerMetre),
-        (brush, scale) => look.paintFloor?.(brush, plan, scale))
-      : flat(this.scene, "floor", look.floorColour);
-    // The floor's dark edge: a little larger and just below it. Not renderOutline, whose pass, from far off (a narrow
-    // screen backs the camera away), covered whatever lay flat on the floor, the pond.
-    const rim = CreateGround("floor-edge", { width: room.width + 0.08, height: room.depth + 0.08 }, this.scene);
-    rim.position.y = -0.01;
-    rim.material = flat(this.scene, "floor-edge", ink);
-    rim.isPickable = false;
-    if (look.ground) {
-      // The ground round the room, below the floor's edge: out past where the camera sees in front and to the sides,
-      // and behind the backdrop (the sky shows over it).
-      const [width, depth] = [400, 200 + room.depth / 2 + 40];
-      const ground = CreateGround("ground", { width, height: depth }, this.scene);
-      ground.position.set(0, -0.03, (room.depth / 2 + 40 - 200) / 2);
-      const { colour, paint } = look.ground;
-      ground.material = paint
-        ? painted(this.scene, "ground", `${room.roomId}/ground${look.paintKey ?? ""}`, textureSize(streetTile, streetTile, floorPixelsPerMetre), paint,
-          { u: width / streetTile, v: depth / streetTile })
-        : flat(this.scene, "ground", colour);
-      ground.isPickable = false;
+    const floors = new Set<AbstractMesh>();
+    const ponds = new Set<AbstractMesh>();
+    const doors = new Map<AbstractMesh, DoorView>();
+    const walls: Part[] = [];
+    const animations: ((seconds: number) => void)[] = [];
+    const skies = new Map<string, Color4>();
+    for (const chunk of chunks) {
+      this.drawChunk(chunk, chunk === arrival, world ? chunks : undefined, { floors, ponds, doors, walls, animations, skies });
     }
-    // The back wall, outlined like the props (and with them), its front painted: a plane just in front of it (the
-    // doorways stand in front of that).
-    const wall: Part = {
-      shape: "box", width: room.width, height: wallHeight, depth: 0.3, at: [0, wallHeight / 2, room.depth / 2 + 0.15],
-      colour: look.wallColour,
-    };
-    if (look.paintWall && !openLandscape(room.roomId)) {
-      const front = CreatePlane("back-wall-front", { width: room.width, height: wallHeight }, this.scene);
-      front.position.set(0, wallHeight / 2, room.depth / 2 - 0.01);
-      // Painted round the doorways in it (the doors by the wall: the ones drawDoor draws a doorway for).
-      const doorways = room.doors.filter((door) => hasDoorway(door, room.depth, room.roomId));
-      front.material = painted(this.scene, "back-wall-front",
-        `${room.roomId}/wall${look.paintKey ?? ""}/${room.width}/${JSON.stringify(doorways)}`, textureSize(room.width, wallHeight, wallPixelsPerMetre),
-        (brush, scale) => look.paintWall?.(brush, room.width, wallHeight, scale, doorways));
-      front.isPickable = false;
-    }
-    // The wall and the props: one mesh, drawn in one go. Cats walk through props; a tap on one walks the cat beside it
-    // (a tap on the wall does nothing). The backdrop is another, which a tap never tests: it does nothing there.
-    this.wall = openLandscape(room.roomId) ? undefined : wall;
+    this.walls = walls;
     this.activities = new RoomActivities();
-    this.props = room.props ?? [];
+    this.props = chunks.flatMap((chunk) => chunk.props);
     this.decor = undefined;
     this.drawDecor();
-    const backdrop = buildParts(this.scene, "backdrop", look.backdrop(plan, wallHeight));
-    if (backdrop) {
-      backdrop.isPickable = false;
-    }
-
-    // The pond: a flat disc of water just above the floor. Clicking it fishes, rather than walking into it.
-    let pond: AbstractMesh | undefined;
-    if (room.pond) {
-      // Two flat cylinders: the water, and a little larger and just below it, its dark edge, as the floor has. Not
-      // renderOutline: on something this flat the outline pass painted over the whole of it.
-      const edge = CreateCylinder("pond-edge", { diameter: room.pond.radius * 2 + 0.16, height: 0.02, tessellation: 48 }, this.scene);
-      edge.position.set(room.pond.x, 0.01, room.pond.z);
-      edge.material = flat(this.scene, "pond-edge", ink);
-      edge.isPickable = false;
-      pond = CreateCylinder("pond", { diameter: room.pond.radius * 2, height: 0.02, tessellation: 48 }, this.scene);
-      pond.position.set(room.pond.x, 0.03, room.pond.z);
-      pond.material = flat(this.scene, "pond", "#5fb3d9");
-    }
-
-    // The doors, each a mat on the floor (and, by the back wall, a doorway in it) that walks the cat through when clicked.
-    const doors = new Map<AbstractMesh, DoorView>();
-    for (const door of room.doors) {
-      for (const part of this.drawDoor(door, room)) {
-        doors.set(part, door);
-      }
-    }
+    this.scene.clearColor = skies.get(arrival.roomId) ?? sky;
 
     // A tap goes to the first thing along its ray in this order, not to the nearest: another cat, a door, the pond, the
     // player's own cat, the catalogue stand, a prop (beside it), the floor or its edge. Props are tall and cats walk through them: a
@@ -373,7 +336,7 @@ export class RoomScene {
       const hits = picks.filter((pick) => pick.hit && pick.pickedMesh).sort((a, b) => a.distance - b.distance);
       const decor = this.decor;
       if (this.editing) {
-        this.editTap(hits, floor, decor);
+        this.editTap(hits, floors, decor);
         return;
       }
       const catIds = hits.map((pick) => catPlayerIdOf(pick.pickedMesh));
@@ -381,18 +344,18 @@ export class RoomScene {
       const ownCat = this.playerId !== undefined && catIds.includes(this.playerId) ? this.playerId : undefined;
       const door = hits.map((pick) => (pick.pickedMesh ? doors.get(pick.pickedMesh) : undefined)).find((d) => d);
       const onProps = hits.filter((pick) => decor && pick.pickedMesh === decor && pick.pickedPoint);
-      const ground = hits.find((pick) => pick.pickedMesh === floor)?.pickedPoint;
+      const ground = hits.find((pick) => pick.pickedMesh && floors.has(pick.pickedMesh))?.pickedPoint;
       // The stand, tapped, or the floor it stands on (it is small, to tap on a phone).
       const pickedProp = [...onProps.map((pick) => pick.pickedPoint), ground]
         .map((point) => (point ? propAt(this.props, point.x, point.z) : undefined))
         .find((prop) => prop && (prop.kind === catalogueStandKind || activityName(prop)));
       const beside = onProps
-        .map((pick) => besideProp(this.props, room, pick.pickedPoint?.x ?? 0, pick.pickedPoint?.z ?? 0)).find((spot) => spot);
+        .map((pick) => this.besideAt(pick.pickedPoint?.x ?? 0, pick.pickedPoint?.z ?? 0)).find((spot) => spot);
       if (catId !== undefined) {
         this.catClicked(catId);
       } else if (door) {
         this.doorClicked(door);
-      } else if (pond && hits.some((pick) => pick.pickedMesh === pond)) {
+      } else if (hits.some((pick) => pick.pickedMesh && ponds.has(pick.pickedMesh))) {
         this.pondClicked();
       } else if (ownCat !== undefined) {
         this.catClicked(ownCat);
@@ -414,6 +377,11 @@ export class RoomScene {
         const cat = this.playerId === undefined ? undefined : this.positionOf(this.playerId);
         if (cat) {
           const ray = this.scene.createPickingRay(x, y, Matrix.Identity(), camera);
+          if (world) {
+            // Past the floor's edge: the nearest spot of the world's floor under where the tap points.
+            const distance = ray.direction.y < -0.0001 ? -ray.origin.y / ray.direction.y : 0;
+            return clampToWorld(world, { x: ray.origin.x + ray.direction.x * distance, z: ray.origin.z + ray.direction.z * distance });
+          }
           return sceneryTarget(cat, ray, room);
         }
       });
@@ -423,18 +391,130 @@ export class RoomScene {
         this.tapScreen(this.scene.pointerX, this.scene.pointerY);
       }
     };
-    const animateWildlife = wildlife(this.scene, room, look.wildlife);
+    let skyOf = arrival.roomId;
     this.scene.onBeforeRenderObservable.add(() => {
       const seconds = this.frameSeconds;
       this.step(seconds);
-      animateWildlife?.(seconds);
+      for (const animate of animations) {
+        animate(seconds);
+      }
       aim();
+      // The sky of the room the cat is in.
+      const cat = world && this.playerId !== undefined ? this.positionOf(this.playerId) : undefined;
+      const here = cat && chunkAt(chunks, cat);
+      if (here && here.roomId !== skyOf) {
+        skyOf = here.roomId;
+        this.scene.clearColor = skies.get(skyOf) ?? sky;
+      }
     });
 
     for (const cat of room.cats) {
       this.place(cat);
     }
     aim();
+  }
+
+  private drawChunk(
+    chunk: PlacedChunk,
+    isArrival: boolean,
+    world: PlacedChunk[] | undefined,
+    drawn: {
+      floors: Set<AbstractMesh>; ponds: Set<AbstractMesh>; doors: Map<AbstractMesh, DoorView>; walls: Part[];
+      animations: ((seconds: number) => void)[]; skies: Map<string, Color4>;
+    },
+  ): void {
+    const { floors, ponds, doors, walls, animations, skies } = drawn;
+    const look = lookOf(chunk.roomId, chunk.look);
+    skies.set(chunk.roomId, Color4.FromHexString(`${look.sky}ff`));
+    const { x: cx, z: cz, width, depth } = chunk;
+    const { pond: roomPond, doors: roomDoors, props: roomProps } = chunk.local;
+    const plan: Floorplan = { width, depth, pond: roomPond, doors: roomDoors, props: look.floorNeedsProps ? roomProps : undefined };
+    const floor = CreateGround("floor", { width, height: depth }, this.scene);
+    floor.position.set(cx, 0, cz);
+    floor.material = look.paintFloor
+      ? painted(this.scene, "floor", `${chunk.roomId}/floor/${look.floorVariant ?? ""}${look.paintKey ?? ""}/${JSON.stringify(plan)}`, textureSize(width, depth, floorPixelsPerMetre),
+        (brush, scale) => look.paintFloor?.(brush, plan, scale))
+      : flat(this.scene, "floor", look.floorColour);
+    floors.add(floor);
+    // The floor's dark edge: a little larger and just below it. Not renderOutline, whose pass, from far off (a narrow
+    // screen backs the camera away), covered whatever lay flat on the floor, the pond.
+    const rim = CreateGround("floor-edge", { width: width + 0.08, height: depth + 0.08 }, this.scene);
+    rim.position.set(cx, -0.01, cz);
+    rim.material = flat(this.scene, "floor-edge", ink);
+    rim.isPickable = false;
+    if (look.ground && isArrival) {
+      this.drawGround(look.ground, chunk, world, look.paintKey);
+    }
+    // The back wall, outlined like the props (and with them), its front painted: a plane just in front of it (the
+    // doorways stand in front of that).
+    if (look.paintWall && !openLandscape(chunk.roomId)) {
+      const front = CreatePlane("back-wall-front", { width, height: wallHeight }, this.scene);
+      front.position.set(cx, wallHeight / 2, cz + depth / 2 - 0.01);
+      // Painted round the doorways in it (the doors by the wall: the ones drawDoor draws a doorway for).
+      const doorways = roomDoors.filter((door) => hasDoorway(door, depth, chunk.roomId));
+      front.material = painted(this.scene, "back-wall-front",
+        `${chunk.roomId}/wall${look.paintKey ?? ""}/${width}/${JSON.stringify(doorways)}`, textureSize(width, wallHeight, wallPixelsPerMetre),
+        (brush, scale) => look.paintWall?.(brush, width, wallHeight, scale, doorways));
+      front.isPickable = false;
+    }
+    if (!openLandscape(chunk.roomId)) {
+      walls.push({ shape: "box", width, height: wallHeight, depth: 0.3, at: [cx, wallHeight / 2, cz + depth / 2 + 0.15], colour: look.wallColour });
+    }
+    // The backdrop is another mesh, which a tap never tests: it does nothing there.
+    const backdrop = buildParts(this.scene, "backdrop",
+      look.backdrop(plan, wallHeight).map((part) => ({ ...part, at: [part.at[0] + cx, part.at[1], part.at[2] + cz] })));
+    if (backdrop) {
+      backdrop.isPickable = false;
+    }
+
+    // The pond: a flat disc of water just above the floor. Clicking it fishes, rather than walking into it.
+    if (chunk.pond) {
+      // Two flat cylinders: the water, and a little larger and just below it, its dark edge, as the floor has. Not
+      // renderOutline: on something this flat the outline pass painted over the whole of it.
+      const edge = CreateCylinder("pond-edge", { diameter: chunk.pond.radius * 2 + 0.16, height: 0.02, tessellation: 48 }, this.scene);
+      edge.position.set(chunk.pond.x, 0.01, chunk.pond.z);
+      edge.material = flat(this.scene, "pond-edge", ink);
+      edge.isPickable = false;
+      const water = CreateCylinder("pond", { diameter: chunk.pond.radius * 2, height: 0.02, tessellation: 48 }, this.scene);
+      water.position.set(chunk.pond.x, 0.03, chunk.pond.z);
+      water.material = flat(this.scene, "pond", "#5fb3d9");
+      ponds.add(water);
+    }
+
+    // The doors, each a mat on the floor (and, by the back wall, a doorway in it) that walks the cat through when
+    // clicked. Drawn as the room has them, under a node at its middle; a tap gets the door in world metres.
+    const at = new TransformNode(`doors-${chunk.roomId}`, this.scene);
+    at.position.set(cx, 0, cz);
+    roomDoors.forEach((door, index) => {
+      const placed = chunk.doors[index] ?? door;
+      for (const part of this.under(at, () => this.drawDoor(door, chunk))) {
+        doors.set(part, placed);
+      }
+    });
+    const animate = wildlife(this.scene, chunk, look.wildlife);
+    if (animate) {
+      animations.push(animate);
+    }
+  }
+
+  /** The ground round the room, below the floor's edge: out past where the camera sees; under the whole world when there is one. */
+  private drawGround(
+    look: NonNullable<ReturnType<typeof lookOf>["ground"]>, chunk: PlacedChunk, world: PlacedChunk[] | undefined, paintKey: string | undefined,
+  ): void {
+    const { x: cx, depth } = chunk;
+    const bounds = world ? worldBounds(world) : undefined;
+    const [groundWidth, groundDepth] = bounds
+      ? [bounds.maxX - bounds.minX + 400, bounds.maxZ - bounds.minZ + 400]
+      : [400, 200 + depth / 2 + 40];
+    const ground = CreateGround("ground", { width: groundWidth, height: groundDepth }, this.scene);
+    ground.position.set(
+      bounds ? (bounds.minX + bounds.maxX) / 2 : cx, -0.03, bounds ? (bounds.minZ + bounds.maxZ) / 2 : (depth / 2 + 40 - 200) / 2);
+    const { colour, paint } = look;
+    ground.material = paint
+      ? painted(this.scene, "ground", `${chunk.roomId}/ground${paintKey ?? ""}`, textureSize(streetTile, streetTile, floorPixelsPerMetre), paint,
+        { u: groundWidth / streetTile, v: groundDepth / streetTile })
+      : flat(this.scene, "ground", colour);
+    ground.isPickable = false;
   }
 
   place(cat: CatView): void {
@@ -508,17 +588,40 @@ export class RoomScene {
 
   /** A home's furniture changed: the room's props are drawn again as <props>, with the back wall (one mesh). */
   furnish(props: PropView[]): void {
-    if (!this.wall) {
+    if (this.walls.length === 0) {
       return;
     }
     this.props = props;
     this.drawDecor();
   }
 
+  /** Where a cat sent beside the prop at a spot (in world metres) stands, by the edges of the room the spot is in. */
+  private besideAt(x: number, z: number): { x: number; z: number } | undefined {
+    const chunk = this.chunks && (chunkAt(this.chunks, { x, z }) ?? this.chunks[0]);
+    if (!chunk) {
+      return undefined;
+    }
+    const props = this.props.map((p) => ({ ...p, x: p.x - chunk.x, z: p.z - chunk.z }));
+    const spot = besideProp(props, chunk, x - chunk.x, z - chunk.z);
+    return spot && { x: spot.x + chunk.x, z: spot.z + chunk.z };
+  }
+
+  /** Whatever <draw> makes that has no parent yet hangs off <node>. */
+  private under<T>(node: TransformNode, draw: () => T): T {
+    const known = new Set(this.scene.meshes);
+    const drawn = draw();
+    for (const mesh of this.scene.meshes) {
+      if (!known.has(mesh) && !mesh.parent) {
+        mesh.parent = node;
+      }
+    }
+    return drawn;
+  }
+
   private drawDecor(): void {
     this.decor?.dispose(false, true);
     const parts = this.props.flatMap(prop => propParts(prop, this.activities.stage(prop)));
-    this.decor = buildParts(this.scene, "decor", [...(this.wall ? [this.wall] : []), ...parts]);
+    this.decor = buildParts(this.scene, "decor", [...this.walls, ...parts]);
   }
 
   /** Rings the piece of furniture selected while decorating, on the floor round it; none, no ring. */

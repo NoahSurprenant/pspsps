@@ -29,6 +29,7 @@ public sealed record RoomLayout(string Name, double Width, double Depth, Positio
             Pond = room.Pond,
             Look = room.Look,
             Props = room.Props,
+            Place = room.Place,
             Doors = [.. room.Doors.Select(door => DoorOf(room, door))],
         };
     }
@@ -40,6 +41,7 @@ public sealed record RoomLayout(string Name, double Width, double Depth, Positio
         {
             Props = Props,
             Look = Look,
+            Place = Place,
         };
         return room.WithDoors([.. Doors.Select(door => (door.Id, door.Edge, door.Offset, door.ToRoom, door.ToDoor))]);
     }

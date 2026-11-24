@@ -7,7 +7,7 @@ namespace Pspsps.Server.Game;
 /// Versioned: a change to it is add-only and bumps the version (docs/architecture.md, "Changing what pods say to each
 /// other"), which Pspsps.Server.Test's WireContractTests check against wire-contracts.txt.
 /// </remarks>
-[Version(4)] // Use a silo that knows the new outdoor routes on both sides.
+[Version(5)] // WhereIs: the room a cat in the open world is in.
 public interface IRoomGrain : IGrainWithStringKey
 {
     /// <summary>
@@ -36,6 +36,9 @@ public interface IRoomGrain : IGrainWithStringKey
 
     /// <summary>Whether the player's cat is here, played from <paramref name="session"/>: where friends find it.</summary>
     Task<bool> Has(Guid playerId, string session);
+
+    /// <summary>The ID of the room the player's cat stands in when <paramref name="session"/> controls it (out in the open world, the room whose floor it is on); null when it isn't here.</summary>
+    Task<string?> WhereIs(Guid playerId, string session);
 
     Task Move(Guid playerId, double x, double z);
 

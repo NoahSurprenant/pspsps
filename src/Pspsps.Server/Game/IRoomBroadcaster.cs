@@ -40,4 +40,20 @@ public interface IRoomBroadcaster
     /// more from, and why.
     /// </summary>
     Task SentOut(string roomKey, string session, string message);
+
+    // The open world tells each tab only what it can see: these go to the given tabs (connections), not a room's whole group.
+
+    Task CatJoined(IReadOnlyList<string> sessions, CatView cat);
+
+    Task CatLeft(IReadOnlyList<string> sessions, Guid playerId);
+
+    Task CatMoved(IReadOnlyList<string> sessions, Guid playerId, double x, double z);
+
+    Task ChatSaid(IReadOnlyList<string> sessions, ChatView line);
+
+    Task CatEmoted(IReadOnlyList<string> sessions, EmoteView emote);
+
+    Task CatDressed(IReadOnlyList<string> sessions, OutfitView outfit);
+
+    Task CatRenamed(IReadOnlyList<string> sessions, RenameView rename);
 }

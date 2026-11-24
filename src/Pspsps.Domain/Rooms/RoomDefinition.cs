@@ -16,6 +16,9 @@ public sealed record RoomDefinition(
     /// <summary>The ID of the look the browser paints the room in (an overlay's season, say); null for the room's own.</summary>
     public string? Look { get; init; }
 
+    /// <summary>Where an outdoor room sits on the world grid (<see cref="WorldSpace"/>); null for an indoor room.</summary>
+    public WorldPlace? Place { get; init; }
+
     /// <summary>Whether this is the same room as <paramref name="other"/> to a cat in it: the same floor, doors, props and look.</summary>
     public bool SameAs(RoomDefinition other)
     {

@@ -131,6 +131,25 @@ export interface RoomSnapshot {
   worldMap?: WorldMapView | null;
   /** The look an overlay gives the room for now (a named variant of its own look); missing when it has none, or from an older server. */
   look?: string | null;
+  /**
+   * Set in the open world: every outdoor room, in place. Cat positions in the snapshot and from then on are world metres
+   * (east, south), not metres from this room's middle, and the room named above is the one the cat is in now.
+   */
+  chunks?: ChunkView[] | null;
+}
+
+/** One outdoor room of the open world (Contracts.cs, ChunkView): its middle in world metres, and the rest in metres from it. */
+export interface ChunkView {
+  roomId: string;
+  name: string;
+  x: number;
+  z: number;
+  width: number;
+  depth: number;
+  pond: PondView | null;
+  doors: DoorView[];
+  props: PropView[];
+  look: string | null;
 }
 
 /** Who may come into a player's home, besides its owner (the Domain's HomeVisitors). */

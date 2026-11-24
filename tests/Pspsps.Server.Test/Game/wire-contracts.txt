@@ -78,6 +78,24 @@ grain IRoomGrain 4: Task<IReadOnlyList<String>> Renew(IReadOnlyList<PlayerSessio
 grain IRoomGrain 4: Task<ReelView> Reel(Guid playerId)
 grain IRoomGrain 4: Task<RoomSnapshot> Join(PlayerCard player, String session, String throughDoor)
 
+grain IRoomGrain 5: Task Cast(Guid playerId)
+grain IRoomGrain 5: Task Dress(OutfitView outfit)
+grain IRoomGrain 5: Task Emote(Guid playerId, String emote)
+grain IRoomGrain 5: Task Furnish(HomeView home)
+grain IRoomGrain 5: Task Leave(Guid playerId, String session)
+grain IRoomGrain 5: Task Move(Guid playerId, Double x, Double z)
+grain IRoomGrain 5: Task Rename(Guid playerId, String displayName)
+grain IRoomGrain 5: Task Say(Guid playerId, String text)
+grain IRoomGrain 5: Task SendOut(IReadOnlyList<Guid> playerIds, String message)
+grain IRoomGrain 5: Task<Boolean> Has(Guid playerId, String session)
+grain IRoomGrain 5: Task<DoorTarget> LeaveThrough(Guid playerId, String session, String doorId)
+grain IRoomGrain 5: Task<IReadOnlyList<ChatView>> RecentChat()
+grain IRoomGrain 5: Task<IReadOnlyList<Guid>> CatsHere()
+grain IRoomGrain 5: Task<IReadOnlyList<String>> Renew(IReadOnlyList<PlayerSession> sessions)
+grain IRoomGrain 5: Task<ReelView> Reel(Guid playerId)
+grain IRoomGrain 5: Task<RoomSnapshot> Join(PlayerCard player, String session, String throughDoor)
+grain IRoomGrain 5: Task<String> WhereIs(Guid playerId, String session)
+
 grain IWorldGrain 1: Task Leave(Guid playerId, String session)
 grain IWorldGrain 1: Task<Boolean> TryEnter(Guid playerId, String session)
 grain IWorldGrain 1: Task<IReadOnlyList<String>> Renew(IReadOnlyList<PlayerSession> sessions)
@@ -179,3 +197,15 @@ type RoomSnapshot 13: WorldMapView WorldMap
 type RoomSnapshot 14: String Look
 
 type WorldMapView 0: IReadOnlyList<MapPlaceView> Places
+type RoomSnapshot 15: IReadOnlyList<ChunkView> Chunks
+
+type ChunkView 0: String RoomId
+type ChunkView 1: String Name
+type ChunkView 2: Double X
+type ChunkView 3: Double Z
+type ChunkView 4: Double Width
+type ChunkView 5: Double Depth
+type ChunkView 6: PondView Pond
+type ChunkView 7: IReadOnlyList<DoorView> Doors
+type ChunkView 8: IReadOnlyList<PropView> Props
+type ChunkView 9: String Look

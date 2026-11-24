@@ -83,10 +83,12 @@ internal sealed class PlayerSessionGrain : Grain, IPlayerSessionGrain
             return null;
         }
 
-        if (await GrainFactory.GetGrain<IRoomGrain>(key).Has(this.GetPrimaryKey(), session))
+        // Out in the open world the room is the one whose floor the cat stands on, not the world's one grain.
+        var room = GrainFactory.GetGrain<IRoomGrain>(key);
+        var here = await room.WhereIs(this.GetPrimaryKey(), session);
+        if (here is not null)
         {
-            var (worldId, roomId) = RoomKey.Parse(key);
-            return new PlayerPlace(worldId, roomId);
+            return new PlayerPlace(RoomKey.Parse(key).WorldId, here);
         }
 
         // Other calls ran while the room answered (Locate interleaves): forget the room only if nothing moved the pointer.
