@@ -22,24 +22,7 @@ internal sealed partial class RoomGrain
         var space = new WorldSpace(library.All);
         _world = new OverworldState(space, WorldCatalog.Find(worldId)?.Capacity ?? 300);
         _worldMap = WorldMapView.From(library.All);
-        _chunks =
-        [
-            .. space.Rooms.Select(room =>
-            {
-                var centre = space.ToWorld(room.Id, new Position(0, 0));
-                return new ChunkView(
-                    room.Id,
-                    room.Name,
-                    centre.X,
-                    centre.Z,
-                    room.Width,
-                    room.Depth,
-                    room.Pond is { } pond ? new PondView(pond.Center.X, pond.Center.Z, pond.Radius) : null,
-                    [.. room.Doors.Select(door => DoorView.From(door, library))],
-                    [.. room.Props.Select(PropView.From)],
-                    room.Look);
-            }),
-        ];
+        _chunks = ChunkViews.Of(library.All);
         this.RegisterGrainTimer(
             static (grain, _) => grain.RemoveExpired(),
             this,
@@ -235,11 +218,12 @@ internal sealed partial class RoomGrain
     private async Task SyncNear(CatInRoom cat)
     {
         var world = _world!;
-        var affected = world.Cats
-            .Where(other => other.PlayerId == cat.PlayerId
-                || other.Position.DistanceTo(cat.Position) <= WorldSpace.ViewDistance
-                || (_known.TryGetValue(other.PlayerId, out var known) && known.Contains(cat.PlayerId)))
+        var affected = world.CatsAround(cat.Position)
+            .Where(other => other.Position.DistanceTo(cat.Position) <= WorldSpace.ViewDistance)
             .Select(other => other.PlayerId)
+            .Append(cat.PlayerId)
+            .Concat(_known.Where(entry => entry.Value.Contains(cat.PlayerId)).Select(entry => entry.Key))
+            .Distinct()
             .ToList();
         foreach (var viewer in affected)
         {

@@ -27,6 +27,7 @@ export function roomPreview(canvas: HTMLCanvasElement): RoomPreview {
     await Promise.all([loadPropDesigns(), loadLooks()]);
     const engine = new Engine(canvas, true, { stencil: true, canvasTabIndex: -1 });
     const made = new RoomScene(engine, undefined, false);
+    made.markArrival = true;
     window.addEventListener("resize", () => engine.resize());
     return made;
   };

@@ -121,6 +121,10 @@ jobs:
           - name: layout-4
             suite: layout
             shard: "4/4"
+          # Publishes every draft room, so it has a runner and a database to itself.
+          - name: published-world
+            suite: world
+            shard: ""
     # The shipped image, run against PostgreSQL, driven by Chromium (software WebGL).
     services:
       postgres:
@@ -448,6 +452,15 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           path: e2e/screenshots/draft-rooms.png
+          archive: false
+          retention-days: 30
+          overwrite: true
+      # The game with every draft published, a cat at the seams between rooms (e2e/tests/publishedWorld.spec.ts).
+      - name: Upload the published world contact sheet
+        if: ${{ !cancelled() && hashFiles('e2e/screenshots/published-world.png') != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          path: e2e/screenshots/published-world.png
           archive: false
           retention-days: 30
           overwrite: true

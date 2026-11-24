@@ -324,4 +324,52 @@ public sealed class OverworldTests
             Assert.That(() => world.GoTo(a, Guid.NewGuid(), 4), Throws.TypeOf<DomainException>());
         });
     }
+
+    [Test]
+    public void WhoIsInView_AndWhoHearsALine_IsWhatAFullScanOfTheCrowdGives_WhereverCatsWalkAndLeave()
+    {
+        var world = new OverworldState(new WorldSpace([new RoomDefinition("big", "Big", 400, 300, new Position(0, 0), 500)
+        {
+            Place = new WorldPlace(-100, -75),
+        }]), 500);
+        var random = new Random(7);
+        var ids = Enumerable.Range(0, 150).Select(_ => Guid.NewGuid()).ToList();
+        foreach (var id in ids)
+        {
+            world.Join(id, "Cat", FurColor.Orange, id.ToString(), Now, "big");
+        }
+
+        for (var round = 0; round < 20; round++)
+        {
+            foreach (var id in ids.Where(id => world.Find(id) is not null))
+            {
+                Walk(world, id, new Position(random.NextDouble() * 400 - 200, random.NextDouble() * 300 - 150));
+            }
+
+            if (round % 5 == 4)
+            {
+                var leaving = ids.First(id => world.Find(id) is not null);
+                world.Leave(leaving, leaving.ToString());
+            }
+
+            foreach (var viewer in ids.Where(id => world.Find(id) is not null).Take(10))
+            {
+                var me = world.Find(viewer)!;
+                var expected = world.Cats
+                    .Where(cat => cat.PlayerId != viewer && cat.Position.DistanceTo(me.Position) <= WorldSpace.ViewDistance)
+                    .OrderBy(cat => cat.Position.DistanceTo(me.Position)).ThenBy(cat => cat.PlayerId)
+                    .Take(WorldSpace.MaxVisibleCats).Select(cat => cat.PlayerId);
+                Assert.That(world.VisibleTo(viewer).Select(cat => cat.PlayerId), Is.EqualTo(expected), $"round {round}");
+            }
+        }
+
+        var speaker = ids.Last(id => world.Find(id) is not null);
+        var (_, heard) = world.Say(speaker, "hello", Open, _clock);
+        var speakerAt = world.Find(speaker)!.Position;
+        var wouldHear = world.Cats
+            .Where(cat => cat.PlayerId == speaker || (cat.Position.DistanceTo(speakerAt) <= WorldSpace.ViewDistance
+                && world.VisibleTo(cat.PlayerId).Any(seen => seen.PlayerId == speaker)))
+            .Select(cat => cat.PlayerId);
+        Assert.That(heard, Is.EquivalentTo(wouldHear));
+    }
 }

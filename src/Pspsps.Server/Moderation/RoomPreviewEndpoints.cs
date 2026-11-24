@@ -74,9 +74,10 @@ public static class RoomPreviewEndpoints
             [],
             [.. preview.All.Where(r => r.Id != room.Id).Select(r => new RoomLink(r.Id, r.Name))],
             room.Pond is { } pond ? new PondView(pond.Center.X, pond.Center.Z, pond.Radius) : null,
-            [.. room.Doors.Select(d => new DoorView(d.Id, d.Spot.X, d.Spot.Z, d.Radius, d.ToRoom, byId[d.ToRoom].Name, d.Edge?.ToString().ToLowerInvariant()))],
+            [.. room.Doors.Select(d => DoorView.From(d, byId[d.ToRoom]))],
             [.. room.Props.Select(PropView.From)],
             WorldMap: WorldMapView.From(preview.All),
-            Look: room.Look);
+            Look: room.Look,
+            Chunks: room.Place is null ? null : ChunkViews.Of(preview.All));
     }
 }
