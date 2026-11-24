@@ -514,9 +514,10 @@ export class RoomScene {
 
   /** A room's own ground in the open world, fading out over <groundBlend> metres past its edges so it melts into the ground of the room next to it. */
   private drawGroundPatch(
-    look: NonNullable<ReturnType<typeof lookOf>["ground"]>, chunk: PlacedChunk, paintKey: string | undefined,
+    look: NonNullable<ReturnType<typeof lookOf>["ground"]>, chunk: PlacedChunk, paintKey: string | undefined, wholeWorld = false,
   ): void {
-    const [width, depth] = [chunk.width + 2 * groundBlend, chunk.depth + 2 * groundBlend];
+    const blend = groundBlendOf(wholeWorld);
+    const [width, depth] = [chunk.width + 2 * blend, chunk.depth + 2 * blend];
     const patch = CreateGround(`ground-${chunk.roomId}`, { width, height: depth }, this.scene);
     patch.position.set(chunk.x, -0.029 + this.groundPatches++ * 0.0004, chunk.z);
     patch.isPickable = false;
@@ -530,7 +531,7 @@ export class RoomScene {
     const pixels = context.getImageData(0, 0, 128, 128);
     for (let row = 0; row < 128; row++) {
       for (let column = 0; column < 128; column++) {
-        const level = fadeAt(column / 127, row / 127, groundBlend / width, groundBlend / depth);
+        const level = fadeAt(column / 127, row / 127, blend / width, blend / depth);
         pixels.data.set([level, level, level, 255], (row * 128 + column) * 4);
       }
     }
@@ -558,7 +559,7 @@ export class RoomScene {
       return;
     }
     const { minX, maxX, minZ, maxZ } = worldBounds(world);
-    this.drawGroundPatch(ground, { ...chunk, x: (minX + maxX) / 2, z: (minZ + maxZ) / 2, width: maxX - minX, depth: maxZ - minZ }, paintKey);
+    this.drawGroundPatch(ground, { ...chunk, x: (minX + maxX) / 2, z: (minZ + maxZ) / 2, width: maxX - minX, depth: maxZ - minZ }, paintKey, true);
   }
 
   /** The ground round a room alone, below the floor's edge: out past where the camera sees. */
@@ -1085,6 +1086,11 @@ export function stackLevels(names: { x: number; y: number; width: number }[]): n
 
 /** How far a room's ground reaches past its edges, fading, in the open world: about as far as the camera sees. */
 const groundBlend = 40;
+
+/** How far a ground patch fades out past its edges: a room's over <groundBlend> metres into its neighbour's; the one under the whole world over far more, so that within sight it is still nearly whole and meets the sky at the horizon, not as an edge. */
+export function groundBlendOf(wholeWorld: boolean): number {
+  return wholeWorld ? 300 : groundBlend;
+}
 
 /** The room whose ground lies under the whole open world: the one most of the placed rooms' area has, so no room's ground (the arrival room's street) runs on past the world's edge. */
 function groundChunkOf(chunks: PlacedChunk[], arrival: PlacedChunk): PlacedChunk {

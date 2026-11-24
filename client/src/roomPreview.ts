@@ -24,7 +24,7 @@ export function roomPreview(canvas: HTMLCanvasElement): RoomPreview {
     const [{ Engine }, { RoomScene }, { loadPropDesigns }, { loadLooks }] = await Promise.all([
       import("@babylonjs/core/Engines/engine"), import("./scene"), import("./props"), import("./looks"),
     ]);
-    await Promise.all([loadPropDesigns(), loadLooks()]);
+    await Promise.all([loadPropDesigns(), loadLooks(true)]);
     const engine = new Engine(canvas, true, { stencil: true, canvasTabIndex: -1 });
     const made = new RoomScene(engine, undefined, false);
     made.markArrival = true;
@@ -42,12 +42,12 @@ export function roomPreview(canvas: HTMLCanvasElement): RoomPreview {
       await this.draw(roomId, snapshot, draftLook);
     },
     async draw(roomId, snapshot, draftLook) {
-      // The scene first (making it reads the live looks, which would wipe a draft look set before it), then the live looks as
-      // they are now with the draft's over its room's: a draft that has been discarded or published leaves nothing behind.
+      // The scene first (making it reads the looks, which would wipe a draft look set before it), then every room's draft look (the live one where it has none) as
+      // they are now with the editor's draft over its room's: a draft that has been discarded or published leaves nothing behind.
       scene ??= make();
       const made = await scene;
       const { loadLooks, setDraftLook } = await import("./looks");
-      await loadLooks();
+      await loadLooks(true);
       if (draftLook) {
         setDraftLook(roomId, draftLook);
       }
