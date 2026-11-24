@@ -7,14 +7,14 @@ using Pspsps.Domain.Worlds;
 namespace Pspsps.Server.Game;
 
 // The open-world mode of the room grain (RoomKey.Overworld): every outdoor room's cats in one OverworldState, at world
-// positions. Each tab is told only about the cats near its own, so what a tab knows is tracked per player (_known).
+// positions. Each tab is told only about the cats near its own, so what a tab knows is tracked per player (_views).
 internal sealed partial class RoomGrain
 {
     private OverworldState? _world;
     private IReadOnlyList<ChunkView> _chunks = [];
 
-    // The cats each player's tab has been told about, so it is told what comes into view and what leaves it.
-    private readonly Dictionary<Guid, HashSet<Guid>> _known = [];
+    // The cats each player's tab has been told about (and the reverse), so it is told what comes into view and what leaves it.
+    private readonly ViewLedger _views = new();
 
     private void ActivateOverworld()
     {
@@ -55,7 +55,7 @@ internal sealed partial class RoomGrain
     {
         var cat = world.Find(playerId)!;
         var visible = world.VisibleTo(playerId);
-        _known[playerId] = [.. visible.Select(c => c.PlayerId)];
+        _views.Set(playerId, cat.Position, visible);
         await SyncNear(cat);
 
         var here = world.Space.RoomAt(cat.Position) ?? world.Space.Rooms.First(r => fallbackRoom is null || r.Id == fallbackRoom);
@@ -183,25 +183,23 @@ internal sealed partial class RoomGrain
             metrics.LeasesExpired("room", expired.Count);
         }
 
-        foreach (var playerId in expired)
+        // Forget them all before telling anyone, so a failure telling about one leaves none of the others half-forgotten.
+        var forgotten = expired.Select(playerId => (playerId, Viewers: _views.Forget(playerId))).ToList();
+        foreach (var (playerId, viewers) in forgotten)
         {
-            await Departed(playerId);
+            await Departed(playerId, viewers);
         }
 
         GoIfEmpty();
     }
 
     // The cat is out of the world already: everyone who knew it is told it is gone.
-    private async Task Departed(Guid playerId)
-    {
-        var watchers = WatchersOf(playerId);
-        var viewers = _known.Where(entry => entry.Value.Contains(playerId)).Select(entry => entry.Key).ToList();
-        _known.Remove(playerId);
-        foreach (var known in _known.Values)
-        {
-            known.Remove(playerId);
-        }
+    private Task Departed(Guid playerId) => Departed(playerId, _views.Forget(playerId));
 
+    // The ledger has forgotten the cat already (see RemoveExpiredFromOverworld, which forgets every expired cat before telling anyone).
+    private async Task Departed(Guid playerId, List<Guid> viewers)
+    {
+        var watchers = SessionsOf(viewers);
         if (watchers.Count > 0)
         {
             await broadcaster.CatLeft(watchers, playerId);
@@ -218,13 +216,7 @@ internal sealed partial class RoomGrain
     private async Task SyncNear(CatInRoom cat)
     {
         var world = _world!;
-        var affected = world.CatsAround(cat.Position)
-            .Where(other => other.Position.DistanceTo(cat.Position) <= WorldSpace.ViewDistance)
-            .Select(other => other.PlayerId)
-            .Append(cat.PlayerId)
-            .Concat(_known.Where(entry => entry.Value.Contains(cat.PlayerId)).Select(entry => entry.Key))
-            .Distinct()
-            .ToList();
+        var affected = _views.Affected(world, cat);
         foreach (var viewer in affected)
         {
             await Sync(viewer);
@@ -240,28 +232,31 @@ internal sealed partial class RoomGrain
         }
 
         var visible = world.VisibleTo(viewer);
-        var now = visible.Select(c => c.PlayerId).ToHashSet();
-        var known = _known.GetValueOrDefault(viewer) ?? [];
-        _known[viewer] = now;
+        var (gone, appeared) = _views.Changes(viewer, visible);
         var toSession = new[] { session };
-        foreach (var gone in known.Where(id => !now.Contains(id)))
+        // Each tell is recorded as it succeeds: a failure part-way leaves the viewer stale with exactly what its tab was told,
+        // and the next move carries on from there without repeating what the tab already handled.
+        foreach (var id in gone)
         {
-            await broadcaster.CatLeft(toSession, gone);
+            await broadcaster.CatLeft(toSession, id);
+            _views.Untold(viewer, id);
         }
 
-        foreach (var appeared in visible.Where(c => !known.Contains(c.PlayerId)))
+        foreach (var cat in appeared)
         {
-            await broadcaster.CatJoined(toSession, CatView.From(appeared));
+            await broadcaster.CatJoined(toSession, CatView.From(cat));
+            _views.Told(viewer, cat.PlayerId);
         }
+
+        _views.Settle(viewer, world.Find(viewer)!.Position, visible);
     }
 
     // The tabs to tell about a cat: its own, and every tab that has been told about it.
     private List<string> WatchersOf(Guid playerId)
     {
         var world = _world!;
-        var sessions = _known
-            .Where(entry => entry.Value.Contains(playerId))
-            .Select(entry => world.SessionOf(entry.Key))
+        var sessions = _views.Watching(playerId)
+            .Select(viewer => world.SessionOf(viewer))
             .Append(world.SessionOf(playerId))
             .OfType<string>()
             .Distinct()
