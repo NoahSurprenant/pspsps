@@ -235,11 +235,12 @@ internal sealed partial class RoomGrain
     private async Task SyncNear(CatInRoom cat)
     {
         var world = _world!;
-        var affected = world.Cats
-            .Where(other => other.PlayerId == cat.PlayerId
-                || other.Position.DistanceTo(cat.Position) <= WorldSpace.ViewDistance
-                || (_known.TryGetValue(other.PlayerId, out var known) && known.Contains(cat.PlayerId)))
+        var affected = world.CatsAround(cat.Position)
+            .Where(other => other.Position.DistanceTo(cat.Position) <= WorldSpace.ViewDistance)
             .Select(other => other.PlayerId)
+            .Append(cat.PlayerId)
+            .Concat(_known.Where(entry => entry.Value.Contains(cat.PlayerId)).Select(entry => entry.Key))
+            .Distinct()
             .ToList();
         foreach (var viewer in affected)
         {

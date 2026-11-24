@@ -15,6 +15,7 @@ public sealed class OverworldState(WorldSpace space, int capacity)
     public const int HeardHistory = 20;
 
     private readonly Dictionary<Guid, CatInRoom> _cats = [];
+    private readonly Dictionary<(int X, int Z), HashSet<Guid>> _cells = [];
     private readonly Dictionary<Guid, SessionLease> _leases = [];
     private readonly Dictionary<Guid, DateTimeOffset> _lastEmotes = [];
     private readonly Dictionary<Guid, Queue<HeardLine>> _heard = [];
@@ -75,7 +76,7 @@ public sealed class OverworldState(WorldSpace space, int capacity)
         var local = throughDoor is null ? room.Spawn : room.GetDoor(throughDoor).Arrival;
         var cat = new CatInRoom(
             playerId, displayName, furColor, Space.ToWorld(roomId, local), Hat: hat, Collar: collar, OutfitVersion: outfitVersion);
-        _cats.Add(playerId, cat);
+        Put(cat);
         _leases[playerId] = SessionLease.Start(session, now);
         _walks[playerId] = (WalkBurst, now);
         return cat;
@@ -170,7 +171,7 @@ public sealed class OverworldState(WorldSpace space, int capacity)
         }
 
         _walks[playerId] = (metres - distance, now);
-        _cats[playerId] = cat with { Position = position, Pose = CatPose.Standing };
+        Put(cat with { Position = position, Pose = CatPose.Standing });
         _lines.Remove(playerId);
         return position;
     }
@@ -242,7 +243,7 @@ public sealed class OverworldState(WorldSpace space, int capacity)
         }
 
         var line = new ChatLine(playerId, filter.Apply(trimmed), now);
-        var heard = _cats.Values
+        var heard = CatsAround(speaker.Position)
             .Where(cat => cat.PlayerId == playerId || VisibleTo(cat.PlayerId).Any(seen => seen.PlayerId == playerId))
             .Select(cat => cat.PlayerId)
             .ToList();
@@ -274,7 +275,7 @@ public sealed class OverworldState(WorldSpace space, int capacity)
     public IReadOnlyList<CatInRoom> VisibleTo(Guid playerId)
     {
         var me = Get(playerId);
-        return [.. _cats.Values
+        return [.. CatsAround(me.Position)
             .Where(cat => cat.PlayerId != playerId)
             .Select(cat => (Cat: cat, Distance: cat.Position.DistanceTo(me.Position)))
             .Where(x => x.Distance <= WorldSpace.ViewDistance)
@@ -373,7 +374,7 @@ public sealed class OverworldState(WorldSpace space, int capacity)
         }
 
         var position = Space.Clamp(new Position(friend.Position.X + 1.5, friend.Position.Z));
-        _cats[playerId] = cat with { Position = position, Pose = CatPose.Standing };
+        Put(cat with { Position = position, Pose = CatPose.Standing });
         _lines.Remove(playerId);
         return position;
     }
@@ -386,6 +387,54 @@ public sealed class OverworldState(WorldSpace space, int capacity)
     /// <summary>The session controlling the cat, to tell; null when the cat isn't here.</summary>
     public string? SessionOf(Guid playerId) => _leases.TryGetValue(playerId, out var lease) ? lease.Session : null;
 
+    private static (int X, int Z) CellOf(Position position) =>
+        ((int)Math.Floor(position.X / WorldSpace.ViewDistance), (int)Math.Floor(position.Z / WorldSpace.ViewDistance));
+
+    // Keeps the grid in step with where the cat now stands.
+    private void Put(CatInRoom cat)
+    {
+        if (_cats.TryGetValue(cat.PlayerId, out var before) && CellOf(before.Position) != CellOf(cat.Position))
+        {
+            LeaveCell(cat.PlayerId, before.Position);
+        }
+
+        _cats[cat.PlayerId] = cat;
+        if (!_cells.TryGetValue(CellOf(cat.Position), out var cell))
+        {
+            _cells[CellOf(cat.Position)] = cell = [];
+        }
+
+        cell.Add(cat.PlayerId);
+    }
+
+    private void LeaveCell(Guid playerId, Position position)
+    {
+        var key = CellOf(position);
+        if (_cells.TryGetValue(key, out var cell) && cell.Remove(playerId) && cell.Count == 0)
+        {
+            _cells.Remove(key);
+        }
+    }
+
+    /// <summary>The cats within <see cref="WorldSpace.ViewDistance"/> of a spot, and some beyond it: those in its cell and the eight around.</summary>
+    public IEnumerable<CatInRoom> CatsAround(Position position)
+    {
+        var (cx, cz) = CellOf(position);
+        for (var x = cx - 1; x <= cx + 1; x++)
+        {
+            for (var z = cz - 1; z <= cz + 1; z++)
+            {
+                if (_cells.TryGetValue((x, z), out var cell))
+                {
+                    foreach (var id in cell)
+                    {
+                        yield return _cats[id];
+                    }
+                }
+            }
+        }
+    }
+
     private bool Controls(Guid playerId, string session) =>
         _leases.TryGetValue(playerId, out var lease) && lease.Session == session;
 
@@ -394,7 +443,11 @@ public sealed class OverworldState(WorldSpace space, int capacity)
 
     private void Forget(Guid playerId)
     {
-        _cats.Remove(playerId);
+        if (_cats.Remove(playerId, out var gone))
+        {
+            LeaveCell(playerId, gone.Position);
+        }
+
         _leases.Remove(playerId);
         _lastEmotes.Remove(playerId);
         _heard.Remove(playerId);
