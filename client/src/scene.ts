@@ -474,7 +474,7 @@ export class RoomScene {
     // The backdrop is another mesh, which a tap never tests: it does nothing there.
     const backdrop = buildParts(this.scene, "backdrop",
       look.backdrop(plan, wallHeight).map((part) => ({ ...part, at: [part.at[0] + cx, part.at[1], part.at[2] + cz] as [number, number, number] }))
-        .filter((part) => !onAnotherRoom(world, chunk, part.at[0], part.at[2])));
+        .filter((part) => !onAnotherRoom(world, chunk, part.at[0], part.at[2]) && !intrudesOnAnotherRoom(world, chunk, part)));
     if (backdrop) {
       backdrop.isPickable = false;
     }
@@ -1056,6 +1056,25 @@ export function outlineStrips(chunk: PlacedChunk, thickness: number): { x: numbe
 /** Whether a spot lies on the floor of a placed room other than <chunk>: scenery there would stand on that room. */
 export function onAnotherRoom(world: PlacedChunk[] | undefined, chunk: PlacedChunk, x: number, z: number): boolean {
   return world?.some((other) => other !== chunk && covers(other, x, z)) ?? false;
+}
+
+const intrusion = 1;
+
+/** Whether a part's body reaches more than a metre onto another placed room's floor, though its centre is off it: a big hill behind a room. */
+export function intrudesOnAnotherRoom(world: PlacedChunk[] | undefined, chunk: PlacedChunk, part: Part): boolean {
+  let reachX = 0;
+  let reachZ = 0;
+  if (part.shape === "box") {
+    reachX = part.width / 2;
+    reachZ = part.depth / 2;
+  } else if (part.shape !== "model") {
+    reachX = part.diameter / 2;
+    reachZ = reachX;
+  }
+  const [x, , z] = part.at;
+  return world?.some((other) => other !== chunk
+    && Math.min(x + reachX, other.x + other.width / 2) - Math.max(x - reachX, other.x - other.width / 2) > intrusion
+    && Math.min(z + reachZ, other.z + other.depth / 2) - Math.max(z - reachZ, other.z - other.depth / 2) > intrusion) ?? false;
 }
 
 const labelCharWidth = 9;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { keepOnScreen, onAnotherRoom, outlineStrips, stackLevels } from "./scene";
+import { intrudesOnAnotherRoom, keepOnScreen, onAnotherRoom, outlineStrips, stackLevels } from "./scene";
 
 describe("stackLevels", () => {
   it("leaves names that don't touch on the first line", () => {
@@ -72,5 +72,31 @@ describe("outlineStrips", () => {
     expect(strips).toContainEqual({ x: 10, z: 20 - 8 + 0.25, width: 24, depth: 0.5 });
     expect(strips).toContainEqual({ x: 10 + 12 - 0.25, z: 20, width: 0.5, depth: 15 });
     expect(strips).toContainEqual({ x: 10 - 12 + 0.25, z: 20, width: 0.5, depth: 15 });
+  });
+});
+
+describe("intrudesOnAnotherRoom", () => {
+  const room = (x: number, z: number) => ({ roomId: `r${x}-${z}`, x, z, width: 20, depth: 14 }) as never;
+  const south = room(0, 0);
+  const north = room(0, 14);
+  const world = [south, north];
+  const hill = (z: number, diameter: number) => ({ shape: "ball" as const, diameter, at: [0, 0, z] as [number, number, number], colour: "#fff" });
+
+  it("is true for a hill whose centre is off the neighbour's floor but whose body reaches well onto it", () => {
+    expect(onAnotherRoom(world, south, 0, 30)).toBe(false);
+    expect(intrudesOnAnotherRoom(world, south, hill(30, 30))).toBe(true);
+  });
+
+  it("is false for a hill that only just touches the neighbour, or lies clear of it", () => {
+    expect(intrudesOnAnotherRoom(world, south, hill(28.5, 3))).toBe(false);
+    expect(intrudesOnAnotherRoom(world, south, hill(60, 30))).toBe(false);
+  });
+
+  it("is false for a thin wall that overhangs the neighbour by a few centimetres", () => {
+    expect(intrudesOnAnotherRoom(world, south, { shape: "box", width: 12, height: 3, depth: 0.4, at: [0, 1, 7.1], colour: "#fff" })).toBe(false);
+  });
+
+  it("is false when there is no open world", () => {
+    expect(intrudesOnAnotherRoom(undefined, south, hill(30, 30))).toBe(false);
   });
 });
