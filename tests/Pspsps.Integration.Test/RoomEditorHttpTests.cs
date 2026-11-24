@@ -1268,4 +1268,40 @@ public sealed class RoomEditorHttpTests
             await db.SaveChangesAsync();
         }
     }
+
+    [Test]
+    public async Task ARoomThatIsOnlyADraft_HasItsDraftLookInThePreviewWorldsLooks()
+    {
+        using var admin = await AdminClientAsync();
+        var loft = JsonNode.Parse("""
+            {"name":"The Look Loft","width":10,"depth":8,"spawn":{"x":0,"z":0},"capacity":12,"props":[],
+             "doors":[{"id":"shop","edge":"East","offset":0,"toRoom":"shop","toDoor":"loft"}]}
+            """)!;
+        var draftLook = JsonNode.Parse("""{"sky":"#010203","floorColour":"#445566","wallColour":"#778899","openLandscape":true,"backdrop":{"parts":[]}}""")!;
+        try
+        {
+            using var saved = await SendAsync(admin, HttpMethod.Put, "rooms/loft/draft", loft);
+            using var drafted = await SendAsync(admin, HttpMethod.Put, "looks/rooms/loft", draftLook);
+            using var preview = await admin.GetAsync(new Uri("/api/looks?preview=true", UriKind.Relative));
+            using var live = await admin.GetAsync(new Uri("/api/looks", UriKind.Relative));
+            var inPreview = (await JsonOfAsync(preview))["rooms"]!.AsArray().SingleOrDefault(r => r!["id"]!.GetValue<string>() == "loft");
+            var inLive = (await JsonOfAsync(live))["rooms"]!.AsArray().SingleOrDefault(r => r!["id"]!.GetValue<string>() == "loft");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(saved.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+                Assert.That(drafted.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+                Assert.That(inPreview?["look"]?["openLandscape"]?.GetValue<bool>(), Is.True, "a room with only a draft is drawn in its draft look in the preview world");
+                Assert.That(inLive, Is.Null);
+            });
+        }
+        finally
+        {
+            using var discardLook = await SendAsync(admin, HttpMethod.Delete, "looks/rooms/loft/draft");
+            using var discardLoft = await SendAsync(admin, HttpMethod.Delete, "rooms/loft/draft");
+            await using var db = Db();
+            db.RoomVersions.RemoveRange(await db.RoomVersions.Where(v => v.RoomId == "loft").ToListAsync());
+            await db.SaveChangesAsync();
+        }
+    }
 }
