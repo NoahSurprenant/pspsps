@@ -694,7 +694,8 @@ public sealed partial class GameHub(
         IReadOnlyList<ChatView> chat;
         try
         {
-            chat = await room.RecentChat();
+            // Out in the open world there's no one chat: what this player's cat heard is what the report keeps.
+            chat = RoomKey.IsOverworld(key) ? await room.RecentChatHeardBy(PlayerId) : await room.RecentChat();
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -841,6 +842,12 @@ public sealed partial class GameHub(
         var place = Here ?? throw new HubException("Pick a world first.");
         if (place.RoomKey == GrainKeyOf(target))
         {
+            // In the open world a friend may be across it: the cat goes to them, unless it is by them already.
+            if (RoomKey.IsOverworld(place.RoomKey) && await GoToCatInWorld(place.RoomKey, friendId) is { } beside)
+            {
+                return beside;
+            }
+
             throw new HubException($"You're already with {relation.DisplayName}.");
         }
 
@@ -886,6 +893,23 @@ public sealed partial class GameHub(
         }
 
         return snapshot;
+    }
+
+    // The cat goes beside the cat of friendId in the open world it is in; null when it is beside it already.
+    private async Task<RoomSnapshot?> GoToCatInWorld(string key, Guid friendId)
+    {
+        var profile = await players.FindAsync(PlayerId, Context.ConnectionAborted)
+            ?? throw new HubException("Your cat wasn't found. Sign in again.");
+        var card = new PlayerCard(
+            profile.Id, profile.DisplayName, profile.FurColor.ToString(), profile.Hat, profile.Collar, profile.OutfitVersion);
+        try
+        {
+            return await grains.GetGrain<IRoomGrain>(key).GoToCat(card, Context.ConnectionId, friendId);
+        }
+        catch (GameRuleException e)
+        {
+            throw new HubException(e.Message);
+        }
     }
 
     public override async Task OnDisconnectedAsync(Exception? exception)

@@ -40,6 +40,23 @@ public sealed class RoomPlanTests
             Throws.InvalidOperationException.With.Message.Contains("walking route"));
     }
 
+    [Test]
+    public void ARoomPlacedAgainstAnotherOnTheGrid_IsWalkedToWithNoDoor_ButOneAtADistanceIsNot()
+    {
+        var square = RoomCatalog.Find("town-square")!;
+        var anchored = square with { Place = new WorldPlace(0, 0) };
+        var next = new RoomDefinition("meadow", "Meadow", 10, 10, new(0, 0), 10) { Place = new WorldPlace((int)(square.Width / WorldPlace.Cell), 0) };
+        var far = next with { Place = new WorldPlace(next.Place!.X + 50, 0) };
+        IReadOnlyList<RoomDefinition> Plan(RoomDefinition room) =>
+            RoomPlan.Join([.. RoomCatalog.All.Select(r => r.Id == square.Id ? anchored : r), room]);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(() => Plan(next), Throws.Nothing);
+            Assert.That(() => Plan(far), Throws.InvalidOperationException.With.Message.Contains("walking route"));
+        });
+    }
+
     private static IReadOnlyList<RoomDefinition> Replan(RoomDefinition replacement) =>
         RoomPlan.Join([.. RoomCatalog.All.Select(room => room.Id == replacement.Id ? replacement : room)]);
 

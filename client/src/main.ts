@@ -29,7 +29,7 @@ import { pageTitle } from "./title";
 import { WalkKeys } from "./walkKeys";
 import { FRAME_RATE_KEY, maxFps, savedFrameRate, type FrameRate } from "./frameLimit";
 import { stepInRoom } from "./walking";
-import { stepInWorld, worldDoors } from "./overworld";
+import { nearestPond, place, stepInWorld, worldDoors } from "./overworld";
 import type {
   DoorView, HomeView, HomeVisitors, MutedView, OutfitView, Player, PlayerCard, PropView, RoomSnapshot, Shop,
 } from "./types";
@@ -414,8 +414,9 @@ function onRoom(apply: (room: Room) => void): void {
 
 /** Walks the player's cat to the pond's edge and casts: once, however many clicks. */
 async function fish(): Promise<void> {
-  const pond = room?.snapshot.pond;
   const cat = me && room?.cats.get(me.id);
+  const chunks = room?.snapshot.chunks;
+  const pond = chunks && cat ? nearestPond(chunks.map(place), cat) : room?.snapshot.pond;
   if (!pond || !cat) {
     return;
   }
@@ -536,6 +537,12 @@ function show(snapshot: RoomSnapshot, view: RoomScene): Room {
   const home = snapshot.home;
   view.playerId = me?.id;
   view.show(snapshot);
+  view.onRoomEntered((chunk) => {
+    if (room === shown) {
+      shown.enter(chunk.roomId, chunk.name);
+      document.title = pageTitle(chunk.name);
+    }
+  });
   const travel = (roomId: string) => {
     if (room !== shown || picking) return;
     doorWalks.callOff();
@@ -586,7 +593,7 @@ function show(snapshot: RoomSnapshot, view: RoomScene): Room {
       activity: useActivity,
       travel,
     },
-    snapshot.pond ? { fish: () => void fish(), reel: () => void reel(), state: () => fishing.state } : undefined,
+    snapshot.pond || snapshot.chunks?.some((chunk) => chunk.pond) ? { fish: () => void fish(), reel: () => void reel(), state: () => fishing.state } : undefined,
     // In their own home, the owner decorates it and chooses who may visit.
     home && isOwnHome(home, me?.id)
       ? { decorate: () => void startDecorating(), visitors: home.visitors, letIn: (visitors) => void letIn(visitors) }

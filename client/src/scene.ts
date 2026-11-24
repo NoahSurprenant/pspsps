@@ -41,7 +41,7 @@ import { Portraits } from "./portrait";
 import { besideProp, buildParts, ink, propAt, propParts, type Part } from "./props";
 import { CatLook } from "./look";
 import catModelUrl from "./models/cat.glb?url";
-import type { CatView, DoorView, Emote, OutfitView, PropView, RoomSnapshot } from "./types";
+import type { CatView, ChunkView, DoorView, Emote, OutfitView, PropView, RoomSnapshot } from "./types";
 import { frameClock, frameLimiter } from "./frameLimit";
 
 const walkSpeed = 4; // metres per second
@@ -113,6 +113,7 @@ export class RoomScene {
   private walls: Part[] = [];
   // The chunks showing in world metres: a room alone is one at the middle.
   private chunks: PlacedChunk[] | undefined;
+  private roomEntered: ((chunk: ChunkView) => void) | undefined;
   private decor: Mesh | undefined;
   private activities = new RoomActivities();
   private activityClicked: (prop: PropView) => void = () => {};
@@ -178,6 +179,11 @@ export class RoomScene {
 
   onFloorClicked(handler: (x: number, z: number) => void): void {
     this.floorClicked = handler;
+  }
+
+  /** Told when the player's cat walks into another room of the open world. */
+  onRoomEntered(handler: (chunk: ChunkView) => void): void {
+    this.roomEntered = handler;
   }
 
   onPondClicked(handler: () => void): void {
@@ -405,6 +411,7 @@ export class RoomScene {
       if (here && here.roomId !== skyOf) {
         skyOf = here.roomId;
         this.scene.clearColor = skies.get(skyOf) ?? sky;
+        this.roomEntered?.(here);
       }
     });
 

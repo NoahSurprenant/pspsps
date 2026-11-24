@@ -6,7 +6,7 @@ import { expect, signInAsAdmin, test } from "./game";
 // console errors, a floor and every door leading to a room that exists. The pictures go on one contact sheet, three to a row
 // (screenshots/draft-rooms.png), which CI links on the PR, so the rooms are seen before anything is published.
 
-interface Draft { id: string; layout: { name: string; doors: { id: string; toRoom: string }[] } }
+interface Draft { id: string; layout: { name: string; place?: { x: number; z: number } | null; doors: { id: string; toRoom: string }[] } }
 
 test("every draft room loads, previews without errors, and is pictured on a contact sheet", async ({ page, context, browser, baseURL }) => {
   test.setTimeout(360_000);
@@ -25,7 +25,7 @@ test("every draft room loads, previews without errors, and is pictured on a cont
     const preview = await page.request.get(`/api/admin/rooms/${draft.id}/preview`);
     expect(preview.ok(), `${draft.id}'s preview`).toBe(true);
     const snapshot = (await preview.json()) as { doors: { id: string; toRoomId: string }[]; rooms: { id: string }[] };
-    expect(snapshot.doors.length, `${draft.id} has a door`).toBeGreaterThan(0);
+    if (!draft.layout.place) expect(snapshot.doors.length, `${draft.id} has a door`).toBeGreaterThan(0);
     for (const door of snapshot.doors) {
       expect(snapshot.rooms.map((room) => room.id), `${draft.id}'s door ${door.id} leads to a room`).toContain(door.toRoomId);
     }

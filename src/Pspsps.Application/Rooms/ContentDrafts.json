@@ -99,27 +99,17 @@
             "toDoor": "town-square"
           },
           {
-            "id": "fort",
-            "edge": "West",
-            "offset": 0,
-            "toRoom": "fort",
-            "toDoor": "town-square"
-          },
-          {
-            "id": "forest",
-            "edge": "East",
-            "offset": -3.5,
-            "toRoom": "forest",
-            "toDoor": "town-square"
-          },
-          {
             "id": "night-club",
             "edge": "North",
             "offset": 0.5,
             "toRoom": "night-club",
             "toDoor": "town-square"
           }
-        ]
+        ],
+        "place": {
+          "x": 56,
+          "z": 0
+        }
       },
       "look": {
         "sky": "#bfe3f2",
@@ -2808,20 +2798,17 @@
         ],
         "doors": [
           {
-            "id": "forest",
-            "edge": "West",
-            "offset": 0,
-            "toRoom": "forest",
-            "toDoor": "cove"
-          },
-          {
             "id": "boat-shed",
             "edge": "South",
             "offset": 6,
             "toRoom": "boat-shed",
             "toDoor": "cove"
           }
-        ]
+        ],
+        "place": {
+          "x": 82,
+          "z": 0
+        }
       },
       "look": {
         "sky": "#bfe6f5",
@@ -3494,20 +3481,17 @@
         },
         "doors": [
           {
-            "id": "mine",
-            "edge": "South",
-            "offset": 0,
-            "toRoom": "mine",
-            "toDoor": "dojo-courtyard"
-          },
-          {
             "id": "dojo",
             "edge": "North",
             "offset": 0,
             "toRoom": "dojo",
             "toDoor": "dojo-courtyard"
           }
-        ]
+        ],
+        "place": {
+          "x": 70,
+          "z": 15
+        }
       },
       "look": {
         "sky": "#9fdcf5",
@@ -6177,20 +6161,6 @@
         ],
         "doors": [
           {
-            "id": "dock",
-            "edge": "West",
-            "offset": 0,
-            "toRoom": "dock",
-            "toDoor": "plaza"
-          },
-          {
-            "id": "fort",
-            "edge": "East",
-            "offset": 0,
-            "toRoom": "fort",
-            "toDoor": "plaza"
-          },
-          {
             "id": "pet-shop",
             "edge": "North",
             "offset": -10,
@@ -6218,7 +6188,11 @@
             "toRoom": "pizza-parlor",
             "toDoor": "plaza"
           }
-        ]
+        ],
+        "place": {
+          "x": 28,
+          "z": 0
+        }
       },
       "look": {
         "sky": "#f3dcc0",
@@ -10653,27 +10627,17 @@
         ],
         "doors": [
           {
-            "id": "forest",
-            "edge": "South",
-            "offset": 0,
-            "toRoom": "forest",
-            "toDoor": "mine"
-          },
-          {
-            "id": "dojo-courtyard",
-            "edge": "North",
-            "offset": -6.5,
-            "toRoom": "dojo-courtyard",
-            "toDoor": "mine"
-          },
-          {
             "id": "tunnels",
-            "edge": "North",
-            "offset": 0,
+            "edge": "East",
+            "offset": 3.2,
             "toRoom": "mine-tunnels",
             "toDoor": "shack"
           }
-        ]
+        ],
+        "place": {
+          "x": 70,
+          "z": 8
+        }
       },
       "look": {
         "sky": "#a8dcf2",
@@ -17076,15 +17040,11 @@
             "facing": 0
           }
         ],
-        "doors": [
-          {
-            "id": "fort",
-            "edge": "South",
-            "offset": 0,
-            "toRoom": "fort",
-            "toDoor": "ice-rink"
-          }
-        ]
+        "doors": [],
+        "place": {
+          "x": 42,
+          "z": 8
+        }
       },
       "look": {
         "sky": "#bfe6f5",
@@ -20097,29 +20057,11 @@
             "facing": 0
           }
         ],
-        "doors": [
-          {
-            "id": "plaza",
-            "edge": "West",
-            "offset": 0,
-            "toRoom": "plaza",
-            "toDoor": "fort"
-          },
-          {
-            "id": "town-square",
-            "edge": "East",
-            "offset": 0,
-            "toRoom": "town-square",
-            "toDoor": "fort"
-          },
-          {
-            "id": "ice-rink",
-            "edge": "North",
-            "offset": -8,
-            "toRoom": "ice-rink",
-            "toDoor": "fort"
-          }
-        ]
+        "doors": [],
+        "place": {
+          "x": 42,
+          "z": 0
+        }
       },
       "look": {
         "sky": "#bfe6f5",
@@ -21134,29 +21076,11 @@
             "facing": 0
           }
         ],
-        "doors": [
-          {
-            "id": "plaza",
-            "edge": "East",
-            "offset": 0,
-            "toRoom": "plaza",
-            "toDoor": "dock"
-          },
-          {
-            "id": "peakside-village",
-            "edge": "North",
-            "offset": 0,
-            "toRoom": "peakside-village",
-            "toDoor": "dock"
-          },
-          {
-            "id": "beach",
-            "edge": "West",
-            "offset": 3.5,
-            "toRoom": "beach",
-            "toDoor": "dock"
-          }
-        ]
+        "doors": [],
+        "place": {
+          "x": 14,
+          "z": 0
+        }
       },
       "look": {
         "sky": "#a9dcf3",
@@ -22404,22 +22328,11 @@
             "facing": 0
           }
         ],
-        "doors": [
-          {
-            "id": "dock",
-            "edge": "East",
-            "offset": 0,
-            "toRoom": "dock",
-            "toDoor": "beach"
-          },
-          {
-            "id": "scratching-peaks",
-            "edge": "North",
-            "offset": 0,
-            "toRoom": "scratching-peaks",
-            "toDoor": "beach"
-          }
-        ]
+        "doors": [],
+        "place": {
+          "x": 0,
+          "z": 0
+        }
       },
       "look": {
         "sky": "#a9dcf3",
@@ -23399,22 +23312,11 @@
             "facing": 0
           }
         ],
-        "doors": [
-          {
-            "id": "dock",
-            "edge": "South",
-            "offset": 0,
-            "toRoom": "dock",
-            "toDoor": "peakside-village"
-          },
-          {
-            "id": "scratching-peaks",
-            "edge": "North",
-            "offset": 0,
-            "toRoom": "scratching-peaks",
-            "toDoor": "peakside-village"
-          }
-        ]
+        "doors": [],
+        "place": {
+          "x": 14,
+          "z": 8
+        }
       },
       "look": {
         "sky": "#bfe0f2",
@@ -24350,22 +24252,11 @@
             "facing": 0
           }
         ],
-        "doors": [
-          {
-            "id": "beach",
-            "edge": "South",
-            "offset": -5.25,
-            "toRoom": "beach",
-            "toDoor": "scratching-peaks"
-          },
-          {
-            "id": "peakside-village",
-            "edge": "South",
-            "offset": 5.25,
-            "toRoom": "peakside-village",
-            "toDoor": "scratching-peaks"
-          }
-        ]
+        "doors": [],
+        "place": {
+          "x": 0,
+          "z": 8
+        }
       },
       "look": {
         "sky": "#a9dcf3",
@@ -25443,29 +25334,11 @@
             "facing": 0
           }
         ],
-        "doors": [
-          {
-            "id": "town-square",
-            "edge": "West",
-            "offset": 0,
-            "toRoom": "town-square",
-            "toDoor": "forest"
-          },
-          {
-            "id": "cove",
-            "edge": "East",
-            "offset": 0,
-            "toRoom": "cove",
-            "toDoor": "forest"
-          },
-          {
-            "id": "mine",
-            "edge": "North",
-            "offset": -4.2,
-            "toRoom": "mine",
-            "toDoor": "forest"
-          }
-        ]
+        "doors": [],
+        "place": {
+          "x": 68,
+          "z": 0
+        }
       },
       "look": {
         "sky": "#bcd6ea",

@@ -66,3 +66,20 @@ export function stepInWorld(chunks: readonly Floor[], from: Spot, dx: number, dz
   const stride = 0.7 / Math.hypot(dx, dz);
   return clampToWorld(chunks, { x: from.x + dx * stride, z: from.z + dz * stride });
 }
+
+/** The pond of the chunks (in world metres) nearest a spot, or undefined when none has one. */
+export function nearestPond(chunks: readonly PlacedChunk[], spot: Spot): PondView | undefined {
+  let best: PondView | undefined;
+  let bestDistance = Infinity;
+  for (const { pond } of chunks) {
+    if (!pond) {
+      continue;
+    }
+    const distance = Math.hypot(pond.x - spot.x, pond.z - spot.z);
+    if (distance < bestDistance) {
+      best = pond;
+      bestDistance = distance;
+    }
+  }
+  return best;
+}
