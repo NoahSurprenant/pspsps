@@ -380,16 +380,31 @@ button:disabled {
   background: #fdebd3;
 }
 
+/* One button; its choices open above it, over the room, so they take no room of their own. */
 .emote-bar {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.4rem;
+  position: relative;
 }
 
 .emote-bar button {
   padding: 0.35rem 0.8rem;
   font-size: 0.9rem;
+}
+
+.emote-list {
+  position: absolute;
+  bottom: calc(100% + 0.4rem);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.4rem;
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  border-radius: 1rem;
+}
+
+.emote-list[hidden] {
+  display: none;
 }
 
 .coins {

@@ -614,6 +614,13 @@ export function differing(a: Buffer, b: Buffer): number {
   return count;
 }
 
+/** Opens the Emotes menu (when it isn't open) and picks <name> from it, as a player would. */
+export async function pickEmote(page: Page, name: string): Promise<void> {
+  const toggle = page.getByRole("button", { name: "Emotes" });
+  if ((await toggle.getAttribute("aria-expanded")) !== "true") await toggle.click();
+  await page.getByRole("button", { name, exact: true }).click();
+}
+
 /** Walks the player's cat to a pond's edge by tapping the floor there, and waits for the Fish button, which shows only within reach of a pond. */
 export async function walkToPond(page: Page, playerId: string): Promise<void> {
   const spot = await page.evaluate((id) => {
