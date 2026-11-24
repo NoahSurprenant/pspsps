@@ -34,6 +34,46 @@ public sealed class ContentDraftsTests
         Assert.That(problems, Is.Empty);
     }
 
+    /// <summary>The ground each placed room is drawn with, as the first test resolves a look (the room's own, or the shared one its layout names); null when it has none.</summary>
+    private static List<(string Id, LookGround? Ground)> PlacedGrounds()
+    {
+        var looks = Content.AllLooks.ToDictionary(l => l.Id, l => l.Look);
+        return [.. Content.RoomList.Where(room => room.Layout.Place is not null).Select(room =>
+            (room.Id, looks.TryGetValue(room.Layout.Look ?? room.Id, out var look) ? look.Ground : null))];
+    }
+
+    /// <summary>A ground is water when it is bluer than green; a new placed water room (a lake) is recognised by its ground, and must use the one water colour.</summary>
+    private static bool IsWater(LookGround ground) =>
+        Convert.ToInt32(ground.Colour[5..], 16) > Convert.ToInt32(ground.Colour[3..5], 16);
+
+    [Test]
+    public void PlacedLandRooms_ShareOneGround_SoNoStreetOrColourPatchRunsOnPastTheWorldsEdge()
+    {
+        var grounds = PlacedGrounds();
+        var land = grounds.Where(g => g.Ground is not null && !IsWater(g.Ground)).ToList();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(grounds.Where(g => g.Ground is null).Select(g => g.Id), Is.Empty, "every placed room has a ground");
+            Assert.That(land.Select(g => g.Ground).Distinct().Count(), Is.EqualTo(1), string.Join(", ", land.Select(g => $"{g.Id}={g.Ground!.Colour}/{g.Ground.Painter}")));
+            Assert.That(land.Select(g => g.Ground!.Painter), Has.All.Null, "no cobbled street ground on the open world");
+        });
+    }
+
+    [Test]
+    public void PlacedWaterRooms_ShareOneWaterGround_SoNoSeamShowsAndLandDoesNotCutOffAgainstTheSea()
+    {
+        var grounds = PlacedGrounds();
+        var water = grounds.Where(g => g.Ground is not null && IsWater(g.Ground)).ToList();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(water.Select(g => g.Id), Is.SupersetOf(new[] { "dock", "beach", "cove" }), "the sea rooms have a water ground");
+            Assert.That(water.Select(g => g.Ground).Distinct().Count(), Is.EqualTo(1), string.Join(", ", water.Select(g => $"{g.Id}={g.Ground!.Colour}")));
+            Assert.That(water.Select(g => g.Ground!.Painter), Has.All.Null);
+        });
+    }
+
     /// <summary>The starting rooms with the file's rooms laid over them: the book the game would have once the drafts are published.</summary>
     private static Dictionary<string, RoomLayout> LayoutsWithTheDrafts()
     {
