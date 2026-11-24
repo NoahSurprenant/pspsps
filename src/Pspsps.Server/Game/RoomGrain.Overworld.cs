@@ -68,7 +68,7 @@ internal sealed partial class RoomGrain
             here.Depth,
             [CatView.From(cat), .. visible.Select(CatView.From)],
             [.. world.HeardBy(playerId).Select(h => ChatView.From(h.Line))],
-            [],
+            [.. library.All.Where(r => r.Id != here.Id).Select(r => new RoomLink(r.Id, r.Name))],
             here.Pond is { } pond ? new PondView(pond.Center.X, pond.Center.Z, pond.Radius) : null,
             [.. here.Doors.Select(door => DoorView.From(door, library))],
             [.. here.Props.Select(PropView.From)],
