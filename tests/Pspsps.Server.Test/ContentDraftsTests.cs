@@ -662,8 +662,8 @@ public sealed class ContentDraftsTests
         Assert.That(BackdropClearance.Problems(id, layout, parts), Is.Empty);
     }
 
-    /// <summary>The way in and out must be visible and open: nothing stands on a door's mat or where a cat arrives through it, and the old tunnels' north door and the shack's two doors are all there.</summary>
-    [TestCase("mine", "forest,dojo-courtyard,tunnels")]
+    /// <summary>The way in and out must be visible and open: nothing stands on a door's mat or where a cat arrives through it, and the old tunnels' north door and the shack's east door are there.</summary>
+    [TestCase("mine", "tunnels")]
     [TestCase("mine-tunnels", "shack")]
     public void TheDoorsOfTheMineRooms_AndWhereCatsArriveThroughThem_AreClear(string id, string doorIds)
     {

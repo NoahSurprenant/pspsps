@@ -1,6 +1,6 @@
 namespace Pspsps.Domain.Rooms;
 
-/// <summary>Checks that the public rooms are one world: every room can be walked to from the first one, through doors that lead back.</summary>
+/// <summary>Checks that the public rooms are one world: every room can be walked to from the first one, through doors that lead back, or, for rooms on the world grid, across an edge they share.</summary>
 public static class RoomPlan
 {
     public static IReadOnlyList<RoomDefinition> Join(RoomDefinition[] floors)
@@ -31,6 +31,14 @@ public static class RoomPlan
                     queue.Enqueue(target);
                 }
             }
+
+            foreach (var neighbour in floors.Where(other => Touches(room, other)))
+            {
+                if (reached.Add(neighbour.Id))
+                {
+                    queue.Enqueue(neighbour);
+                }
+            }
         }
 
         if (reached.Count != floors.Length)
@@ -39,5 +47,18 @@ public static class RoomPlan
         }
 
         return floors;
+    }
+
+    private static bool Touches(RoomDefinition a, RoomDefinition b)
+    {
+        if (a.Place is not { } pa || b.Place is not { } pb || a.Id == b.Id)
+        {
+            return false;
+        }
+
+        var (ax, az, bx, bz) = (pa.X * WorldPlace.Cell, pa.Z * WorldPlace.Cell, pb.X * WorldPlace.Cell, pb.Z * WorldPlace.Cell);
+        var overlapX = ax < bx + b.Width && bx < ax + a.Width;
+        var overlapZ = az < bz + b.Depth && bz < az + a.Depth;
+        return (overlapX && (bz == az + a.Depth || bz + b.Depth == az)) || (overlapZ && (bx == ax + a.Width || bx + b.Width == ax));
     }
 }

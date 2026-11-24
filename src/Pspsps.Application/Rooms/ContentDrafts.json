@@ -10629,7 +10629,7 @@
           {
             "id": "tunnels",
             "edge": "East",
-            "offset": 0,
+            "offset": 3.2,
             "toRoom": "mine-tunnels",
             "toDoor": "shack"
           }
