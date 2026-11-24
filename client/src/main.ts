@@ -711,7 +711,10 @@ async function load(request: () => Promise<RoomSnapshot>, stay?: Room): Promise<
     // room the page can't show.
     const shown = await loadRoom(loading, async () => {
       const view = await stage();
-      return show(await request(), view);
+      const snapshot = await request();
+      // The admins' preview world draws rooms in their draft looks, any other world in the published ones: wherever the cat came from.
+      await (await import("./looks")).syncLooks(snapshot.worldId);
+      return show(snapshot, view);
     }, stay, (room) => !room.snapshot.notice);
     // Not where it was going (that room was full): where it landed instead, and why.
     if (shown.snapshot.notice) {

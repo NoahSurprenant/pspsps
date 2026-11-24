@@ -27,6 +27,9 @@ internal sealed partial class RoomGrain(
     IRoomLibrary library) : Grain, IRoomGrain
 {
     private string _key = "";
+
+    // The rooms this grain's world plays on: the published ones, or each room's newest draft in the admins' preview world.
+    private IRoomLibrary Library => library.OfWorld(RoomKey.Parse(_key).WorldId);
     private RoomState _state = null!;
 
     // The room's doors and props as the browser sees them: catalogue data, the same for every join.
@@ -66,12 +69,12 @@ internal sealed partial class RoomGrain(
         else
         {
             var (_, roomId) = RoomKey.Parse(_key);
-            room = library.Find(roomId) ?? throw new InvalidOperationException($"No room '{roomId}'.");
+            room = Library.Find(roomId) ?? throw new InvalidOperationException($"No room '{roomId}'.");
         }
 
-        _worldMap = WorldMapView.From(library.All);
+        _worldMap = WorldMapView.From(Library.All);
         _state = new RoomState(room, _home?.OwnerId);
-        _doors = [.. room.Doors.Select(door => DoorView.From(door, library))];
+        _doors = [.. room.Doors.Select(door => DoorView.From(door, Library))];
         // A home's furniture is its room's props (Home.PropOf, as every change to it after: HomeView.Props).
         _props = [.. room.Props.Select(PropView.From)];
         this.RegisterGrainTimer(
@@ -158,7 +161,7 @@ internal sealed partial class RoomGrain(
             [.. _state.Cats.Select(CatView.From)],
             [.. _state.RecentChat.Select(ChatView.From)],
             // A home is in no world: its door is the way out.
-            _home is null ? [.. library.All.Where(r => r.Id != _state.Room.Id).Select(r => new RoomLink(r.Id, r.Name))] : [],
+            _home is null ? [.. Library.All.Where(r => r.Id != _state.Room.Id).Select(r => new RoomLink(r.Id, r.Name))] : [],
             _state.Room.Pond is { } pond ? new PondView(pond.Center.X, pond.Center.Z, pond.Radius) : null,
             _doors,
             _props,
@@ -511,7 +514,7 @@ internal sealed partial class RoomGrain(
             return;
         }
 
-        if (_home is null && !(library.Find(RoomKey.Parse(_key).RoomId)?.SameAs(_state.Room) ?? false))
+        if (_home is null && !(Library.Find(RoomKey.Parse(_key).RoomId)?.SameAs(_state.Room) ?? false))
         {
             // Published again or an overlay changed: start over, and the tabs walk back in to the new room (OnDeactivateAsync).
             DeactivateOnIdle();

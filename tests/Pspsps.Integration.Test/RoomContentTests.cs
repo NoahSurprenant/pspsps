@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Pspsps.Application.Abstractions;
 using Pspsps.Application.Rooms;
 using Pspsps.Domain.Rooms;
+using Pspsps.Domain.Worlds;
 using Pspsps.Infrastructure.Persistence;
 
 namespace Pspsps.Integration.Test;
@@ -182,5 +183,39 @@ public sealed class RoomContentTests
         Assert.That(async () => await editor.PublishAsync("shop", [], admin, ct), Throws.TypeOf<Pspsps.Domain.DomainException>());
         await editor.DiscardDraftAsync("shop", admin, ct);
         Assert.That((await editor.GetAsync("shop", ct))!.Draft, Is.Null);
+    }
+
+    [Test]
+    public async Task ThePreviewWorld_HasEachRoomsNewestDraft_WhileEveryOtherWorldKeepsThePublishedRoom()
+    {
+        var services = new ServiceCollection();
+        services.AddScoped<IApplicationDbContext>(_ => Db());
+        await using var provider = services.BuildServiceProvider();
+        var library = new RoomLibrary(provider.GetRequiredService<IServiceScopeFactory>(), TimeProvider.System);
+        await using var db = Db();
+        var editor = new RoomEditor(db, library, TimeProvider.System);
+        var ct = CancellationToken.None;
+        var player = Pspsps.Domain.Players.Player.CreateGuest("Previewer", Pspsps.Domain.Players.FurColor.Grey, DateTimeOffset.UtcNow);
+        db.Players.Add(player);
+        await db.SaveChangesAsync(ct);
+        var original = (await editor.GetAsync("shop", ct))!.Published!;
+
+        try
+        {
+            await library.RefreshAsync(ct);
+            await editor.SaveDraftAsync("shop", original with { Name = "The Unpublished Shop" }, player.Id, null, ct);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(library.OfWorld(WorldCatalog.PreviewId).Find("shop")!.Name, Is.EqualTo("The Unpublished Shop"));
+                Assert.That(library.OfWorld(WorldCatalog.PreviewId).Find("cafe")!.Name, Is.EqualTo(library.Find("cafe")!.Name), "a room with no draft is as published");
+                Assert.That(library.OfWorld("tabby").Find("shop")!.Name, Is.EqualTo(original.Name));
+                Assert.That(library.Find("shop")!.Name, Is.EqualTo(original.Name));
+            });
+        }
+        finally
+        {
+            await editor.DiscardDraftAsync("shop", player.Id, ct);
+        }
     }
 }

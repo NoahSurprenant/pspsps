@@ -109,6 +109,26 @@ public sealed class GameHubTests
     }
 
     [Test]
+    public async Task ThePreviewWorld_IsListedAndEnteredByAdminsOnly()
+    {
+        var hub = Hub();
+        _grains.GetGrain<IWorldGrain>(Arg.Any<string>(), null).Returns(_world);
+
+        var others = (await hub.GetWorlds()).Select(world => world.Id).ToList();
+        var refused = Assert.ThrowsAsync<HubException>(async () => await hub.EnterWorld("preview"));
+        _moderation.IsAdmin(Tom.Id).Returns(true);
+        var admins = (await hub.GetWorlds()).Select(world => world.Id).ToList();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(others, Does.Not.Contain("preview"));
+            Assert.That(refused!.Message, Is.EqualTo("That world doesn't exist."));
+            Assert.That(admins, Does.Contain("preview"));
+        });
+        await _world.DidNotReceive().TryEnter(Tom.Id, Connection);
+    }
+
+    [Test]
     public async Task OnDisconnected_WhenLeavingTheRoomFails_StillLeavesTheWorld_AndStopsRenewing()
     {
         var hub = Hub();
@@ -473,6 +493,25 @@ public sealed class GameHubTests
             new FriendView(oddie, "Oddie", "Cream", "RequestReceived", null),
         }));
         await oddieSession.DidNotReceive().Locate();
+    }
+
+    [Test]
+    public async Task GetFriends_AFriendInThePreviewWorld_IsNowhereToAnyoneButAdmins()
+    {
+        _friends.ListAsync(Tom.Id, Arg.Any<CancellationToken>()).Returns(
+            [new PlayerRelation(Felix, "Felix", FurColor.Black, FriendState.Friends)]);
+        Session(Felix).Locate().Returns(new PlayerPlace("preview", "cafe"));
+        var hub = Hub();
+
+        var player = (await hub.GetFriends()).Single().Place;
+        _moderation.IsAdmin(Tom.Id).Returns(true);
+        var admin = (await hub.GetFriends()).Single().Place;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(player, Is.Null);
+            Assert.That(admin?.WorldId, Is.EqualTo("preview"));
+        });
     }
 
     [Test]

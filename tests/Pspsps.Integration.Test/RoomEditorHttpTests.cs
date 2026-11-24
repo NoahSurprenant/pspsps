@@ -1193,4 +1193,79 @@ public sealed class RoomEditorHttpTests
             Assert.That(stored.Look.Sky, Is.Not.EqualTo("#010203"), "a room's look only comes in with the room");
         });
     }
+
+    [Test]
+    public async Task TheDraftLooks_AreServedToAdminsOnly_ForThePreviewWorld()
+    {
+        using var admin = await AdminClientAsync();
+        var (_, cookie) = await Game.SignInGuestAsync();
+        using var player = ClientFor(cookie);
+        using var shopRead = await SendAsync(admin, HttpMethod.Get, "rooms/shop");
+        var shop = await JsonOfAsync(shopRead);
+        var draftLook = JsonNode.Parse("""{"sky":"#010203","floorColour":"#445566","wallColour":"#778899","backdrop":{"parts":[]}}""")!;
+        var draft = shop["published"]!.DeepClone();
+        try
+        {
+            using var saved = await SendAsync(admin, HttpMethod.Put, "rooms/shop/draft", draft);
+            using var drafted = await SendAsync(admin, HttpMethod.Put, "looks/rooms/shop", draftLook);
+            using var live = await admin.GetAsync(new Uri("/api/looks", UriKind.Relative));
+            using var preview = await admin.GetAsync(new Uri("/api/looks?preview=true", UriKind.Relative));
+            using var refused = await player.GetAsync(new Uri("/api/looks?preview=true", UriKind.Relative));
+            var liveShop = (await JsonOfAsync(live))["rooms"]!.AsArray().Single(r => r!["id"]!.GetValue<string>() == "shop")!["look"]!["sky"]!.GetValue<string>();
+            var previewShop = (await JsonOfAsync(preview))["rooms"]!.AsArray().Single(r => r!["id"]!.GetValue<string>() == "shop")!["look"]!["sky"]!.GetValue<string>();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(saved.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+                Assert.That(drafted.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+                Assert.That(previewShop, Is.EqualTo("#010203"), "the preview world draws the draft's look");
+                Assert.That(liveShop, Is.Not.EqualTo("#010203"), "every other world still draws the published one");
+                Assert.That(refused.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+            });
+        }
+        finally
+        {
+            using var discardLook = await SendAsync(admin, HttpMethod.Delete, "looks/rooms/shop/draft");
+            using var discard = await SendAsync(admin, HttpMethod.Delete, "rooms/shop/draft");
+        }
+    }
+
+    [Test]
+    public async Task ARoomThatIsOnlyADraft_IsInThePreviewWorld_AndNotInThePublishedOnes()
+    {
+        using var admin = await AdminClientAsync();
+        using var shopRead = await SendAsync(admin, HttpMethod.Get, "rooms/shop");
+        var shop = await JsonOfAsync(shopRead);
+        var shopDraft = shop["published"]!.DeepClone();
+        shopDraft["props"] = new JsonArray();
+        shopDraft["doors"]!.AsArray().Add(JsonNode.Parse("""{"id":"loft","edge":"West","offset":0,"toRoom":"loft","toDoor":"shop"}"""));
+        var loft = JsonNode.Parse("""
+            {"name":"The Draft Loft","width":10,"depth":8,"spawn":{"x":0,"z":0},"capacity":12,"props":[],
+             "doors":[{"id":"shop","edge":"East","offset":0,"toRoom":"shop","toDoor":"loft"}]}
+            """)!;
+        var library = Game.Get<IRoomLibrary>();
+        try
+        {
+            using var loftSaved = await SendAsync(admin, HttpMethod.Put, "rooms/loft/draft", loft);
+            using var shopSaved = await SendAsync(admin, HttpMethod.Put, "rooms/shop/draft", shopDraft);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(loftSaved.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+                Assert.That(shopSaved.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+                Assert.That(library.OfWorld("preview").Find("loft")?.Name, Is.EqualTo("The Draft Loft"));
+                Assert.That(library.OfWorld("preview").Find("shop")!.Doors.Any(d => d.Id == "loft"), Is.True);
+                Assert.That(library.Find("loft"), Is.Null);
+                Assert.That(library.OfWorld("tabby").Find("loft"), Is.Null);
+            });
+        }
+        finally
+        {
+            using var discardShop = await SendAsync(admin, HttpMethod.Delete, "rooms/shop/draft");
+            using var discardLoft = await SendAsync(admin, HttpMethod.Delete, "rooms/loft/draft");
+            await using var db = Db();
+            db.RoomVersions.RemoveRange(await db.RoomVersions.Where(v => v.RoomId == "loft").ToListAsync());
+            await db.SaveChangesAsync();
+        }
+    }
 }

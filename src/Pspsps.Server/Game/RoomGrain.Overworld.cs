@@ -19,10 +19,10 @@ internal sealed partial class RoomGrain
     private void ActivateOverworld()
     {
         var (worldId, _) = RoomKey.Parse(_key);
-        var space = new WorldSpace(library.All);
+        var space = new WorldSpace(Library.All);
         _world = new OverworldState(space, WorldCatalog.Find(worldId)?.Capacity ?? 300);
-        _worldMap = WorldMapView.From(library.All);
-        _chunks = ChunkViews.Of(library.All);
+        _worldMap = WorldMapView.From(Library.All);
+        _chunks = ChunkViews.Of(Library.All);
         this.RegisterGrainTimer(
             static (grain, _) => grain.RemoveExpired(),
             this,
@@ -68,9 +68,9 @@ internal sealed partial class RoomGrain
             here.Depth,
             [CatView.From(cat), .. visible.Select(CatView.From)],
             [.. world.HeardBy(playerId).Select(h => ChatView.From(h.Line))],
-            [.. library.All.Where(r => r.Id != here.Id).Select(r => new RoomLink(r.Id, r.Name))],
+            [.. Library.All.Where(r => r.Id != here.Id).Select(r => new RoomLink(r.Id, r.Name))],
             here.Pond is { } pond ? new PondView(pond.Center.X, pond.Center.Z, pond.Radius) : null,
-            [.. here.Doors.Select(door => DoorView.From(door, library))],
+            [.. here.Doors.Select(door => DoorView.From(door, Library))],
             [.. here.Props.Select(PropView.From)],
             null,
             WorldMap: _worldMap,
@@ -169,7 +169,7 @@ internal sealed partial class RoomGrain
     private async Task RemoveExpiredFromOverworld()
     {
         var world = _world!;
-        var placed = new WorldSpace(library.All).Rooms;
+        var placed = new WorldSpace(Library.All).Rooms;
         if (placed.Count != world.Space.Rooms.Count || placed.Zip(world.Space.Rooms).Any(p => !p.First.SameAs(p.Second)))
         {
             // The map was published again or an overlay changed: start over, and the tabs walk back in to the new map.

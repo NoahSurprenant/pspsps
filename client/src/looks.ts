@@ -178,13 +178,32 @@ export function setDraftLook(roomId: string, data: RoomLookData): void {
   setOpenLandscapes([...rooms].filter(([, look]) => look.openLandscape).map(([id]) => id));
 }
 
-/** Reads the looks from the server: every page load, so a new room's look needs no new client. */
-export async function loadLooks(): Promise<void> {
-  const response = await fetch("/api/looks");
+/** Reads the looks from the server: every page load, so a new room's look needs no new client. The admins' preview world reads each room's draft look where it has one. */
+export async function loadLooks(preview = false): Promise<void> {
+  const response = await fetch(preview ? "/api/looks?preview=true" : "/api/looks");
   if (!response.ok) {
     throw new Error(`The room looks could not be read (${response.status}).`);
   }
   setLooks((await response.json()) as LooksData);
+}
+
+let showingDrafts = false;
+
+/** Reads the looks again only when the world kind changes: the admins' preview world has draft looks, every other world the published ones (read at page load). A home (no world) keeps what is shown. */
+export async function syncLooks(worldId: string): Promise<void> {
+  if (!worldId || (worldId === "preview") === showingDrafts) {
+    return;
+  }
+
+  try {
+    await loadLooks(worldId === "preview");
+    showingDrafts = worldId === "preview";
+  } catch (error) {
+    // The looks already read still draw every published room; only the preview can't do without its own.
+    if (worldId === "preview") {
+      throw error;
+    }
+  }
 }
 
 export function lookOf(roomId: string, variant?: string | null): RoomLook {
