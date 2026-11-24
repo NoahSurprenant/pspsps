@@ -3,13 +3,14 @@ import { defineConfig, devices } from "@playwright/test";
 const suite = process.env.E2E_SUITE;
 const layout = "**/layout.spec.ts";
 const accessibility = "**/a11y.spec.ts";
+const world = "**/publishedWorld.spec.ts";
 
 // The game must already be running at E2E_BASE_URL (CI runs the Docker image against PostgreSQL; locally, run the
 // server and point this at it).
 export default defineConfig({
   testDir: "tests",
-  testMatch: suite === "layout" ? layout : suite === "accessibility" ? accessibility : undefined,
-  testIgnore: suite === "gameplay" ? [layout, accessibility] : undefined,
+  testMatch: { layout, accessibility, world }[suite ?? ""],
+  testIgnore: suite === "gameplay" ? [layout, accessibility, world] : undefined,
   timeout: 60_000,
   expect: { timeout: 15_000 },
   // Shard layout by individual case, with a single browser worker on each isolated runner.
