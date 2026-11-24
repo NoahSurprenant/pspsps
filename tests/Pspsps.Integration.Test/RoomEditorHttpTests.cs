@@ -1237,6 +1237,7 @@ public sealed class RoomEditorHttpTests
         using var shopRead = await SendAsync(admin, HttpMethod.Get, "rooms/shop");
         var shop = await JsonOfAsync(shopRead);
         var shopDraft = shop["published"]!.DeepClone();
+        shopDraft["props"] = new JsonArray();
         shopDraft["doors"]!.AsArray().Add(JsonNode.Parse("""{"id":"loft","edge":"West","offset":0,"toRoom":"loft","toDoor":"shop"}"""));
         var loft = JsonNode.Parse("""
             {"name":"The Draft Loft","width":10,"depth":8,"spawn":{"x":0,"z":0},"capacity":12,"props":[],
