@@ -31,6 +31,7 @@ public sealed class OverworldCrowdCostTests
         }
 
         Console.WriteLine(report);
+        Assert.That(report.Length, Is.GreaterThan(0));
     }
 
     private static string Measure(string name, bool spread, int cats, bool indexed)
