@@ -23,7 +23,7 @@ import "@babylonjs/core/Culling/ray";
 import { AdvancedDynamicTexture } from "@babylonjs/gui/2D/advancedDynamicTexture";
 import { Rectangle } from "@babylonjs/gui/2D/controls/rectangle";
 import { TextBlock } from "@babylonjs/gui/2D/controls/textBlock";
-import { cameraFocus, cameraPitch, cameraRadius, fieldOfView, roomPitch, startingZoom, zoomRadius } from "./view";
+import { cameraFocus, cameraPitch, cameraRadius, fieldOfView, openView, roomPitch, startingZoom, zoomRadius } from "./view";
 import { wildlife } from "./wildlife";
 import { sceneryTarget } from "./walking";
 import { animationFor, Cat, facing, loadCatModel, MeowClip, type CatAnimation, type Outfit } from "./cat";
@@ -59,9 +59,6 @@ const selectionColour = "#f0a04b";
 const there = 0.05;
 /** How tall a room's back wall is, in metres. */
 const wallHeight = 4;
-/** How much floor the open world's camera fits at its furthest zoom, in metres: about the distance a cat sees (WorldSpace.ViewDistance). */
-const openViewWidth = 48;
-const openViewDepth = 30;
 
 // The cat model's bytes: fetched once, on the way into the first room; every room reads them into its own scene. A
 // fetch that failed is tried again by the next room.
@@ -292,7 +289,7 @@ export class RoomScene {
     if (!arrival) {
       throw new Error("The room has no floor.");
     }
-    const view = world ? { width: openViewWidth, depth: openViewDepth } : room;
+    const view = world ? openView : room;
     let aspect = this.engine.getAspectRatio(camera);
     let fitted = cameraRadius(aspect, view.width, view.depth);
     const aim = () => {
