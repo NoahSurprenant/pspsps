@@ -56,13 +56,14 @@ public sealed class ContentDraftsTests
         }
 
         var (ax, az, bx, bz) = (pa.X * WorldPlace.Cell, pa.Z * WorldPlace.Cell, pb.X * WorldPlace.Cell, pb.Z * WorldPlace.Cell);
+        static bool Meets(double a, double b) => Math.Abs(a - b) < 1e-9;
         static bool Shares(double from, double length, double otherFrom, double otherLength) => from < otherFrom + otherLength && otherFrom < from + length;
         return edge switch
         {
-            RoomEdge.North => bz == az + a.Depth && Shares(ax, a.Width, bx, b.Width),
-            RoomEdge.South => bz + b.Depth == az && Shares(ax, a.Width, bx, b.Width),
-            RoomEdge.East => bx == ax + a.Width && Shares(az, a.Depth, bz, b.Depth),
-            _ => bx + b.Width == ax && Shares(az, a.Depth, bz, b.Depth),
+            RoomEdge.North => Meets(bz, az + a.Depth) && Shares(ax, a.Width, bx, b.Width),
+            RoomEdge.South => Meets(bz + b.Depth, az) && Shares(ax, a.Width, bx, b.Width),
+            RoomEdge.East => Meets(bx, ax + a.Width) && Shares(az, a.Depth, bz, b.Depth),
+            _ => Meets(bx + b.Width, ax) && Shares(az, a.Depth, bz, b.Depth),
         };
     }
 

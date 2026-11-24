@@ -49,6 +49,8 @@ public static class RoomPlan
         return floors;
     }
 
+    private static bool Meets(double a, double b) => Math.Abs(a - b) < 1e-9;
+
     private static bool Touches(RoomDefinition a, RoomDefinition b)
     {
         if (a.Place is not { } pa || b.Place is not { } pb || a.Id == b.Id)
@@ -59,6 +61,6 @@ public static class RoomPlan
         var (ax, az, bx, bz) = (pa.X * WorldPlace.Cell, pa.Z * WorldPlace.Cell, pb.X * WorldPlace.Cell, pb.Z * WorldPlace.Cell);
         var overlapX = ax < bx + b.Width && bx < ax + a.Width;
         var overlapZ = az < bz + b.Depth && bz < az + a.Depth;
-        return (overlapX && (bz == az + a.Depth || bz + b.Depth == az)) || (overlapZ && (bx == ax + a.Width || bx + b.Width == ax));
+        return (overlapX && (Meets(bz, az + a.Depth) || Meets(bz + b.Depth, az))) || (overlapZ && (Meets(bx, ax + a.Width) || Meets(bx + b.Width, ax)));
     }
 }
