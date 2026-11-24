@@ -8,7 +8,7 @@ import {
 import { lazily } from "./lazy";
 import { loadRoom, PendingEvents } from "./pending";
 import { comeBack, saysSentOutAgain, stayAfterRefusal } from "./rejoin";
-import { catchBubble, FishingState, gotAwayMessage, paid, pondEdge, reelMessage, type Fishing } from "./fishing";
+import { catchBubble, FishingState, gotAwayMessage, inReachOfPond, paid, pondEdge, reelMessage, type Fishing } from "./fishing";
 import { playPiano } from "./roomActivities";
 import { Room } from "./room";
 import { roomGestures } from "./roomGestures";
@@ -213,6 +213,9 @@ const connection = new GameConnection({
     if (here.move(playerId, x, z)) {
       scene?.walk(playerId, x, z);
     }
+    if (playerId === me?.id) {
+      showFishButton();
+    }
   }),
   chatSaid: (line) => onRoom((here) => {
     if (here.say(line)) {
@@ -412,6 +415,17 @@ function onRoom(apply: (room: Room) => void): void {
   }
 }
 
+/** Shows the Fish button only while the player's cat stands within reach of a pond. */
+function showFishButton(): void {
+  const cat = me && room?.cats.get(me.id);
+  const chunks = room?.snapshot.chunks;
+  const ponds = chunks?.length ? chunks.map(place).flatMap((chunk) => (chunk.pond ? [chunk.pond] : [])) : [];
+  if (!chunks?.length && room?.snapshot.pond) {
+    ponds.push(room.snapshot.pond);
+  }
+  overlay.setPondNear(cat ? inReachOfPond(ponds, cat) : false);
+}
+
 /** Walks the player's cat to the pond's edge and casts: once, however many clicks. */
 async function fish(): Promise<void> {
   const cat = me && room?.cats.get(me.id);
@@ -601,6 +615,7 @@ function show(snapshot: RoomSnapshot, view: RoomScene): Room {
   );
   overlay.setChatMute(chatMute);
   showNotice();
+  showFishButton();
   fishing.drop();
   return shown;
 }
