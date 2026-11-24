@@ -271,6 +271,10 @@ function townBackdrop(plan: Floorplan, wallHeight: number): Part[] {
     }
     parts.push(...houseWindows(house, plan, wallHeight, width, front));
   }
+  // The paving step down from the cobbles to the lawn, along the room's front edge.
+  const edge = -plan.depth / 2;
+  parts.push({ shape: "box", width: plan.width, height: 0.25, depth: 0.5, at: [0, 0.12, edge - 0.4], colour: "#b8a98a" });
+  parts.push({ shape: "box", width: plan.width, height: 0.1, depth: 0.3, at: [0, 0.3, edge - 0.45], colour: "#cfc2a8", outlined: false });
   // Trees between the houses' roofs.
   for (const [x, height] of [[-21.5, 8.6], [-11, 7.8], [0, 8.4], [12, 7.8], [22, 8.4]] as const) {
     parts.push({ shape: "ball", diameter: 3.4, height: 3, at: [x, height, front + 11.5], colour: palette.leaf });
