@@ -93,6 +93,34 @@ internal static class BackdropClearance
         return problems;
     }
 
+    /// <summary>Where the browser draws the back wall, and about how high: the wall is a slab this thick, on the floor's far edge.</summary>
+    private const double WallThickness = 0.3;
+
+    private const double WallHeight = 4;
+
+    /// <summary>
+    /// The browser's own rule for a room's backdrop (looks.test.ts): a part that stands over the floor's rectangle is overhead (its underside above
+    /// 2 m, higher than the cats' heads); lower than that it stands where cats walk. Flat decoration (paths, mats, sand: nothing above 0.3 m) is
+    /// not a part cats bump into, and what lies outside the floor is scenery.
+    /// </summary>
+    public static IEnumerable<string> LowPartsOverTheFloor(string id, RoomLayout layout, IReadOnlyList<PropPart> parts) =>
+        Describe(id, parts, solid => solid.Top > StandingAbove && solid.Bottom <= 2 && solid.OverTheBox(layout.Width / 2, layout.Depth / 2), "stands over the floor lower than 2 m");
+
+    /// <summary>Parts that lie wholly inside the back wall's slab: drawn behind its face they are hidden, and where they meet it they flicker.</summary>
+    public static IEnumerable<string> InsideTheBackWall(string id, RoomLayout layout, IReadOnlyList<PropPart> parts) =>
+        Describe(id, parts, solid => solid.Top > StandingAbove && solid.Bottom < WallHeight && solid.OverTheBox(layout.Width / 2, layout.Depth / 2 + WallThickness)
+            && solid.Z0 >= (layout.Depth / 2) - 0.1 && solid.Z1 <= (layout.Depth / 2) + WallThickness + 0.02, "lies inside the back wall");
+
+    /// <summary>Standing parts (nothing above a cat's height under them, more than flat decoration) that reach into the middle of a prop.</summary>
+    public static IEnumerable<string> InsideProps(string id, RoomLayout layout, IReadOnlyList<PropPart> parts) =>
+        parts.Select(Solid.Of).Select((solid, i) => (solid, i)).Where(p => p.solid.Top > StandingAbove && p.solid.Bottom < OverheadFrom)
+            .SelectMany(p => layout.Props.Where(prop => p.solid.DistanceToBox(prop.Spot) < Math.Min(prop.Radius, 1) * PropCoreShare)
+                .Select(prop => $"{id}: backdrop part {p.i + 1} ({parts[p.i].Shape} at {parts[p.i].At[0]}, {parts[p.i].At[2]}) sits inside the {prop.Kind} at ({prop.Spot.X}, {prop.Spot.Z})"));
+
+    private static IEnumerable<string> Describe(string id, IReadOnlyList<PropPart> parts, Func<Solid, bool> test, string what) =>
+        parts.Select(Solid.Of).Select((solid, i) => (solid, i)).Where(p => test(p.solid))
+            .Select(p => $"{id}: backdrop part {p.i + 1} ({parts[p.i].Shape} at {parts[p.i].At[0]}, {parts[p.i].At[1]}, {parts[p.i].At[2]}) {what}");
+
     private static IEnumerable<(Position From, Position To)> Walks(IReadOnlyList<Position> stops) =>
         stops.SelectMany((start, a) => stops.Skip(a + 1).Select(end => (From: start, To: end)));
 
@@ -126,6 +154,12 @@ internal static class BackdropClearance
         public bool Reaches(double x0, double x1, double z0, double z1) => Round
             ? Math.Sqrt(Math.Pow(Math.Max(Math.Max(x0 - Middle.X, Middle.X - x1), 0), 2) + Math.Pow(Math.Max(Math.Max(z0 - Middle.Z, Middle.Z - z1), 0), 2)) < Radius
             : X1 > x0 && X0 < x1 && Z1 > z0 && Z0 < z1;
+
+        /// <summary>Whether its bounding box stands over the rectangle of half-sizes (<paramref name="halfX"/>, <paramref name="halfZ"/>) round the room's middle (the browser's test, which does not round the corners).</summary>
+        public bool OverTheBox(double halfX, double halfZ) => X1 > -halfX && X0 < halfX && Z1 > -halfZ && Z0 < halfZ;
+
+        public double DistanceToBox(Position spot) =>
+            Math.Sqrt(Math.Pow(Math.Max(Math.Max(X0 - spot.X, spot.X - X1), 0), 2) + Math.Pow(Math.Max(Math.Max(Z0 - spot.Z, spot.Z - Z1), 0), 2));
 
         public double DistanceTo(Position spot) => Round
             ? Math.Max(0, spot.DistanceTo(Middle) - Radius)

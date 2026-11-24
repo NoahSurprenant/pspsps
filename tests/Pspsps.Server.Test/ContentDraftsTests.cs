@@ -74,6 +74,89 @@ public sealed class ContentDraftsTests
         });
     }
 
+    /// <summary>How many parts, per room, stood over the floor lower than 2 m before this rule was checked here; new scenery adds none (rooms not listed have none).</summary>
+    private static readonly Dictionary<string, int> LowPartsAlreadyThere = new()
+    {
+        ["town-square"] = 22, ["dojo-courtyard"] = 27, ["dojo"] = 44, ["plaza"] = 20, ["pizza-parlor"] = 4, ["mine"] = 19, ["mine-tunnels"] = 55,
+        ["book-room"] = 39, ["pet-shop"] = 16, ["hotel"] = 2, ["dock"] = 1, ["peakside-village"] = 5, ["scratching-peaks"] = 11,
+    };
+
+    /// <summary>How many parts, per room, lay inside the back wall before it was checked here; new scenery adds none.</summary>
+    private static readonly Dictionary<string, int> PartsInTheBackWallAlreadyThere = new()
+    {
+        ["town-square"] = 10, ["dojo-courtyard"] = 8, ["dojo"] = 2, ["pizza-parlor"] = 2, ["mine"] = 14, ["mine-tunnels"] = 3, ["book-room"] = 4, ["pet-shop"] = 2,
+    };
+
+    private static IEnumerable<(string Id, RoomLayout Layout, IReadOnlyList<PropPart> Parts)> BackdropsOfTheRooms() =>
+        Content.AllLooks.Where(look => Content.RoomList.Any(room => room.Id == look.Id))
+            .Select(look => (look.Id, Content.RoomList.Single(room => room.Id == look.Id).Layout, look.Look.Backdrop.Parts));
+
+    private static void AssertNoMoreThanBefore(Func<string, RoomLayout, IReadOnlyList<PropPart>, IEnumerable<string>> check, Dictionary<string, int> before)
+    {
+        var worse = BackdropsOfTheRooms().Select(room => (room.Id, Found: check(room.Id, room.Layout, room.Parts).ToList()))
+            .Where(room => room.Found.Count > before.GetValueOrDefault(room.Id)).ToList();
+
+        Assert.That(worse.SelectMany(room => room.Found), Is.Empty);
+    }
+
+    /// <summary>The browser keeps every room's backdrop off the floor or above the cats' heads (looks.test.ts); the drafts older than that rule keep what they had, but no room adds to it.</summary>
+    [Test]
+    public void TheBackdropOfEveryRoom_AddsNothingLowerThan2MetresOverTheFloor() =>
+        AssertNoMoreThanBefore(BackdropClearance.LowPartsOverTheFloor, LowPartsAlreadyThere);
+
+    /// <summary>The back wall is a slab at the floor's far edge; a part inside it is hidden by it or flickers against it.</summary>
+    [Test]
+    public void TheBackdropOfEveryRoom_AddsNothingInsideTheBackWall() =>
+        AssertNoMoreThanBefore(BackdropClearance.InsideTheBackWall, PartsInTheBackWallAlreadyThere);
+
+    [Test]
+    public void TheBackdropOfEveryRoom_StandsInNoProp() =>
+        AssertNoMoreThanBefore(BackdropClearance.InsideProps, []);
+
+    /// <summary>Rooms made to look like open scenes stay richly decorated, and keep the scenery they were redrawn with: deleting it for filler fails.</summary>
+    [TestCase("dojo", "box", "#7a3a1e", 1, "the fire door")]
+    [TestCase("dojo", "box", "#8fa4b4", 1, "the ice door")]
+    [TestCase("dojo", "box", "#2f5f6a", 1, "the water door")]
+    [TestCase("dojo", "cylinder", "#a8322a", 2, "the red pillars")]
+    [TestCase("dojo", "box", "#2f5fa8", 4, "the blue sparring mats")]
+    [TestCase("dojo", "ball", "#3b7a46", 1, "the bonsai")]
+    [TestCase("forest", "box", "#2f9bd6", 2, "the waterfall and its pool")]
+    [TestCase("forest", "box", "#14141a", 1, "the cave mouth")]
+    [TestCase("mine", "cylinder", "#2f5fa8", 2, "the volleyball net's poles")]
+    [TestCase("mine", "box", "#e8e8ee", 1, "the volleyball net")]
+    [TestCase("mine", "box", "#6fb84a", 1, "the picnic blanket")]
+    [TestCase("pet-shop", "cylinder", "#e8d48a", 1, "the outer ring of the rug")]
+    [TestCase("pet-shop", "cylinder", "#c9e8a0", 1, "the middle ring of the rug")]
+    [TestCase("pet-shop", "cylinder", "#a8d4f4", 1, "the inner ring of the rug")]
+    [TestCase("town-square", "box", "#b8a98a", 1, "the steps down to the lawn")]
+    [TestCase("plaza", "box", "#b8a98a", 1, "the steps down to the lawn")]
+    public void TheRedrawnRooms_KeepWhatTheyWereRedrawnWith(string id, string shape, string colour, int atLeast, string what)
+    {
+        var parts = Content.AllLooks.Single(look => look.Id == id).Look.Backdrop.Parts;
+
+        Assert.That(parts.Count(part => part.Shape == shape && part.Colour == colour), Is.GreaterThanOrEqualTo(atLeast), what);
+    }
+
+    [Test]
+    public void TheBeach_KeepsItsSandcastleAndBucket()
+    {
+        var kinds = Content.RoomList.Single(room => room.Id == "beach").Layout.Props.Select(prop => prop.Kind).ToList();
+
+        Assert.That(kinds, Is.SupersetOf(new[] { "field-sandcastle-small", "field-bucket" }));
+    }
+
+    [TestCase("dojo", 100)]
+    [TestCase("forest", 95)]
+    [TestCase("mine", 120)]
+    [TestCase("beach", 65)]
+    [TestCase("pet-shop", 70)]
+    public void TheRedrawnRooms_KeepARichBackdrop(string id, int atLeast)
+    {
+        var parts = Content.RoomList.Single(room => room.Id == id).Look!.Backdrop.Parts;
+
+        Assert.That(parts, Has.Count.GreaterThanOrEqualTo(atLeast));
+    }
+
     /// <summary>The starting rooms with the file's rooms laid over them: the book the game would have once the drafts are published.</summary>
     private static Dictionary<string, RoomLayout> LayoutsWithTheDrafts()
     {
