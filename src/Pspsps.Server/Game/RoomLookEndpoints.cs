@@ -29,9 +29,14 @@ internal static class RoomLookEndpoints
             var rooms = await db.RoomLooks.AsNoTracking().OrderBy(l => l.Id).Select(l => new { l.Id, l.Look }).ToListAsync(ct);
             if (preview == true)
             {
-                var drafted = await db.RoomVersions.AsNoTracking()
-                    .Where(v => v.State == RoomVersionState.Draft && v.Look != null)
-                    .ToDictionaryAsync(v => v.RoomId, v => v.Look!, ct);
+                // A room's newest draft (by revision, as the room library reads it) is the one that counts.
+                var drafted = (await db.RoomVersions.AsNoTracking()
+                    .Where(v => v.State == RoomVersionState.Draft)
+                    .ToListAsync(ct))
+                    .GroupBy(v => v.RoomId)
+                    .Select(group => group.MaxBy(v => v.Revision)!)
+                    .Where(v => v.Look != null)
+                    .ToDictionary(v => v.RoomId, v => v.Look!);
                 var known = rooms.Select(l => l.Id).ToHashSet();
                 // A room that is only a draft has no live look: it comes in with its draft's, or its neighbours would draw it plain.
                 rooms = [.. rooms.Select(l => drafted.TryGetValue(l.Id, out var look) ? new { l.Id, Look = look } : l),

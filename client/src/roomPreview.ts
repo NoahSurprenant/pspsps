@@ -21,10 +21,10 @@ export interface RoomPreview {
 export function roomPreview(canvas: HTMLCanvasElement): RoomPreview {
   let scene: Promise<{ show: (snapshot: RoomSnapshot) => void }> | undefined;
   const make = async (): Promise<{ show: (snapshot: RoomSnapshot) => void }> => {
-    const [{ Engine }, { RoomScene }, { loadPropDesigns }, { loadLooks }] = await Promise.all([
-      import("@babylonjs/core/Engines/engine"), import("./scene"), import("./props"), import("./looks"),
+    const [{ Engine }, { RoomScene }, { loadPropDesigns }] = await Promise.all([
+      import("@babylonjs/core/Engines/engine"), import("./scene"), import("./props"),
     ]);
-    await Promise.all([loadPropDesigns(), loadLooks(true)]);
+    await loadPropDesigns();
     const engine = new Engine(canvas, true, { stencil: true, canvasTabIndex: -1 });
     const made = new RoomScene(engine, undefined, false);
     made.markArrival = true;

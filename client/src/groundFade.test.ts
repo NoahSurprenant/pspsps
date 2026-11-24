@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PlacedChunk } from "./overworld";
-import { fadeAt, groundBlendOf, groundPatchOf } from "./scene";
+import { fadeAt, groundBlendOf, groundPatchHeight, groundPatchOf } from "./scene";
 
 describe("fadeAt", () => {
   it("shows all of a room's ground over the room and none at the patch's edge, fading between", () => {
@@ -21,7 +21,7 @@ describe("fadeAt", () => {
 describe("groundBlendOf", () => {
   it("blends a room's ground into its neighbour's over a short way, but the ground under the whole world out over far more, so it ends at the horizon, not as a visible flat edge", () => {
     expect(groundBlendOf(false)).toBe(40);
-    expect(groundBlendOf(true)).toBeGreaterThanOrEqual(200);
+    expect(groundBlendOf(true)).toBeGreaterThanOrEqual(100);
   });
 });
 
@@ -35,5 +35,10 @@ describe("groundPatchOf", () => {
 
     expect(whole).toMatchObject({ wholeWorld: true, chunk: { x: 10, z: 0, width: 40, depth: 10 } });
     expect(beside).toMatchObject({ wholeWorld: false, chunk: { x: 20, width: 20 } });
+  });
+
+  it("lays the world's patch below every room's, and each room's above the last, so no fade covers a neighbour's ground", () => {
+    expect(groundPatchHeight(true, 0)).toBeLessThan(groundPatchHeight(false, 0));
+    expect(groundPatchHeight(false, 1)).toBeGreaterThan(groundPatchHeight(false, 0));
   });
 });
