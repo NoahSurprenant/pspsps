@@ -3,30 +3,28 @@ using Pspsps.Domain.Rooms;
 namespace Pspsps.Domain.Test;
 
 /// <summary>
-/// What the room grain keeps for the open world, without the network: who each cat was shown (<c>Known</c>), and the
-/// reverse (<c>Watchers</c>: cat to the viewers shown it). <see cref="Indexed"/> false is the old way: scan every viewer's
-/// set and bring every cat near the mover up to date. True is the grain's way now.
+/// The room grain's syncing of the open world without the network, over the same <see cref="ViewLedger"/> the grain uses.
+/// <c>filtered</c> false brings every viewer near the mover (and who was shown it) up to date, the way it was done before
+/// <see cref="ViewLedger.Affected"/>; true syncs only the viewers it names.
 /// </summary>
-internal sealed class CrowdView(OverworldState world, bool indexed)
+internal sealed class CrowdView(OverworldState world, bool filtered)
 {
-    public Dictionary<Guid, HashSet<Guid>> Known { get; } = [];
-
-    private readonly Dictionary<Guid, HashSet<Guid>> _watchers = [];
+    public ViewLedger Views { get; } = new();
 
     public int Synced { get; private set; }
 
-    public void Seen(Guid viewer) => Set(viewer, [.. world.VisibleTo(viewer).Select(c => c.PlayerId)]);
+    public void Seen(Guid viewer) => Sync(viewer);
 
     public void Moved(CatInRoom cat)
     {
-        var affected = world.CatsAround(cat.Position)
-            .Where(other => other.Position.DistanceTo(cat.Position) <= WorldSpace.ViewDistance)
-            .Select(other => other.PlayerId)
-            .Append(cat.PlayerId)
-            .Concat(WatchersOf(cat.PlayerId))
-            .Distinct()
-            .Where(viewer => !indexed || world.ViewMayChange(viewer, cat, Known.GetValueOrDefault(viewer) ?? []))
-            .ToList();
+        var affected = filtered
+            ? Views.Affected(world, cat)
+            : [.. world.CatsAround(cat.Position)
+                .Where(other => other.Position.DistanceTo(cat.Position) <= WorldSpace.ViewDistance)
+                .Select(other => other.PlayerId)
+                .Append(cat.PlayerId)
+                .Concat(Views.Watching(cat.PlayerId))
+                .Distinct()];
         foreach (var viewer in affected)
         {
             Sync(viewer);
@@ -35,58 +33,15 @@ internal sealed class CrowdView(OverworldState world, bool indexed)
 
     public void Departed(Guid id)
     {
-        var viewers = WatchersOf(id).ToList();
-        Set(id, []);
-        Known.Remove(id);
-        _watchers.Remove(id);
-        foreach (var viewer in viewers)
-        {
-            Known[viewer].Remove(id);
-        }
-
-        if (!indexed)
-        {
-            foreach (var known in Known.Values)
-            {
-                known.Remove(id);
-            }
-        }
-
-        foreach (var viewer in viewers.Where(v => world.Find(v) is not null))
+        foreach (var viewer in Views.Forget(id).Where(v => world.Find(v) is not null))
         {
             Sync(viewer);
         }
     }
 
-    private List<Guid> WatchersOf(Guid id) =>
-        indexed
-            ? [.. _watchers.GetValueOrDefault(id) ?? []]
-            : [.. Known.Where(entry => entry.Value.Contains(id)).Select(entry => entry.Key)];
-
     private void Sync(Guid viewer)
     {
         Synced++;
-        Seen(viewer);
-    }
-
-    private void Set(Guid viewer, HashSet<Guid> now)
-    {
-        var before = Known.GetValueOrDefault(viewer) ?? [];
-        foreach (var gone in before.Where(id => !now.Contains(id)))
-        {
-            _watchers[gone].Remove(viewer);
-        }
-
-        foreach (var appeared in now.Where(id => !before.Contains(id)))
-        {
-            if (!_watchers.TryGetValue(appeared, out var set))
-            {
-                _watchers[appeared] = set = [];
-            }
-
-            set.Add(viewer);
-        }
-
-        Known[viewer] = now;
+        Views.Set(viewer, world.Find(viewer)!.Position, world.VisibleTo(viewer));
     }
 }

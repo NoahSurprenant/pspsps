@@ -46,7 +46,7 @@ public sealed class OverworldCrowdCostTests
             : new Position((random.NextDouble() * 30) - 15, (random.NextDouble() * 30) - 15);
 
         var clock = Start;
-        var ids = Enumerable.Range(0, cats).Select(_ => Guid.NewGuid()).ToList();
+        var ids = Enumerable.Range(1, cats).Select(OverworldCrowdViewTests.Id).ToList();
         var crowd = new CrowdView(world, indexed);
         foreach (var id in ids)
         {

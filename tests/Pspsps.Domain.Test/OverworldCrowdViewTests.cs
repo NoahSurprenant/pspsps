@@ -7,6 +7,8 @@ public sealed class OverworldCrowdViewTests
 {
     private static readonly DateTimeOffset Start = new(2026, 11, 24, 12, 0, 0, TimeSpan.Zero);
 
+    internal static Guid Id(int n) => new(n, 0, 0, [0, 0, 0, 0, 0, 0, 0, 1]);
+
     private static OverworldState Big(int cats) =>
         new(new WorldSpace([new RoomDefinition("big", "Big", 400, 300, new Position(0, 0), 500) { Place = new WorldPlace(-100, -75) }]), cats);
 
@@ -17,19 +19,20 @@ public sealed class OverworldCrowdViewTests
     [TestCase(false, 300, 120, 3)]
     [TestCase(true, 300, 120, 3)]
     [TestCase(true, 150, 400, 5)]
-    public void WhatEachCatIsShown_IsWhatAFullScanGives_AfterEveryMoveJoinAndDeparture(bool indexed, int cats, double spread, int seed)
+    public void WhatEachCatIsShown_IsWhatAFullScanGives_AfterEveryMoveJoinAndDeparture(bool filtered, int cats, double spread, int seed)
     {
         var world = Big(cats + 10);
-        var crowd = new CrowdView(world, indexed);
+        var crowd = new CrowdView(world, filtered);
         var random = new Random(seed);
         var clock = Start;
         var live = new List<Guid>();
+        var next = 0;
 
         Position Spot() => new((random.NextDouble() * spread) - (spread / 2), (random.NextDouble() * spread) - (spread / 2));
 
         void Join()
         {
-            var id = Guid.NewGuid();
+            var id = Id(++next);
             world.Join(id, "Cat", FurColor.Orange, id.ToString(), Start, "big");
             clock = clock.AddMinutes(1);
             world.Move(id, Spot(), clock);
@@ -71,7 +74,7 @@ public sealed class OverworldCrowdViewTests
             foreach (var id in live)
             {
                 Assert.That(
-                    crowd.Known[id].OrderBy(x => x), Is.EqualTo(world.VisibleTo(id).Select(c => c.PlayerId).OrderBy(x => x)),
+                    crowd.Views.KnownBy(id).OrderBy(x => x), Is.EqualTo(world.VisibleTo(id).Select(c => c.PlayerId).OrderBy(x => x)),
                     $"step {step}, cat {id}");
             }
         }
