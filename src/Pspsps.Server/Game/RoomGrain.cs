@@ -29,7 +29,7 @@ internal sealed partial class RoomGrain(
     private string _key = "";
 
     // The rooms this grain's world plays on: the published ones, or each room's newest draft in the admins' preview world.
-    private IRoomLibrary Library => library.For(RoomKey.Parse(_key).WorldId);
+    private IRoomLibrary Library => library.OfWorld(RoomKey.Parse(_key).WorldId);
     private RoomState _state = null!;
 
     // The room's doors and props as the browser sees them: catalogue data, the same for every join.

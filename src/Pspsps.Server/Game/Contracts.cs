@@ -518,7 +518,7 @@ public sealed record OpenReportView(
             roomId = RoomKey.Parse(room).RoomId;
         }
 
-        var roomName = rooms.For(worldId).Find(roomId)?.Name ?? roomId;
+        var roomName = rooms.OfWorld(worldId).Find(roomId)?.Name ?? roomId;
         return WorldCatalog.Find(worldId) is { } world ? $"{roomName}, {world.Name}" : roomName;
     }
 }

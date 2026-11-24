@@ -19,7 +19,7 @@ public sealed class RoomLibrary(IServiceScopeFactory scopes, TimeProvider time) 
 
     public RoomDefinition Start => All[0];
 
-    public IRoomLibrary For(string worldId) => worldId == WorldCatalog.PreviewId ? new PreviewRooms(() => _preview ?? Book, time) : this;
+    public IRoomLibrary OfWorld(string worldId) => worldId == WorldCatalog.PreviewId ? new PreviewRooms(() => _preview ?? Book, time) : this;
 
     public async Task RefreshAsync(CancellationToken cancellationToken)
     {
@@ -48,7 +48,7 @@ public sealed class RoomLibrary(IServiceScopeFactory scopes, TimeProvider time) 
 
         public RoomDefinition Start => All[0];
 
-        public IRoomLibrary For(string worldId) => this;
+        public IRoomLibrary OfWorld(string worldId) => this;
 
         public Task RefreshAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     }
@@ -69,7 +69,7 @@ public sealed class FixedRoomLibrary(RoomBook book, TimeProvider? time = null, R
 
     public RoomDefinition Start => All[0];
 
-    public IRoomLibrary For(string worldId) => worldId == WorldCatalog.PreviewId && preview is not null ? new FixedRoomLibrary(preview, _time) : this;
+    public IRoomLibrary OfWorld(string worldId) => worldId == WorldCatalog.PreviewId && preview is not null ? new FixedRoomLibrary(preview, _time) : this;
 
     public Task RefreshAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }

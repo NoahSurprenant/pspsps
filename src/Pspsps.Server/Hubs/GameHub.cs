@@ -110,7 +110,7 @@ public sealed partial class GameHub(
         }
 
         metrics.EnteredWorld(world.Id);
-        var townSquare = RoomKey.For(world.Id, rooms.For(world.Id).Start.Id);
+        var townSquare = RoomKey.For(world.Id, rooms.OfWorld(world.Id).Start.Id);
         try
         {
             return await JoinRoom(world.Id, townSquare, throughDoor: null);
@@ -143,7 +143,7 @@ public sealed partial class GameHub(
         await EnsureCurrentTab();
         // Read after the wait: the heartbeat may have moved it meanwhile (a lost room or world).
         var place = Here ?? throw new HubException("Pick a world first.");
-        var room = rooms.For(place.WorldId).Find(roomId) ?? throw new HubException("That room doesn't exist.");
+        var room = rooms.OfWorld(place.WorldId).Find(roomId) ?? throw new HubException("That room doesn't exist.");
         return await MoveInto(place, RoomKey.For(place.WorldId, room.Id));
     }
 
@@ -241,7 +241,7 @@ public sealed partial class GameHub(
 
         var cameFrom = from.RoomKey is { } was ? await WhereaboutsAsync(was) : null;
         var deadline = time.GetUtcNow() + WayOutTimeLimit;
-        foreach (var place in WayOut.For(rooms.For(from.WorldId).All, PlayerId, cameFrom, RoomKey.WhereaboutsOf(refused)))
+        foreach (var place in WayOut.For(rooms.OfWorld(from.WorldId).All, PlayerId, cameFrom, RoomKey.WhereaboutsOf(refused)))
         {
             var timeLeft = deadline - time.GetUtcNow();
             if (timeLeft <= TimeSpan.Zero)
@@ -962,7 +962,7 @@ public sealed partial class GameHub(
 
         // A room on the world map is part of the open world: its cats are in the world's one grain, told where to put this one.
         var roomId = RoomKey.Parse(key).RoomId;
-        if (RoomKey.HomeOwner(key) is null && rooms.For(worldId).Find(roomId)?.Place is not null)
+        if (RoomKey.HomeOwner(key) is null && rooms.OfWorld(worldId).Find(roomId)?.Place is not null)
         {
             throughDoor = RoomKey.Arrival(roomId, throughDoor);
             key = RoomKey.ForOverworld(worldId);
@@ -1130,7 +1130,7 @@ public sealed partial class GameHub(
 
     // The grain that holds a cat at <place>: a room on the world map is part of the open world's one grain.
     private string GrainKeyOf(PlayerPlace place) =>
-        RoomKey.Grain(place.WorldId, place.RoomId, rooms.For(place.WorldId).Find(place.RoomId)?.Place is not null);
+        RoomKey.Grain(place.WorldId, place.RoomId, rooms.OfWorld(place.WorldId).Find(place.RoomId)?.Place is not null);
 
     // Where the player's cat is, or null when it can't be told (a grain call that failed counts as offline).
     private async Task<PlayerPlace?> LocateAsync(Guid playerId)
@@ -1230,7 +1230,7 @@ public sealed partial class GameHub(
     }
 
     private FriendPlaceView? WorldPlaceView(PlayerPlace? place) =>
-        place is not null && WorldCatalog.Find(place.WorldId) is { } world && rooms.For(world.Id).Find(place.RoomId) is { } room
+        place is not null && WorldCatalog.Find(place.WorldId) is { } world && rooms.OfWorld(world.Id).Find(place.RoomId) is { } room
             ? new FriendPlaceView(world.Id, world.Name, room.Id, room.Name)
             : null;
 

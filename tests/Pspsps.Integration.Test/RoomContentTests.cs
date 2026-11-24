@@ -207,9 +207,9 @@ public sealed class RoomContentTests
 
             Assert.Multiple(() =>
             {
-                Assert.That(library.For(WorldCatalog.PreviewId).Find("shop")!.Name, Is.EqualTo("The Unpublished Shop"));
-                Assert.That(library.For(WorldCatalog.PreviewId).Find("cafe")!.Name, Is.EqualTo(library.Find("cafe")!.Name), "a room with no draft is as published");
-                Assert.That(library.For("tabby").Find("shop")!.Name, Is.EqualTo(original.Name));
+                Assert.That(library.OfWorld(WorldCatalog.PreviewId).Find("shop")!.Name, Is.EqualTo("The Unpublished Shop"));
+                Assert.That(library.OfWorld(WorldCatalog.PreviewId).Find("cafe")!.Name, Is.EqualTo(library.Find("cafe")!.Name), "a room with no draft is as published");
+                Assert.That(library.OfWorld("tabby").Find("shop")!.Name, Is.EqualTo(original.Name));
                 Assert.That(library.Find("shop")!.Name, Is.EqualTo(original.Name));
             });
         }
