@@ -28,6 +28,7 @@ import { wildlife } from "./wildlife";
 import { sceneryTarget } from "./walking";
 import { animationFor, Cat, facing, loadCatModel, MeowClip, type CatAnimation, type Outfit } from "./cat";
 import { hasDoorway, openLandscape, pathEdge } from "./doors";
+import { onAnotherRoom, sceneryFor } from "./scenery";
 import { chunkAt, clampToWorld, place, worldBounds, type PlacedChunk } from "./overworld";
 import { lazily } from "./lazy";
 import { appLog } from "./telemetry";
@@ -331,9 +332,10 @@ export class RoomScene {
     const walls: Part[] = [];
     const animations: ((seconds: number) => void)[] = [];
     const skies = new Map<string, Color4>();
+    const distant = new Set<string>();
     const baseGround = world ? groundChunkOf(chunks, arrival) : arrival;
     for (const chunk of chunks) {
-      this.drawChunk(chunk, world ? chunks : undefined, { floors, ponds, doors, walls, animations, skies, baseGround, marked: this.markArrival ? arrival : undefined });
+      this.drawChunk(chunk, world ? chunks : undefined, { floors, ponds, doors, walls, animations, skies, baseGround, distant, marked: this.markArrival ? arrival : undefined });
     }
     this.walls = walls;
     this.activities = new RoomActivities();
@@ -436,7 +438,7 @@ export class RoomScene {
     drawn: {
       floors: Set<AbstractMesh>; ponds: Set<AbstractMesh>; doors: Map<AbstractMesh, DoorView>; walls: Part[];
       animations: ((seconds: number) => void)[]; skies: Map<string, Color4>;
-      baseGround: PlacedChunk; marked: PlacedChunk | undefined;
+      baseGround: PlacedChunk; distant: Set<string>; marked: PlacedChunk | undefined;
     },
   ): void {
     const { floors, ponds, doors, walls, animations, skies } = drawn;
@@ -473,8 +475,9 @@ export class RoomScene {
     }
     // The backdrop is another mesh, which a tap never tests: it does nothing there.
     const backdrop = buildParts(this.scene, "backdrop",
-      look.backdrop(plan, wallHeight).map((part) => ({ ...part, at: [part.at[0] + cx, part.at[1], part.at[2] + cz] as [number, number, number] }))
-        .filter((part) => !onAnotherRoom(world, chunk, part.at[0], part.at[2]) && !intrudesOnAnotherRoom(world, chunk, part)));
+      sceneryFor(world, chunk,
+        look.backdrop(plan, wallHeight).map((part) => ({ ...part, at: [part.at[0] + cx, part.at[1], part.at[2] + cz] as [number, number, number] })),
+        drawn.distant));
     if (backdrop) {
       backdrop.isPickable = false;
     }
@@ -1032,11 +1035,6 @@ export function catPlayerIdOf(mesh: BabylonNode | null | undefined): string | un
   return undefined;
 }
 
-/** Whether a spot on the ground lies on a placed room's floor (or its edge). */
-function covers(chunk: PlacedChunk, x: number, z: number): boolean {
-  return Math.abs(x - chunk.x) <= chunk.width / 2 && Math.abs(z - chunk.z) <= chunk.depth / 2;
-}
-
 const outlineWidth = 0.6;
 
 /** The four strips (centre and size, in metres) of a room's outline, all inside its bounds. */
@@ -1051,30 +1049,6 @@ export function outlineStrips(chunk: PlacedChunk, thickness: number): { x: numbe
     { x: chunk.x + halfWidth - half, z: chunk.z, width: thickness, depth: sideDepth },
     { x: chunk.x - halfWidth + half, z: chunk.z, width: thickness, depth: sideDepth },
   ];
-}
-
-/** Whether a spot lies on the floor of a placed room other than <chunk>: scenery there would stand on that room. */
-export function onAnotherRoom(world: PlacedChunk[] | undefined, chunk: PlacedChunk, x: number, z: number): boolean {
-  return world?.some((other) => other !== chunk && covers(other, x, z)) ?? false;
-}
-
-const intrusion = 1;
-
-/** Whether a part's body reaches more than a metre onto another placed room's floor, though its centre is off it: a big hill behind a room. */
-export function intrudesOnAnotherRoom(world: PlacedChunk[] | undefined, chunk: PlacedChunk, part: Part): boolean {
-  let reachX = 0;
-  let reachZ = 0;
-  if (part.shape === "box") {
-    reachX = part.width / 2;
-    reachZ = part.depth / 2;
-  } else if (part.shape !== "model") {
-    reachX = part.diameter / 2;
-    reachZ = reachX;
-  }
-  const [x, , z] = part.at;
-  return world?.some((other) => other !== chunk
-    && Math.min(x + reachX, other.x + other.width / 2) - Math.max(x - reachX, other.x - other.width / 2) > intrusion
-    && Math.min(z + reachZ, other.z + other.depth / 2) - Math.max(z - reachZ, other.z - other.depth / 2) > intrusion) ?? false;
 }
 
 const labelCharWidth = 9;

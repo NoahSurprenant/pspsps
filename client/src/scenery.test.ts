@@ -31,9 +31,9 @@ describe("sceneryFor", () => {
     expect(sceneryFor(world, south, [behindSouthOutsideTheWorld], new Set())).toEqual([behindSouthOutsideTheWorld]);
   });
 
-  it("does not draw distant scenery that lies between the world's edges (it would be inside the world)", () => {
-    // Far to the side of the south room, level with the world's middle, but beyond its own floor.
-    expect(sceneryFor(world, south, [part(0, 10.5 + 0.1)], new Set())).toEqual([]);
+  it("does not draw distant scenery inside the world's outline (a notch of an L-shaped world)", () => {
+    const l = [room(0, 0), room(20, 0), room(0, 14)];
+    expect(sceneryFor(l, l[1] as never, [part(20, 12)], new Set())).toEqual([]);
   });
 
   it("draws a hill that two rooms both list once", () => {
