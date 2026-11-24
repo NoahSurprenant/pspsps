@@ -280,9 +280,9 @@ public sealed class OverworldTests
         world.Join(id, "Cat", FurColor.Orange, "s", Now, "long");
 
         Assert.That(() => world.Cast(id, Now, 0.5), Throws.TypeOf<DomainException>().With.Message.Contains("pond"), "the pond is 100 m off");
-        world.Move(id, new Position(245, 10), Now);
-        world.Move(id, new Position(245, 10), Now.AddMinutes(1));
-        Assert.That(world.Find(id)!.Position.X, Is.EqualTo(245).Within(1e-6));
+        world.Move(id, new Position(247, 10), Now);
+        world.Move(id, new Position(247, 10), Now.AddMinutes(1));
+        Assert.That(world.Find(id)!.Position.X, Is.EqualTo(247).Within(1e-6));
         var line = world.Cast(id, Now.AddMinutes(1), 0.5);
 
         Assert.Multiple(() =>
