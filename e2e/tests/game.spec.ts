@@ -231,10 +231,10 @@ test("the emotes are one button that opens the choices, and close again", async 
 
   await page.getByRole("button", { name: "Emotes" }).click();
   await page.mouse.click(5, 5);
-  await expect(choices[0]).not.toBeVisible();
+  await expect(page.getByRole("button", { name: "Sit", exact: true })).not.toBeVisible();
 
   await pickEmote(page, "Wave");
-  await expect(choices[2]).not.toBeVisible();
+  await expect(page.getByRole("button", { name: "Wave", exact: true })).not.toBeVisible();
 });
 
 test("a cat's emotes show on the other cat's screen", async ({ page: tom, browser }) => {
