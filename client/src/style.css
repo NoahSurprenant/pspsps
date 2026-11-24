@@ -408,6 +408,10 @@ button:disabled {
   border-radius: 999px;
 }
 
+.fishing[hidden] {
+  display: none;
+}
+
 .fishing[data-state="idle"] {
   padding-left: 0.35rem;
 }

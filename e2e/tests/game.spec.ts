@@ -3,7 +3,7 @@ import type { Page } from "@playwright/test";
 import {
   animation, catEyes, cats, clickCat, emotes, enterWorld, expect, fishFor, goHome, goThroughDoor, hubGuest, newPlayer,
   pixelsNear, pondBlue, roomBarButtons, tapFloor, test, watchErrors, expectRoom, openCatalogue, partyHatPink, portrait, focusByTab,
-  enterWorldSignedIn, holdDrawing, signInAsAdmin, fakeNetwork, pinchRoom,
+  enterWorldSignedIn, walkToPond, holdDrawing, signInAsAdmin, fakeNetwork, pinchRoom,
 } from "./game";
 
 test("read the square map", async ({ page }) => {
@@ -360,9 +360,12 @@ test("the panel fits a phone's screen", async ({ page }) => {
 });
 
 test("a guest fishes at the pond and is paid in coins", async ({ page }) => {
-  await enterWorld(page, "Tabby");
+  const me = await enterWorld(page, "Tabby");
   await expect(page.locator("#coins")).toHaveText("🪙 0");
 
+  // Nobody shows a Fish button away from the water.
+  await expect(page.getByRole("button", { name: "🎣 Fish" })).toHaveCount(0);
+  await walkToPond(page, me);
   // Fish walks the cat to the pond's edge and casts.
   await page.getByRole("button", { name: "🎣 Fish" }).click();
   await expect(page.getByText("Waiting for a bite…")).toBeVisible();
@@ -381,8 +384,9 @@ test("a guest fishes at the pond and is paid in coins", async ({ page }) => {
 });
 
 test("reeling in before the bite loses the fish", async ({ page }) => {
-  await enterWorld(page, "Tabby");
+  const me = await enterWorld(page, "Tabby");
 
+  await walkToPond(page, me);
   await page.getByRole("button", { name: "🎣 Fish" }).click();
   await expect(page.getByText("Waiting for a bite…")).toBeVisible();
   await page.getByRole("button", { name: "Reel in" }).click();
@@ -395,6 +399,7 @@ test("reeling in before the bite loses the fish", async ({ page }) => {
 test("Space at a bite reels in, without also pressing the button that has focus", async ({ page }) => {
   const me = await enterWorld(page, "Tabby");
 
+  await walkToPond(page, me);
   await page.getByRole("button", { name: "🎣 Fish" }).click();
   await expect(page.getByText("Waiting for a bite…")).toBeVisible();
   // The last button clicked keeps the focus: Space at the bite mustn't wave as well.
@@ -409,8 +414,9 @@ test("Space at a bite reels in, without also pressing the button that has focus"
 });
 
 test("a bite not reeled in gets away, and the cat can fish again", async ({ page }) => {
-  await enterWorld(page, "Tabby");
+  const me = await enterWorld(page, "Tabby");
 
+  await walkToPond(page, me);
   await page.getByRole("button", { name: "🎣 Fish" }).click();
   await expect(page.getByRole("button", { name: "Reel!" })).toBeVisible({ timeout: 15_000 });
 

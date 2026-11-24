@@ -611,3 +611,22 @@ export function differing(a: Buffer, b: Buffer): number {
   }
   return count;
 }
+
+/** Walks the player's cat to a pond's edge by tapping the floor there, and waits for the Fish button, which shows only within reach of a pond. */
+export async function walkToPond(page: Page, playerId: string): Promise<void> {
+  const spot = await page.evaluate((id) => {
+    const room = window.pspsps?.room();
+    const cat = room?.cats.get(id);
+    const chunks = room?.snapshot.chunks;
+    const ponds = (chunks?.length ? chunks.map((chunk) => (chunk.pond ? { x: chunk.pond.x + chunk.x, z: chunk.pond.z + chunk.z, radius: chunk.pond.radius } : undefined)) : [room?.snapshot.pond])
+      .filter((pond) => pond !== undefined && pond !== null);
+    if (!cat || ponds.length === 0) return undefined;
+    const pond = ponds.reduce((best, next) => (Math.hypot(next.x - cat.x, next.z - cat.z) < Math.hypot(best.x - cat.x, best.z - cat.z) ? next : best));
+    const length = Math.hypot(cat.x - pond.x, cat.z - pond.z) || 1;
+    const distance = pond.radius + 0.8;
+    return { x: pond.x + ((cat.x - pond.x) / length) * distance, z: pond.z + ((cat.z - pond.z) / length) * distance };
+  }, playerId);
+  if (!spot) throw new Error("no pond to walk to");
+  await tapFloor(page, spot.x, spot.z);
+  await expect(page.getByRole("button", { name: "🎣 Fish" })).toBeVisible();
+}
