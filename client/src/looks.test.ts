@@ -201,6 +201,18 @@ describe("looks as data", () => {
     expect(square.length).toBeGreaterThan(0);
   });
 
+  it("lays the town's two-box paving step along the lawn's front edge, whatever the room's size", () => {
+    for (const [width, depth] of [[24, 16], [28, 12]]) {
+      const parts = backdropGenerators.town({ width, depth, pond: null, doors: [] }, 4);
+      const low = parts.filter((p) => p.shape === "box" && p.width === width && p.height <= 0.25);
+
+      expect(low).toEqual([
+        { shape: "box", width, height: 0.25, depth: 0.5, at: [0, 0.12, -depth / 2 - 0.4], colour: "#b8a98a" },
+        { shape: "box", width, height: 0.1, depth: 0.3, at: [0, 0.3, -depth / 2 - 0.45], colour: "#cfc2a8", outlined: false },
+      ]);
+    }
+  });
+
   it("gives each room the wildlife its look names", () => {
     setLooks({
       rooms: [{ id: "stream", look: { ...newRoom, wildlife: "fish" } }, { id: "meadow", look: { ...newRoom, wildlife: "butterfly" } }],
