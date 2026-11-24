@@ -137,6 +137,9 @@ export class RoomScene {
    */
   playerId: string | undefined;
 
+  /** The room editor's preview: the room being shown is edged in pink and named, so it can be found among its neighbours. */
+  markArrival = false;
+
   /** Pictures of cats for their cards, taken off screen with this engine and the cat model. */
   readonly portraits: Portraits;
 
@@ -330,7 +333,7 @@ export class RoomScene {
     const skies = new Map<string, Color4>();
     const baseGround = world ? groundChunkOf(chunks, arrival) : arrival;
     for (const chunk of chunks) {
-      this.drawChunk(chunk, world ? chunks : undefined, { floors, ponds, doors, walls, animations, skies, baseGround });
+      this.drawChunk(chunk, world ? chunks : undefined, { floors, ponds, doors, walls, animations, skies, baseGround, marked: this.markArrival ? arrival : undefined });
     }
     this.walls = walls;
     this.activities = new RoomActivities();
@@ -433,7 +436,7 @@ export class RoomScene {
     drawn: {
       floors: Set<AbstractMesh>; ponds: Set<AbstractMesh>; doors: Map<AbstractMesh, DoorView>; walls: Part[];
       animations: ((seconds: number) => void)[]; skies: Map<string, Color4>;
-      baseGround: PlacedChunk;
+      baseGround: PlacedChunk; marked: PlacedChunk | undefined;
     },
   ): void {
     const { floors, ponds, doors, walls, animations, skies } = drawn;
@@ -451,10 +454,7 @@ export class RoomScene {
     floors.add(floor);
     // The floor's dark edge: a little larger and just below it. Not renderOutline, whose pass, from far off (a narrow
     // screen backs the camera away), covered whatever lay flat on the floor, the pond.
-    const rim = CreateGround("floor-edge", { width: width + 0.08, height: depth + 0.08 }, this.scene);
-    rim.position.set(cx, -0.01, cz);
-    rim.material = flat(this.scene, "floor-edge", ink);
-    rim.isPickable = false;
+    this.drawEdge(chunk, chunk === drawn.marked);
     if (look.ground && chunk === drawn.baseGround) {
       this.drawGround(look.ground, chunk, world, look.paintKey);
     } else if (look.ground && world && !sameGround(look.ground, lookOf(drawn.baseGround.roomId, drawn.baseGround.look).ground)) {
@@ -472,12 +472,13 @@ export class RoomScene {
         (brush, scale) => look.paintWall?.(brush, width, wallHeight, scale, doorways));
       front.isPickable = false;
     }
-    if (!openLandscape(chunk.roomId)) {
+    if (!openLandscape(chunk.roomId) && !onAnotherRoom(world, chunk, cx, cz + depth / 2 + 0.15)) {
       walls.push({ shape: "box", width, height: wallHeight, depth: 0.3, at: [cx, wallHeight / 2, cz + depth / 2 + 0.15], colour: look.wallColour });
     }
     // The backdrop is another mesh, which a tap never tests: it does nothing there.
     const backdrop = buildParts(this.scene, "backdrop",
-      look.backdrop(plan, wallHeight).map((part) => ({ ...part, at: [part.at[0] + cx, part.at[1], part.at[2] + cz] })));
+      look.backdrop(plan, wallHeight).map((part) => ({ ...part, at: [part.at[0] + cx, part.at[1], part.at[2] + cz] as [number, number, number] }))
+        .filter((part) => !onAnotherRoom(world, chunk, part.at[0], part.at[2])));
     if (backdrop) {
       backdrop.isPickable = false;
     }
@@ -876,6 +877,34 @@ export class RoomScene {
     return [path, post, board];
   }
 
+  /** The floor's dark edge, a little larger and just below it. Not renderOutline, whose pass, from far off (a narrow
+   * screen backs the camera away), covered whatever lay flat on the floor, the pond. A room marked in the preview has a wide pink one, and its name. */
+  private drawEdge(chunk: PlacedChunk, marked: boolean): void {
+    const grow = marked ? 1.2 : 0.08;
+    const rim = CreateGround("floor-edge", { width: chunk.width + grow, height: chunk.depth + grow }, this.scene);
+    rim.position.set(chunk.x, -0.01, chunk.z);
+    rim.material = flat(this.scene, "floor-edge", marked ? "#ff3b8b" : ink);
+    rim.isPickable = false;
+    if (marked) {
+      this.nameRoom(chunk);
+    }
+  }
+
+  private nameRoom(chunk: PlacedChunk): void {
+    const anchor = CreateBox(`room-anchor-${chunk.roomId}`, { size: 0.01 }, this.scene);
+    anchor.position.set(chunk.x, 0.3, chunk.z);
+    anchor.isVisible = false;
+    anchor.isPickable = false;
+    const label = new TextBlock(`room-name-${chunk.roomId}`, chunk.name);
+    label.color = "#ff3b8b";
+    label.fontSize = 26;
+    label.fontWeight = "bold";
+    label.outlineColor = "white";
+    label.outlineWidth = 5;
+    this.gui?.addControl(label);
+    label.linkWithMesh(anchor);
+  }
+
   private labelDoor(name: string, title: string, x: number, y: number, z: number): void {
     const anchor = CreateBox(`${name}-anchor`, { size: 0.01 }, this.scene);
     anchor.position.set(x, y, z);
@@ -980,6 +1009,16 @@ export function catPlayerIdOf(mesh: BabylonNode | null | undefined): string | un
     }
   }
   return undefined;
+}
+
+/** Whether a spot on the ground lies on a placed room's floor (or its edge). */
+function covers(chunk: PlacedChunk, x: number, z: number): boolean {
+  return Math.abs(x - chunk.x) <= chunk.width / 2 && Math.abs(z - chunk.z) <= chunk.depth / 2;
+}
+
+/** Whether a spot lies on the floor of a placed room other than <chunk>: scenery there would stand on that room. */
+export function onAnotherRoom(world: PlacedChunk[] | undefined, chunk: PlacedChunk, x: number, z: number): boolean {
+  return world?.some((other) => other !== chunk && covers(other, x, z)) ?? false;
 }
 
 const labelCharWidth = 9;
