@@ -213,6 +213,13 @@ public sealed record DoorView(
     [property: Id(5)] string ToRoomName,
     [property: Id(6)] string? Edge = null)
 {
+    public static DoorView From(Door door, RoomDefinition to)
+    {
+        ArgumentNullException.ThrowIfNull(door);
+        ArgumentNullException.ThrowIfNull(to);
+        return new DoorView(door.Id, door.Spot.X, door.Spot.Z, door.Radius, to.Id, to.Name, door.Edge?.ToString().ToLowerInvariant());
+    }
+
     public static DoorView From(Door door, IRoomLibrary rooms)
     {
         ArgumentNullException.ThrowIfNull(door);

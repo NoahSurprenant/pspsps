@@ -20,11 +20,14 @@ test("every draft room loads, previews without errors, and is pictured on a cont
   const report = (await imported.json()) as { problems: string[] };
   expect(report.problems, "the import's problems").toEqual([]);
 
+  const placed = drafts.filter((d) => d.layout.place);
   const pictures: { name: string; png: Buffer }[] = [];
   for (const draft of drafts) {
     const preview = await page.request.get(`/api/admin/rooms/${draft.id}/preview`);
     expect(preview.ok(), `${draft.id}'s preview`).toBe(true);
-    const snapshot = (await preview.json()) as { doors: { id: string; toRoomId: string }[]; rooms: { id: string }[] };
+    const snapshot = (await preview.json()) as { doors: { id: string; toRoomId: string }[]; rooms: { id: string }[]; chunks?: { roomId: string }[] | null };
+    // A room on the world map is previewed in place, with every other placed room round it (so the seams show).
+    if (draft.layout.place) expect(snapshot.chunks?.map((chunk) => chunk.roomId), `${draft.id} is drawn with its neighbours`).toEqual(expect.arrayContaining(placed.map((d) => d.id)));
     if (!draft.layout.place) expect(snapshot.doors.length, `${draft.id} has a door`).toBeGreaterThan(0);
     for (const door of snapshot.doors) {
       expect(snapshot.rooms.map((room) => room.id), `${draft.id}'s door ${door.id} leads to a room`).toContain(door.toRoomId);
@@ -59,7 +62,7 @@ test("every draft room loads, previews without errors, and is pictured on a cont
       .row { display: flex; flex-wrap: wrap; gap: 16px; }
       figure { margin: 0; }
       img { width: 640px; display: block; border: 2px solid #2a2230; border-radius: 6px; }
-    </style></head><body><h1>Draft rooms</h1><div class="row">${pictures.map((p) =>
+    </style></head><body><h1>Draft rooms (a placed room is drawn with its neighbours, as in the game)</h1><div class="row">${pictures.map((p) =>
       `<figure><img src="data:image/png;base64,${p.png.toString("base64")}"><figcaption>${p.name}</figcaption></figure>`).join("")
     }</div></body></html>`);
     await sheet.locator("body").screenshot({ path: "screenshots/draft-rooms.png" });
