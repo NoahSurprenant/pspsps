@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cameraFocus, cameraPitch, cameraRadius, fieldOfView, roomPitch, startingZoom, zoomRadius } from "./view";
+import { cameraFocus, cameraPitch, cameraRadius, fieldOfView, openView, roomPitch, startingZoom, zoomRadius } from "./view";
 
 /** The view's width at the floor's front edge, which is nearer the camera than the room's middle, so seen widest. */
 const frontEdgeWidth = (radius: number, aspect: number, roomDepth: number) =>
@@ -54,5 +54,12 @@ describe("zooming the room", () => {
     expect(corner.x).toBeLessThan(12);
     expect(corner.z).toBeGreaterThan(2);
     expect(corner.z).toBeLessThan(8);
+  });
+});
+
+describe("the open world's camera", () => {
+  it("stands no farther back than for a Town Square sized room", () => {
+    const wide = 16 / 9;
+    expect(cameraRadius(wide, openView.width, openView.depth)).toBeLessThanOrEqual(cameraRadius(wide, 24, 16) * 1.25);
   });
 });

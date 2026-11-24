@@ -138,3 +138,8 @@ export function catchBubble(fishName: string): string {
 function article(name: string): string {
   return /^[aeiou]/i.test(name) ? `an ${name.toLowerCase()}` : `a ${name.toLowerCase()}`;
 }
+
+/** Whether <cat> stands where the server lets it cast: within 1.5 m of the water's edge of any of <ponds>. */
+export function inReachOfPond(ponds: readonly PondView[], cat: { x: number; z: number }): boolean {
+  return ponds.some((pond) => Math.hypot(cat.x - pond.x, cat.z - pond.z) <= pond.radius + 1.5);
+}

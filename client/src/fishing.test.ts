@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { catchBubble, FishingState, gotAwayMessage, paid, pondEdge, reelMessage, type Fishing } from "./fishing";
+import { catchBubble, FishingState, gotAwayMessage, paid, inReachOfPond, pondEdge, reelMessage, type Fishing } from "./fishing";
 import type { Player } from "./types";
 
 const pond = { x: -7, z: -3, radius: 2.5 };
@@ -207,5 +207,20 @@ describe("FishingState, a bite not reeled in time", () => {
 describe("gotAwayMessage", () => {
   it("tells the player the fish got away", () => {
     expect(gotAwayMessage).toBe("It got away!");
+  });
+});
+
+describe("inReachOfPond", () => {
+  const far = { x: 40, z: 20, radius: 2 };
+
+  it("is true at the server's reach from the edge and not beyond", () => {
+    expect(inReachOfPond([pond], { x: -7, z: -3 + 2.5 + 1.5 })).toBe(true);
+    expect(inReachOfPond([pond], { x: -7, z: -3 + 2.5 + 1.6 })).toBe(false);
+  });
+
+  it("looks at every pond and is false when there is none", () => {
+    expect(inReachOfPond([pond, far], { x: 41, z: 20 })).toBe(true);
+    expect(inReachOfPond([pond, far], { x: 0, z: 0 })).toBe(false);
+    expect(inReachOfPond([], { x: 0, z: 0 })).toBe(false);
   });
 });

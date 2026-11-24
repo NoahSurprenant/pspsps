@@ -98,6 +98,7 @@ export class Overlay {
   // Listeners of the decorating panel, while it shows.
   private decorating: AbortController | undefined;
   private fishing: FishingControls | undefined;
+  private pondNear = false;
   // The player card or friends list open over the room, if any.
   private dialog: { element: HTMLDialogElement; open: OpenDialog; closed?: () => void } | undefined;
 
@@ -294,6 +295,14 @@ export class Overlay {
     }
   }
 
+  /** Whether the player's cat is within reach of a pond: the Fish button shows only then. */
+  setPondNear(near: boolean): void {
+    this.pondNear = near;
+    if (this.fishing) {
+      this.setFishing(this.fishing.state());
+    }
+  }
+
   /** Shows where the line is: a Fish button, casting, waiting for a bite, a bite to reel in now, or reeling in. */
   setFishing(state: Fishing): void {
     const box = this.root.querySelector<HTMLElement>("#fishing");
@@ -302,6 +311,7 @@ export class Overlay {
       return;
     }
     box.dataset.state = state;
+    box.hidden = state === "idle" && !this.pondNear;
     switch (state) {
       case "idle":
         box.replaceChildren(button("🎣 Fish", controls.fish));
