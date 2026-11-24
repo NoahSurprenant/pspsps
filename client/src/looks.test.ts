@@ -5,7 +5,7 @@ import { openLandscape } from "./doors";
 import {
   backdropGenerators, floorPainters, groundPainters, loadLooks, lookOf, syncLooks, setDraftLook, setLooks, wallPainters, wildlifeKinds, type LooksData, type RoomLookData,
 } from "./looks";
-import type { Floorplan } from "./paint";
+import { paints, type Floorplan } from "./paint";
 
 const plans = {
   "town-square": { width: 24, depth: 16, pond: { x: -7, z: -3, radius: 2.5 }, doors: [] },
@@ -204,12 +204,10 @@ describe("looks as data", () => {
   it("lays the town's two-box paving step along the lawn's front edge, whatever the room's size", () => {
     for (const [width = 0, depth = 0] of [[24, 16], [28, 12]]) {
       const parts = (backdropGenerators.town ?? (() => []))({ width, depth, pond: null, doors: [] }, 4);
-      const low = parts.filter((p) => p.shape === "box" && p.width === width && p.height <= 0.25);
+      const edge = -depth / 2;
 
-      expect(low).toEqual([
-        { shape: "box", width, height: 0.25, depth: 0.5, at: [0, 0.12, -depth / 2 - 0.4], colour: "#b8a98a" },
-        { shape: "box", width, height: 0.1, depth: 0.3, at: [0, 0.3, -depth / 2 - 0.45], colour: "#cfc2a8", outlined: false },
-      ]);
+      expect(parts).toContainEqual({ shape: "box", width, height: 0.25, depth: 0.5, at: [0, 0.12, edge - 0.4], colour: paints.pavingStep });
+      expect(parts).toContainEqual({ shape: "box", width, height: 0.1, depth: 0.3, at: [0, 0.3, edge - 0.45], colour: paints.plinth, outlined: false });
     }
   });
 

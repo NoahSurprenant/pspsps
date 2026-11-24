@@ -250,7 +250,8 @@ function houseWindows(house: { from: number; to: number; height: number }, plan:
 /**
  * The rest of the houses whose ground floors are the square's back wall, standing behind it with their roofs, upper
  * windows and chimneys; trees behind them, hills and clouds further off. Past the square's ends the houses stand on the
- * street, so their ground floors have windows too.
+ * street, so their ground floors have windows too. The two-box paving step down from the cobbles to the lawn, along
+ * the room's front edge, is part of the generator: a room using it always has the step.
  */
 function townBackdrop(plan: Floorplan, wallHeight: number): Part[] {
   const parts: Part[] = [];
@@ -273,8 +274,8 @@ function townBackdrop(plan: Floorplan, wallHeight: number): Part[] {
   }
   // The paving step down from the cobbles to the lawn, along the room's front edge.
   const edge = -plan.depth / 2;
-  parts.push({ shape: "box", width: plan.width, height: 0.25, depth: 0.5, at: [0, 0.12, edge - 0.4], colour: "#b8a98a" });
-  parts.push({ shape: "box", width: plan.width, height: 0.1, depth: 0.3, at: [0, 0.3, edge - 0.45], colour: "#cfc2a8", outlined: false });
+  parts.push({ shape: "box", width: plan.width, height: 0.25, depth: 0.5, at: [0, 0.12, edge - 0.4], colour: paints.pavingStep });
+  parts.push({ shape: "box", width: plan.width, height: 0.1, depth: 0.3, at: [0, 0.3, edge - 0.45], colour: paints.plinth, outlined: false });
   // Trees between the houses' roofs.
   for (const [x, height] of [[-21.5, 8.6], [-11, 7.8], [0, 8.4], [12, 7.8], [22, 8.4]] as const) {
     parts.push({ shape: "ball", diameter: 3.4, height: 3, at: [x, height, front + 11.5], colour: palette.leaf });
