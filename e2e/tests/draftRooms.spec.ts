@@ -38,7 +38,9 @@ test("every draft room loads, previews without errors, and is pictured on a cont
     const canvas = page.frameLocator("iframe[title='3D preview of the room']").locator("canvas");
     await expect(canvas).toBeVisible();
     await page.waitForTimeout(1500);
-    pictures.push({ name: draft.layout.name, png: await canvas.screenshot() });
+    const entrances = drafts.filter((d) => d.layout.doors.some((door) => door.toRoom === draft.id)).map((d) => d.layout.name);
+    const caption = draft.layout.place ? draft.layout.name : `${draft.layout.name} (inside, entered from ${entrances.join(" or ") || "no door yet"})`;
+    pictures.push({ name: caption, png: await canvas.screenshot() });
 
     // The room's seasonal overlays (the import saves them even while the room is a draft), each pictured
     // with its look on, so a winter rink is judged as well as the pitch it is the rest of the year.

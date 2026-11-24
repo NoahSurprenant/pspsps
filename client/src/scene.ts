@@ -328,8 +328,9 @@ export class RoomScene {
     const walls: Part[] = [];
     const animations: ((seconds: number) => void)[] = [];
     const skies = new Map<string, Color4>();
+    const baseGround = world ? groundChunkOf(chunks, arrival) : arrival;
     for (const chunk of chunks) {
-      this.drawChunk(chunk, chunk === arrival, world ? chunks : undefined, { floors, ponds, doors, walls, animations, skies, baseGround: lookOf(arrival.roomId, arrival.look).ground });
+      this.drawChunk(chunk, world ? chunks : undefined, { floors, ponds, doors, walls, animations, skies, baseGround });
     }
     this.walls = walls;
     this.activities = new RoomActivities();
@@ -428,12 +429,11 @@ export class RoomScene {
 
   private drawChunk(
     chunk: PlacedChunk,
-    isArrival: boolean,
     world: PlacedChunk[] | undefined,
     drawn: {
       floors: Set<AbstractMesh>; ponds: Set<AbstractMesh>; doors: Map<AbstractMesh, DoorView>; walls: Part[];
       animations: ((seconds: number) => void)[]; skies: Map<string, Color4>;
-      baseGround: ReturnType<typeof lookOf>["ground"];
+      baseGround: PlacedChunk;
     },
   ): void {
     const { floors, ponds, doors, walls, animations, skies } = drawn;
@@ -455,9 +455,9 @@ export class RoomScene {
     rim.position.set(cx, -0.01, cz);
     rim.material = flat(this.scene, "floor-edge", ink);
     rim.isPickable = false;
-    if (look.ground && isArrival) {
+    if (look.ground && chunk === drawn.baseGround) {
       this.drawGround(look.ground, chunk, world, look.paintKey);
-    } else if (look.ground && world && !sameGround(look.ground, drawn.baseGround)) {
+    } else if (look.ground && world && !sameGround(look.ground, lookOf(drawn.baseGround.roomId, drawn.baseGround.look).ground)) {
       this.drawGroundPatch(look.ground, chunk, look.paintKey);
     }
     // The back wall, outlined like the props (and with them), its front painted: a plane just in front of it (the
@@ -896,8 +896,15 @@ export class RoomScene {
   private stackDoorLabels(): void {
     const shown = this.doorLabels.map((door) => ({ door, at: this.project(door.spot) }));
     const placed = shown.filter((item): item is { door: (typeof item)["door"]; at: { x: number; y: number } } => item.at !== undefined);
-    const levels = stackLevels(placed.map(({ door, at }) => ({ x: at.x, y: at.y, width: door.length * labelCharWidth })));
-    placed.forEach(({ door }, index) => {
+    const canvasWidth = this.engine.getRenderingCanvas()?.clientWidth ?? 0;
+    const kept = placed.map(({ door, at }) => {
+      const width = door.length * labelCharWidth;
+      const shift = canvasWidth > 0 ? keepOnScreen(at.x, width, canvasWidth) : 0;
+      return { door, shift, name: { x: at.x + shift, y: at.y, width } };
+    });
+    const levels = stackLevels(kept.map(({ name }) => name));
+    kept.forEach(({ door, shift }, index) => {
+      door.label.linkOffsetX = shift;
       door.label.linkOffsetY = -(levels[index] ?? 0) * labelLineHeight;
     });
   }
@@ -978,6 +985,19 @@ export function catPlayerIdOf(mesh: BabylonNode | null | undefined): string | un
 const labelCharWidth = 9;
 const labelLineHeight = 18;
 
+/** How far to move a name centred on <x> and <width> wide sideways so it fits a canvas <canvasWidth> wide (none if it is wider than the canvas). */
+export function keepOnScreen(x: number, width: number, canvasWidth: number): number {
+  if (width >= canvasWidth) {
+    return 0;
+  }
+  const left = x - width / 2;
+  const right = x + width / 2;
+  if (left < 0) {
+    return -left;
+  }
+  return right > canvasWidth ? canvasWidth - right : 0;
+}
+
 /** How many lines up each name must sit to clear the names already placed to its left: names are centred on (x, y) and as wide as <width>. */
 export function stackLevels(names: { x: number; y: number; width: number }[]): number[] {
   const levelOf = new Map<{ x: number; y: number; width: number }, number>();
@@ -996,6 +1016,24 @@ export function stackLevels(names: { x: number; y: number; width: number }[]): n
 
 /** How far a room's ground reaches past its edges, fading, in the open world: about as far as the camera sees. */
 const groundBlend = 40;
+
+/** The room whose ground lies under the whole open world: the one most of the placed rooms' area has, so no room's ground (the arrival room's street) runs on past the world's edge. */
+function groundChunkOf(chunks: PlacedChunk[], arrival: PlacedChunk): PlacedChunk {
+  const groups: { chunk: PlacedChunk; area: number }[] = [];
+  for (const chunk of chunks) {
+    const ground = lookOf(chunk.roomId, chunk.look).ground;
+    if (!ground) {
+      continue;
+    }
+    const group = groups.find((g) => sameGround(ground, lookOf(g.chunk.roomId, g.chunk.look).ground));
+    if (group) {
+      group.area += chunk.width * chunk.depth;
+    } else {
+      groups.push({ chunk, area: chunk.width * chunk.depth });
+    }
+  }
+  return groups.reduce((best, g) => (g.area > best.area ? g : best), { chunk: arrival, area: 0 }).chunk;
+}
 
 /** Whether two grounds look the same: the same colour and painting. */
 function sameGround(a: NonNullable<ReturnType<typeof lookOf>["ground"]>, b: ReturnType<typeof lookOf>["ground"]): boolean {
