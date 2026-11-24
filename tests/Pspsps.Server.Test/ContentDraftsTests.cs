@@ -34,6 +34,34 @@ public sealed class ContentDraftsTests
         Assert.That(problems, Is.Empty);
     }
 
+    /// <summary>The ground of the rooms that border open land and the water rooms (a water room's ground is the water itself).</summary>
+    private static readonly string[] WaterRooms = ["dock", "beach", "cove"];
+
+    [Test]
+    public void PlacedLandRooms_ShareOneGround_SoNoStreetOrColourPatchRunsOnPastTheWorldsEdge()
+    {
+        var grounds = Content.RoomList
+            .Where(room => room.Layout.Place is not null && !WaterRooms.Contains(room.Id))
+            .Select(room => (room.Id, Ground: room.Look?.Ground))
+            .ToList();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(grounds.Where(g => g.Ground is null).Select(g => g.Id), Is.Empty, "every placed land room has a ground");
+            Assert.That(grounds.Select(g => g.Ground).Distinct().Count(), Is.EqualTo(1), string.Join(", ", grounds.Select(g => $"{g.Id}={g.Ground?.Colour}/{g.Ground?.Painter}")));
+            Assert.That(grounds.Select(g => g.Ground?.Painter), Has.All.Null, "no cobbled street ground on the open world");
+        });
+    }
+
+    [Test]
+    public void PlacedWaterRooms_AllHaveWaterAsTheirGround_SoTheLandDoesNotCutOffAgainstTheSea()
+    {
+        var water = Content.RoomList.Where(room => WaterRooms.Contains(room.Id)).Select(room => room.Look?.Ground?.Colour).ToList();
+
+        Assert.That(water, Has.All.Not.EqualTo(Content.RoomList.Single(room => room.Id == "fort").Look!.Ground!.Colour));
+        Assert.That(water.Select(colour => colour![1..]).All(hex => Convert.ToInt32(hex[4..], 16) > Convert.ToInt32(hex[..2], 16)), Is.True, "bluer than red");
+    }
+
     /// <summary>The starting rooms with the file's rooms laid over them: the book the game would have once the drafts are published.</summary>
     private static Dictionary<string, RoomLayout> LayoutsWithTheDrafts()
     {

@@ -116,8 +116,7 @@
         "floorColour": "#d6c7a8",
         "wallColour": "#cfc2a8",
         "ground": {
-          "colour": "#d9ccb2",
-          "painter": "street"
+          "colour": "#8fbf6a"
         },
         "floor": {
           "painter": "cobbles"
@@ -2815,7 +2814,7 @@
         "floorColour": "#d9c08a",
         "wallColour": "#cfe6ea",
         "ground": {
-          "colour": "#8fcf76"
+          "colour": "#5fb3d9"
         },
         "floor": {
           "painter": "field-cove-floor",
@@ -3498,7 +3497,7 @@
         "floorColour": "#b9bcc0",
         "wallColour": "#8a7a68",
         "ground": {
-          "colour": "#6fae5a"
+          "colour": "#8fbf6a"
         },
         "floor": {
           "painter": "town-forecourt"
@@ -6199,8 +6198,7 @@
         "floorColour": "#d6c7a8",
         "wallColour": "#cfc2a8",
         "ground": {
-          "colour": "#d9ccb2",
-          "painter": "street"
+          "colour": "#8fbf6a"
         },
         "floor": {
           "painter": "cobbles"
@@ -10644,7 +10642,7 @@
         "floorColour": "#7fb85c",
         "wallColour": "#8a8478",
         "ground": {
-          "colour": "#7aae5a"
+          "colour": "#8fbf6a"
         },
         "floor": {
           "painter": "town-mine-ground"
@@ -17051,7 +17049,7 @@
         "floorColour": "#8fcf76",
         "wallColour": "#cfe6ea",
         "ground": {
-          "colour": "#a9c587"
+          "colour": "#8fbf6a"
         },
         "floor": {
           "painter": "field-pitch",
@@ -20068,7 +20066,7 @@
         "floorColour": "#8fcf76",
         "wallColour": "#cfe6ea",
         "ground": {
-          "colour": "#8fcf76"
+          "colour": "#8fbf6a"
         },
         "floor": {
           "painter": "field-fort-ground",
@@ -25345,7 +25343,7 @@
         "floorColour": "#7fb36a",
         "wallColour": "#bcd9c0",
         "ground": {
-          "colour": "#5f9a4e"
+          "colour": "#8fbf6a"
         },
         "floor": {
           "painter": "field-forest-floor",
