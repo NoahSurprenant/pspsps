@@ -16,6 +16,9 @@ internal sealed partial class RoomGrain
     // The cats each player's tab has been told about, so it is told what comes into view and what leaves it.
     private readonly Dictionary<Guid, HashSet<Guid>> _known = [];
 
+    // The reverse: for each cat, the players whose tabs have been told about it. Kept with _known by SetKnown.
+    private readonly Dictionary<Guid, HashSet<Guid>> _watching = [];
+
     private void ActivateOverworld()
     {
         var (worldId, _) = RoomKey.Parse(_key);
@@ -55,7 +58,7 @@ internal sealed partial class RoomGrain
     {
         var cat = world.Find(playerId)!;
         var visible = world.VisibleTo(playerId);
-        _known[playerId] = [.. visible.Select(c => c.PlayerId)];
+        SetKnown(playerId, [.. visible.Select(c => c.PlayerId)]);
         await SyncNear(cat);
 
         var here = world.Space.RoomAt(cat.Position) ?? world.Space.Rooms.First(r => fallbackRoom is null || r.Id == fallbackRoom);
@@ -195,11 +198,13 @@ internal sealed partial class RoomGrain
     private async Task Departed(Guid playerId)
     {
         var watchers = WatchersOf(playerId);
-        var viewers = _known.Where(entry => entry.Value.Contains(playerId)).Select(entry => entry.Key).ToList();
+        var viewers = WatchingOf(playerId).ToList();
+        SetKnown(playerId, []);
         _known.Remove(playerId);
-        foreach (var known in _known.Values)
+        _watching.Remove(playerId);
+        foreach (var viewer in viewers)
         {
-            known.Remove(playerId);
+            _known[viewer].Remove(playerId);
         }
 
         if (watchers.Count > 0)
@@ -222,8 +227,9 @@ internal sealed partial class RoomGrain
             .Where(other => other.Position.DistanceTo(cat.Position) <= WorldSpace.ViewDistance)
             .Select(other => other.PlayerId)
             .Append(cat.PlayerId)
-            .Concat(_known.Where(entry => entry.Value.Contains(cat.PlayerId)).Select(entry => entry.Key))
+            .Concat(WatchingOf(cat.PlayerId))
             .Distinct()
+            .Where(viewer => world.ViewMayChange(viewer, cat, _known.GetValueOrDefault(viewer) ?? []))
             .ToList();
         foreach (var viewer in affected)
         {
@@ -242,7 +248,7 @@ internal sealed partial class RoomGrain
         var visible = world.VisibleTo(viewer);
         var now = visible.Select(c => c.PlayerId).ToHashSet();
         var known = _known.GetValueOrDefault(viewer) ?? [];
-        _known[viewer] = now;
+        SetKnown(viewer, now);
         var toSession = new[] { session };
         foreach (var gone in known.Where(id => !now.Contains(id)))
         {
@@ -255,13 +261,37 @@ internal sealed partial class RoomGrain
         }
     }
 
+    // Records what the viewer's tab now knows, and keeps the reverse index (_watching) in step.
+    private void SetKnown(Guid viewer, HashSet<Guid> now)
+    {
+        var before = _known.GetValueOrDefault(viewer) ?? [];
+        foreach (var gone in before.Where(id => !now.Contains(id)))
+        {
+            _watching[gone].Remove(viewer);
+        }
+
+        foreach (var appeared in now.Where(id => !before.Contains(id)))
+        {
+            if (!_watching.TryGetValue(appeared, out var set))
+            {
+                _watching[appeared] = set = [];
+            }
+
+            set.Add(viewer);
+        }
+
+        _known[viewer] = now;
+    }
+
+    // The players whose tabs know this cat, as a copy: syncing changes the index while it is walked.
+    private List<Guid> WatchingOf(Guid playerId) => _watching.TryGetValue(playerId, out var set) ? [.. set] : [];
+
     // The tabs to tell about a cat: its own, and every tab that has been told about it.
     private List<string> WatchersOf(Guid playerId)
     {
         var world = _world!;
-        var sessions = _known
-            .Where(entry => entry.Value.Contains(playerId))
-            .Select(entry => world.SessionOf(entry.Key))
+        var sessions = WatchingOf(playerId)
+            .Select(viewer => world.SessionOf(viewer))
             .Append(world.SessionOf(playerId))
             .OfType<string>()
             .Distinct()

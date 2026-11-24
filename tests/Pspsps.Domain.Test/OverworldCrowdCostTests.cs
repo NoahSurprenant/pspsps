@@ -7,8 +7,8 @@ using Pspsps.Domain.Rooms;
 namespace Pspsps.Domain.Test;
 
 /// <summary>
-/// Measures what a move costs the open world with a crowd, doing what the room grain does after each move
-/// (<c>SyncNear</c>: recompute what every cat near the mover sees, and scan <c>_known</c> for who watched it). Issue #134.
+/// Measures what a move costs the open world with a crowd: what the room grain does after each move, old way and indexed
+/// (see <see cref="CrowdView"/>). Issue #134. Explicit: a measurement, run it to see the numbers.
 /// </summary>
 public sealed class OverworldCrowdCostTests
 {
@@ -22,7 +22,10 @@ public sealed class OverworldCrowdCostTests
         {
             foreach (var cats in new[] { 100, 500, 2000 })
             {
-                report.AppendLine(Measure(name, spread, cats));
+                foreach (var indexed in new[] { false, true })
+                {
+                    report.AppendLine(Measure(name, spread, cats, indexed));
+                }
             }
         }
 
@@ -30,7 +33,7 @@ public sealed class OverworldCrowdCostTests
         Assert.Fail("Measurement (remove this failure once read):\n" + report);
     }
 
-    private static string Measure(string name, bool spread, int cats)
+    private static string Measure(string name, bool spread, int cats, bool indexed)
     {
         var world = new OverworldState(new WorldSpace([new RoomDefinition("big", "Big", 400, 300, new Position(0, 0), 500)
         {
@@ -43,7 +46,7 @@ public sealed class OverworldCrowdCostTests
 
         var clock = Start;
         var ids = Enumerable.Range(0, cats).Select(_ => Guid.NewGuid()).ToList();
-        var known = new Dictionary<Guid, HashSet<Guid>>();
+        var crowd = new CrowdView(world, indexed);
         foreach (var id in ids)
         {
             world.Join(id, "Cat", FurColor.Orange, id.ToString(), Start, "big");
@@ -53,71 +56,46 @@ public sealed class OverworldCrowdCostTests
 
         foreach (var id in ids)
         {
-            known[id] = [.. world.VisibleTo(id).Select(c => c.PlayerId)];
+            crowd.Seen(id);
         }
 
-        var moves = Math.Max(10, 20000 / cats);
-        var average = 0.0;
-        var sw = Stopwatch.StartNew();
-        for (var i = 0; i < moves; i++)
+        void Step()
         {
             var id = ids[random.Next(ids.Count)];
             var at = world.Find(id)!.Position;
             clock = clock.AddMinutes(1);
-            var cat = world.Find(id)!;
             world.Move(id, new Position(at.X + (random.NextDouble() * 4) - 2, at.Z + (random.NextDouble() * 4) - 2), clock);
-            cat = world.Find(id)!;
-            average += SyncNear(world, known, cat);
+            crowd.Moved(world.Find(id)!);
+        }
+
+        for (var i = 0; i < 5; i++)
+        {
+            Step();
+        }
+
+        var moves = Math.Max(20, 40000 / cats);
+        var synced = crowd.Synced;
+        var sw = Stopwatch.StartNew();
+        for (var i = 0; i < moves; i++)
+        {
+            Step();
         }
 
         sw.Stop();
+        synced = crowd.Synced - synced;
         var perMove = sw.Elapsed.TotalMilliseconds / moves;
 
-        // Cats leaving: the scan of _known for who knew them.
         var leavers = Math.Min(20, cats / 2);
         var leave = Stopwatch.StartNew();
-        for (var i = 0; i < leavers; i++)
+        foreach (var id in ids.Take(leavers))
         {
-            var id = ids[i];
-            var viewers = known.Where(e => e.Value.Contains(id)).Select(e => e.Key).ToList();
-            known.Remove(id);
-            foreach (var k in known.Values)
-            {
-                k.Remove(id);
-            }
-
             world.Leave(id, id.ToString());
-            foreach (var viewer in viewers.Where(v => world.Find(v) is not null))
-            {
-                known[viewer] = [.. world.VisibleTo(viewer).Select(c => c.PlayerId)];
-            }
+            crowd.Departed(id);
         }
 
         leave.Stop();
         return string.Create(CultureInfo.InvariantCulture,
-            $"{name}, {cats} cats: {perMove:F2} ms per move (avg {average / moves:F0} viewers synced; {moves} moves); " +
-            $"{leave.Elapsed.TotalMilliseconds / leavers:F2} ms per departure ({leavers}). A round of {cats} moves = {perMove * cats / 1000:F1} s.");
-    }
-
-    // The grain's SyncNear, without the network: returns how many viewers it brought up to date.
-    private static int SyncNear(OverworldState world, Dictionary<Guid, HashSet<Guid>> known, CatInRoom cat)
-    {
-        var affected = world.CatsAround(cat.Position)
-            .Where(other => other.Position.DistanceTo(cat.Position) <= WorldSpace.ViewDistance)
-            .Select(other => other.PlayerId)
-            .Append(cat.PlayerId)
-            .Concat(known.Where(entry => entry.Value.Contains(cat.PlayerId)).Select(entry => entry.Key))
-            .Distinct()
-            .ToList();
-        foreach (var viewer in affected)
-        {
-            var visible = world.VisibleTo(viewer);
-            var now = visible.Select(c => c.PlayerId).ToHashSet();
-            var before = known.GetValueOrDefault(viewer) ?? [];
-            known[viewer] = now;
-            _ = before.Count(id => !now.Contains(id)) + visible.Count(c => !before.Contains(c.PlayerId));
-        }
-
-        return affected.Count;
+            $"{(indexed ? "indexed" : "old    ")} | {name}, {cats} cats: {perMove:F2} ms per move (avg {(double)synced / moves:F0} viewers synced; {moves} moves); " +
+            $"{leave.Elapsed.TotalMilliseconds / leavers:F2} ms per departure. A round of {cats} moves = {perMove * cats / 1000:F1} s.");
     }
 }

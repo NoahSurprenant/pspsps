@@ -285,6 +285,57 @@ public sealed class OverworldState(WorldSpace space, int capacity)
             .Select(x => x.Cat)];
     }
 
+    /// <summary>
+    /// Whether what <paramref name="viewerId"/> is shown can differ now that <paramref name="mover"/> has moved (or come in),
+    /// given <paramref name="known"/>, the cats it was shown before: when it is the mover, was shown the mover, or the mover
+    /// now ranks among its nearest <see cref="WorldSpace.MaxVisibleCats"/> within <see cref="WorldSpace.ViewDistance"/>.
+    /// False means <see cref="VisibleTo"/> would give the same cats as <paramref name="known"/>, so there is nothing to sort.
+    /// Valid while <paramref name="known"/> was <see cref="VisibleTo"/> before the move and no other cat has moved since.
+    /// </summary>
+    public bool ViewMayChange(Guid viewerId, CatInRoom mover, IReadOnlySet<Guid> known)
+    {
+        ArgumentNullException.ThrowIfNull(mover);
+        ArgumentNullException.ThrowIfNull(known);
+        if (viewerId == mover.PlayerId || known.Contains(mover.PlayerId))
+        {
+            return true;
+        }
+
+        if (!_cats.TryGetValue(viewerId, out var viewer))
+        {
+            return false;
+        }
+
+        var distance = mover.Position.DistanceTo(viewer.Position);
+        if (distance > WorldSpace.ViewDistance)
+        {
+            return false;
+        }
+
+        if (known.Count < WorldSpace.MaxVisibleCats)
+        {
+            return true;
+        }
+
+        // A full screen: the mover gets in only by beating the farthest cat on it (nearest first, ties by ID).
+        var farthest = (Distance: double.NegativeInfinity, Id: Guid.Empty);
+        foreach (var id in known)
+        {
+            if (!_cats.TryGetValue(id, out var cat))
+            {
+                return true;
+            }
+
+            var d = cat.Position.DistanceTo(viewer.Position);
+            if (d > farthest.Distance || (d == farthest.Distance && id.CompareTo(farthest.Id) > 0))
+            {
+                farthest = (d, id);
+            }
+        }
+
+        return distance < farthest.Distance || (distance == farthest.Distance && mover.PlayerId.CompareTo(farthest.Id) < 0);
+    }
+
     /// <summary>The cat's line in the water, if any: a bite applies only to the line it was cast for.</summary>
     public FishingLine? LineOf(Guid playerId) => _lines.GetValueOrDefault(playerId);
 
