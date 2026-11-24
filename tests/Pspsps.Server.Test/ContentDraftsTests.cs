@@ -47,7 +47,7 @@ public sealed class ContentDraftsTests
     }
 
     /// <summary>Whether <paramref name="other"/> is placed against the <paramref name="edge"/> of <paramref name="room"/> on the world grid, sharing some of that edge: how two outdoor rooms meet, with no door between them.</summary>
-    private static bool Borders(IReadOnlyDictionary<string, RoomLayout> layouts, string room, RoomEdge edge, string other)
+    private static bool Borders(Dictionary<string, RoomLayout> layouts, string room, RoomEdge edge, string other)
     {
         var (a, b) = (layouts[room], layouts[other]);
         if (a.Place is not { } pa || b.Place is not { } pb)
