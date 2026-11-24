@@ -458,7 +458,7 @@ export class RoomScene {
     this.drawGrounds(chunk, look, world, drawn.baseGround);
     // The back wall, outlined like the props (and with them), its front painted: a plane just in front of it (the
     // doorways stand in front of that).
-    if (look.paintWall && !openLandscape(chunk.roomId)) {
+    if (look.paintWall && !openLandscape(chunk.roomId) && !onAnotherRoom(world, chunk, cx, cz + depth / 2 + 0.15)) {
       const front = CreatePlane("back-wall-front", { width, height: wallHeight }, this.scene);
       front.position.set(cx, wallHeight / 2, cz + depth / 2 - 0.01);
       // Painted round the doorways in it (the doors by the wall: the ones drawDoor draws a doorway for).
@@ -935,11 +935,14 @@ export class RoomScene {
   private stackDoorLabels(): void {
     const shown = this.doorLabels.map((door) => ({ door, at: this.project(door.spot) }));
     const placed = shown.filter((item): item is { door: (typeof item)["door"]; at: { x: number; y: number } } => item.at !== undefined);
-    const canvasWidth = this.engine.getRenderingCanvas()?.clientWidth ?? 0;
+    // The labels sit on a texture the size of the render, and <project> answers in the canvas's size on the page.
+    const canvasWidth = this.engine.getRenderWidth();
+    const pageWidth = this.engine.getRenderingCanvas()?.clientWidth || canvasWidth;
     const kept = placed.map(({ door, at }) => {
       const width = door.length * labelCharWidth;
-      const shift = canvasWidth > 0 ? keepOnScreen(at.x, width, canvasWidth) : 0;
-      return { door, shift, name: { x: at.x + shift, y: at.y, width } };
+      const x = (at.x * canvasWidth) / pageWidth;
+      const shift = canvasWidth > 0 ? keepOnScreen(x, width, canvasWidth) : 0;
+      return { door, shift, name: { x: x + shift, y: (at.y * canvasWidth) / pageWidth, width } };
     });
     const levels = stackLevels(kept.map(({ name }) => name));
     kept.forEach(({ door, shift }, index) => {
