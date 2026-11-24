@@ -276,7 +276,7 @@ test("a cat that arrives later sees a sleeping cat asleep", async ({ page: tom, 
   const felix = await newPlayer(browser);
   try {
     const felixId = await enterWorld(felix.page, "Siamese");
-    await felix.page.getByRole("button", { name: "Sleep" }).click();
+    await pickEmote(felix.page, "Sleep");
     await expect.poll(async () => (await cats(felix.page))[felixId]?.pose).toBe("sleep");
 
     await enterWorld(tom, "Siamese");
