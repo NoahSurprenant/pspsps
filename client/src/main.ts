@@ -419,7 +419,10 @@ function onRoom(apply: (room: Room) => void): void {
 function showFishButton(): void {
   const cat = me && room?.cats.get(me.id);
   const chunks = room?.snapshot.chunks;
-  const ponds = chunks?.length ? chunks.map(place).flatMap((chunk) => (chunk.pond ? [chunk.pond] : [])) : room?.snapshot.pond ? [room.snapshot.pond] : [];
+  const ponds = chunks?.length ? chunks.map(place).flatMap((chunk) => (chunk.pond ? [chunk.pond] : [])) : [];
+  if (!chunks?.length && room?.snapshot.pond) {
+    ponds.push(room.snapshot.pond);
+  }
   overlay.setPondNear(cat ? inReachOfPond(ponds, cat) : false);
 }
 

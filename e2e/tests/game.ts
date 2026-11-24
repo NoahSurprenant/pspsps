@@ -276,6 +276,8 @@ declare global {
             roomName: string;
             props: { kind: string; x: number; z: number; radius: number }[] | null;
             doors: { id: string; x: number; z: number; radius: number; toRoomId: string; edge?: string }[];
+            pond?: { x: number; z: number; radius: number } | null;
+            chunks?: { x: number; z: number; pond?: { x: number; z: number; radius: number } | null }[] | null;
           };
         }
         | undefined;
