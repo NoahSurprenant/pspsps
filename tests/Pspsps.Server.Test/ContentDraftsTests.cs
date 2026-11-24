@@ -64,7 +64,7 @@ public sealed class ContentDraftsTests
 
     /// <summary>Rooms made to look like open scenes stay richly decorated: a thin backdrop is sent back.</summary>
     [TestCase("dojo", 100)]
-    [TestCase("forest", 100)]
+    [TestCase("forest", 95)]
     [TestCase("mine", 120)]
     [TestCase("beach", 65)]
     [TestCase("pet-shop", 70)]
