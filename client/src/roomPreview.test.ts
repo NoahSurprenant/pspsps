@@ -10,7 +10,7 @@ vi.mock("./scene", () => ({ RoomScene: class {
   show(): void { calls.push("show"); }
 } }));
 vi.mock("./looks", () => ({
-  loadLooks: async () => { calls.push("loadLooks"); },
+  loadLooks: async (preview?: boolean) => { calls.push(preview ? "loadLooks preview" : "loadLooks"); },
   setDraftLook: (id: string) => { calls.push(`draftLook ${id}`); },
 }));
 
@@ -33,8 +33,22 @@ describe("roomPreview", () => {
   it("sets the draft's look after the scene has read the live looks, so making the scene cannot wipe it", async () => {
     await roomPreview({} as HTMLCanvasElement).show("shop");
 
-    expect(calls.lastIndexOf("loadLooks")).toBeLessThan(calls.indexOf("draftLook shop"));
+    expect(calls.lastIndexOf("loadLooks preview")).toBeLessThan(calls.indexOf("draftLook shop"));
     expect(calls.indexOf("draftLook shop")).toBeLessThan(calls.indexOf("show"));
+  });
+});
+
+describe("roomPreview looks", () => {
+  beforeEach(() => {
+    calls.length = 0;
+    vi.stubGlobal("window", { addEventListener: () => {} });
+  });
+
+  it("reads every room's draft look, so neighbours that are only drafts are drawn as themselves, not as plain walled rooms", async () => {
+    await roomPreview({} as HTMLCanvasElement).draw("shop", { roomId: "shop" } as never, undefined);
+
+    expect(calls).toContain("loadLooks preview");
+    expect(calls).not.toContain("loadLooks");
   });
 });
 

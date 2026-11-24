@@ -1268,4 +1268,84 @@ public sealed class RoomEditorHttpTests
             await db.SaveChangesAsync();
         }
     }
+
+    [Test]
+    public async Task ARoomThatIsOnlyADraft_HasItsDraftLookInThePreviewWorldsLooks()
+    {
+        using var admin = await AdminClientAsync();
+        var loft = JsonNode.Parse("""
+            {"name":"The Look Loft","width":10,"depth":8,"spawn":{"x":0,"z":0},"capacity":12,"props":[],
+             "doors":[{"id":"shop","edge":"East","offset":0,"toRoom":"shop","toDoor":"loft"}]}
+            """)!;
+        var draftLook = JsonNode.Parse("""{"sky":"#010203","floorColour":"#445566","wallColour":"#778899","openLandscape":true,"backdrop":{"parts":[]}}""")!;
+        try
+        {
+            using var saved = await SendAsync(admin, HttpMethod.Put, "rooms/loft/draft", loft);
+            using var drafted = await SendAsync(admin, HttpMethod.Put, "looks/rooms/loft", draftLook);
+            using var preview = await admin.GetAsync(new Uri("/api/looks?preview=true", UriKind.Relative));
+            using var live = await admin.GetAsync(new Uri("/api/looks", UriKind.Relative));
+            var inPreview = (await JsonOfAsync(preview))["rooms"]!.AsArray().SingleOrDefault(r => r!["id"]!.GetValue<string>() == "loft");
+            var inLive = (await JsonOfAsync(live))["rooms"]!.AsArray().SingleOrDefault(r => r!["id"]!.GetValue<string>() == "loft");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(saved.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+                Assert.That(drafted.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+                Assert.That(inPreview?["look"]?["openLandscape"]?.GetValue<bool>(), Is.True, "a room with only a draft is drawn in its draft look in the preview world");
+                Assert.That(inLive, Is.Null);
+            });
+        }
+        finally
+        {
+            using var discardLook = await SendAsync(admin, HttpMethod.Delete, "looks/rooms/loft/draft");
+            using var discardLoft = await SendAsync(admin, HttpMethod.Delete, "rooms/loft/draft");
+            await using var db = Db();
+            db.RoomVersions.RemoveRange(await db.RoomVersions.Where(v => v.RoomId == "loft").ToListAsync());
+            await db.SaveChangesAsync();
+        }
+    }
+
+    [Test]
+    public async Task ThePreviewWorldsLooks_UseTheNewestDraftOfARoom_ReplaceAPublishedLook_AndNameNoRoomTwice()
+    {
+        using var admin = await AdminClientAsync();
+        using var shopRead = await SendAsync(admin, HttpMethod.Get, "rooms/shop");
+        var shop = await JsonOfAsync(shopRead);
+        var shopLook = JsonNode.Parse("""{"sky":"#0a0b0c","floorColour":"#445566","wallColour":"#778899","backdrop":{"parts":[]}}""")!;
+        var layout = new RoomLayout("Twice Drafted", 10, 8, new Position(0, 0), 12);
+        var stale = RoomVersion.Draft("twice-drafted", 1, layout, null, DateTimeOffset.UtcNow, new RoomLook("#111111", "#c0b090", "#d8c8b0", new LookBackdrop([])));
+        var newest = RoomVersion.Draft("twice-drafted", 2, layout, null, DateTimeOffset.UtcNow, new RoomLook("#222222", "#c0b090", "#d8c8b0", new LookBackdrop([])));
+        newest.Edit(layout, new RoomLook("#333333", "#c0b090", "#d8c8b0", new LookBackdrop([])));
+        try
+        {
+            using var shopDraft = await SendAsync(admin, HttpMethod.Put, "rooms/shop/draft", shop["published"]!.DeepClone());
+            using var shopLooked = await SendAsync(admin, HttpMethod.Put, "looks/rooms/shop", shopLook);
+            await using (var db = Db())
+            {
+                db.RoomVersions.AddRange(stale, newest);
+                await db.SaveChangesAsync();
+            }
+
+            using var preview = await admin.GetAsync(new Uri("/api/looks?preview=true", UriKind.Relative));
+            var rooms = (await JsonOfAsync(preview))["rooms"]!.AsArray();
+            var ids = rooms.Select(r => r!["id"]!.GetValue<string>()).ToList();
+            string SkyOf(string id) => rooms.Single(r => r!["id"]!.GetValue<string>() == id)!["look"]!["sky"]!.GetValue<string>();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(preview.StatusCode, Is.EqualTo(HttpStatusCode.OK), "two drafts of one room are not an error");
+                Assert.That(ids, Is.Unique, "no room's look comes twice");
+                Assert.That(SkyOf("twice-drafted"), Is.EqualTo("#333333"), "the newest revision's look");
+                Assert.That(SkyOf("shop"), Is.EqualTo("#0a0b0c"), "a published room's look is replaced by its draft's");
+            });
+        }
+        finally
+        {
+            using var discardLook = await SendAsync(admin, HttpMethod.Delete, "looks/rooms/shop/draft");
+            using var discardShop = await SendAsync(admin, HttpMethod.Delete, "rooms/shop/draft");
+            await using var db = Db();
+            db.RoomVersions.RemoveRange(await db.RoomVersions.Where(v => v.RoomId == "twice-drafted").ToListAsync());
+            await db.SaveChangesAsync();
+        }
+    }
 }
