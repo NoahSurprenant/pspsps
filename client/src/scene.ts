@@ -113,6 +113,8 @@ export class RoomScene {
   private walls: Part[] = [];
   // The chunks showing in world metres: a room alone is one at the middle.
   private chunks: PlacedChunk[] | undefined;
+  private groundPatches = 0;
+  private readonly doorLabels: { x: number; z: number; length: number; level: number }[] = [];
   private roomEntered: ((chunk: ChunkView) => void) | undefined;
   private decor: Mesh | undefined;
   private activities = new RoomActivities();
@@ -245,6 +247,8 @@ export class RoomScene {
     this.selection = undefined;
     this.scene.dispose();
     this.scene = new Scene(this.engine);
+    this.groundPatches = 0;
+    this.doorLabels.length = 0;
     this.gui = AdvancedDynamicTexture.CreateFullscreenUI("ui", true, this.scene);
     // Its names and bubbles take no focus: left on, it took Tab for itself whenever the canvas had the focus (after a tap
     // on the room), and the keyboard could no longer reach the page's buttons.
@@ -325,7 +329,7 @@ export class RoomScene {
     const animations: ((seconds: number) => void)[] = [];
     const skies = new Map<string, Color4>();
     for (const chunk of chunks) {
-      this.drawChunk(chunk, chunk === arrival, world ? chunks : undefined, { floors, ponds, doors, walls, animations, skies });
+      this.drawChunk(chunk, chunk === arrival, world ? chunks : undefined, { floors, ponds, doors, walls, animations, skies, baseGround: lookOf(arrival.roomId, arrival.look).ground });
     }
     this.walls = walls;
     this.activities = new RoomActivities();
@@ -428,6 +432,7 @@ export class RoomScene {
     drawn: {
       floors: Set<AbstractMesh>; ponds: Set<AbstractMesh>; doors: Map<AbstractMesh, DoorView>; walls: Part[];
       animations: ((seconds: number) => void)[]; skies: Map<string, Color4>;
+      baseGround: ReturnType<typeof lookOf>["ground"];
     },
   ): void {
     const { floors, ponds, doors, walls, animations, skies } = drawn;
@@ -451,6 +456,8 @@ export class RoomScene {
     rim.isPickable = false;
     if (look.ground && isArrival) {
       this.drawGround(look.ground, chunk, world, look.paintKey);
+    } else if (look.ground && world && !sameGround(look.ground, drawn.baseGround)) {
+      this.drawGroundPatch(look.ground, chunk, look.paintKey);
     }
     // The back wall, outlined like the props (and with them), its front painted: a plane just in front of it (the
     // doorways stand in front of that).
@@ -502,6 +509,35 @@ export class RoomScene {
     if (animate) {
       animations.push(animate);
     }
+  }
+
+  /** A room's own ground in the open world, fading out over <groundBlend> metres past its edges so it melts into the ground of the room next to it. */
+  private drawGroundPatch(
+    look: NonNullable<ReturnType<typeof lookOf>["ground"]>, chunk: PlacedChunk, paintKey: string | undefined,
+  ): void {
+    const [width, depth] = [chunk.width + 2 * groundBlend, chunk.depth + 2 * groundBlend];
+    const patch = CreateGround(`ground-${chunk.roomId}`, { width, height: depth }, this.scene);
+    patch.position.set(chunk.x, -0.029 + this.groundPatches++ * 0.0004, chunk.z);
+    patch.isPickable = false;
+    const { colour, paint } = look;
+    const material = paint
+      ? painted(this.scene, "ground", `${chunk.roomId}/ground${paintKey ?? ""}`, textureSize(streetTile, streetTile, floorPixelsPerMetre), paint,
+        { u: width / streetTile, v: depth / streetTile })
+      : flat(this.scene, "ground", colour);
+    const fade = new DynamicTexture(`ground-fade-${chunk.roomId}`, { width: 128, height: 128 }, this.scene, false);
+    const context = fade.getContext();
+    const pixels = context.getImageData(0, 0, 128, 128);
+    for (let row = 0; row < 128; row++) {
+      for (let column = 0; column < 128; column++) {
+        const level = fadeAt(column / 127, row / 127, groundBlend / width, groundBlend / depth);
+        pixels.data.set([level, level, level, 255], (row * 128 + column) * 4);
+      }
+    }
+    context.putImageData(pixels, 0, 0);
+    fade.update(false);
+    fade.getAlphaFromRGB = true;
+    material.opacityTexture = fade;
+    patch.material = material;
   }
 
   /** The ground round the room, below the floor's edge: out past where the camera sees; under the whole world when there is one. */
@@ -852,6 +888,14 @@ export class RoomScene {
     label.outlineWidth = 3;
     this.gui?.addControl(label);
     label.linkWithMesh(anchor);
+    // A name that would sit on another door's is lifted above it.
+    const length = title.length;
+    let level = 0;
+    while (this.doorLabels.some((other) => other.level === level && Math.abs(other.x - x) < (other.length + length) * 0.3 && Math.abs(other.z - z) < 3)) {
+      level++;
+    }
+    this.doorLabels.push({ x, z, length, level });
+    label.linkOffsetY = -level * 18;
   }
 
   private step(seconds: number): void {
@@ -925,6 +969,20 @@ export function catPlayerIdOf(mesh: BabylonNode | null | undefined): string | un
     }
   }
   return undefined;
+}
+
+/** How far a room's ground reaches past its edges, fading, in the open world: about as far as the camera sees. */
+const groundBlend = 40;
+
+/** Whether two grounds look the same: the same colour and painting. */
+function sameGround(a: NonNullable<ReturnType<typeof lookOf>["ground"]>, b: ReturnType<typeof lookOf>["ground"]): boolean {
+  return b !== undefined && a.colour === b.colour && a.paint === b.paint;
+}
+
+/** How much of a room's ground shows (0 to 255) at a spot of its patch: all of it over the room, fading to none at the patch's edge. (u, v) run 0 to 1 across the patch; (feather) is the fade's width in the same units. */
+export function fadeAt(u: number, v: number, featherU: number, featherV: number): number {
+  const edge = Math.min(Math.min(u, 1 - u) / featherU, Math.min(v, 1 - v) / featherV);
+  return Math.round(255 * Math.max(0, Math.min(1, edge)));
 }
 
 function flat(scene: Scene, name: string, hex: string): StandardMaterial {
