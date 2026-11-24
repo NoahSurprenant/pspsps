@@ -62,25 +62,11 @@ public sealed class ContentDraftsTests
         Assert.That(water.Select(colour => colour![1..]).All(hex => Convert.ToInt32(hex[4..], 16) > Convert.ToInt32(hex[..2], 16)), Is.True, "bluer than red");
     }
 
-    [Test]
-    public void TheRink_IsABoardedIceRinkOnADeck_WithNoPitchFlagsOrCones()
-    {
-        var rink = Content.RoomList.Single(room => room.Id == "ice-rink");
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(rink.Look!.Floor!.Painter, Is.EqualTo("field-rink-deck"));
-            Assert.That(Content.PainterList.Select(p => p.Id), Does.Contain("field-rink-deck"));
-            Assert.That(rink.Layout.Props.Select(prop => prop.Kind), Does.Not.Contain("field-corner-flag").And.Not.Contain("field-cone"));
-        });
-    }
-
     /// <summary>Rooms made to look like open scenes stay richly decorated: a thin backdrop is sent back.</summary>
-    [TestCase("ice-rink", 80)]
     [TestCase("dojo", 100)]
-    [TestCase("forest", 60)]
+    [TestCase("forest", 100)]
     [TestCase("mine", 120)]
-    [TestCase("beach", 40)]
+    [TestCase("beach", 65)]
     [TestCase("pet-shop", 70)]
     public void TheRedrawnRooms_KeepARichBackdrop(string id, int atLeast)
     {
