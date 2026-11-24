@@ -3,7 +3,7 @@ import seed from "../../src/Pspsps.Application/Rooms/RoomLooks.json?raw";
 import serverLook from "../../src/Pspsps.Domain/Rooms/RoomLook.cs?raw";
 import { openLandscape } from "./doors";
 import {
-  backdropGenerators, floorPainters, groundPainters, lookOf, setDraftLook, setLooks, wallPainters, wildlifeKinds, type LooksData, type RoomLookData,
+  backdropGenerators, floorPainters, groundPainters, loadLooks, lookOf, setDraftLook, setLooks, wallPainters, wildlifeKinds, type LooksData, type RoomLookData,
 } from "./looks";
 import type { Floorplan } from "./paint";
 
@@ -220,5 +220,21 @@ describe("looks as data", () => {
     expect(listed("Grounds").sort()).toEqual(Object.keys(groundPainters).sort());
     expect(listed("Generators").sort()).toEqual(Object.keys(backdropGenerators).sort());
     expect(listed("WildlifeKinds").sort()).toEqual([...wildlifeKinds].sort());
+  });
+});
+
+describe("loadLooks", () => {
+  it("reads the draft looks only for the preview world", async () => {
+    const asked: string[] = [];
+    vi.stubGlobal("fetch", async (url: string) => {
+      asked.push(url);
+      return { ok: true, json: async () => ({ rooms: [], variants: [], painters: [], wildlife: [] }) };
+    });
+
+    await loadLooks();
+    await loadLooks(true);
+
+    expect(asked).toEqual(["/api/looks", "/api/looks?preview=true"]);
+    vi.unstubAllGlobals();
   });
 });

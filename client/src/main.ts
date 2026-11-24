@@ -683,6 +683,9 @@ async function backInto(ownerId: string): Promise<void> {
 }
 
 async function enter(worldId: string): Promise<void> {
+  // The admins' preview world draws rooms in their draft looks; any other world in the published ones.
+  const { loadLooks } = await import("./looks");
+  await loadLooks(worldId === "preview");
   await load(() => connection.enterWorld(worldId));
 }
 

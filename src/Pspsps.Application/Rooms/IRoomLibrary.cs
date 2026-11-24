@@ -18,6 +18,9 @@ public interface IRoomLibrary
     /// <summary>The room cats arrive in.</summary>
     RoomDefinition Start { get; }
 
+    /// <summary>The rooms <paramref name="worldId"/> plays on: the published ones, except in the admin-only preview world, which has each room's newest draft.</summary>
+    IRoomLibrary For(string worldId);
+
     /// <summary>Reads the published rooms and the overlays again. When they can't be read or are not sound, the library keeps what it has.</summary>
     Task RefreshAsync(CancellationToken cancellationToken);
 }
