@@ -203,7 +203,7 @@ describe("looks as data", () => {
 
   it("lays the town's two-box paving step along the lawn's front edge, whatever the room's size", () => {
     for (const [width = 0, depth = 0] of [[24, 16], [28, 12]]) {
-      const parts = backdropGenerators.town!({ width, depth, pond: null, doors: [] }, 4);
+      const parts = (backdropGenerators.town ?? (() => []))({ width, depth, pond: null, doors: [] }, 4);
       const low = parts.filter((p) => p.shape === "box" && p.width === width && p.height <= 0.25);
 
       expect(low).toEqual([
