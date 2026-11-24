@@ -455,11 +455,7 @@ export class RoomScene {
     // The floor's dark edge: a little larger and just below it. Not renderOutline, whose pass, from far off (a narrow
     // screen backs the camera away), covered whatever lay flat on the floor, the pond.
     this.drawEdge(chunk, chunk === drawn.marked);
-    if (look.ground && chunk === drawn.baseGround) {
-      this.drawGround(look.ground, chunk, world, look.paintKey);
-    } else if (look.ground && world && !sameGround(look.ground, lookOf(drawn.baseGround.roomId, drawn.baseGround.look).ground)) {
-      this.drawGroundPatch(look.ground, chunk, look.paintKey);
-    }
+    this.drawGrounds(chunk, look, world, drawn.baseGround);
     // The back wall, outlined like the props (and with them), its front painted: a plane just in front of it (the
     // doorways stand in front of that).
     if (look.paintWall && !openLandscape(chunk.roomId)) {
@@ -542,18 +538,32 @@ export class RoomScene {
     patch.material = material;
   }
 
-  /** The ground round the room, below the floor's edge: out past where the camera sees; under the whole world when there is one. */
-  private drawGround(
-    look: NonNullable<ReturnType<typeof lookOf>["ground"]>, chunk: PlacedChunk, world: PlacedChunk[] | undefined, paintKey: string | undefined,
-  ): void {
+  /** A room's ground: the one under the whole world (or round a room alone), or, in the open world, a patch fading out round the room. */
+  private drawGrounds(chunk: PlacedChunk, look: ReturnType<typeof lookOf>, world: PlacedChunk[] | undefined, baseGround: PlacedChunk): void {
+    const { ground, paintKey } = look;
+    if (!ground) {
+      return;
+    }
+    if (chunk !== baseGround) {
+      if (world && !sameGround(ground, lookOf(baseGround.roomId, baseGround.look).ground)) {
+        this.drawGroundPatch(ground, chunk, paintKey);
+      }
+      return;
+    }
+    if (!world) {
+      this.drawGround(ground, chunk, paintKey);
+      return;
+    }
+    const { minX, maxX, minZ, maxZ } = worldBounds(world);
+    this.drawGroundPatch(ground, { ...chunk, x: (minX + maxX) / 2, z: (minZ + maxZ) / 2, width: maxX - minX, depth: maxZ - minZ }, paintKey);
+  }
+
+  /** The ground round a room alone, below the floor's edge: out past where the camera sees. */
+  private drawGround(look: NonNullable<ReturnType<typeof lookOf>["ground"]>, chunk: PlacedChunk, paintKey: string | undefined): void {
     const { x: cx, depth } = chunk;
-    const bounds = world ? worldBounds(world) : undefined;
-    const [groundWidth, groundDepth] = bounds
-      ? [bounds.maxX - bounds.minX + 400, bounds.maxZ - bounds.minZ + 400]
-      : [400, 200 + depth / 2 + 40];
+    const [groundWidth, groundDepth] = [400, 200 + depth / 2 + 40];
     const ground = CreateGround("ground", { width: groundWidth, height: groundDepth }, this.scene);
-    ground.position.set(
-      bounds ? (bounds.minX + bounds.maxX) / 2 : cx, -0.03, bounds ? (bounds.minZ + bounds.maxZ) / 2 : (depth / 2 + 40 - 200) / 2);
+    ground.position.set(cx, -0.03, (depth / 2 + 40 - 200) / 2);
     const { colour, paint } = look;
     ground.material = paint
       ? painted(this.scene, "ground", `${chunk.roomId}/ground${paintKey ?? ""}`, textureSize(streetTile, streetTile, floorPixelsPerMetre), paint,
