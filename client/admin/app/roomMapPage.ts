@@ -99,10 +99,11 @@ export class RoomMapPage {
     const rooms = this.placed();
     const lefts = rooms.map((r) => (r.place?.x ?? 0) * CELL);
     const tops = rooms.map((r) => (r.place?.z ?? 0) * CELL);
-    const x = Math.min(0, ...lefts) - 4;
-    const z = Math.min(0, ...tops) - 4;
-    const right = Math.max(40, ...rooms.map((r) => (r.place?.x ?? 0) * CELL + r.width)) + 4;
-    const bottom = Math.max(30, ...rooms.map((r) => (r.place?.z ?? 0) * CELL + r.depth)) + 4;
+    const strips = rooms.flatMap(pathRects);
+    const x = Math.min(0, ...lefts, ...strips.map((s) => s.x)) - 4;
+    const z = Math.min(0, ...tops, ...strips.map((s) => s.z)) - 4;
+    const right = Math.max(40, ...rooms.map((r) => (r.place?.x ?? 0) * CELL + r.width), ...strips.map((s) => s.x + s.width)) + 4;
+    const bottom = Math.max(30, ...rooms.map((r) => (r.place?.z ?? 0) * CELL + r.depth), ...strips.map((s) => s.z + s.depth)) + 4;
     return { x, z, width: right - x, depth: bottom - z };
   });
   protected readonly viewBox = computed(() => { const b = this.bounds(); return `${b.x} ${b.z} ${b.width} ${b.depth}`; });

@@ -14,6 +14,6 @@ public sealed record RoomPath(RoomEdge Edge, double Offset, double Width, double
         RoomEdge.South => (cx + Offset, cz - (roomDepth / 2) - (Length / 2), Width, Length),
         RoomEdge.East => (cx + (roomWidth / 2) + (Length / 2), cz + Offset, Length, Width),
         RoomEdge.West => (cx - (roomWidth / 2) - (Length / 2), cz + Offset, Length, Width),
-        _ => throw new ArgumentOutOfRangeException(nameof(roomWidth)),
+        _ => throw new ArgumentOutOfRangeException(nameof(Edge)),
     };
 }

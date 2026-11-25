@@ -33,7 +33,7 @@ function seams(rooms: Rect[], from: { x: number; z: number }, paths: { x: number
   }
   const tour: typeof found = [];
   let at = from;
-  while (found.length > 0 && tour.length < 8) {
+  while (found.length > 0 && tour.length < 20) {
     found.sort((p, q) => Math.hypot(p.x - at.x, p.z - at.z) - Math.hypot(q.x - at.x, q.z - at.z));
     const next = found.shift()!;
     tour.push(next);

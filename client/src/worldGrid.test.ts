@@ -24,6 +24,14 @@ describe("world grid", () => {
     expect(placedOf("c", { name: "C", width: 8, depth: 6, paths: [] })).not.toHaveProperty("paths");
   });
 
+  it("counts a path running over another room, or across another path, as sharing floor, and a path ending at a room as not", () => {
+    const withPath = (id: string, x: number, z: number, length: number) => placedOf(id, { name: id, width: 8, depth: 8, place: { x, z }, paths: [{ edge: "East", offset: 0, width: 2, length }] });
+    // a ends at b's west edge (4 cells = 8 m east of a's); c stands where a's longer path would run.
+    expect([...overlapping([withPath("a", 0, 0, 8), room("b", 8, 8, { x: 8, z: 0 })])]).toEqual([]);
+    expect([...overlapping([withPath("a", 0, 0, 20), room("b", 8, 8, { x: 8, z: 0 })])].sort()).toEqual(["a", "b"]);
+    expect([...overlapping([withPath("a", 0, 0, 8), withPath("d", 4, 0, 8)])].sort()).toEqual(["a", "d"]);
+  });
+
   it("sets and removes a place in a layout, keeping everything else", () => {
     const layout = { name: "A", width: 8, depth: 6, props: [1] };
 

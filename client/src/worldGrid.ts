@@ -13,8 +13,10 @@ export function placedOf(id: string, layout: { name: string; width: number; dept
   return Array.isArray(layout.paths) && layout.paths.length > 0 ? { ...placed, paths: layout.paths as RoomPath[] } : placed;
 }
 
+export type Rect = { x: number; z: number; width: number; depth: number };
+
 /** The floor of each path out of a placed room, in metres: south-west corner and size (Pspsps.Domain RoomPath.Floor). */
-export function pathRects(room: Placed): { x: number; z: number; width: number; depth: number }[] {
+export function pathRects(room: Placed): Rect[] {
   if (!room.place) return [];
   const [cx, cz] = [room.place.x * CELL + room.width / 2, room.place.z * CELL + room.depth / 2];
   const [hw, hd] = [room.width / 2, room.depth / 2];
@@ -27,13 +29,14 @@ export function pathRects(room: Placed): { x: number; z: number; width: number; 
   });
 }
 
-const shares = (a: Placed, b: Placed): boolean => {
-  if (!a.place || !b.place) return false;
-  return a.place.x * CELL < b.place.x * CELL + b.width && b.place.x * CELL < a.place.x * CELL + a.width
-    && a.place.z * CELL < b.place.z * CELL + b.depth && b.place.z * CELL < a.place.z * CELL + a.depth;
-};
+const floorOf = (room: Placed): Rect[] =>
+  room.place ? [{ x: room.place.x * CELL, z: room.place.z * CELL, width: room.width, depth: room.depth }, ...pathRects(room)] : [];
 
-/** The IDs of placed rooms that share floor with another placed room (touching edges are fine). */
+const meets = (a: Rect, b: Rect): boolean => a.x < b.x + b.width && b.x < a.x + a.width && a.z < b.z + b.depth && b.z < a.z + a.depth;
+
+const shares = (a: Placed, b: Placed): boolean => floorOf(a).some((x) => floorOf(b).some((y) => meets(x, y)));
+
+/** The IDs of placed rooms that share floor with another placed room, paths included (touching edges are fine). */
 export function overlapping(rooms: readonly Placed[]): Set<string> {
   const found = new Set<string>();
   for (const [i, a] of rooms.entries()) {

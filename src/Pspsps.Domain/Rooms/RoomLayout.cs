@@ -22,7 +22,9 @@ public sealed record RoomLayout(string Name, double Width, double Depth, Positio
     public WorldPlace? Place { get; init; }
 
     /// <summary>The narrow paths out of the room's edges, to rooms that don't touch it (only for a placed room).</summary>
-    public IReadOnlyList<RoomPath> Paths { get; init; } = [];
+    public IReadOnlyList<RoomPath> Paths { get => _paths; init => _paths = value ?? []; }
+
+    private readonly IReadOnlyList<RoomPath> _paths = [];
 
     public static RoomLayout Of(RoomDefinition room)
     {
