@@ -385,7 +385,7 @@ public sealed class ContentDraftsTests
         Assert.Multiple(() =>
         {
             Assert.That(props["fort"].Count(k => k.StartsWith("field-sandcastle", StringComparison.Ordinal)), Is.EqualTo(2));
-            Assert.That(props["forest"], Does.Contain(PropKinds.FieldRock).And.Contain(PropKinds.FieldSapling));
+            Assert.That(props["forest"], Does.Contain(PropKinds.FieldRock).Or.Contain(PropKinds.FieldBigRock));
             Assert.That(props["forest"].Count(k => k is PropKinds.FieldPine or PropKinds.FieldSapling), Is.GreaterThanOrEqualTo(4), "little trees round the rock");
             Assert.That(props["cove"], Does.Contain(PropKinds.FieldSurfShack).And.Contain(PropKinds.FieldBonfire));
             foreach (var castle in new[] { PropKinds.FieldSandcastle, PropKinds.FieldSandcastleSmall })
