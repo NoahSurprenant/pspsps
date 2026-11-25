@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from "@angular/core";
 import { RouterLink } from "@angular/router";
-import { CELL, firstFreePlace, overlapping, placedOf, withPlace, type GridPlace, type Placed } from "../../src/worldGrid";
+import { CELL, firstFreePlace, overlapping, pathRects, placedOf, withPlace, type GridPlace, type Placed } from "../../src/worldGrid";
 import { messageOf } from "./http";
 import { RoomsApi } from "./roomsApi";
 
@@ -28,6 +28,9 @@ interface Kept { layout: Record<string, unknown> & { name: string; width: number
         <rect class="world-grid" [attr.x]="bounds().x" [attr.y]="bounds().z" [attr.width]="bounds().width" [attr.height]="bounds().depth" />
         @for (room of placed(); track room.id) {
           <g (pointerdown)="grab($event, room)">
+            @for (path of pathsOf(room); track $index) {
+              <rect class="world-path" [attr.x]="path.x" [attr.y]="path.z" [attr.width]="path.width" [attr.height]="path.depth" />
+            }
             <rect class="world-room" [class.clash]="clashing().includes(room.id)" [class.chosen]="chosen() === room.id"
               [attr.x]="room.place!.x * cell" [attr.y]="room.place!.z * cell" [attr.width]="room.width" [attr.height]="room.depth" />
             <text class="world-label" [attr.x]="room.place!.x * cell + 0.5" [attr.y]="room.place!.z * cell + 1.5">{{ room.name }}</text>
@@ -84,7 +87,7 @@ export class RoomMapPage {
 
   protected readonly everyRoom = computed<Placed[]>(() =>
     Object.entries(this.kept()).map(([id, k]) => {
-      const room = placedOf(id, k.layout as { name: string; width: number; depth: number; place?: unknown });
+      const room = placedOf(id, k.layout as { name: string; width: number; depth: number; place?: unknown; paths?: unknown });
       const move = this.pending()[id];
       return move === undefined ? room : { ...room, place: move };
     }).sort((a, b) => a.id.localeCompare(b.id)));
@@ -107,6 +110,8 @@ export class RoomMapPage {
   constructor() {
     void this.load();
   }
+
+  protected pathsOf = pathRects;
 
   protected wholeCells = (room: Placed): boolean => room.width % CELL === 0 && room.depth % CELL === 0;
 

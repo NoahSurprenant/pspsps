@@ -2,13 +2,28 @@
 export const CELL = 2;
 
 export interface GridPlace { x: number; z: number }
-export interface Placed { id: string; name: string; width: number; depth: number; place: GridPlace | null }
+export interface RoomPath { edge: "North" | "East" | "South" | "West"; offset: number; width: number; length: number }
+export interface Placed { id: string; name: string; width: number; depth: number; place: GridPlace | null; paths?: RoomPath[] }
 
 const isPlace = (value: unknown): value is GridPlace =>
   typeof value === "object" && value !== null && Number.isInteger((value as GridPlace).x) && Number.isInteger((value as GridPlace).z);
 
-export function placedOf(id: string, layout: { name: string; width: number; depth: number; place?: unknown }): Placed {
-  return { id, name: layout.name, width: layout.width, depth: layout.depth, place: isPlace(layout.place) ? { x: layout.place.x, z: layout.place.z } : null };
+export function placedOf(id: string, layout: { name: string; width: number; depth: number; place?: unknown; paths?: unknown }): Placed {
+  const placed: Placed = { id, name: layout.name, width: layout.width, depth: layout.depth, place: isPlace(layout.place) ? { x: layout.place.x, z: layout.place.z } : null };
+  return Array.isArray(layout.paths) && layout.paths.length > 0 ? { ...placed, paths: layout.paths as RoomPath[] } : placed;
+}
+
+/** The floor of each path out of a placed room, in metres: south-west corner and size (Pspsps.Domain RoomPath.Floor). */
+export function pathRects(room: Placed): { x: number; z: number; width: number; depth: number }[] {
+  if (!room.place) return [];
+  const [cx, cz] = [room.place.x * CELL + room.width / 2, room.place.z * CELL + room.depth / 2];
+  return (room.paths ?? []).map((path) => {
+    const [mx, mz, width, depth] = path.edge === "North" ? [cx + path.offset, cz + room.depth / 2 + path.length / 2, path.width, path.length]
+      : path.edge === "South" ? [cx + path.offset, cz - room.depth / 2 - path.length / 2, path.width, path.length]
+      : path.edge === "East" ? [cx + room.width / 2 + path.length / 2, cz + path.offset, path.length, path.width]
+      : [cx - room.width / 2 - path.length / 2, cz + path.offset, path.length, path.width];
+    return { x: mx - width / 2, z: mz - depth / 2, width, depth };
+  });
 }
 
 const shares = (a: Placed, b: Placed): boolean => {

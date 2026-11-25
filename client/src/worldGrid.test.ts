@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CELL, firstFreePlace, overlapping, placedOf, withPlace, type Placed } from "./worldGrid";
+import { CELL, firstFreePlace, overlapping, pathRects, placedOf, withPlace, type Placed } from "./worldGrid";
 
 const room = (id: string, width: number, depth: number, place: { x: number; z: number } | null): Placed => ({ id, name: id, width, depth, place });
 
@@ -14,6 +14,14 @@ describe("world grid", () => {
     const rooms = [room("a", 8, 8, { x: 0, z: 0 }), room("b", 8, 8, { x: 4, z: 0 }), room("c", 8, 8, { x: 6, z: 2 }), room("d", 8, 8, null)];
 
     expect([...overlapping(rooms)].sort()).toEqual(["b", "c"]);
+  });
+
+  it("reads the paths of a layout and lays each out in metres from its room", () => {
+    const placed = placedOf("a", { name: "A", width: 8, depth: 6, place: { x: 1, z: 1 }, paths: [{ edge: "East", offset: 1, width: 3, length: 6 }, { edge: "North", offset: 0, width: 2, length: 4 }] });
+
+    expect(pathRects(placed)).toEqual([{ x: 10, z: 4.5, width: 6, depth: 3 }, { x: 5, z: 8, width: 2, depth: 4 }]);
+    expect(pathRects(room("b", 8, 6, null))).toEqual([]);
+    expect(placedOf("c", { name: "C", width: 8, depth: 6, paths: [] })).not.toHaveProperty("paths");
   });
 
   it("sets and removes a place in a layout, keeping everything else", () => {
