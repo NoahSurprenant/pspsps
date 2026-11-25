@@ -40,7 +40,11 @@ class NoCanvas {
   height = 1;
 
   getContext(): unknown {
-    const fakeMember = (key: string | symbol) => (key === "measureText" ? () => ({ width: 0 }) : () => undefined);
+    const fakeMember = (key: string | symbol) => {
+      if (key === "measureText") return () => ({ width: 0 });
+      if (key === "getImageData") return () => ({ data: new Uint8ClampedArray(128 * 128 * 4) });
+      return () => undefined;
+    };
     return new Proxy({}, {
       get: (target: Record<string | symbol, unknown>, key) =>
         key in target ? target[key] : fakeMember(key),
