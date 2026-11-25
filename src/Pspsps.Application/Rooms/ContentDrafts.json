@@ -3164,7 +3164,7 @@
         "floorColour": "#d9c08a",
         "wallColour": "#cfe6ea",
         "ground": {
-          "colour": "#8fbf6a"
+          "colour": "#79c4de"
         },
         "floor": {
           "painter": "field-cove-floor",
