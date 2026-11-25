@@ -73,10 +73,18 @@ export function debugLines(stats: DebugStats, view: DebugView | undefined, now: 
     view ? `Room: ${view.roomName} (${view.roomId})` : "Room: none",
     ...(view?.spot ? [`Cat at: ${view.spot.x.toFixed(1)}, ${view.spot.z.toFixed(1)}  ·  ${view.cats} cats here`] : []),
     `Frames: ${stats.fps(now)} fps  ·  worst gap ${stats.worstFrame(now)} ms`,
-    `Server: ${view?.connection ?? "no connection"}  ·  ping ${ping === undefined ? "-" : `${Math.round(ping)} ms`}${worst === undefined ? "" : ` (worst ${Math.round(worst)})`}`,
+    `Server: ${view?.connection ?? "no connection"}  ·  ping ${pingText(ping, worst)}`,
   ];
   for (const event of stats.events) {
     lines.push(`  ${Math.max(0, Math.round((now - event.at) / 1000))}s ago: ${event.text}`);
   }
   return lines;
+}
+
+function pingText(ping: number | undefined, worst: number | undefined): string {
+  if (ping === undefined) {
+    return "-";
+  }
+  const worstText = worst === undefined ? "" : ` (worst ${Math.round(worst)})`;
+  return `${Math.round(ping)} ms${worstText}`;
 }

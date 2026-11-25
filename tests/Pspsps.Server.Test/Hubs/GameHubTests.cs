@@ -1528,11 +1528,11 @@ public sealed class GameHubTests
         new(Tom.Id, 15, new Dictionary<string, int> { ["fur-grey"] = 1, ["bow"] = 1 }, FurColor.Grey, hat, collar);
 
     [Test]
-    public async Task Ping_AnswersAtOnce_ForTheDebugOverlaysRoundTrip()
+    public void Ping_AnswersAtOnce_ForTheDebugOverlaysRoundTrip()
     {
         var hub = Hub();
 
-        await hub.Ping();
+        Assert.That(hub.Ping().IsCompletedSuccessfully, Is.True);
     }
 
     [Test]
