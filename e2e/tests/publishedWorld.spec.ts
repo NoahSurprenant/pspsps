@@ -101,6 +101,23 @@ test("the open world with every draft published looks right where rooms meet", a
       skipped.push(`${seam.between}: ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
     }
   }
+  // Every place on the world map, arrived at by the map: each outdoor room as a cat first sees it.
+  const openMap = page.getByRole("button", { name: "World map" });
+  const map = page.getByRole("dialog", { name: "World map" });
+  const places = (await openMap.click().then(() => map.locator(".map-place[data-place]").evaluateAll((nodes) =>
+    nodes.map((node) => ({ id: (node as HTMLElement).dataset.place!, room: (node as HTMLElement).dataset.room, label: node.getAttribute("aria-label") ?? "" })))));
+  await page.keyboard.press("Escape");
+  for (const place of places.filter((p) => p.room && !/coming soon/i.test(p.label))) {
+    try {
+      if (!(await map.isVisible())) await openMap.click();
+      await map.locator(`.map-place[data-place="${place.id}"]`).click();
+      await page.keyboard.press("Escape");
+      await page.waitForFunction((id) => window.pspsps?.room()?.snapshot.roomId === id, place.room, { timeout: 20_000 });
+      await shoot(`Arriving by the map in ${await roomNow()}`);
+    } catch (error) {
+      skipped.push(`map ${place.id}: ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
+    }
+  }
   console.log(`published-world: ${pictures.length} pictures; skipped: ${skipped.join(" | ") || "none"}`);
   test.info().annotations.push(...skipped.map((description) => ({ type: "seam not reached", description })));
   expect(pictures.length, `the arrival and at least two seams were pictured (skipped: ${skipped.join("; ")})`).toBeGreaterThanOrEqual(3);
