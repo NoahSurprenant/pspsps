@@ -108,6 +108,17 @@ public static class PropKinds
     public const string FieldBall = "field-ball";
     public const string FieldCone = "field-cone";
     public const string FieldSignpost = "field-signpost";
+    public const string FieldBoulder = "field-boulder";
+    public const string FieldTent = "field-tent";
+    public const string FieldTentBlue = "field-tent-blue";
+    public const string FieldFence = "field-fence";
+    public const string FieldHedge = "field-hedge";
+    public const string FieldFlowers = "field-flowers";
+    public const string FieldMushrooms = "field-mushrooms";
+    public const string FieldHayBale = "field-hay-bale";
+    public const string FieldFlagPole = "field-flag-pole";
+    public const string FieldPalisade = "field-palisade";
+    public const string FieldStoneWall = "field-stone-wall";
 
     public static IReadOnlyList<string> All { get; } =
     [
@@ -121,5 +132,6 @@ public static class PropKinds
         FieldSandcastle, FieldSandcastleSmall, FieldBucket, FieldSapling, FieldPine, FieldBush, FieldRock, FieldLog, FieldStump,
         FieldSurfShack, FieldBonfire, FieldTowel, FieldUmbrella, FieldSurfboards, FieldLifeguardChair, FieldCornerFlag, FieldBall,
         FieldCone, FieldSignpost,
+        FieldBoulder, FieldTent, FieldTentBlue, FieldFence, FieldHedge, FieldFlowers, FieldMushrooms, FieldHayBale, FieldFlagPole, FieldPalisade, FieldStoneWall,
     ];
 }
