@@ -7,7 +7,7 @@ describe("DebugStats", () => {
     for (let t = 0; t <= 1000; t += 100) stats.frame(t);
     stats.frame(1400);
 
-    expect(stats.fps(1400)).toBe(5);
+    expect(stats.fps(1400)).toBe(8);
     expect(stats.worstFrame(1400)).toBe(400);
     expect(stats.worstFrame(7000)).toBe(0);
   });

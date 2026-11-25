@@ -280,7 +280,7 @@ export class GameConnection {
 
   /** A round trip to the server and back, for the debug overlay. */
   ping(): Promise<void> {
-    return this.hub.invoke("Ping");
+    return this.call("Ping");
   }
 
   getWorlds(): Promise<WorldSummary[]> {

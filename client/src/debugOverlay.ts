@@ -9,7 +9,7 @@ export function debugWanted(search: string, storage: Pick<Storage, "getItem">): 
 }
 
 /** A small box in the corner with the room, frame rate and connection health; F3 or ?debug shows it. */
-export interface DebugBox { hidden: boolean; textContent: string | null }
+export interface DebugBox { hidden: boolean | string; textContent: string | null }
 export interface KeyTarget { addEventListener(type: "keydown", listener: (event: { code: string; altKey: boolean; ctrlKey: boolean; metaKey: boolean; preventDefault(): void }) => void): void }
 
 export class DebugOverlay {
