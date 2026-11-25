@@ -3206,6 +3206,58 @@
             },
             {
               "shape": "box",
+              "width": 70,
+              "height": 0.04,
+              "depth": 9,
+              "at": [
+                5,
+                -0.02,
+                11.5
+              ],
+              "colour": "#8fbf6a",
+              "outlined": false
+            },
+            {
+              "shape": "box",
+              "width": 29,
+              "height": 0.04,
+              "depth": 15,
+              "at": [
+                25.5,
+                -0.019,
+                8.5
+              ],
+              "colour": "#8fbf6a",
+              "outlined": false
+            },
+            {
+              "shape": "box",
+              "width": 29,
+              "height": 0.04,
+              "depth": 0.7,
+              "at": [
+                25.5,
+                -0.018,
+                0.95
+              ],
+              "colour": "#d9c08a",
+              "outlined": false
+            },
+            {
+              "shape": "box",
+              "width": 70,
+              "height": 0.04,
+              "depth": 0.5,
+              "at": [
+                5,
+                -0.017,
+                7.25
+              ],
+              "colour": "#d9c08a",
+              "outlined": false
+            },
+            {
+              "shape": "box",
               "width": 0.3,
               "height": 0.05,
               "depth": 9,
