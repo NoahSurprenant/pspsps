@@ -23885,6 +23885,253 @@
               "colour": "#4aa86a",
               "top": 0,
               "sides": 8
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 4.539,
+              "height": 0.01,
+              "at": [
+                -13.5,
+                -0.011,
+                -8.498
+              ],
+              "colour": "#a8dcee",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 3.867,
+              "height": 0.01,
+              "at": [
+                -10.346,
+                -0.011,
+                -8.99
+              ],
+              "colour": "#a8dcee",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 4.576,
+              "height": 0.01,
+              "at": [
+                -7.163,
+                -0.011,
+                -8.27
+              ],
+              "colour": "#a8dcee",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 5.991,
+              "height": 0.01,
+              "at": [
+                -4.779,
+                -0.011,
+                -8.27
+              ],
+              "colour": "#a8dcee",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 3.946,
+              "height": 0.01,
+              "at": [
+                -2.315,
+                -0.011,
+                -8.769
+              ],
+              "colour": "#a8dcee",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 0.938,
+              "height": 0.01,
+              "at": [
+                -12.5,
+                -0.009,
+                -9.43
+              ],
+              "colour": "#d7f1f7",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 1.691,
+              "height": 0.01,
+              "at": [
+                -9.425,
+                -0.009,
+                -9.838
+              ],
+              "colour": "#d7f1f7",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 1.561,
+              "height": 0.01,
+              "at": [
+                -6.409,
+                -0.009,
+                -9.871
+              ],
+              "colour": "#d7f1f7",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 1.048,
+              "height": 0.01,
+              "at": [
+                -4.368,
+                -0.009,
+                -8.615
+              ],
+              "colour": "#d7f1f7",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 1.417,
+              "height": 0.01,
+              "at": [
+                -2.646,
+                -0.009,
+                -8.602
+              ],
+              "colour": "#d7f1f7",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 1.289,
+              "height": 0.01,
+              "at": [
+                -0.676,
+                -0.009,
+                -9.638
+              ],
+              "colour": "#d7f1f7",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 6.988,
+              "height": 0.01,
+              "at": [
+                -14.827,
+                -0.011,
+                -4
+              ],
+              "colour": "#a8dcee",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 7.01,
+              "height": 0.01,
+              "at": [
+                -14.636,
+                -0.011,
+                -1.318
+              ],
+              "colour": "#a8dcee",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 5.405,
+              "height": 0.01,
+              "at": [
+                -14.475,
+                -0.011,
+                1.224
+              ],
+              "colour": "#a8dcee",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 7.06,
+              "height": 0.01,
+              "at": [
+                -14.268,
+                -0.011,
+                4.72
+              ],
+              "colour": "#a8dcee",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 4.788,
+              "height": 0.01,
+              "at": [
+                -14.327,
+                -0.008,
+                -4
+              ],
+              "colour": "#efdfae",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 4.81,
+              "height": 0.01,
+              "at": [
+                -14.136,
+                -0.008,
+                -1.318
+              ],
+              "colour": "#efdfae",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 3.205,
+              "height": 0.01,
+              "at": [
+                -13.975,
+                -0.008,
+                1.224
+              ],
+              "colour": "#efdfae",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 4.86,
+              "height": 0.01,
+              "at": [
+                -13.768,
+                -0.008,
+                4.72
+              ],
+              "colour": "#efdfae",
+              "sides": 20,
+              "outlined": false
             }
           ]
         }
@@ -25065,6 +25312,409 @@
                 -5.6
               ],
               "colour": "#c9c4b8",
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 5.81,
+              "height": 0.01,
+              "at": [
+                -13.5,
+                -0.011,
+                -8.2
+              ],
+              "colour": "#a8dcee",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 5.35,
+              "height": 0.01,
+              "at": [
+                -10.953,
+                -0.011,
+                -8.389
+              ],
+              "colour": "#a8dcee",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 5.405,
+              "height": 0.01,
+              "at": [
+                -8.114,
+                -0.011,
+                -8.496
+              ],
+              "colour": "#a8dcee",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 5.243,
+              "height": 0.01,
+              "at": [
+                -5.008,
+                -0.011,
+                -8.689
+              ],
+              "colour": "#a8dcee",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 4.181,
+              "height": 0.01,
+              "at": [
+                -2.044,
+                -0.011,
+                -8.935
+              ],
+              "colour": "#a8dcee",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 5.275,
+              "height": 0.01,
+              "at": [
+                0.605,
+                -0.011,
+                -8.837
+              ],
+              "colour": "#a8dcee",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 4.723,
+              "height": 0.01,
+              "at": [
+                2.869,
+                -0.011,
+                -8.816
+              ],
+              "colour": "#a8dcee",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 3.895,
+              "height": 0.01,
+              "at": [
+                6.176,
+                -0.011,
+                -8.927
+              ],
+              "colour": "#a8dcee",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 5.252,
+              "height": 0.01,
+              "at": [
+                8.992,
+                -0.011,
+                -9.031
+              ],
+              "colour": "#a8dcee",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 5.789,
+              "height": 0.01,
+              "at": [
+                11.964,
+                -0.011,
+                -8.72
+              ],
+              "colour": "#a8dcee",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 1.135,
+              "height": 0.01,
+              "at": [
+                -12.5,
+                -0.009,
+                -9.121
+              ],
+              "colour": "#d7f1f7",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 0.953,
+              "height": 0.01,
+              "at": [
+                -9.561,
+                -0.009,
+                -9.065
+              ],
+              "colour": "#d7f1f7",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 1.095,
+              "height": 0.01,
+              "at": [
+                -7.484,
+                -0.009,
+                -9.2
+              ],
+              "colour": "#d7f1f7",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 1.529,
+              "height": 0.01,
+              "at": [
+                -4.385,
+                -0.009,
+                -9.38
+              ],
+              "colour": "#d7f1f7",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 1.073,
+              "height": 0.01,
+              "at": [
+                -1.38,
+                -0.009,
+                -8.682
+              ],
+              "colour": "#d7f1f7",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 1.221,
+              "height": 0.01,
+              "at": [
+                1.117,
+                -0.009,
+                -9.312
+              ],
+              "colour": "#d7f1f7",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 0.855,
+              "height": 0.01,
+              "at": [
+                3.026,
+                -0.009,
+                -9.873
+              ],
+              "colour": "#d7f1f7",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 1.464,
+              "height": 0.01,
+              "at": [
+                5.21,
+                -0.009,
+                -9.082
+              ],
+              "colour": "#d7f1f7",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 0.966,
+              "height": 0.01,
+              "at": [
+                8.289,
+                -0.009,
+                -9.321
+              ],
+              "colour": "#d7f1f7",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 1.164,
+              "height": 0.01,
+              "at": [
+                10.538,
+                -0.009,
+                -8.997
+              ],
+              "colour": "#d7f1f7",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 1.332,
+              "height": 0.01,
+              "at": [
+                12.817,
+                -0.009,
+                -9.066
+              ],
+              "colour": "#d7f1f7",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 7.032,
+              "height": 0.01,
+              "at": [
+                -14.833,
+                -0.011,
+                -6.5
+              ],
+              "colour": "#a8dcee",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 6.543,
+              "height": 0.01,
+              "at": [
+                -13.952,
+                -0.011,
+                -3.551
+              ],
+              "colour": "#a8dcee",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 6.309,
+              "height": 0.01,
+              "at": [
+                -14.437,
+                -0.011,
+                -0.389
+              ],
+              "colour": "#a8dcee",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 6.114,
+              "height": 0.01,
+              "at": [
+                -13.845,
+                -0.011,
+                2.837
+              ],
+              "colour": "#a8dcee",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 6.456,
+              "height": 0.01,
+              "at": [
+                -14.808,
+                -0.011,
+                6.087
+              ],
+              "colour": "#a8dcee",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 4.832,
+              "height": 0.01,
+              "at": [
+                -14.333,
+                -0.008,
+                -6.5
+              ],
+              "colour": "#efdfae",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 4.343,
+              "height": 0.01,
+              "at": [
+                -13.452,
+                -0.008,
+                -3.551
+              ],
+              "colour": "#efdfae",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 4.109,
+              "height": 0.01,
+              "at": [
+                -13.937,
+                -0.008,
+                -0.389
+              ],
+              "colour": "#efdfae",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 3.914,
+              "height": 0.01,
+              "at": [
+                -13.345,
+                -0.008,
+                2.837
+              ],
+              "colour": "#efdfae",
+              "sides": 20,
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 4.256,
+              "height": 0.01,
+              "at": [
+                -14.308,
+                -0.008,
+                6.087
+              ],
+              "colour": "#efdfae",
+              "sides": 20,
               "outlined": false
             }
           ]
