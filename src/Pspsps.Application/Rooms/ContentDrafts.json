@@ -14,16 +14,16 @@
         "pond": {
           "center": {
             "x": -7,
-            "z": -5.2
+            "z": -3
           },
-          "radius": 2.2
+          "radius": 2.5
         },
         "terraces": [
           {
             "x": 0,
-            "z": 3.5,
+            "z": 4.5,
             "width": 22,
-            "depth": 9,
+            "depth": 7,
             "height": 0.4
           }
         ],

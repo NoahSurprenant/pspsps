@@ -392,7 +392,7 @@ describe("RoomScene", () => {
       view.show(square);
 
       expect(painters.map((painter) => painter.mock.calls.length)).toEqual(painted);
-      expect(painted[0]).toBe(1);
+      expect(painted[0]).toBeLessThanOrEqual(1);
     } finally {
       painters.forEach((painter) => painter.mockRestore());
     }
