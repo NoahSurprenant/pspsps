@@ -1115,3 +1115,19 @@ button.danger {
     height: 0.65rem;
   }
 }
+
+#debug-overlay {
+  position: fixed;
+  bottom: 4px;
+  left: 4px;
+  z-index: 50;
+  margin: 0;
+  padding: 6px 8px;
+  max-width: calc(100vw - 16px);
+  font: 12px/1.35 ui-monospace, Menlo, Consolas, monospace;
+  color: #d7ffd7;
+  background: rgb(0 0 0 / 0.65);
+  border-radius: 4px;
+  pointer-events: none;
+  white-space: pre-wrap;
+}

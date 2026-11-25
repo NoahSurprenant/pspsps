@@ -527,6 +527,9 @@ public sealed partial class GameHub(
         }
     }
 
+    /// <summary>Answers at once: the client's debug overlay times the round trip.</summary>
+    public Task Ping() => Task.CompletedTask;
+
     public Task Move(double x, double z) => InRoom(room => room.Move(PlayerId, x, z));
 
     public async Task Say(string text)

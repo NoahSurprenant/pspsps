@@ -1528,6 +1528,14 @@ public sealed class GameHubTests
         new(Tom.Id, 15, new Dictionary<string, int> { ["fur-grey"] = 1, ["bow"] = 1 }, FurColor.Grey, hat, collar);
 
     [Test]
+    public void Ping_AnswersAtOnce_ForTheDebugOverlaysRoundTrip()
+    {
+        var hub = Hub();
+
+        Assert.That(hub.Ping().IsCompletedSuccessfully, Is.True);
+    }
+
+    [Test]
     public async Task GetMutes_ListsWhomThePlayerMuted()
     {
         _mutes.ListAsync(Tom.Id, Arg.Any<CancellationToken>()).Returns([new MutedPlayer(Felix, "Felix", FurColor.Black)]);
