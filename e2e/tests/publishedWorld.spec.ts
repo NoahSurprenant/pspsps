@@ -101,6 +101,7 @@ test("the open world with every draft published looks right where rooms meet", a
       skipped.push(`${seam.between}: ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
     }
   }
+  console.log(`published-world: ${pictures.length} pictures; skipped: ${skipped.join(" | ") || "none"}`);
   test.info().annotations.push(...skipped.map((description) => ({ type: "seam not reached", description })));
   expect(pictures.length, `the arrival and at least two seams were pictured (skipped: ${skipped.join("; ")})`).toBeGreaterThanOrEqual(3);
 
