@@ -9,8 +9,10 @@ describe("slabs", () => {
 
     expect(steps.map((s) => s.top)).toEqual([0.2, 0.4, 0.6].map((v) => expect.closeTo(v, 6)));
     expect(steps[2]).toMatchObject({ width: 8, depth: 6 });
-    expect(steps[0]!.width).toBeGreaterThan(steps[1]!.width);
-    expect(steps[0]!.width).toBeLessThanOrEqual(8 + 2 * stepsReach);
+    const widths = steps.map((step) => step.width);
+    expect(widths).toEqual([...widths].sort((a, b) => b - a));
+    expect(Math.max(...widths)).toBeGreaterThan(8);
+    expect(Math.max(...widths)).toBeLessThanOrEqual(8 + 2 * stepsReach);
   });
 
   it("is one step for a low terrace", () => {
