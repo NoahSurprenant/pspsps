@@ -6,7 +6,7 @@ import { adminCookie, cats, enterWorld, expect, tapFloor, test } from "./game";
 // pictured at each (screenshots/published-world.png, which CI links on the PR). It publishes and never rolls back: this
 // suite runs on its own runner with its own database, never beside the tests that need the original world.
 
-interface Draft { id: string; layout: { name: string; width: number; depth: number; place?: { x: number; z: number } | null } }
+interface Draft { id: string; layout: { name: string; width: number; depth: number; place?: { x: number; z: number } | null; paths?: { edge: string; offset: number; length: number }[] } }
 interface Rect { id: string; name: string; x0: number; z0: number; x1: number; z1: number }
 
 async function admin(baseUrl: string, path: string): Promise<Response> {
@@ -16,9 +16,9 @@ async function admin(baseUrl: string, path: string): Promise<Response> {
   return response;
 }
 
-/** The middle of each edge two placed rooms share, nearest the arrival first, one after another. */
-function seams(rooms: Rect[], from: { x: number; z: number }): { x: number; z: number; between: string }[] {
-  const found: { x: number; z: number; between: string }[] = [];
+/** The middle of each edge two placed rooms share and of each path out of a room, nearest the arrival first, one after another. */
+function seams(rooms: Rect[], from: { x: number; z: number }, paths: { x: number; z: number; between: string }[]): { x: number; z: number; between: string }[] {
+  const found: { x: number; z: number; between: string }[] = [...paths];
   for (const a of rooms) {
     for (const b of rooms) {
       if (a.id >= b.id) continue;
@@ -33,7 +33,7 @@ function seams(rooms: Rect[], from: { x: number; z: number }): { x: number; z: n
   }
   const tour: typeof found = [];
   let at = from;
-  while (found.length > 0 && tour.length < 6) {
+  while (found.length > 0 && tour.length < 8) {
     found.sort((p, q) => Math.hypot(p.x - at.x, p.z - at.z) - Math.hypot(q.x - at.x, q.z - at.z));
     const next = found.shift()!;
     tour.push(next);
@@ -59,6 +59,16 @@ test("the open world with every draft published looks right where rooms meet", a
     return { id: d.id, name: d.layout.name, x0: x * 2, z0: z * 2, x1: x * 2 + d.layout.width, z1: z * 2 + d.layout.depth };
   });
 
+  const middles = drafts.filter((d) => d.layout.place).flatMap((d) => {
+    const { x, z } = d.layout.place!;
+    const [cx, cz] = [x * 2 + d.layout.width / 2, z * 2 + d.layout.depth / 2];
+    return (d.layout.paths ?? []).map((p) => ({
+      x: p.edge === "East" ? cx + d.layout.width / 2 + p.length / 2 : p.edge === "West" ? cx - d.layout.width / 2 - p.length / 2 : cx + p.offset,
+      z: p.edge === "North" ? cz + d.layout.depth / 2 + p.length / 2 : p.edge === "South" ? cz - d.layout.depth / 2 - p.length / 2 : cz + p.offset,
+      between: `a path out of ${d.layout.name}`,
+    }));
+  });
+
   const me = await enterWorld(page, "Tabby");
   const where = async (): Promise<{ x: number; z: number }> => {
     const cat = (await cats(page))[me];
@@ -74,7 +84,7 @@ test("the open world with every draft published looks right where rooms meet", a
 
   await shoot(`Arriving in ${await roomNow()}`);
   const skipped: string[] = [];
-  for (const seam of seams(rooms, await where())) {
+  for (const seam of seams(rooms, await where(), middles)) {
     try {
       // Hops of a few metres: the camera follows the cat, so the next spot is always on screen.
       for (let hop = 0; hop < 30; hop++) {
