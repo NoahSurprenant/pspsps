@@ -17,11 +17,12 @@ export function placedOf(id: string, layout: { name: string; width: number; dept
 export function pathRects(room: Placed): { x: number; z: number; width: number; depth: number }[] {
   if (!room.place) return [];
   const [cx, cz] = [room.place.x * CELL + room.width / 2, room.place.z * CELL + room.depth / 2];
+  const [hw, hd] = [room.width / 2, room.depth / 2];
   return (room.paths ?? []).map((path) => {
-    const [mx, mz, width, depth] = path.edge === "North" ? [cx + path.offset, cz + room.depth / 2 + path.length / 2, path.width, path.length]
-      : path.edge === "South" ? [cx + path.offset, cz - room.depth / 2 - path.length / 2, path.width, path.length]
-      : path.edge === "East" ? [cx + room.width / 2 + path.length / 2, cz + path.offset, path.length, path.width]
-      : [cx - room.width / 2 - path.length / 2, cz + path.offset, path.length, path.width];
+    const lengthways = path.edge === "East" || path.edge === "West";
+    const [width, depth] = lengthways ? [path.length, path.width] : [path.width, path.length];
+    const sign = path.edge === "North" || path.edge === "East" ? 1 : -1;
+    const [mx, mz] = lengthways ? [cx + sign * (hw + path.length / 2), cz + path.offset] : [cx + path.offset, cz + sign * (hd + path.length / 2)];
     return { x: mx - width / 2, z: mz - depth / 2, width, depth };
   });
 }
