@@ -107,9 +107,17 @@
           }
         ],
         "place": {
-          "x": 56,
+          "x": 54,
           "z": 0
-        }
+        },
+        "paths": [
+          {
+            "edge": "East",
+            "offset": -1,
+            "width": 3,
+            "length": 8
+          }
+        ]
       },
       "look": {
         "sky": "#bfe3f2",
@@ -2805,9 +2813,17 @@
           }
         ],
         "place": {
-          "x": 82,
+          "x": 70,
           "z": 0
-        }
+        },
+        "paths": [
+          {
+            "edge": "North",
+            "offset": -1,
+            "width": 3,
+            "length": 12
+          }
+        ]
       },
       "look": {
         "sky": "#bfe6f5",
@@ -3488,8 +3504,8 @@
           }
         ],
         "place": {
-          "x": 70,
-          "z": 15
+          "x": 72,
+          "z": 26
         }
       },
       "look": {
@@ -6633,9 +6649,23 @@
           }
         ],
         "place": {
-          "x": 28,
+          "x": 36,
           "z": 0
-        }
+        },
+        "paths": [
+          {
+            "edge": "East",
+            "offset": 0,
+            "width": 3,
+            "length": 8
+          },
+          {
+            "edge": "North",
+            "offset": 0,
+            "width": 3,
+            "length": 12
+          }
+        ]
       },
       "look": {
         "sky": "#f3dcc0",
@@ -11078,8 +11108,16 @@
         ],
         "place": {
           "x": 70,
-          "z": 8
-        }
+          "z": 13
+        },
+        "paths": [
+          {
+            "edge": "North",
+            "offset": 2,
+            "width": 3,
+            "length": 12
+          }
+        ]
       },
       "look": {
         "sky": "#a8dcf2",
@@ -17579,9 +17617,17 @@
         ],
         "doors": [],
         "place": {
-          "x": 42,
-          "z": 8
-        }
+          "x": 54,
+          "z": 12
+        },
+        "paths": [
+          {
+            "edge": "North",
+            "offset": 0,
+            "width": 3,
+            "length": 12
+          }
+        ]
       },
       "look": {
         "sky": "#bfe6f5",
@@ -20656,9 +20702,17 @@
         ],
         "doors": [],
         "place": {
-          "x": 42,
-          "z": 0
-        }
+          "x": 36,
+          "z": 12
+        },
+        "paths": [
+          {
+            "edge": "East",
+            "offset": 0,
+            "width": 3,
+            "length": 8
+          }
+        ]
       },
       "look": {
         "sky": "#bfe6f5",
@@ -21675,9 +21729,23 @@
         ],
         "doors": [],
         "place": {
-          "x": 14,
+          "x": 18,
           "z": 0
-        }
+        },
+        "paths": [
+          {
+            "edge": "East",
+            "offset": -2,
+            "width": 3,
+            "length": 8
+          },
+          {
+            "edge": "North",
+            "offset": 0,
+            "width": 3,
+            "length": 12
+          }
+        ]
       },
       "look": {
         "sky": "#a9dcf3",
@@ -22947,7 +23015,21 @@
         "place": {
           "x": 0,
           "z": 0
-        }
+        },
+        "paths": [
+          {
+            "edge": "East",
+            "offset": 0,
+            "width": 3,
+            "length": 8
+          },
+          {
+            "edge": "North",
+            "offset": 0,
+            "width": 3,
+            "length": 12
+          }
+        ]
       },
       "look": {
         "sky": "#a9dcf3",
@@ -23977,9 +24059,17 @@
         ],
         "doors": [],
         "place": {
-          "x": 14,
-          "z": 8
-        }
+          "x": 18,
+          "z": 14
+        },
+        "paths": [
+          {
+            "edge": "East",
+            "offset": -2,
+            "width": 3,
+            "length": 8
+          }
+        ]
       },
       "look": {
         "sky": "#bfe0f2",
@@ -24918,8 +25008,16 @@
         "doors": [],
         "place": {
           "x": 0,
-          "z": 8
-        }
+          "z": 14
+        },
+        "paths": [
+          {
+            "edge": "East",
+            "offset": 0,
+            "width": 3,
+            "length": 8
+          }
+        ]
       },
       "look": {
         "sky": "#a9dcf3",
@@ -25999,9 +26097,17 @@
         ],
         "doors": [],
         "place": {
-          "x": 68,
-          "z": 0
-        }
+          "x": 54,
+          "z": 26
+        },
+        "paths": [
+          {
+            "edge": "East",
+            "offset": -1,
+            "width": 3,
+            "length": 8
+          }
+        ]
       },
       "look": {
         "sky": "#bcd6ea",
