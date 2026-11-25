@@ -125,7 +125,16 @@ public sealed record ChunkView(
     [property: Id(6)] PondView? Pond,
     [property: Id(7)] IReadOnlyList<DoorView> Doors,
     [property: Id(8)] IReadOnlyList<PropView> Props,
-    [property: Id(9)] string? Look);
+    [property: Id(9)] string? Look,
+    [property: Id(10)] IReadOnlyList<PathView>? Paths = null);
+
+/// <summary>A narrow strip of floor out of a room's edge: its middle (X, Z) in metres from the room's middle, and its size.</summary>
+[GenerateSerializer, Immutable]
+public sealed record PathView(
+    [property: Id(0)] double X,
+    [property: Id(1)] double Z,
+    [property: Id(2)] double Width,
+    [property: Id(3)] double Depth);
 
 /// <summary>
 /// A player's home, as the browser draws it and its owner decorates it: whose it is, who may visit ("Friends", "Anyone"

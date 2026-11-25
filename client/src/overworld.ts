@@ -1,6 +1,7 @@
 import type { ChunkView, DoorView, PondView, PropView, RoomSnapshot } from "./types";
 
-type Floor = Pick<ChunkView, "x" | "z" | "width" | "depth">;
+type Box = Pick<ChunkView, "x" | "z" | "width" | "depth">;
+type Floor = Box & { paths?: ChunkView["paths"] };
 type Spot = { x: number; z: number };
 
 /** A chunk with everything in it moved to world metres: what the scene draws and the cats walk among. */
@@ -22,14 +23,23 @@ export function place(chunk: ChunkView): PlacedChunk {
   };
 }
 
+/** Every piece of a chunk's floor, in world metres: the room's own, then the paths out of it. */
+export function floorBoxes(chunk: Floor): Box[] {
+  return [chunk, ...(chunk.paths ?? []).map((p) => ({ x: chunk.x + p.x, z: chunk.z + p.z, width: p.width, depth: p.depth }))];
+}
+
+function onBox(box: Box, spot: Spot): boolean {
+  return Math.abs(spot.x - box.x) <= box.width / 2 && Math.abs(spot.z - box.z) <= box.depth / 2;
+}
+
 /** The spot of the world's floor nearest to a spot: itself when it is on a chunk, else the closest point of the closest chunk. */
 export function clampToWorld(chunks: readonly Floor[], spot: Spot): Spot {
   let best = spot;
   let bestDistance = Infinity;
-  for (const chunk of chunks) {
+  for (const box of chunks.flatMap(floorBoxes)) {
     const candidate = {
-      x: Math.max(chunk.x - chunk.width / 2, Math.min(spot.x, chunk.x + chunk.width / 2)),
-      z: Math.max(chunk.z - chunk.depth / 2, Math.min(spot.z, chunk.z + chunk.depth / 2)),
+      x: Math.max(box.x - box.width / 2, Math.min(spot.x, box.x + box.width / 2)),
+      z: Math.max(box.z - box.depth / 2, Math.min(spot.z, box.z + box.depth / 2)),
     };
     const distance = Math.hypot(candidate.x - spot.x, candidate.z - spot.z);
     if (distance < bestDistance) {
@@ -40,19 +50,20 @@ export function clampToWorld(chunks: readonly Floor[], spot: Spot): Spot {
   return best;
 }
 
-/** The chunk whose floor a spot is on; where chunks touch, the first. */
+/** The chunk whose floor a spot is on; where chunks touch, the first; on a path, the chunk it leaves. */
 export function chunkAt<T extends Floor>(chunks: readonly T[], spot: Spot): T | undefined {
-  return chunks.find((c) => Math.abs(spot.x - c.x) <= c.width / 2 && Math.abs(spot.z - c.z) <= c.depth / 2);
+  return chunks.find((c) => onBox(c, spot)) ?? chunks.find((c) => floorBoxes(c).some((box) => onBox(box, spot)));
 }
 
-/** The box round every chunk's floor: where the ground under the world reaches. */
+/** The box round every chunk's floor and paths: where the ground under the world reaches. */
 export function worldBounds(chunks: readonly Floor[]):
   { minX: number; maxX: number; minZ: number; maxZ: number } {
+  const boxes = chunks.flatMap(floorBoxes);
   return {
-    minX: Math.min(...chunks.map((c) => c.x - c.width / 2)),
-    maxX: Math.max(...chunks.map((c) => c.x + c.width / 2)),
-    minZ: Math.min(...chunks.map((c) => c.z - c.depth / 2)),
-    maxZ: Math.max(...chunks.map((c) => c.z + c.depth / 2)),
+    minX: Math.min(...boxes.map((c) => c.x - c.width / 2)),
+    maxX: Math.max(...boxes.map((c) => c.x + c.width / 2)),
+    minZ: Math.min(...boxes.map((c) => c.z - c.depth / 2)),
+    maxZ: Math.max(...boxes.map((c) => c.z + c.depth / 2)),
   };
 }
 

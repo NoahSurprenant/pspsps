@@ -150,6 +150,16 @@ export interface ChunkView {
   doors: DoorView[];
   props: PropView[];
   look: string | null;
+  /** The narrow strips of floor out of its edges, in metres from its middle. */
+  paths?: PathView[] | null;
+}
+
+/** A narrow strip of floor between two rooms: its middle and size. */
+export interface PathView {
+  x: number;
+  z: number;
+  width: number;
+  depth: number;
 }
 
 /** Who may come into a player's home, besides its owner (the Domain's HomeVisitors). */

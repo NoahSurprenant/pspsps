@@ -172,6 +172,10 @@ type OutfitView 1: String FurColor
 type OutfitView 2: String Hat
 type OutfitView 3: String Collar
 type OutfitView 4: Int32 Version
+type PathView 0: Double X
+type PathView 1: Double Z
+type PathView 2: Double Width
+type PathView 3: Double Depth
 type PlayerCard 0: Guid PlayerId
 type PlayerCard 1: String DisplayName
 type PlayerCard 2: String FurColor
@@ -228,3 +232,4 @@ type ChunkView 6: PondView Pond
 type ChunkView 7: IReadOnlyList<DoorView> Doors
 type ChunkView 8: IReadOnlyList<PropView> Props
 type ChunkView 9: String Look
+type ChunkView 10: IReadOnlyList<PathView> Paths

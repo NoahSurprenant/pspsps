@@ -27,8 +27,15 @@ public static class ChunkViews
                     room.Pond is { } pond ? new PondView(pond.Center.X, pond.Center.Z, pond.Radius) : null,
                     [.. room.Doors.Select(door => DoorView.From(door, byId[door.ToRoom]))],
                     [.. room.Props.Select(PropView.From)],
-                    room.Look);
+                    room.Look,
+                    room.Paths.Count == 0 ? null : [.. room.Paths.Select(path => PathOf(room, path))]);
             }),
         ];
+    }
+
+    private static PathView PathOf(RoomDefinition room, RoomPath path)
+    {
+        var (x, z, width, depth) = path.Floor(0, 0, room.Width, room.Depth);
+        return new PathView(x, z, width, depth);
     }
 }

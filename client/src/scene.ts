@@ -451,6 +451,9 @@ export class RoomScene {
         (brush, scale) => look.paintFloor?.(brush, plan, scale))
       : flat(this.scene, "floor", look.floorColour);
     floors.add(floor);
+    for (const path of chunk.paths ?? []) {
+      floors.add(this.drawPath(chunk.roomId, { x: cx + path.x, z: cz + path.z, width: path.width, depth: path.depth }, look.floorColour));
+    }
     // The floor's dark edge: a little larger and just below it. Not renderOutline, whose pass, from far off (a narrow
     // screen backs the camera away), covered whatever lay flat on the floor, the pond.
     this.drawEdge(chunk, chunk === drawn.marked);
@@ -886,6 +889,18 @@ export class RoomScene {
     board.material = flat(this.scene, `${name}-board`, "#e8cf9f");
     this.labelDoor(name, door.toRoomName, x, 1.76, z);
     return [path, post, board];
+  }
+
+  /** A narrow strip of floor out of a room, in its colour, on a dark edge like a room's. */
+  private drawPath(roomId: string, box: { x: number; z: number; width: number; depth: number }, colour: string): AbstractMesh {
+    const rim = CreateGround("path-edge", { width: box.width + 0.08, height: box.depth + 0.08 }, this.scene);
+    rim.position.set(box.x, -0.01, box.z);
+    rim.material = flat(this.scene, "floor-edge", ink);
+    rim.isPickable = false;
+    const strip = CreateGround(`path-${roomId}`, { width: box.width, height: box.depth }, this.scene);
+    strip.position.set(box.x, 0.001, box.z);
+    strip.material = flat(this.scene, "floor", colour);
+    return strip;
   }
 
   /** The floor's dark edge, a little larger and just below it. Not renderOutline, whose pass, from far off (a narrow
