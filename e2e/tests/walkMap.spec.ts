@@ -1,7 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { enterWorld, expect, test } from "./game";
 
-// Every place on the world map that is open: a guest travels to it, and it shows a room with a title, doors and no
+// Every place on the world map that is open: a guest travels to it, and it shows a room with a title and no
 // console errors (the fixture fails the test on those). Also run against the live game by `npm run test:live`.
 test("a guest visits every open place on the world map", async ({ page, browser }, info) => {
   test.setTimeout(240_000);
@@ -27,7 +27,7 @@ test("a guest visits every open place on the world map", async ({ page, browser 
     const snapshot = await page.evaluate(() => window.pspsps?.room()?.snapshot);
     expect(snapshot?.roomName, `${place.id} has a name`).toBeTruthy();
     await expect(page, `${place.id}'s title`).toHaveTitle(`${snapshot?.roomName} · pspsps`);
-    expect(snapshot?.doors.length, `${place.id} has a door`).toBeGreaterThan(0);
+    expect(snapshot?.doors, `${place.id} lists its doors (none for a room that opens only by paths)`).toBeDefined();
     await page.waitForTimeout(1500);
     const png = await page.locator("#game").screenshot();
     pictures.push({ name: snapshot?.roomName ?? place.id, png });
