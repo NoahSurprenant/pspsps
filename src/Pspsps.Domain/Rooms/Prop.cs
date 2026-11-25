@@ -119,6 +119,11 @@ public static class PropKinds
     public const string FieldFlagPole = "field-flag-pole";
     public const string FieldPalisade = "field-palisade";
     public const string FieldStoneWall = "field-stone-wall";
+    public const string FieldWaterfall = "field-waterfall";
+    public const string FieldBigTree = "field-big-tree";
+    public const string FieldFootbridge = "field-footbridge";
+    public const string FieldArrowSign = "field-arrow-sign";
+    public const string FieldBigRock = "field-big-rock";
 
     public static IReadOnlyList<string> All { get; } =
     [
@@ -133,5 +138,6 @@ public static class PropKinds
         FieldSurfShack, FieldBonfire, FieldTowel, FieldUmbrella, FieldSurfboards, FieldLifeguardChair, FieldCornerFlag, FieldBall,
         FieldCone, FieldSignpost,
         FieldBoulder, FieldTent, FieldTentBlue, FieldFence, FieldHedge, FieldFlowers, FieldMushrooms, FieldHayBale, FieldFlagPole, FieldPalisade, FieldStoneWall,
+        FieldWaterfall, FieldBigTree, FieldFootbridge, FieldArrowSign, FieldBigRock,
     ];
 }

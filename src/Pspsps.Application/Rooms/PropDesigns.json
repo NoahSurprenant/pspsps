@@ -1129,5 +1129,64 @@
   {"shape":"box","width":2.7,"height":0.12,"depth":0.6,"at":[0,0.66,0],"colour":"#d8cbb5"},
   {"shape":"box","width":0.9,"height":0.04,"depth":0.02,"at":[-0.6,0.38,-0.26],"colour":"#8f897d","outlined":false},
   {"shape":"box","width":0.7,"height":0.04,"depth":0.02,"at":[0.5,0.2,-0.26],"colour":"#8f897d","outlined":false}
+ ]},
+ {"kind": "field-waterfall", "size": 2.4, "parts": [
+  {"shape":"ball","diameter":4.6,"height":3.4,"at":[0,1.7,-1.2],"colour":"#8b929b"},
+  {"shape":"ball","diameter":3,"height":2.6,"at":[-2.1,1.25,-0.7],"colour":"#9aa0a8"},
+  {"shape":"ball","diameter":3,"height":2.4,"at":[2.2,1.15,-0.6],"colour":"#a7adb5"},
+  {"shape":"ball","diameter":2.8,"height":1.8,"at":[-0.4,3.3,-1.3],"colour":"#a7adb5"},
+  {"shape":"ball","diameter":1.8,"height":1.2,"at":[1.3,3.5,-1.1],"colour":"#9aa0a8"},
+  {"shape":"ball","diameter":1.4,"height":1,"at":[-1.9,2.5,-0.9],"colour":"#8b929b"},
+  {"shape":"ball","diameter":1.5,"height":1.6,"at":[-1.7,0.8,0.1],"colour":"#3b3442","outlined":false},
+  {"shape":"box","width":1.1,"height":3.3,"depth":0.2,"at":[0.55,1.85,-0.1],"colour":"#bfe6f5","outlined":false},
+  {"shape":"box","width":0.12,"height":3,"depth":0.22,"at":[0.2,1.9,-0.08],"colour":"#fdf7f0","outlined":false},
+  {"shape":"box","width":0.1,"height":2.8,"depth":0.22,"at":[0.85,1.8,-0.08],"colour":"#fdf7f0","outlined":false},
+  {"shape":"cylinder","diameter":3.6,"height":0.08,"at":[0.55,0.04,0.9],"colour":"#7fc4e6","sides":22},
+  {"shape":"ball","diameter":1.3,"height":0.5,"at":[0.55,0.2,0.2],"colour":"#fdf7f0","outlined":false},
+  {"shape":"ball","diameter":0.8,"height":0.7,"at":[-1.2,0.35,1.6],"colour":"#8b929b"},
+  {"shape":"ball","diameter":0.6,"height":0.5,"at":[1.9,0.25,1.4],"colour":"#a7adb5"}
+ ]},
+ {"kind": "field-big-tree", "size": 1.5, "parts": [
+  {"shape":"cylinder","diameter":1.2,"height":4.2,"at":[0,2.1,0],"colour":"#7a5a44","top":0.8,"sides":10},
+  {"shape":"cylinder","diameter":0.5,"height":1.2,"at":[0.7,0.9,0.2],"colour":"#7a5a44","top":0.18,"sides":7,"turn":[0,0,-0.9]},
+  {"shape":"ball","diameter":4.2,"height":3,"at":[0,5,0],"colour":"#5f9f4f"},
+  {"shape":"ball","diameter":3,"height":2.4,"at":[1.4,5.8,-0.2],"colour":"#6fae5f"},
+  {"shape":"ball","diameter":2.8,"height":2.2,"at":[-1.5,5.5,0.3],"colour":"#7bb867"},
+  {"shape":"ball","diameter":2.4,"height":2,"at":[0.2,6.6,0],"colour":"#8cc36f"}
+ ]},
+ {"kind": "field-footbridge", "size": 2.2, "parts": [
+  {"shape":"box","width":5,"height":0.05,"depth":1.5,"at":[0,0.03,0],"colour":"#7fc4e6","outlined":false},
+  {"shape":"box","width":1.5,"height":0.7,"depth":1.5,"at":[-2.1,0.3,0],"colour":"#b9b3a6"},
+  {"shape":"box","width":1.5,"height":0.7,"depth":1.5,"at":[2.1,0.3,0],"colour":"#b9b3a6"},
+  {"shape":"box","width":4.2,"height":0.14,"depth":1.3,"at":[0,0.78,0],"colour":"#c98f5a"},
+  {"shape":"box","width":1.6,"height":0.14,"depth":1.3,"at":[-1.5,0.7,0],"colour":"#a8764a"},
+  {"shape":"box","width":1.6,"height":0.14,"depth":1.3,"at":[1.5,0.7,0],"colour":"#a8764a"},
+  {"shape":"box","width":4.2,"height":0.1,"depth":0.1,"at":[0,1.5,0.62],"colour":"#7a5a44"},
+  {"shape":"box","width":4.2,"height":0.1,"depth":0.1,"at":[0,1.5,-0.62],"colour":"#7a5a44"},
+  {"shape":"box","width":0.12,"height":0.8,"depth":0.12,"at":[-2,1.12,0.62],"colour":"#7a5a44"},
+  {"shape":"box","width":0.12,"height":0.8,"depth":0.12,"at":[-2,1.12,-0.62],"colour":"#7a5a44"},
+  {"shape":"box","width":0.12,"height":0.8,"depth":0.12,"at":[-1,1.12,0.62],"colour":"#7a5a44"},
+  {"shape":"box","width":0.12,"height":0.8,"depth":0.12,"at":[-1,1.12,-0.62],"colour":"#7a5a44"},
+  {"shape":"box","width":0.12,"height":0.8,"depth":0.12,"at":[0,1.12,0.62],"colour":"#7a5a44"},
+  {"shape":"box","width":0.12,"height":0.8,"depth":0.12,"at":[0,1.12,-0.62],"colour":"#7a5a44"},
+  {"shape":"box","width":0.12,"height":0.8,"depth":0.12,"at":[1,1.12,0.62],"colour":"#7a5a44"},
+  {"shape":"box","width":0.12,"height":0.8,"depth":0.12,"at":[1,1.12,-0.62],"colour":"#7a5a44"},
+  {"shape":"box","width":0.12,"height":0.8,"depth":0.12,"at":[2,1.12,0.62],"colour":"#7a5a44"},
+  {"shape":"box","width":0.12,"height":0.8,"depth":0.12,"at":[2,1.12,-0.62],"colour":"#7a5a44"}
+ ]},
+ {"kind": "field-arrow-sign", "size": 0.5, "parts": [
+  {"shape":"cylinder","diameter":0.14,"height":1.7,"at":[0,0.85,0],"colour":"#7a5a44","sides":6},
+  {"shape":"box","width":1,"height":0.7,"depth":0.08,"at":[0,1.6,-0.04],"colour":"#3f8fd8"},
+  {"shape":"box","width":1.1,"height":0.8,"depth":0.05,"at":[0,1.6,0.02],"colour":"#fdf7f0","outlined":false},
+  {"shape":"box","width":0.62,"height":0.12,"depth":0.04,"at":[-0.05,1.6,-0.1],"colour":"#fdf7f0","outlined":false},
+  {"shape":"box","width":0.34,"height":0.1,"depth":0.04,"at":[0.26,1.7,-0.1],"colour":"#fdf7f0","outlined":false,"turn":[0,0,-0.8]},
+  {"shape":"box","width":0.34,"height":0.1,"depth":0.04,"at":[0.26,1.5,-0.1],"colour":"#fdf7f0","outlined":false,"turn":[0,0,0.8]}
+ ]},
+ {"kind": "field-big-rock", "size": 1.9, "parts": [
+  {"shape":"ball","diameter":3.4,"height":2.6,"at":[0,1.3,0],"colour":"#8b929b"},
+  {"shape":"ball","diameter":2.4,"height":2.2,"at":[-1.2,1.1,0.6],"colour":"#9aa0a8"},
+  {"shape":"ball","diameter":2.2,"height":2,"at":[1.3,1,-0.4],"colour":"#a7adb5"},
+  {"shape":"ball","diameter":2,"height":1.5,"at":[0.2,2.7,-0.2],"colour":"#a7adb5"},
+  {"shape":"ball","diameter":1.6,"height":0.5,"at":[0.2,3.2,-0.2],"colour":"#fdf7f0","outlined":false}
  ]}
 ]
