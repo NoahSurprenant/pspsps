@@ -207,6 +207,150 @@
             },
             "radius": 0.6,
             "facing": 0
+          },
+          {
+            "kind": "flower-bed",
+            "spot": {
+              "x": -4.7,
+              "z": 3.1
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "flower-bed",
+            "spot": {
+              "x": 3.8,
+              "z": 1.2
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "flower-bed",
+            "spot": {
+              "x": -10.4,
+              "z": 1.1
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "plant",
+            "spot": {
+              "x": -0.4,
+              "z": -0.7
+            },
+            "radius": 0.5,
+            "facing": 0
+          },
+          {
+            "kind": "plant",
+            "spot": {
+              "x": 1.4,
+              "z": -3.4
+            },
+            "radius": 0.5,
+            "facing": 0
+          },
+          {
+            "kind": "plant",
+            "spot": {
+              "x": 5.8,
+              "z": -0.4
+            },
+            "radius": 0.5,
+            "facing": 0
+          },
+          {
+            "kind": "field-flowers",
+            "spot": {
+              "x": 6,
+              "z": -4.8
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "field-flowers",
+            "spot": {
+              "x": 11,
+              "z": -0.6
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "field-sapling",
+            "spot": {
+              "x": 1.6,
+              "z": -5.9
+            },
+            "radius": 0.6,
+            "facing": 0
+          },
+          {
+            "kind": "tree",
+            "spot": {
+              "x": 10.6,
+              "z": 1.7
+            },
+            "radius": 1.4,
+            "facing": 0
+          },
+          {
+            "kind": "field-bush",
+            "spot": {
+              "x": 11,
+              "z": -6.9
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "bench",
+            "spot": {
+              "x": 3.3,
+              "z": -1.2
+            },
+            "radius": 1,
+            "facing": 0
+          },
+          {
+            "kind": "lamp",
+            "spot": {
+              "x": 5.2,
+              "z": -3.6
+            },
+            "radius": 0.35,
+            "facing": 0
+          },
+          {
+            "kind": "lamp",
+            "spot": {
+              "x": -1.6,
+              "z": -4.1
+            },
+            "radius": 0.35,
+            "facing": 0
+          },
+          {
+            "kind": "market-cart",
+            "spot": {
+              "x": 7.4,
+              "z": 0.7
+            },
+            "radius": 1.4,
+            "facing": 0
+          },
+          {
+            "kind": "packing-crate",
+            "spot": {
+              "x": -11.4,
+              "z": -4.6
+            },
+            "radius": 0.6,
+            "facing": 0
           }
         ],
         "doors": [
@@ -11738,6 +11882,60 @@
             },
             "radius": 1,
             "facing": 0
+          },
+          {
+            "kind": "field-rock",
+            "spot": {
+              "x": 4.1,
+              "z": 5.5
+            },
+            "radius": 1.2,
+            "facing": 0
+          },
+          {
+            "kind": "field-sapling",
+            "spot": {
+              "x": -8.9,
+              "z": -4.1
+            },
+            "radius": 0.6,
+            "facing": 0
+          },
+          {
+            "kind": "field-stump",
+            "spot": {
+              "x": 0.4,
+              "z": -6
+            },
+            "radius": 0.6,
+            "facing": 0
+          },
+          {
+            "kind": "field-flowers",
+            "spot": {
+              "x": -4.4,
+              "z": 1.6
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "field-flowers",
+            "spot": {
+              "x": 4.4,
+              "z": -1.6
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "fish-barrel",
+            "spot": {
+              "x": 7.1,
+              "z": 0
+            },
+            "radius": 0.6,
+            "facing": 0
           }
         ],
         "doors": [
@@ -18328,6 +18526,60 @@
             },
             "radius": 0.5,
             "facing": 0
+          },
+          {
+            "kind": "flower-bed",
+            "spot": {
+              "x": -3,
+              "z": -6.9
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "flower-bed",
+            "spot": {
+              "x": 3,
+              "z": -6.9
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "plant",
+            "spot": {
+              "x": -1.2,
+              "z": -6.9
+            },
+            "radius": 0.5,
+            "facing": 0
+          },
+          {
+            "kind": "plant",
+            "spot": {
+              "x": 1.4,
+              "z": -6.9
+            },
+            "radius": 0.5,
+            "facing": 0
+          },
+          {
+            "kind": "field-flowers",
+            "spot": {
+              "x": 8.6,
+              "z": 4.6
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "field-stump",
+            "spot": {
+              "x": 5.4,
+              "z": -5
+            },
+            "radius": 0.6,
+            "facing": 0
           }
         ],
         "doors": [],
@@ -21531,6 +21783,168 @@
             },
             "radius": 0.8,
             "facing": 1.1
+          },
+          {
+            "kind": "field-hay-bale",
+            "spot": {
+              "x": 4.6,
+              "z": -6.9
+            },
+            "radius": 1,
+            "facing": 0
+          },
+          {
+            "kind": "field-flag-pole",
+            "spot": {
+              "x": -0.2,
+              "z": 3
+            },
+            "radius": 0.5,
+            "facing": 0
+          },
+          {
+            "kind": "field-fence",
+            "spot": {
+              "x": -10.9,
+              "z": 3.6
+            },
+            "radius": 1.3,
+            "facing": 0
+          },
+          {
+            "kind": "field-fence",
+            "spot": {
+              "x": 12.6,
+              "z": -2.6
+            },
+            "radius": 1.3,
+            "facing": 0
+          },
+          {
+            "kind": "field-stump",
+            "spot": {
+              "x": -3.5,
+              "z": 5.1
+            },
+            "radius": 0.6,
+            "facing": 0
+          },
+          {
+            "kind": "field-log",
+            "spot": {
+              "x": -7.1,
+              "z": 4.9
+            },
+            "radius": 1,
+            "facing": 0
+          },
+          {
+            "kind": "field-log",
+            "spot": {
+              "x": 4.9,
+              "z": 4.7
+            },
+            "radius": 1,
+            "facing": 0
+          },
+          {
+            "kind": "field-rock",
+            "spot": {
+              "x": 3.5,
+              "z": 0.6
+            },
+            "radius": 1.2,
+            "facing": 0
+          },
+          {
+            "kind": "field-rock",
+            "spot": {
+              "x": -2.5,
+              "z": -0.9
+            },
+            "radius": 1.2,
+            "facing": 0
+          },
+          {
+            "kind": "shore-bollard",
+            "spot": {
+              "x": -6.2,
+              "z": -6.9
+            },
+            "radius": 0.4,
+            "facing": 0
+          },
+          {
+            "kind": "field-flowers",
+            "spot": {
+              "x": -4.2,
+              "z": 2.2
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "field-flowers",
+            "spot": {
+              "x": 6.3,
+              "z": 1.8
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "packing-crate",
+            "spot": {
+              "x": 9,
+              "z": 2.4
+            },
+            "radius": 0.6,
+            "facing": 0
+          },
+          {
+            "kind": "packing-crate",
+            "spot": {
+              "x": 8.1,
+              "z": 3.3
+            },
+            "radius": 0.6,
+            "facing": 0
+          },
+          {
+            "kind": "field-sapling",
+            "spot": {
+              "x": -10.2,
+              "z": 1.5
+            },
+            "radius": 0.6,
+            "facing": 0
+          },
+          {
+            "kind": "field-sapling",
+            "spot": {
+              "x": 9.9,
+              "z": -1.3
+            },
+            "radius": 0.6,
+            "facing": 0
+          },
+          {
+            "kind": "lamp",
+            "spot": {
+              "x": -3.8,
+              "z": -6.8
+            },
+            "radius": 0.35,
+            "facing": 0
+          },
+          {
+            "kind": "lamp",
+            "spot": {
+              "x": 11,
+              "z": 6.9
+            },
+            "radius": 0.35,
+            "facing": 0
           }
         ],
         "doors": [],
