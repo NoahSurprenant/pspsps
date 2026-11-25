@@ -26,6 +26,11 @@ public sealed record RoomLayout(string Name, double Width, double Depth, Positio
 
     private readonly IReadOnlyList<RoomPath> _paths = [];
 
+    /// <summary>The raised stretches of ground, for a placed room.</summary>
+    public IReadOnlyList<RoomTerrace> Terraces { get => _terraces; init => _terraces = value ?? []; }
+
+    private readonly IReadOnlyList<RoomTerrace> _terraces = [];
+
     public static RoomLayout Of(RoomDefinition room)
     {
         ArgumentNullException.ThrowIfNull(room);
@@ -36,6 +41,7 @@ public sealed record RoomLayout(string Name, double Width, double Depth, Positio
             Props = room.Props,
             Place = room.Place,
             Paths = room.Paths,
+            Terraces = room.Terraces,
             Doors = [.. room.Doors.Select(door => DoorOf(room, door))],
         };
     }
@@ -49,6 +55,7 @@ public sealed record RoomLayout(string Name, double Width, double Depth, Positio
             Look = Look,
             Place = Place,
             Paths = Paths,
+            Terraces = Terraces,
         };
         return room.WithDoors([.. Doors.Select(door => (door.Id, door.Edge, door.Offset, door.ToRoom, door.ToDoor))]);
     }

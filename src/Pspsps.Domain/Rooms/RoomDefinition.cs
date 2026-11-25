@@ -22,12 +22,15 @@ public sealed record RoomDefinition(
     /// <summary>The narrow paths out of this room's edges, to rooms that don't touch it (<see cref="WorldSpace"/>).</summary>
     public IReadOnlyList<RoomPath> Paths { get; init; } = [];
 
+    /// <summary>The raised stretches of ground in this room (only for a placed room).</summary>
+    public IReadOnlyList<RoomTerrace> Terraces { get; init; } = [];
+
     /// <summary>Whether this is the same room as <paramref name="other"/> to a cat in it: the same floor, doors, props and look.</summary>
     public bool SameAs(RoomDefinition other)
     {
         ArgumentNullException.ThrowIfNull(other);
-        return Equals(this with { Doors = [], Props = [], Paths = [] }, other with { Doors = [], Props = [], Paths = [] })
-            && Doors.SequenceEqual(other.Doors) && Props.SequenceEqual(other.Props) && Paths.SequenceEqual(other.Paths);
+        return Equals(this with { Doors = [], Props = [], Paths = [], Terraces = [] }, other with { Doors = [], Props = [], Paths = [], Terraces = [] })
+            && Doors.SequenceEqual(other.Doors) && Props.SequenceEqual(other.Props) && Paths.SequenceEqual(other.Paths) && Terraces.SequenceEqual(other.Terraces);
     }
 
     /// <summary>Places each exit one metre inside its edge. Offsets run across the edge from its midpoint.</summary>
