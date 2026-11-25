@@ -104,6 +104,8 @@ test("the open world with every draft published looks right where rooms meet", a
   // Every place on the world map, arrived at by the map: each outdoor room as a cat first sees it.
   const openMap = page.getByRole("button", { name: "World map" });
   const map = page.getByRole("dialog", { name: "World map" });
+  // A tap on the way may have landed on the map board, which opens the same map: start from a closed one.
+  if (await map.isVisible()) await page.keyboard.press("Escape");
   const places = (await openMap.click().then(() => map.locator(".map-place[data-place]").evaluateAll((nodes) =>
     nodes.map((node) => ({ id: (node as HTMLElement).dataset.place!, room: (node as HTMLElement).dataset.room, label: node.getAttribute("aria-label") ?? "" })))));
   await page.keyboard.press("Escape");
