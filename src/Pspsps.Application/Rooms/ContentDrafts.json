@@ -14,10 +14,19 @@
         "pond": {
           "center": {
             "x": -7,
-            "z": -3
+            "z": -5.2
           },
-          "radius": 2.5
+          "radius": 2.2
         },
+        "terraces": [
+          {
+            "x": 0,
+            "z": 3.5,
+            "width": 22,
+            "depth": 9,
+            "height": 0.4
+          }
+        ],
         "props": [
           {
             "kind": "map-board",

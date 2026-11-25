@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chunkAt, clampToWorld, nearestPond, place, stepInWorld, worldBounds, worldDoors } from "./overworld";
+import { chunkAt, clampToWorld, nearestPond, place, stepInWorld, worldBounds, worldDoors, worldHeight } from "./overworld";
 import type { ChunkView } from "./types";
 
 function chunk(roomId: string, x: number, z: number, width = 20, depth = 10): ChunkView {
@@ -12,6 +12,15 @@ function chunk(roomId: string, x: number, z: number, width = 20, depth = 10): Ch
 }
 
 describe("overworld", () => {
+  it("moves a chunk's terraces to world metres, and says how high the ground is there", () => {
+    const placed = place({ ...chunk("a", 100, 50), terraces: [{ x: 2, z: 0, width: 6, depth: 6, height: 0.4 }] });
+
+    expect(placed.terraces?.[0]).toMatchObject({ x: 102, z: 50 });
+    expect(worldHeight([placed], { x: 102, z: 50 })).toBeCloseTo(0.4);
+    expect(worldHeight([placed], { x: 0, z: 0 })).toBe(0);
+    expect(worldHeight([place(chunk("b", 0, 0))], { x: 0, z: 0 })).toBe(0);
+  });
+
   it("moves a chunk's doors, props and pond to world metres and keeps the local ones", () => {
     const placed = place(chunk("a", 100, 50));
     expect(placed.doors[0]).toMatchObject({ x: 104, z: 55 });
