@@ -26,6 +26,25 @@ public sealed class ChunkViewsTests
     }
 
     [Test]
+    public void ARoomsTerraces_AreSentInMetresFromItsMiddle_AndARoomWithNoneSendsNone()
+    {
+        var raised = new RoomDefinition("raised", "Raised", 20, 20, new Position(0, 0), 10)
+        {
+            Place = new WorldPlace(0, 0),
+            Terraces = [new RoomTerrace(1, -2, 8, 6, 0.5)],
+        };
+        var flat = new RoomDefinition("flat", "Flat", 20, 20, new Position(0, 0), 10) { Place = new WorldPlace(10, 0) };
+
+        var chunks = ChunkViews.Of([raised, flat]);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(chunks.Single(chunk => chunk.RoomId == "raised").Terraces, Is.EqualTo(new[] { new TerraceView(1, -2, 8, 6, 0.5) }));
+            Assert.That(chunks.Single(chunk => chunk.RoomId == "flat").Terraces, Is.Null);
+        });
+    }
+
+    [Test]
     public void EveryPlacedRoom_IsDrawnAtItsWorldSpot_WithItsDoorsNamed_AndARoomOffTheMapIsLeftOut()
     {
         var west = new RoomDefinition("west", "West", 20, 20, new Position(0, 0), 10) { Place = new WorldPlace(0, 0) }

@@ -28,7 +28,8 @@ public static class ChunkViews
                     [.. room.Doors.Select(door => DoorView.From(door, byId[door.ToRoom]))],
                     [.. room.Props.Select(PropView.From)],
                     room.Look,
-                    room.Paths.Count == 0 ? null : [.. room.Paths.Select(path => PathOf(room, path))]);
+                    room.Paths.Count == 0 ? null : [.. room.Paths.Select(path => PathOf(room, path))],
+                    room.Terraces.Count == 0 ? null : [.. room.Terraces.Select(t => new TerraceView(t.X, t.Z, t.Width, t.Depth, t.Height))]);
             }),
         ];
     }

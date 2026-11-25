@@ -1049,5 +1049,85 @@
  {"kind": "shore-pine", "size": 1.25, "parts": [{"shape":"cylinder","diameter":0.3,"height":1,"at":[0,0.5,0],"colour":"#7a5a44","sides":8},{"shape":"cylinder","diameter":2.2,"height":1.5,"at":[0,1.6,0],"colour":"#2f7d4a","top":0,"sides":8},{"shape":"cylinder","diameter":1.8,"height":1.4,"at":[0,2.6,0],"colour":"#3a9156","top":0,"sides":8},{"shape":"cylinder","diameter":1.3,"height":1.3,"at":[0,3.5,0],"colour":"#4aa86a","top":0,"sides":8}]},
  {"kind": "shore-lodge", "size": 4.25, "parts": [{"shape":"box","width":4.8,"height":2.4,"depth":3.2,"at":[0,1.2,0],"colour":"#9a6b3b"},{"shape":"box","width":4.84,"height":0.07,"depth":3.24,"at":[0,0.4,0],"colour":"#7a5a44","outlined":false},{"shape":"box","width":4.84,"height":0.07,"depth":3.24,"at":[0,1,0],"colour":"#7a5a44","outlined":false},{"shape":"box","width":4.84,"height":0.07,"depth":3.24,"at":[0,1.6,0],"colour":"#7a5a44","outlined":false},{"shape":"box","width":4.84,"height":0.07,"depth":3.24,"at":[0,2.2,0],"colour":"#7a5a44","outlined":false},{"shape":"box","width":5.4,"height":0.16,"depth":2.3,"at":[0,2.95,-0.88],"colour":"#b0463a","turn":[0.58,0,0]},{"shape":"box","width":5.4,"height":0.16,"depth":2.3,"at":[0,2.95,0.88],"colour":"#b0463a","turn":[-0.58,0,0]},{"shape":"box","width":0.6,"height":1.1,"depth":0.6,"at":[1.6,3.2,0.5],"colour":"#7a5a44"},{"shape":"box","width":0.9,"height":1.5,"depth":0.08,"at":[0,0.8,-1.64],"colour":"#7a5a44"},{"shape":"ball","diameter":0.1,"at":[0.3,0.8,-1.72],"colour":"#ffc85a"},{"shape":"box","width":0.9,"height":0.7,"depth":0.08,"at":[-1.6,1.3,-1.64],"colour":"#bfe6ff"},{"shape":"box","width":0.9,"height":0.7,"depth":0.08,"at":[1.6,1.3,-1.64],"colour":"#bfe6ff"},{"shape":"box","width":0.9,"height":0.7,"depth":0.08,"at":[-1.6,1.3,1.64],"colour":"#bfe6ff"},{"shape":"box","width":0.9,"height":0.6,"depth":0.08,"at":[0,2.4,-1.66],"colour":"#d8423a"},{"shape":"box","width":0.9,"height":0.04,"depth":0.5,"at":[-1.6,0.9,-1.85],"colour":"#7a5a44"},{"shape":"box","width":0.9,"height":0.04,"depth":0.5,"at":[1.6,0.9,-1.85],"colour":"#7a5a44"},{"shape":"box","width":3.2,"height":0.14,"depth":0.7,"at":[0,0.07,-1.95],"colour":"#c98f5a"},{"shape":"box","width":0.1,"height":1.2,"depth":0.1,"at":[-1.5,0.6,-2.2],"colour":"#7a5a44"},{"shape":"box","width":0.1,"height":1.2,"depth":0.1,"at":[1.5,0.6,-2.2],"colour":"#7a5a44"},{"shape":"box","width":3.2,"height":0.1,"depth":0.1,"at":[0,1.2,-2.2],"colour":"#7a5a44"}]},
  {"kind": "shore-tour-stand", "size": 1.6, "parts": [{"shape":"box","width":1.6,"height":0.9,"depth":0.7,"at":[0,0.45,-0.1],"colour":"#c98f5a"},{"shape":"box","width":1.7,"height":0.08,"depth":0.8,"at":[0,0.94,-0.1],"colour":"#7a5a44"},{"shape":"box","width":1.6,"height":1.9,"depth":0.1,"at":[0,0.95,0.4],"colour":"#a8764a"},{"shape":"box","width":0.1,"height":2,"depth":0.1,"at":[-0.75,1,-0.4],"colour":"#7a5a44"},{"shape":"box","width":0.1,"height":2,"depth":0.1,"at":[0.75,1,-0.4],"colour":"#7a5a44"},{"shape":"box","width":1.5,"height":0.45,"depth":0.06,"at":[0,1.65,-0.45],"colour":"#4f7f86"},{"shape":"box","width":0.9,"height":0.18,"depth":0.06,"at":[0,1.65,-0.5],"colour":"#fdf7f0"},{"shape":"box","width":0.3,"height":0.05,"depth":0.22,"at":[-0.4,1,-0.2],"colour":"#f2c14e"},{"shape":"box","width":0.3,"height":0.05,"depth":0.22,"at":[0,1,-0.2],"colour":"#e8643c"},{"shape":"cylinder","diameter":0.14,"height":0.2,"at":[0.5,1.07,-0.2],"colour":"#fdf7f0","sides":8},{"shape":"box","width":0.6,"height":0.5,"depth":0.05,"at":[-0.9,1.1,-0.45],"colour":"#fdf7f0","turn":[0,0.4,0]},{"shape":"box","width":0.27,"height":0.06,"depth":1,"at":[-0.675,2.12,-0.35],"colour":"#d8423a","turn":[0.25,0,0]},{"shape":"box","width":0.27,"height":0.06,"depth":1,"at":[-0.405,2.12,-0.35],"colour":"#fdf7f0","turn":[0.25,0,0]},{"shape":"box","width":0.27,"height":0.06,"depth":1,"at":[-0.135,2.12,-0.35],"colour":"#d8423a","turn":[0.25,0,0]},{"shape":"box","width":0.27,"height":0.06,"depth":1,"at":[0.135,2.12,-0.35],"colour":"#fdf7f0","turn":[0.25,0,0]},{"shape":"box","width":0.27,"height":0.06,"depth":1,"at":[0.405,2.12,-0.35],"colour":"#d8423a","turn":[0.25,0,0]},{"shape":"box","width":0.27,"height":0.06,"depth":1,"at":[0.675,2.12,-0.35],"colour":"#fdf7f0","turn":[0.25,0,0]}]},
- {"kind": "shore-signpost", "size": 0.6, "parts": [{"shape":"cylinder","diameter":0.1,"height":1.7,"at":[0,0.85,0],"colour":"#7a5a44","sides":6},{"shape":"box","width":0.8,"height":0.26,"depth":0.06,"at":[0,1.45,-0.08],"colour":"#1b7fd6","turn":[0,0.25,0]},{"shape":"box","width":0.6,"height":0.06,"depth":0.07,"at":[0,1.45,-0.12],"colour":"#fdf7f0","turn":[0,0.25,0]},{"shape":"box","width":0.7,"height":0.24,"depth":0.06,"at":[0,1.1,-0.08],"colour":"#e8643c","turn":[0,-0.3,0]},{"shape":"box","width":0.5,"height":0.06,"depth":0.07,"at":[0,1.1,-0.12],"colour":"#fdf7f0","turn":[0,-0.3,0]}]}
+ {"kind": "shore-signpost", "size": 0.6, "parts": [{"shape":"cylinder","diameter":0.1,"height":1.7,"at":[0,0.85,0],"colour":"#7a5a44","sides":6},{"shape":"box","width":0.8,"height":0.26,"depth":0.06,"at":[0,1.45,-0.08],"colour":"#1b7fd6","turn":[0,0.25,0]},{"shape":"box","width":0.6,"height":0.06,"depth":0.07,"at":[0,1.45,-0.12],"colour":"#fdf7f0","turn":[0,0.25,0]},{"shape":"box","width":0.7,"height":0.24,"depth":0.06,"at":[0,1.1,-0.08],"colour":"#e8643c","turn":[0,-0.3,0]},{"shape":"box","width":0.5,"height":0.06,"depth":0.07,"at":[0,1.1,-0.12],"colour":"#fdf7f0","turn":[0,-0.3,0]}]},
+ {"kind": "field-boulder", "size": 1.779, "parts": [
+  {"shape":"ball","diameter":2.1,"height":1.3,"at":[0,0.68,0],"colour":"#9aa0a8"},
+  {"shape":"ball","diameter":1.3,"height":0.8,"at":[0.95,0.44,-0.35],"colour":"#8b929b"},
+  {"shape":"ball","diameter":1,"height":0.6,"at":[-0.9,0.36,0.3],"colour":"#a7adb5"},
+  {"shape":"ball","diameter":1.15,"height":0.4,"at":[-0.05,1.18,0],"colour":"#fdf7f0","outlined":false}
+ ]},
+ {"kind": "field-tent", "size": 2.078, "parts": [
+  {"shape":"box","width":1.75,"height":0.08,"depth":2.4,"at":[-0.53,0.86,0],"colour":"#e0603f","turn":[0,0,0.9]},
+  {"shape":"box","width":1.75,"height":0.08,"depth":2.4,"at":[0.53,0.86,0],"colour":"#e0603f","turn":[0,0,-0.9]},
+  {"shape":"box","width":0.7,"height":1.1,"depth":0.05,"at":[0,0.62,-1.22],"colour":"#3b3442","outlined":false},
+  {"shape":"box","width":0.08,"height":0.08,"depth":2.5,"at":[0,1.39,0],"colour":"#f6e27a"},
+  {"shape":"cylinder","diameter":0.07,"height":1.5,"at":[0,0.82,-1.3],"colour":"#7a5a44","sides":6},
+  {"shape":"box","width":0.9,"height":0.05,"depth":0.9,"at":[0,0.1,-1.55],"colour":"#f6e27a","outlined":false}
+ ]},
+ {"kind": "field-tent-blue", "size": 2.078, "parts": [
+  {"shape":"box","width":1.75,"height":0.08,"depth":2.4,"at":[-0.53,0.86,0],"colour":"#4f86c6","turn":[0,0,0.9]},
+  {"shape":"box","width":1.75,"height":0.08,"depth":2.4,"at":[0.53,0.86,0],"colour":"#4f86c6","turn":[0,0,-0.9]},
+  {"shape":"box","width":0.7,"height":1.1,"depth":0.05,"at":[0,0.62,-1.22],"colour":"#3b3442","outlined":false},
+  {"shape":"box","width":0.08,"height":0.08,"depth":2.5,"at":[0,1.39,0],"colour":"#fdf7f0"},
+  {"shape":"cylinder","diameter":0.07,"height":1.5,"at":[0,0.82,-1.3],"colour":"#7a5a44","sides":6},
+  {"shape":"box","width":0.9,"height":0.05,"depth":0.9,"at":[0,0.1,-1.55],"colour":"#fdf7f0","outlined":false}
+ ]},
+ {"kind": "field-fence", "size": 1.375, "parts": [
+  {"shape":"box","width":2.6,"height":0.09,"depth":0.07,"at":[0,0.38,0],"colour":"#c98f5a"},
+  {"shape":"box","width":2.6,"height":0.09,"depth":0.07,"at":[0,0.78,0],"colour":"#c98f5a"},
+  {"shape":"box","width":0.14,"height":1,"depth":0.14,"at":[-1.2,0.5,0],"colour":"#7a5a44"},
+  {"shape":"box","width":0.14,"height":1,"depth":0.14,"at":[0,0.5,0],"colour":"#7a5a44"},
+  {"shape":"box","width":0.14,"height":1,"depth":0.14,"at":[1.2,0.5,0],"colour":"#7a5a44"}
+ ]},
+ {"kind": "field-hedge", "size": 1.416, "parts": [
+  {"shape":"box","width":2.5,"height":0.8,"depth":0.8,"at":[0,0.4,0],"colour":"#4f9a58"},
+  {"shape":"ball","diameter":0.9,"height":0.5,"at":[-0.8,0.85,0],"colour":"#5aa862"},
+  {"shape":"ball","diameter":1,"height":0.55,"at":[0.1,0.9,0],"colour":"#5aa862"},
+  {"shape":"ball","diameter":0.8,"height":0.45,"at":[0.9,0.82,0],"colour":"#5aa862"},
+  {"shape":"ball","diameter":0.14,"at":[-0.7,0.9,-0.42],"colour":"#f29bc1"},
+  {"shape":"ball","diameter":0.14,"at":[0.4,0.95,-0.42],"colour":"#f6e27a"},
+  {"shape":"ball","diameter":0.14,"at":[0.95,0.8,-0.42],"colour":"#fdf7f0"}
+ ]},
+ {"kind": "field-flowers", "size": 0.9, "parts": [
+  {"shape":"ball","diameter":1.5,"height":0.34,"at":[0,0.19,0],"colour":"#5fa352"},
+  {"shape":"ball","diameter":0.26,"at":[0.3,0.41,0],"colour":"#f29bc1"},
+  {"shape":"ball","diameter":0.26,"at":[-0.21203536393194017,0.41,0.36254793399252694],"colour":"#f6e27a"},
+  {"shape":"ball","diameter":0.26,"at":[-0.2647408435239777,0.41,-0.4706509171033377],"colour":"#fdf7f0"},
+  {"shape":"ball","diameter":0.26,"at":[0.2999575909150245,0.41,0.00504417014530518],"colour":"#a98bd6"},
+  {"shape":"ball","diameter":0.26,"at":[-0.21810123472900794,0.41,0.35893154139707784],"colour":"#f29bc1"},
+  {"shape":"ball","diameter":0.26,"at":[-0.256789941117836,0.41,-0.4750357103847019],"colour":"#f6e27a"},
+  {"shape":"ball","diameter":0.26,"at":[0.2998303756503014,0.41,0.010086914166341542],"colour":"#fdf7f0"}
+ ]},
+ {"kind": "field-mushrooms", "size": 0.6, "parts": [
+  {"shape":"cylinder","diameter":0.14,"height":0.34,"at":[-0.2,0.17,0],"colour":"#f4e9d8","sides":8},
+  {"shape":"ball","diameter":0.5,"height":0.26,"at":[-0.2,0.36,0],"colour":"#d8423a"},
+  {"shape":"ball","diameter":0.1,"at":[-0.28,0.46,-0.1],"colour":"#fdf7f0","outlined":false},
+  {"shape":"cylinder","diameter":0.1,"height":0.24,"at":[0.22,0.12,0.1],"colour":"#f4e9d8","sides":8},
+  {"shape":"ball","diameter":0.34,"height":0.2,"at":[0.22,0.26,0.1],"colour":"#d8423a"},
+  {"shape":"ball","diameter":0.07,"at":[0.25,0.33,0.02],"colour":"#fdf7f0","outlined":false}
+ ]},
+ {"kind": "field-hay-bale", "size": 0.804, "parts": [
+  {"shape":"cylinder","diameter":0.95,"height":1.1,"at":[0,0.48,0],"colour":"#e3c06a","sides":14,"turn":[0,0,1.5708]},
+  {"shape":"box","width":0.04,"height":0.06,"depth":1,"at":[0,0.5,-0.1],"colour":"#b88a3a","outlined":false}
+ ]},
+ {"kind": "field-flag-pole", "size": 1.062, "parts": [
+  {"shape":"cylinder","diameter":0.1,"height":3.2,"at":[0,1.6,0],"colour":"#7a5a44","sides":8},
+  {"shape":"ball","diameter":0.2,"at":[0,3.25,0],"colour":"#ffc85a"},
+  {"shape":"box","width":1,"height":0.62,"depth":0.04,"at":[0.5,2.85,0],"colour":"#d8423a"},
+  {"shape":"box","width":0.22,"height":0.62,"depth":0.05,"at":[0.12,2.85,0],"colour":"#f6e27a","outlined":false}
+ ]},
+ {"kind": "field-palisade", "size": 1.32, "parts": [
+  {"shape":"cylinder","diameter":0.34,"height":1.5,"at":[-1,0.78,0],"colour":"#c98f5a","sides":8,"top":0.05},
+  {"shape":"cylinder","diameter":0.34,"height":1.75,"at":[-0.5,0.9,0],"colour":"#a87848","sides":8,"top":0.05},
+  {"shape":"cylinder","diameter":0.34,"height":1.5,"at":[0,0.78,0],"colour":"#c98f5a","sides":8,"top":0.05},
+  {"shape":"cylinder","diameter":0.34,"height":1.75,"at":[0.5,0.9,0],"colour":"#a87848","sides":8,"top":0.05},
+  {"shape":"cylinder","diameter":0.34,"height":1.5,"at":[1,0.78,0],"colour":"#c98f5a","sides":8,"top":0.05},
+  {"shape":"box","width":2.4,"height":0.1,"depth":0.1,"at":[0,0.58,-0.2],"colour":"#7a5a44"}
+ ]},
+ {"kind": "field-stone-wall", "size": 1.469, "parts": [
+  {"shape":"box","width":2.6,"height":0.6,"depth":0.5,"at":[0,0.3,0],"colour":"#b9b3a6"},
+  {"shape":"box","width":2.7,"height":0.12,"depth":0.6,"at":[0,0.66,0],"colour":"#d8cbb5"},
+  {"shape":"box","width":0.9,"height":0.04,"depth":0.02,"at":[-0.6,0.38,-0.26],"colour":"#8f897d","outlined":false},
+  {"shape":"box","width":0.7,"height":0.04,"depth":0.02,"at":[0.5,0.2,-0.26],"colour":"#8f897d","outlined":false}
+ ]}
 ]

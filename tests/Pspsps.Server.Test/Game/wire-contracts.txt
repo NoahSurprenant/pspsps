@@ -233,3 +233,10 @@ type ChunkView 7: IReadOnlyList<DoorView> Doors
 type ChunkView 8: IReadOnlyList<PropView> Props
 type ChunkView 9: String Look
 type ChunkView 10: IReadOnlyList<PathView> Paths
+type ChunkView 11: IReadOnlyList<TerraceView> Terraces
+
+type TerraceView 0: Double X
+type TerraceView 1: Double Z
+type TerraceView 2: Double Width
+type TerraceView 3: Double Depth
+type TerraceView 4: Double Height

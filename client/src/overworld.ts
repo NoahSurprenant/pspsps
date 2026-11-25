@@ -1,4 +1,5 @@
-import type { ChunkView, DoorView, PondView, PropView, RoomSnapshot } from "./types";
+import { groundHeight } from "./terraces";
+import type { ChunkView, DoorView, PondView, PropView, RoomSnapshot, TerraceView } from "./types";
 
 type Box = Pick<ChunkView, "x" | "z" | "width" | "depth">;
 type Floor = Box & { paths?: ChunkView["paths"] };
@@ -14,13 +15,20 @@ export function place(chunk: ChunkView): PlacedChunk {
   const door = (d: DoorView): DoorView => ({ ...d, x: d.x + chunk.x, z: d.z + chunk.z });
   const prop = (p: PropView): PropView => ({ ...p, x: p.x + chunk.x, z: p.z + chunk.z });
   const pond = (p: PondView): PondView => ({ ...p, x: p.x + chunk.x, z: p.z + chunk.z });
+  const terrace = (t: TerraceView): TerraceView => ({ ...t, x: t.x + chunk.x, z: t.z + chunk.z });
   return {
     ...chunk,
     pond: chunk.pond && pond(chunk.pond),
     doors: chunk.doors.map(door),
     props: chunk.props.map(prop),
+    terraces: chunk.terraces?.map(terrace),
     local: { pond: chunk.pond, doors: chunk.doors, props: chunk.props },
   };
+}
+
+/** How high the ground is at a spot of the world: on a terrace, its steps, else flat. */
+export function worldHeight(chunks: readonly PlacedChunk[], spot: Spot): number {
+  return groundHeight(chunks.flatMap((chunk) => chunk.terraces ?? []), spot);
 }
 
 /** Every piece of a chunk's floor, in world metres: the room's own, then the paths out of it. */

@@ -29,7 +29,8 @@ import { sceneryTarget } from "./walking";
 import { animationFor, Cat, facing, loadCatModel, MeowClip, type CatAnimation, type Outfit } from "./cat";
 import { hasDoorway, openLandscape, pathEdge } from "./doors";
 import { onAnotherRoom, sceneryFor } from "./scenery";
-import { chunkAt, clampToWorld, place, worldBounds, type PlacedChunk } from "./overworld";
+import { chunkAt, clampToWorld, place, worldBounds, worldHeight, type PlacedChunk } from "./overworld";
+import { slabs, type Slab } from "./terraces";
 import { lazily } from "./lazy";
 import { appLog } from "./telemetry";
 import { lookOf } from "./looks";
@@ -46,6 +47,7 @@ import type { CatView, ChunkView, DoorView, Emote, OutfitView, PropView, RoomSna
 import { frameClock, frameLimiter } from "./frameLimit";
 
 const walkSpeed = 4; // metres per second
+const climbSpeed = 8; // how fast a cat settles to the height of the ground it is on, per second
 const sky = Color4.FromHexString("#bfe3f2ff");
 // Where the name and bubbles hang: just over the tips of the ears.
 const anchorHeight = 1.4;
@@ -296,7 +298,7 @@ export class RoomScene {
       const cat = this.playerId === undefined ? undefined : this.positionOf(this.playerId);
       if (world) {
         const focus = cat ?? arrival;
-        camera.target.set(focus.x, 0, focus.z);
+        camera.target.set(focus.x, this.chunks ? worldHeight(this.chunks, focus) : 0, focus.z);
         return;
       }
       if (camera.radius === fitted) {
@@ -453,6 +455,9 @@ export class RoomScene {
     floors.add(floor);
     for (const path of chunk.paths ?? []) {
       floors.add(this.drawFloorStrip(chunk.roomId, { x: cx + path.x, z: cz + path.z, width: path.width, depth: path.depth }, look.floorColour));
+    }
+    for (const terrace of chunk.terraces ?? []) {
+      slabs(terrace).forEach((slab, index) => floors.add(this.drawSlab(chunk.roomId, slab, index)));
     }
     // The floor's dark edge: a little larger and just below it. Not renderOutline, whose pass, from far off (a narrow
     // screen backs the camera away), covered whatever lay flat on the floor, the pond.
@@ -680,7 +685,10 @@ export class RoomScene {
 
   private drawDecor(): void {
     this.decor?.dispose(false, true);
-    const parts = this.props.flatMap(prop => propParts(prop, this.activities.stage(prop)));
+    const parts = this.props.flatMap(prop => {
+      const lift = this.chunks ? worldHeight(this.chunks, prop) : 0;
+      return propParts(prop, this.activities.stage(prop)).map((part) => lift === 0 ? part : { ...part, at: [part.at[0], part.at[1] + lift, part.at[2]] as [number, number, number] });
+    });
     this.decor = buildParts(this.scene, "decor", [...this.walls, ...parts]);
   }
 
@@ -847,11 +855,12 @@ export class RoomScene {
     const matWidth = door.radius * 2;
     const matDepth = door.radius * 1.4;
     const edge = CreateBox(`${name}-mat-edge`, { width: matWidth + 0.16, depth: matDepth + 0.16, height: 0.02 }, this.scene);
-    edge.position.set(door.x, 0.01, door.z);
+    const lift = this.chunks ? worldHeight(this.chunks, door) : 0;
+    edge.position.set(door.x, lift + 0.01, door.z);
     edge.material = flat(this.scene, `${name}-mat-edge`, ink);
     edge.isPickable = false;
     const mat = CreateBox(`${name}-mat`, { width: matWidth, depth: matDepth, height: 0.02 }, this.scene);
-    mat.position.set(door.x, 0.03, door.z);
+    mat.position.set(door.x, lift + 0.03, door.z);
     mat.material = flat(this.scene, `${name}-mat`, doorMatColour);
 
     const wall = room.depth / 2;
@@ -902,6 +911,18 @@ export class RoomScene {
     strip.position.set(box.x, 0.001, box.z);
     strip.material = flat(this.scene, "floor", colour);
     return strip;
+  }
+
+  /** One step of a terrace: a block of paving on a dark edge, each step a shade apart from the next so they read as steps. */
+  private drawSlab(roomId: string, slab: Slab, index: number): AbstractMesh {
+    const rim = CreateBox("terrace-edge", { width: slab.width + 0.08, height: slab.top - 0.005, depth: slab.depth + 0.08 }, this.scene);
+    rim.position.set(slab.x, (slab.top - 0.005) / 2, slab.z);
+    rim.material = flat(this.scene, "floor-edge", ink);
+    rim.isPickable = false;
+    const block = CreateBox(`terrace-${roomId}`, { width: slab.width, height: slab.top, depth: slab.depth }, this.scene);
+    block.position.set(slab.x, slab.top / 2, slab.z);
+    block.material = flat(this.scene, "terrace", index % 2 === 0 ? "#d9cfb6" : "#e6ddc6");
+    return block;
   }
 
   /** The floor's dark edge, a little larger and just below it. Not renderOutline, whose pass, from far off (a narrow
@@ -979,7 +1000,10 @@ export class RoomScene {
   private step(seconds: number): void {
     const now = performance.now();
     for (const [playerId, cat] of this.cats) {
+      const raised = this.chunks ? worldHeight(this.chunks, cat.root.position) : 0;
+      cat.root.position.y += (raised - cat.root.position.y) * Math.min(1, seconds * climbSpeed);
       const offset = cat.target.subtract(cat.root.position);
+      offset.y = 0;
       const distance = offset.length();
       const moving = distance > 0.01;
       if (moving) {

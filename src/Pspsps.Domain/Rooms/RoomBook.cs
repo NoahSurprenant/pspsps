@@ -94,6 +94,7 @@ public sealed class RoomBook
         }
 
         problems.AddRange(RoomPaths.Problems(defined.Values));
+        problems.AddRange(defined.Values.SelectMany(RoomTerrace.Problems));
         if (problems.Count > 0)
         {
             return problems;

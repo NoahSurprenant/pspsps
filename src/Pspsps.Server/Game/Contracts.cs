@@ -126,7 +126,17 @@ public sealed record ChunkView(
     [property: Id(7)] IReadOnlyList<DoorView> Doors,
     [property: Id(8)] IReadOnlyList<PropView> Props,
     [property: Id(9)] string? Look,
-    [property: Id(10)] IReadOnlyList<PathView>? Paths = null);
+    [property: Id(10)] IReadOnlyList<PathView>? Paths = null,
+    [property: Id(11)] IReadOnlyList<TerraceView>? Terraces = null);
+
+/// <summary>A raised stretch of ground: its middle (X, Z) in metres from the room's middle, its size and its height.</summary>
+[GenerateSerializer, Immutable]
+public sealed record TerraceView(
+    [property: Id(0)] double X,
+    [property: Id(1)] double Z,
+    [property: Id(2)] double Width,
+    [property: Id(3)] double Depth,
+    [property: Id(4)] double Height);
 
 /// <summary>A narrow strip of floor out of a room's edge: its middle (X, Z) in metres from the room's middle, and its size.</summary>
 [GenerateSerializer, Immutable]

@@ -152,6 +152,17 @@ export interface ChunkView {
   look: string | null;
   /** The narrow strips of floor out of its edges, in metres from its middle. */
   paths?: PathView[] | null;
+  /** The raised stretches of its ground, in metres from its middle. */
+  terraces?: TerraceView[] | null;
+}
+
+/** A raised stretch of ground: its middle, size and height. */
+export interface TerraceView {
+  x: number;
+  z: number;
+  width: number;
+  depth: number;
+  height: number;
 }
 
 /** A narrow strip of floor between two rooms: its middle and size. */
