@@ -49,6 +49,13 @@ describe("onAnotherRoom", () => {
     expect(onAnotherRoom([south, north], south, 5, 40)).toBe(false);
   });
 
+  it("is true for a spot on a path out of a neighbour, and false on the room's own path", () => {
+    const withPath = { ...(north as object), paths: [{ x: 0, z: 10, width: 4, depth: 10 }] } as never;
+
+    expect(onAnotherRoom([south, withPath], south, 0, 20)).toBe(true);
+    expect(onAnotherRoom([south, withPath], withPath, 0, 20)).toBe(false);
+  });
+
   it("is false when there is no open world", () => {
     expect(onAnotherRoom(undefined, south, 5, 10)).toBe(false);
   });

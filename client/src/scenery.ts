@@ -1,4 +1,4 @@
-import type { PlacedChunk } from "./overworld";
+import { floorBoxes, type PlacedChunk } from "./overworld";
 import type { Part } from "./props";
 
 /** How far past a room's floor scenery still counts as the room's own (its walls, fence and near trees). */
@@ -13,13 +13,13 @@ export function isAttached(chunk: PlacedChunk, x: number, z: number): boolean {
 }
 
 /** Whether a spot on the ground lies on a placed room's floor (or its edge), <margin> metres beyond it. */
-function covers(chunk: PlacedChunk, x: number, z: number, margin = 0): boolean {
+function covers(chunk: Pick<PlacedChunk, "x" | "z" | "width" | "depth">, x: number, z: number, margin = 0): boolean {
   return Math.abs(x - chunk.x) <= chunk.width / 2 + margin && Math.abs(z - chunk.z) <= chunk.depth / 2 + margin;
 }
 
-/** Whether a spot lies on the floor of a placed room other than <chunk>: scenery there would stand on that room. */
+/** Whether a spot lies on the floor of a placed room other than <chunk>, or on a path out of it: scenery there would stand on that room. */
 export function onAnotherRoom(world: PlacedChunk[] | undefined, chunk: PlacedChunk, x: number, z: number): boolean {
-  return world?.some((other) => other !== chunk && covers(other, x, z)) ?? false;
+  return world?.some((other) => other !== chunk && floorBoxes(other).some((box) => covers(box, x, z))) ?? false;
 }
 
 /** Whether a part's body reaches more than a metre onto another placed room's floor, though its centre is off it: a big hill behind a room. */

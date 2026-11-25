@@ -460,7 +460,8 @@ export class RoomScene {
     this.drawGrounds(chunk, look, world, drawn.baseGround);
     // The back wall, outlined like the props (and with them), its front painted: a plane just in front of it (the
     // doorways stand in front of that).
-    if (look.paintWall && !openLandscape(chunk.roomId) && !onAnotherRoom(world, chunk, cx, cz + depth / 2 + 0.15)) {
+    const wallStands = !openLandscape(chunk.roomId) && !onAnotherRoom(world, chunk, cx, cz + depth / 2 + 0.15) && !chunk.paths?.some((path) => path.z > depth / 2);
+    if (look.paintWall && wallStands) {
       const front = CreatePlane("back-wall-front", { width, height: wallHeight }, this.scene);
       front.position.set(cx, wallHeight / 2, cz + depth / 2 - 0.01);
       // Painted round the doorways in it (the doors by the wall: the ones drawDoor draws a doorway for).
@@ -470,7 +471,7 @@ export class RoomScene {
         (brush, scale) => look.paintWall?.(brush, width, wallHeight, scale, doorways));
       front.isPickable = false;
     }
-    if (!openLandscape(chunk.roomId) && !onAnotherRoom(world, chunk, cx, cz + depth / 2 + 0.15)) {
+    if (wallStands) {
       walls.push({ shape: "box", width, height: wallHeight, depth: 0.3, at: [cx, wallHeight / 2, cz + depth / 2 + 0.15], colour: look.wallColour });
     }
     // The backdrop is another mesh, which a tap never tests: it does nothing there.
