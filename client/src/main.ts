@@ -351,6 +351,8 @@ const debug = new DebugOverlay(
   () => connection.ping(),
   localStorage,
   window.location.search,
+  debugBox(),
+  window,
 );
 
 // Set once the player is banned in this tab: it has stopped, and does nothing more.
@@ -435,6 +437,15 @@ function showNotice(): void {
       showNotice();
     });
   }
+}
+
+/** The element the debug overlay writes in: hidden, out of the way of the page's own controls and of screen readers. */
+function debugBox(): HTMLPreElement {
+  const box = document.createElement("pre");
+  box.id = "debug-overlay";
+  box.setAttribute("aria-hidden", "true");
+  document.body.append(box);
+  return box;
 }
 
 /** Applies a room event to the room showing, or holds it for the one loading. */

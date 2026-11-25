@@ -9,25 +9,25 @@ export function debugWanted(search: string, storage: Pick<Storage, "getItem">): 
 }
 
 /** A small box in the corner with the room, frame rate and connection health; F3 or ?debug shows it. */
+export interface DebugBox { hidden: boolean; textContent: string | null }
+export interface KeyTarget { addEventListener(type: "keydown", listener: (event: { code: string; altKey: boolean; ctrlKey: boolean; metaKey: boolean; preventDefault(): void }) => void): void }
+
 export class DebugOverlay {
   readonly stats = new DebugStats();
-  private readonly box: HTMLPreElement;
-  private timer: number | undefined;
+  private timer: ReturnType<typeof setInterval> | undefined;
   private pinging = false;
   private lastPingSlot = -1;
 
   constructor(
     private readonly view: () => DebugView | undefined,
     private readonly ping: () => Promise<void>,
-    private readonly storage: Storage,
+    private readonly storage: Pick<Storage, "getItem" | "setItem">,
     search: string,
+    private readonly box: DebugBox,
+    keys: KeyTarget,
   ) {
-    this.box = document.createElement("pre");
-    this.box.id = "debug-overlay";
     this.box.hidden = true;
-    this.box.setAttribute("aria-hidden", "true");
-    document.body.append(this.box);
-    window.addEventListener("keydown", (event) => {
+    keys.addEventListener("keydown", (event) => {
       if (event.code === "F3" && !event.altKey && !event.ctrlKey && !event.metaKey) {
         event.preventDefault();
         this.toggle();
@@ -53,14 +53,14 @@ export class DebugOverlay {
   show(): void {
     this.storage.setItem(DEBUG_KEY, "1");
     this.box.hidden = false;
-    this.timer ??= window.setInterval(() => this.tick(), 500);
+    this.timer ??= globalThis.setInterval(() => this.tick(), 500);
     this.tick();
   }
 
   hide(): void {
     this.storage.setItem(DEBUG_KEY, "0");
     this.box.hidden = true;
-    window.clearInterval(this.timer);
+    globalThis.clearInterval(this.timer);
     this.timer = undefined;
   }
 
