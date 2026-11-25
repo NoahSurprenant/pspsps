@@ -273,6 +273,16 @@ export class GameConnection {
     return hubTracer.invoke(method, () => this.hub.invoke<T>(method, ...args));
   }
 
+  /** The connection's state now, for the debug overlay. */
+  get state(): string {
+    return this.hub.state;
+  }
+
+  /** A round trip to the server and back, for the debug overlay. */
+  ping(): Promise<void> {
+    return this.hub.invoke("Ping");
+  }
+
   getWorlds(): Promise<WorldSummary[]> {
     return this.call<WorldSummary[]>("GetWorlds");
   }

@@ -1,5 +1,6 @@
 import { appLog, startTelemetry, telemetry } from "./telemetry";
 import { FpsSampler, watchBabylonLog, watchWebGlContext } from "./telemetry/performance";
+import { DebugOverlay } from "./debugOverlay";
 import { DoorWalks, doorAt } from "./doors";
 import { addressNote, linkUrl, loginUrl } from "./link";
 import {
@@ -83,6 +84,11 @@ async function makeStage(): Promise<RoomScene> {
     const fps = new FpsSampler((value) => telemetry.vital("FPS", value), () => room !== undefined);
     engine.onEndFrameObservable.add(() => fps.frame(performance.now()));
   }
+  engine.onEndFrameObservable.add(() => {
+    if (debug.shown) {
+      debug.stats.frame(performance.now());
+    }
+  });
   made.onFloorClicked((x, z) => {
     if (!room) {
       return;
@@ -274,6 +280,7 @@ const connection = new GameConnection({
   },
   // The server dropped us from the room with the old connection: walk back in.
   reconnected: () => {
+    debug.stats.note("connection back", performance.now());
     // Muted or unmuted elsewhere while the connection was down, maybe.
     void loadMutes();
     // And by an admin: a mute or lift, or a warning, sent while the connection was down never came.
@@ -320,9 +327,31 @@ const connection = new GameConnection({
   },
   warned: () => void showWarning(),
   // The connection dropped, or couldn't come back: a ban (refused at the door) shows why; anything else, as before.
-  reconnecting: () => void showBanIfBanned(),
-  closed: () => void showBanIfBanned(),
+  reconnecting: () => {
+    debug.stats.note("connection dropped, reconnecting", performance.now());
+    void showBanIfBanned();
+  },
+  closed: () => {
+    debug.stats.note("connection closed", performance.now());
+    void showBanIfBanned();
+  },
 });
+
+// F3 (or ?debug) shows the room, frame rate and connection health in a corner.
+const debug = new DebugOverlay(
+  () => {
+    if (!room) {
+      return undefined;
+    }
+    const cat = me && room.cats.get(me.id);
+    return {
+      roomName: room.snapshot.roomName, roomId: room.snapshot.roomId, spot: cat, cats: room.cats.size, connection: connection.state,
+    };
+  },
+  () => connection.ping(),
+  localStorage,
+  window.location.search,
+);
 
 // Set once the player is banned in this tab: it has stopped, and does nothing more.
 let isBanned = false;
