@@ -175,7 +175,22 @@ public sealed class ContentDraftsTests
     }
 
     /// <summary>Whether <paramref name="other"/> is placed against the <paramref name="edge"/> of <paramref name="room"/> on the world grid, sharing some of that edge: how two outdoor rooms meet, with no door between them.</summary>
-    private static bool Borders(Dictionary<string, RoomLayout> layouts, string room, RoomEdge edge, string other)
+    private static RoomEdge Opposite(RoomEdge edge) => edge switch
+    {
+        RoomEdge.North => RoomEdge.South,
+        RoomEdge.South => RoomEdge.North,
+        RoomEdge.East => RoomEdge.West,
+        _ => RoomEdge.East,
+    };
+
+    /// <summary>Whether <paramref name="other"/> lies against the <paramref name="edge"/> of <paramref name="room"/>: touching it, or at the far end of a path out of that edge (from either room).</summary>
+    private static bool Borders(Dictionary<string, RoomLayout> layouts, string room, RoomEdge edge, string other) =>
+        Touches(layouts, room, edge, other) || JoinedByPath(layouts, room, edge, other) || JoinedByPath(layouts, other, Opposite(edge), room);
+
+    private static bool JoinedByPath(Dictionary<string, RoomLayout> layouts, string room, RoomEdge edge, string other) =>
+        layouts[room].Paths.Any(path => path.Edge == edge && RoomPaths.Reaches(layouts[room].ToDefinition(room), path, layouts[other].ToDefinition(other)));
+
+    private static bool Touches(Dictionary<string, RoomLayout> layouts, string room, RoomEdge edge, string other)
     {
         var (a, b) = (layouts[room], layouts[other]);
         if (a.Place is not { } pa || b.Place is not { } pb)
