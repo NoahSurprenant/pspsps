@@ -43,6 +43,14 @@ public sealed record ContentFile(
     /// <summary>The file the build embeds, read once (it never changes while the server runs).</summary>
     public static ContentFile Embedded() => EmbeddedFile.Value;
 
+    /// <summary>The SHA-256 of the embedded file's bytes, lower-case hex: what `sha256sum` says of the file in git, so a workflow can tell which version is deployed.</summary>
+    public static string EmbeddedSha256()
+    {
+        using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("ContentDrafts.json")
+            ?? throw new InvalidOperationException("ContentDrafts.json is not embedded.");
+        return Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(stream));
+    }
+
     private static ContentFile Read()
     {
         using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("ContentDrafts.json")

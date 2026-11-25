@@ -582,6 +582,33 @@ public sealed class RoomEditorHttpTests
     }
 
     [Test]
+    public async Task TheContentApi_SaysWhichContentFileIsDeployed()
+    {
+        const string token = "a-content-token-for-the-tests-0123456789";
+        var (adminPlayer, _) = await Game.SignInGuestAsync();
+        Game.Admins.Add(adminPlayer.Id);
+        var config = Game.Get<Microsoft.Extensions.Configuration.IConfiguration>();
+        using var client = Game.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = false });
+        try
+        {
+            config["Content:ActAs"] = adminPlayer.Id.ToString();
+            using var request = new HttpRequestMessage(HttpMethod.Get, "/api/content/version");
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            using var response = await client.SendAsync(request);
+            var body = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+            Assert.Multiple(() =>
+            {
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+                Assert.That(body.GetProperty("sha256").GetString(), Is.EqualTo(ContentFile.EmbeddedSha256()).And.Match("^[0-9a-f]{64}$"));
+            });
+        }
+        finally
+        {
+            config["Content:ActAs"] = null;
+        }
+    }
+
+    [Test]
     public async Task LoadingTheContentFile_AddsANewPropDesignAndOverlay_ReplacesALiveOverlay_AndLeavesALiveDesignAlone()
     {
         var (adminPlayer, _) = await Game.SignInGuestAsync();

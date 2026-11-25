@@ -1,0 +1,63 @@
+name: Content import
+
+# After a merge to master whose ContentDrafts.json changed, loads it as drafts (the Content workflow's import) as soon as the
+# game is running that file. Drafts never go live by themselves: publishing stays a choice (content.yml, action=publish).
+# It runs on the in-cluster runner pspsps-k8s with the repository secret CONTENT_TOKEN (docs/content.md).
+
+on:
+  workflow_run:
+    workflows: [Publish]
+    types: [completed]
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: content
+  cancel-in-progress: false
+
+jobs:
+  import:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: pspsps-k8s
+    timeout-minutes: 30
+    env:
+      GAME_URL: http://pspsps.pspsps.svc.cluster.local
+      CONTENT_TOKEN: ${{ secrets.CONTENT_TOKEN }}
+      SHA: ${{ github.event.workflow_run.head_sha }}
+      FILE: src/Pspsps.Application/Rooms/ContentDrafts.json
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 2
+      - name: Did the content change?
+        id: changed
+        run: |
+          if git diff --quiet HEAD^1 HEAD -- "$FILE"; then
+            echo "$FILE is as it was: nothing to import."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Wait for the game to run this file, then import it
+        if: steps.changed.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          [ -n "$CONTENT_TOKEN" ] || { echo "::error::Set the repository secret CONTENT_TOKEN (docs/content.md)"; exit 1; }
+          echo "::add-mask::$CONTENT_TOKEN"
+          want=$(sha256sum "$FILE" | cut -d' ' -f1)
+          deadline=$((SECONDS + 1500))
+          until [ "$(curl --silent --max-time 20 -H "Authorization: Bearer $CONTENT_TOKEN" "$GAME_URL/api/content/version" | jq -r '.sha256 // empty' 2>/dev/null || true)" = "$want" ]; do
+            [ "$SECONDS" -lt "$deadline" ] || { echo "::error::The game still isn't running $FILE of $SHA after 25 minutes"; exit 1; }
+            sleep 20
+          done
+          curl --silent --show-error --fail-with-body --max-time 120 -X POST -H "Authorization: Bearer $CONTENT_TOKEN" "$GAME_URL/api/content/import" -o report.json
+          jq . report.json
+          {
+            echo "### Import of $SHA"
+            jq -r '"applied: \(.applied | length), unchanged: \(.unchanged | length), problems: \(.problems | length)"' report.json
+            jq -r '.problems[] | "- " + .' report.json
+          } >> "$GITHUB_STEP_SUMMARY"
+          [ "$(jq '.problems | length' report.json)" = 0 ] || { echo "::error::The import reported problems"; exit 1; }
