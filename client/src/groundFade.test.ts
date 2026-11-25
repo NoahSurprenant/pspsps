@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PlacedChunk } from "./overworld";
-import { fadeAt, groundBlendOf, groundPatchHeight, groundPatchOf } from "./scene";
+import { fadeAt, fadeAtSides, groundBlendOf, groundPatchHeight, groundPatchOf, shoreFeathers } from "./scene";
 
 describe("fadeAt", () => {
   it("shows all of a room's ground over the room and none at the patch's edge, fading between", () => {
@@ -40,5 +40,34 @@ describe("groundPatchOf", () => {
   it("lays the world's patch below every room's, and each room's above the last, so no fade covers a neighbour's ground", () => {
     expect(groundPatchHeight(true, 0)).toBeLessThan(groundPatchHeight(false, 0));
     expect(groundPatchHeight(false, 1)).toBeGreaterThan(groundPatchHeight(false, 0));
+  });
+});
+
+describe("shoreFeathers", () => {
+  const room = (id: string, x: number, z: number): PlacedChunk => ({ roomId: id, x, z, width: 28, depth: 16 }) as PlacedChunk;
+  const sea = room("sea", 0, 0);
+
+  it("fades the full way where no other ground is beside the room", () => {
+    expect(shoreFeathers(sea, [], 40)).toEqual({ west: 40, east: 40, south: 40, north: 40 });
+  });
+
+  it("stops the fade at a land room beside it: the gap to its edge, on that side only", () => {
+    const land = room("land", 34, 0);
+    expect(shoreFeathers(sea, [land], 40)).toEqual({ west: 40, east: 6, south: 40, north: 40 });
+    expect(shoreFeathers(sea, [room("north", 0, 22)], 40)).toMatchObject({ north: 6, east: 40 });
+  });
+
+  it("ignores a room that is not beside it: across a corner, or beyond the fade", () => {
+    expect(shoreFeathers(sea, [room("diagonal", 34, 22)], 40)).toEqual({ west: 40, east: 40, south: 40, north: 40 });
+    expect(shoreFeathers(sea, [room("far", 90, 0)], 40).east).toBe(40);
+  });
+});
+
+describe("fadeAtSides", () => {
+  it("fades each side by its own width", () => {
+    const feather = { west: 0.5, east: 0.1, south: 0.1, north: 0.1 };
+    expect(fadeAtSides(0.25, 0.5, feather)).toBe(128);
+    expect(fadeAtSides(0.95, 0.5, feather)).toBe(128);
+    expect(fadeAtSides(0.5, 0.5, feather)).toBe(255);
   });
 });
