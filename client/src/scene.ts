@@ -521,12 +521,12 @@ export class RoomScene {
   /** A ground patch in the open world, fading out past its edges (<groundBlendOf>: 40 m for a room's own, so it melts into the ground of the room next to it; far longer for the one under the whole world). */
   private drawGroundPatch(
     look: NonNullable<ReturnType<typeof lookOf>["ground"]>, patchOf: { chunk: PlacedChunk; wholeWorld: boolean }, paintKey: string | undefined,
+    feather: Feathers,
   ): void {
     const { chunk, wholeWorld } = patchOf;
-    const blend = groundBlendOf(wholeWorld);
-    const [width, depth] = [chunk.width + 2 * blend, chunk.depth + 2 * blend];
+    const [width, depth] = [chunk.width + feather.west + feather.east, chunk.depth + feather.south + feather.north];
     const patch = CreateGround(`ground-${chunk.roomId}`, { width, height: depth }, this.scene);
-    patch.position.set(chunk.x, groundPatchHeight(wholeWorld, wholeWorld ? 0 : this.groundPatches++), chunk.z);
+    patch.position.set(chunk.x + (feather.east - feather.west) / 2, groundPatchHeight(wholeWorld, wholeWorld ? 0 : this.groundPatches++), chunk.z + (feather.north - feather.south) / 2);
     patch.isPickable = false;
     const { colour, paint } = look;
     const material = paint
@@ -538,7 +538,7 @@ export class RoomScene {
     const pixels = context.getImageData(0, 0, 128, 128);
     for (let row = 0; row < 128; row++) {
       for (let column = 0; column < 128; column++) {
-        const level = fadeAt(column / 127, row / 127, blend / width, blend / depth);
+        const level = fadeAtSides(column / 127, row / 127, { west: feather.west / width, east: feather.east / width, south: feather.south / depth, north: feather.north / depth });
         pixels.data.set([level, level, level, 255], (row * 128 + column) * 4);
       }
     }
@@ -557,7 +557,8 @@ export class RoomScene {
     }
     if (chunk !== baseGround) {
       if (world && !sameGround(ground, lookOf(baseGround.roomId, baseGround.look).ground)) {
-        this.drawGroundPatch(ground, groundPatchOf(chunk, baseGround, world), paintKey);
+        const unlike = world.filter((other) => other !== chunk && !sameGround(ground, lookOf(other.roomId, other.look).ground));
+        this.drawGroundPatch(ground, groundPatchOf(chunk, baseGround, world), paintKey, shoreFeathers(chunk, unlike, groundBlendOf(false)));
       }
       return;
     }
@@ -565,7 +566,8 @@ export class RoomScene {
       this.drawGround(ground, chunk, paintKey);
       return;
     }
-    this.drawGroundPatch(ground, groundPatchOf(chunk, baseGround, world), paintKey);
+    const blend = groundBlendOf(true);
+    this.drawGroundPatch(ground, groundPatchOf(chunk, baseGround, world), paintKey, { west: blend, east: blend, south: blend, north: blend });
   }
 
   /** The ground round a room alone, below the floor's edge: out past where the camera sees. */
@@ -1166,6 +1168,30 @@ function groundChunkOf(chunks: PlacedChunk[], arrival: PlacedChunk): PlacedChunk
 /** Whether two grounds look the same: the same colour and painting. */
 function sameGround(a: NonNullable<ReturnType<typeof lookOf>["ground"]>, b: ReturnType<typeof lookOf>["ground"]): boolean {
   return b !== undefined && a.colour === b.colour && a.paint === b.paint;
+}
+
+export interface Feathers { west: number; east: number; south: number; north: number }
+
+/** How far a room's ground fades out past each side: `max` metres, but only as far as the nearest room of another ground beyond that side, so a sea's blue never washes over the land next to it. */
+export function shoreFeathers(chunk: PlacedChunk, unlike: PlacedChunk[], max: number): Feathers {
+  const [minX, maxX, minZ, maxZ] = [chunk.x - chunk.width / 2, chunk.x + chunk.width / 2, chunk.z - chunk.depth / 2, chunk.z + chunk.depth / 2];
+  const feathers = { west: max, east: max, south: max, north: max };
+  for (const other of unlike) {
+    const [oMinX, oMaxX, oMinZ, oMaxZ] = [other.x - other.width / 2, other.x + other.width / 2, other.z - other.depth / 2, other.z + other.depth / 2];
+    const sharesZ = oMinZ < maxZ && oMaxZ > minZ;
+    const sharesX = oMinX < maxX && oMaxX > minX;
+    if (sharesZ && oMinX >= maxX) feathers.east = Math.min(feathers.east, Math.max(1, oMinX - maxX));
+    if (sharesZ && oMaxX <= minX) feathers.west = Math.min(feathers.west, Math.max(1, minX - oMaxX));
+    if (sharesX && oMinZ >= maxZ) feathers.north = Math.min(feathers.north, Math.max(1, oMinZ - maxZ));
+    if (sharesX && oMaxZ <= minZ) feathers.south = Math.min(feathers.south, Math.max(1, minZ - oMaxZ));
+  }
+  return feathers;
+}
+
+/** <fadeAt> with a width of fade for each side (as fractions of the patch): (u) runs west to east, (v) south to north. */
+export function fadeAtSides(u: number, v: number, feather: Feathers): number {
+  const edge = Math.min(u / feather.west, (1 - u) / feather.east, v / feather.south, (1 - v) / feather.north);
+  return Math.round(255 * Math.max(0, Math.min(1, edge)));
 }
 
 /** How much of a room's ground shows (0 to 255) at a spot of its patch: all of it over the room, fading to none at the patch's edge. (u, v) run 0 to 1 across the patch; (feather) is the fade's width in the same units. */
