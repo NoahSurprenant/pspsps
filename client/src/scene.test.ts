@@ -349,7 +349,7 @@ describe("RoomScene", () => {
     const paintWall = vi.spyOn(look, "paintWall");
     try {
       const view = new RoomScene(new NullEngine(), () => new Promise<AssetContainer>(() => {}));
-      const chunk = { roomId: "town-square", roomName: "Town Square", x: 0, z: 0, width: 24, depth: 16, doors: [], props: [], pond: null, look: null };
+      const chunk = { roomId: "town-square", name: "Town Square", x: 0, z: 0, width: 24, depth: 16, doors: [], props: [], pond: null, look: null };
       // Widths no other test paints (a wall is painted once per width), so the calls here are this test's own.
       view.show({ ...room, roomId: "town-square", width: 26, depth: 16, chunks: [{ ...chunk, width: 26 }] });
       expect(paintWall).toHaveBeenCalledTimes(1);
