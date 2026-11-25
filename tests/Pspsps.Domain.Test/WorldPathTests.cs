@@ -131,7 +131,7 @@ public sealed class WorldPathTests
     public void ALayoutWithNullPaths_HasNone_SoNothingThrowsOnIt()
     {
         var layout = System.Text.Json.JsonSerializer.Deserialize<RoomLayout>(
-            """{"name":"A","width":20,"depth":20,"spawn":{"x":0,"z":0},"capacity":10,"paths":null}""", new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
+            """{"name":"A","width":20,"depth":20,"spawn":{"x":0,"z":0},"capacity":10,"paths":null}""", System.Text.Json.JsonSerializerOptions.Web)!;
 
         Assert.That(layout.Paths, Is.Empty);
         Assert.That(RoomBook.Problems(new Dictionary<string, RoomLayout> { ["a"] = layout }, []), Is.Not.Null);
