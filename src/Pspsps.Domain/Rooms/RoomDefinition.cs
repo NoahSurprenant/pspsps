@@ -19,12 +19,15 @@ public sealed record RoomDefinition(
     /// <summary>Where an outdoor room sits on the world grid (<see cref="WorldSpace"/>); null for an indoor room.</summary>
     public WorldPlace? Place { get; init; }
 
+    /// <summary>The narrow paths out of this room's edges, to rooms that don't touch it (<see cref="WorldSpace"/>).</summary>
+    public IReadOnlyList<RoomPath> Paths { get; init; } = [];
+
     /// <summary>Whether this is the same room as <paramref name="other"/> to a cat in it: the same floor, doors, props and look.</summary>
     public bool SameAs(RoomDefinition other)
     {
         ArgumentNullException.ThrowIfNull(other);
-        return Equals(this with { Doors = [], Props = [] }, other with { Doors = [], Props = [] })
-            && Doors.SequenceEqual(other.Doors) && Props.SequenceEqual(other.Props);
+        return Equals(this with { Doors = [], Props = [], Paths = [] }, other with { Doors = [], Props = [], Paths = [] })
+            && Doors.SequenceEqual(other.Doors) && Props.SequenceEqual(other.Props) && Paths.SequenceEqual(other.Paths);
     }
 
     /// <summary>Places each exit one metre inside its edge. Offsets run across the edge from its midpoint.</summary>

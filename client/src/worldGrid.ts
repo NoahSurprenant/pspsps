@@ -2,22 +2,41 @@
 export const CELL = 2;
 
 export interface GridPlace { x: number; z: number }
-export interface Placed { id: string; name: string; width: number; depth: number; place: GridPlace | null }
+export interface RoomPath { edge: "North" | "East" | "South" | "West"; offset: number; width: number; length: number }
+export interface Placed { id: string; name: string; width: number; depth: number; place: GridPlace | null; paths?: RoomPath[] }
 
 const isPlace = (value: unknown): value is GridPlace =>
   typeof value === "object" && value !== null && Number.isInteger((value as GridPlace).x) && Number.isInteger((value as GridPlace).z);
 
-export function placedOf(id: string, layout: { name: string; width: number; depth: number; place?: unknown }): Placed {
-  return { id, name: layout.name, width: layout.width, depth: layout.depth, place: isPlace(layout.place) ? { x: layout.place.x, z: layout.place.z } : null };
+export function placedOf(id: string, layout: { name: string; width: number; depth: number; place?: unknown; paths?: unknown }): Placed {
+  const placed: Placed = { id, name: layout.name, width: layout.width, depth: layout.depth, place: isPlace(layout.place) ? { x: layout.place.x, z: layout.place.z } : null };
+  return Array.isArray(layout.paths) && layout.paths.length > 0 ? { ...placed, paths: layout.paths as RoomPath[] } : placed;
 }
 
-const shares = (a: Placed, b: Placed): boolean => {
-  if (!a.place || !b.place) return false;
-  return a.place.x * CELL < b.place.x * CELL + b.width && b.place.x * CELL < a.place.x * CELL + a.width
-    && a.place.z * CELL < b.place.z * CELL + b.depth && b.place.z * CELL < a.place.z * CELL + a.depth;
-};
+export type Rect = { x: number; z: number; width: number; depth: number };
 
-/** The IDs of placed rooms that share floor with another placed room (touching edges are fine). */
+/** The floor of each path out of a placed room, in metres: south-west corner and size (Pspsps.Domain RoomPath.Floor). */
+export function pathRects(room: Placed): Rect[] {
+  if (!room.place) return [];
+  const [cx, cz] = [room.place.x * CELL + room.width / 2, room.place.z * CELL + room.depth / 2];
+  const [hw, hd] = [room.width / 2, room.depth / 2];
+  return (room.paths ?? []).map((path) => {
+    const lengthways = path.edge === "East" || path.edge === "West";
+    const [width, depth] = lengthways ? [path.length, path.width] : [path.width, path.length];
+    const sign = path.edge === "North" || path.edge === "East" ? 1 : -1;
+    const [mx, mz] = lengthways ? [cx + sign * (hw + path.length / 2), cz + path.offset] : [cx + path.offset, cz + sign * (hd + path.length / 2)];
+    return { x: mx - width / 2, z: mz - depth / 2, width, depth };
+  });
+}
+
+const floorOf = (room: Placed): Rect[] =>
+  room.place ? [{ x: room.place.x * CELL, z: room.place.z * CELL, width: room.width, depth: room.depth }, ...pathRects(room)] : [];
+
+const meets = (a: Rect, b: Rect): boolean => a.x < b.x + b.width && b.x < a.x + a.width && a.z < b.z + b.depth && b.z < a.z + a.depth;
+
+const shares = (a: Placed, b: Placed): boolean => floorOf(a).some((x) => floorOf(b).some((y) => meets(x, y)));
+
+/** The IDs of placed rooms that share floor with another placed room, paths included (touching edges are fine). */
 export function overlapping(rooms: readonly Placed[]): Set<string> {
   const found = new Set<string>();
   for (const [i, a] of rooms.entries()) {

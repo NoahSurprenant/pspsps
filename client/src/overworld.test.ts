@@ -34,6 +34,30 @@ describe("overworld", () => {
     expect(chunkAt(chunks, { x: 0, z: 30 })).toBeUndefined();
   });
 
+  describe("with a path between two chunks", () => {
+    // a is x -10..10, b is x 40..60 (a 20 m gap), and a 2 m wide path runs east from a at z 1 to b.
+    const apart = (): ChunkView[] => [
+      { ...chunk("a", 0, 0), paths: [{ x: 20, z: 1, width: 20, depth: 2 }] },
+      chunk("b", 50, 0),
+    ];
+
+    it("lets a cat walk the path, and holds it to the path off it", () => {
+      expect(clampToWorld(apart(), { x: 25, z: 1.5 })).toEqual({ x: 25, z: 1.5 });
+      expect(clampToWorld(apart(), { x: 25, z: 4 })).toEqual({ x: 25, z: 2 });
+      expect(stepInWorld(apart(), { x: 20, z: 1 }, 1, 0)).toEqual({ x: 20.7, z: 1 });
+    });
+
+    it("says a path belongs to the chunk it leaves, below a room's own floor", () => {
+      expect(chunkAt(apart(), { x: 25, z: 1 })?.roomId).toBe("a");
+      expect(chunkAt(apart(), { x: 45, z: 1 })?.roomId).toBe("b");
+      expect(chunkAt(apart(), { x: 25, z: 4 })).toBeUndefined();
+    });
+
+    it("bounds the paths too", () => {
+      expect(worldBounds([{ ...chunk("a", 0, 0), paths: [{ x: 0, z: 20, width: 2, depth: 30 }] }])).toMatchObject({ maxZ: 35 });
+    });
+  });
+
   it("bounds every floor", () => {
     expect(worldBounds([chunk("a", 0, 0), chunk("b", 20, 10)])).toEqual({ minX: -10, maxX: 30, minZ: -5, maxZ: 15 });
   });

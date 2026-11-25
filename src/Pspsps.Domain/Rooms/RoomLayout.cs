@@ -21,6 +21,11 @@ public sealed record RoomLayout(string Name, double Width, double Depth, Positio
     /// <summary>Where the room sits on the world grid, for an outdoor room that cats can walk out of into its neighbours; null for an indoor room.</summary>
     public WorldPlace? Place { get; init; }
 
+    /// <summary>The narrow paths out of the room's edges, to rooms that don't touch it (only for a placed room).</summary>
+    public IReadOnlyList<RoomPath> Paths { get => _paths; init => _paths = value ?? []; }
+
+    private readonly IReadOnlyList<RoomPath> _paths = [];
+
     public static RoomLayout Of(RoomDefinition room)
     {
         ArgumentNullException.ThrowIfNull(room);
@@ -30,6 +35,7 @@ public sealed record RoomLayout(string Name, double Width, double Depth, Positio
             Look = room.Look,
             Props = room.Props,
             Place = room.Place,
+            Paths = room.Paths,
             Doors = [.. room.Doors.Select(door => DoorOf(room, door))],
         };
     }
@@ -42,6 +48,7 @@ public sealed record RoomLayout(string Name, double Width, double Depth, Positio
             Props = Props,
             Look = Look,
             Place = Place,
+            Paths = Paths,
         };
         return room.WithDoors([.. Doors.Select(door => (door.Id, door.Edge, door.Offset, door.ToRoom, door.ToDoor))]);
     }

@@ -1,6 +1,6 @@
 namespace Pspsps.Domain.Rooms;
 
-/// <summary>Checks that the public rooms are one world: every room can be walked to from the first one, through doors that lead back, or, for rooms on the world grid, across an edge they share.</summary>
+/// <summary>Checks that the public rooms are one world: every room can be walked to from the first one, through doors that lead back, or, for rooms on the world grid, across an edge they share or along a path.</summary>
 public static class RoomPlan
 {
     public static IReadOnlyList<RoomDefinition> Join(RoomDefinition[] floors)
@@ -32,7 +32,7 @@ public static class RoomPlan
                 }
             }
 
-            foreach (var neighbour in floors.Where(other => Touches(room, other)))
+            foreach (var neighbour in floors.Where(other => Touches(room, other) || room.Paths.Any(path => RoomPaths.Reaches(room, path, other)) || other.Paths.Any(path => RoomPaths.Reaches(other, path, room))))
             {
                 if (reached.Add(neighbour.Id))
                 {

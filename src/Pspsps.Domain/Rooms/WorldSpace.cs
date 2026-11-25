@@ -44,12 +44,13 @@ public sealed class WorldSpace
         return new Position(world.X - cx, world.Z - cz);
     }
 
-    /// <summary>Whether <paramref name="world"/> is on the floor of some room.</summary>
+    /// <summary>Whether <paramref name="world"/> is on the floor of some room, or on a path between rooms.</summary>
     public bool Contains(Position world) => RoomAt(world) is not null;
 
-    /// <summary>The room whose floor <paramref name="world"/> is on; where rooms touch, the first by ID.</summary>
+    /// <summary>The room whose floor <paramref name="world"/> is on; where rooms touch, the first by ID. On a path, the room it leaves.</summary>
     public RoomDefinition? RoomAt(Position world) =>
-        _rooms.FirstOrDefault(room => Clamp(room, world) == world);
+        _rooms.FirstOrDefault(room => Clamp(room, world) == world)
+        ?? _rooms.FirstOrDefault(room => room.Paths.Any(path => ClampTo(RoomPaths.BoxOf(room, path), world) == world));
 
     /// <summary>
     /// The spot on the world's floor nearest <paramref name="target"/>: itself when it is on the floor, else the closest
@@ -64,9 +65,9 @@ public sealed class WorldSpace
 
         var best = Clamp(_rooms[0], target);
         var bestDistance = best.DistanceTo(target);
-        foreach (var room in _rooms.Skip(1))
+        foreach (var box in _rooms.Skip(1).Select(RoomPaths.BoxOf).Concat(_rooms.SelectMany(room => room.Paths.Select(path => RoomPaths.BoxOf(room, path)))))
         {
-            var candidate = Clamp(room, target);
+            var candidate = ClampTo(box, target);
             var distance = candidate.DistanceTo(target);
             if (distance < bestDistance)
             {
@@ -91,11 +92,8 @@ public sealed class WorldSpace
         return ((place.X * WorldPlace.Cell) + (room.Width / 2), (place.Z * WorldPlace.Cell) + (room.Depth / 2));
     }
 
-    private static Position Clamp(RoomDefinition room, Position world)
-    {
-        var (cx, cz) = CentreOf(room);
-        return new Position(
-            Math.Clamp(world.X, cx - (room.Width / 2), cx + (room.Width / 2)),
-            Math.Clamp(world.Z, cz - (room.Depth / 2), cz + (room.Depth / 2)));
-    }
+    private static Position Clamp(RoomDefinition room, Position world) => ClampTo(RoomPaths.BoxOf(room), world);
+
+    private static Position ClampTo(RoomPaths.Box box, Position world) =>
+        new(Math.Clamp(world.X, box.MinX, box.MaxX), Math.Clamp(world.Z, box.MinZ, box.MaxZ));
 }

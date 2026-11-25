@@ -93,6 +93,7 @@ public sealed class RoomBook
             }
         }
 
+        problems.AddRange(RoomPaths.Problems(defined.Values));
         if (problems.Count > 0)
         {
             return problems;
