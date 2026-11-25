@@ -2961,7 +2961,7 @@
               "x": 1,
               "z": -6.5
             },
-            "radius": 0.4,
+            "radius": 0.35,
             "facing": 0
           },
           {
@@ -2970,7 +2970,7 @@
               "x": 9.5,
               "z": -1.9
             },
-            "radius": 0.6,
+            "radius": 0.55,
             "facing": 0
           },
           {
@@ -18260,35 +18260,17 @@
           {
             "kind": "field-pine",
             "spot": {
-              "x": -10.7,
-              "z": 5
+              "x": 8.3,
+              "z": 2.6
             },
             "radius": 1.1,
-            "facing": 0
-          },
-          {
-            "kind": "field-pine",
-            "spot": {
-              "x": 10.7,
-              "z": 5
-            },
-            "radius": 1.1,
-            "facing": 0
-          },
-          {
-            "kind": "field-bush",
-            "spot": {
-              "x": -6,
-              "z": 6.9
-            },
-            "radius": 0.9,
             "facing": 0
           },
           {
             "kind": "field-bush",
             "spot": {
               "x": 6,
-              "z": 6.9
+              "z": 4.5
             },
             "radius": 0.9,
             "facing": 0
@@ -18296,26 +18278,26 @@
           {
             "kind": "field-stump",
             "spot": {
-              "x": -7.7,
-              "z": 5.1
+              "x": -8.6,
+              "z": 4.2
             },
             "radius": 0.6,
             "facing": 0
           },
           {
-            "kind": "field-log",
+            "kind": "lamp",
+            "spot": {
+              "x": -9.5,
+              "z": 3.5
+            },
+            "radius": 0.35,
+            "facing": 0
+          },
+          {
+            "kind": "lamp",
             "spot": {
               "x": 9.5,
-              "z": 6.9
-            },
-            "radius": 1,
-            "facing": 0
-          },
-          {
-            "kind": "lamp",
-            "spot": {
-              "x": -11,
-              "z": 2
+              "z": 3.5
             },
             "radius": 0.35,
             "facing": 0
@@ -18323,8 +18305,8 @@
           {
             "kind": "lamp",
             "spot": {
-              "x": 11,
-              "z": 2
+              "x": -9.5,
+              "z": -3.5
             },
             "radius": 0.35,
             "facing": 0
@@ -18332,17 +18314,8 @@
           {
             "kind": "lamp",
             "spot": {
-              "x": -11,
-              "z": -2
-            },
-            "radius": 0.35,
-            "facing": 0
-          },
-          {
-            "kind": "lamp",
-            "spot": {
-              "x": 11,
-              "z": -2
+              "x": 8.9,
+              "z": 0.1
             },
             "radius": 0.35,
             "facing": 0
@@ -18350,8 +18323,8 @@
           {
             "kind": "plant",
             "spot": {
-              "x": 0,
-              "z": 7.3
+              "x": -2.1,
+              "z": 5.2
             },
             "radius": 0.5,
             "facing": 0
@@ -22697,7 +22670,7 @@
               "x": -6.5,
               "z": 5.4
             },
-            "radius": 0.4,
+            "radius": 0.35,
             "facing": 0
           },
           {
@@ -22706,7 +22679,7 @@
               "x": 2,
               "z": 7.6
             },
-            "radius": 0.4,
+            "radius": 0.35,
             "facing": 0
           },
           {
@@ -22715,7 +22688,7 @@
               "x": -1.5,
               "z": 6.9
             },
-            "radius": 0.6,
+            "radius": 0.55,
             "facing": 0
           },
           {
@@ -24089,7 +24062,7 @@
               "x": 8,
               "z": -7
             },
-            "radius": 0.4,
+            "radius": 0.35,
             "facing": 0
           },
           {
@@ -24143,7 +24116,7 @@
               "x": -10.4,
               "z": -6.2
             },
-            "radius": 0.6,
+            "radius": 0.55,
             "facing": 0
           },
           {
@@ -24179,7 +24152,7 @@
               "x": -12.5,
               "z": 2.7
             },
-            "radius": 1.2,
+            "radius": 1.25,
             "facing": 0
           },
           {
