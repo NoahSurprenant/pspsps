@@ -29071,35 +29071,93 @@
         },
         {
           "op": "rect",
-          "colour": "#d9c28f",
+          "colour": "#a8804f",
           "x": 0,
           "y": 0,
           "width": 24,
-          "height": 0.7
+          "height": 1
         },
         {
           "op": "rect",
-          "colour": "#d9c28f",
+          "colour": "#a8804f",
           "x": 0,
-          "y": 15.3,
+          "y": 15,
           "width": 24,
-          "height": 0.7
+          "height": 1
         },
         {
           "op": "rect",
-          "colour": "#d9c28f",
+          "colour": "#a8804f",
           "x": 0,
           "y": 0,
-          "width": 0.7,
+          "width": 1,
           "height": 16
         },
         {
           "op": "rect",
-          "colour": "#d9c28f",
-          "x": 23.3,
+          "colour": "#a8804f",
+          "x": 23,
           "y": 0,
-          "width": 0.7,
+          "width": 1,
           "height": 16
+        },
+        {
+          "op": "rect",
+          "colour": "#8d6a3f",
+          "x": 0,
+          "y": 0,
+          "width": 0.06,
+          "height": 1,
+          "repeat": {
+            "dx": 1.5,
+            "dy": 0
+          }
+        },
+        {
+          "op": "rect",
+          "colour": "#8d6a3f",
+          "x": 0,
+          "y": 15,
+          "width": 0.06,
+          "height": 1,
+          "repeat": {
+            "dx": 1.5,
+            "dy": 0
+          }
+        },
+        {
+          "op": "rect",
+          "colour": "#8d6a3f",
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 0.06,
+          "repeat": {
+            "dx": 0,
+            "dy": 1.5
+          }
+        },
+        {
+          "op": "rect",
+          "colour": "#8d6a3f",
+          "x": 23,
+          "y": 0,
+          "width": 1,
+          "height": 0.06,
+          "repeat": {
+            "dx": 0,
+            "dy": 1.5
+          }
+        },
+        {
+          "op": "rect",
+          "colour": "#f4f0e6",
+          "x": 0.92,
+          "y": 0.92,
+          "width": 22.16,
+          "height": 14.16,
+          "line": 0.08,
+          "outline": true
         },
         {
           "op": "rect",
