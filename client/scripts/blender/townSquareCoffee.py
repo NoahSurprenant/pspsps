@@ -28,7 +28,7 @@ for s in (-1, 1):
 # big sign
 box(5.4, 0.16, 1.3, 0, F - 0.1, 3.0, BROWN)
 box(5.2, 0.05, 1.1, 0, F - 0.2, 3.1, "#3a2012")
-text("COFFEE", 0.85, 0, F - 0.26, 3.65, CREAM, 0.06)
+text("COFFEE", 1.05, 0, F - 0.26, 3.65, CREAM, 0.06)
 # upper windows
 for x in (-2.1, 0, 2.1):
     box(1.6, 0.12, 2.2, x, F - 0.03, 5.15, BROWN)

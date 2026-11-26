@@ -28,7 +28,7 @@ for s in (-1, 1):
 # the big sign
 box(5.6, 0.16, 1.3, 0, F - 0.1, 2.85, DARK)
 box(5.4, 0.05, 1.1, 0, F - 0.2, 2.95, "#2a1a10")
-text("CLOTHES", 0.78, 0, F - 0.26, 3.5, "#ff9ad0", 0.06)
+text("CLOTHES", 0.95, 0, F - 0.26, 3.5, "#ff9ad0", 0.06)
 # upper windows with shutters and flower boxes
 for x in (-2.1, 0, 2.1):
     box(1.6, 0.12, 2.2, x, F - 0.03, 4.85, DARK)
