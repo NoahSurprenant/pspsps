@@ -1,8 +1,10 @@
 import bpy, bmesh, json, math, sys
 from mathutils import Vector
 
+_boxes = [0]
 def reset():
     bpy.ops.wm.read_factory_settings(use_empty=True)
+    _boxes[0] = 0
 
 _mats = {}
 def mat(hexcol):
@@ -15,9 +17,13 @@ def mat(hexcol):
 
 def box(w, d, h, x, y, z, col, name="box"):
     """A box of width w (x), depth d (y; the front is -y), height h (z), its bottom-middle at (x, y, z)."""
+    # Each box grows a hair more than the one before, so faces that would share a plane sit a few millimetres apart
+    # and never flicker (z-fighting); the client zFight test checks the result.
+    grow = 0.0025 * (1 + _boxes[0] % 23)
+    _boxes[0] += 1
     bpy.ops.mesh.primitive_cube_add(size=1, location=(x, y, z + h / 2))
     o = bpy.context.active_object
-    o.scale = (w, d, h)
+    o.scale = (w + 2 * grow, d + 2 * grow, h + 2 * grow)
     bpy.ops.object.transform_apply(scale=True)
     o.data.materials.append(mat(col))
     return o
