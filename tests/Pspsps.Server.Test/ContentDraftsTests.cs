@@ -339,7 +339,8 @@ public sealed class ContentDraftsTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(rink.Props.Count(p => p.Kind == PropKinds.Goal), Is.EqualTo(2), "a net at each end, goals on the pitch and hockey nets on the rink");
+            Assert.That(rink.Props.Count(p => p.Kind == (winter ? PropKinds.HockeyNet : PropKinds.Goal)), Is.EqualTo(2), "a net at each end: soccer goals on the pitch, hockey nets on the rink");
+            Assert.That(rink.Props.Any(p => p.Kind == (winter ? PropKinds.Goal : PropKinds.HockeyNet)), Is.False, "never both kinds of net");
             Assert.That(rink.Props.Any(p => p.Kind == PropKinds.IcePatch), Is.EqualTo(winter), "ice only in winter");
             Assert.That(rink.Props.Any(p => p.Kind == PropKinds.RinkBoard), Is.EqualTo(winter), "boards only in winter");
             Assert.That(rink.Props.Where(p => p.Kind is PropKinds.Bench or PropKinds.Lamp or PropKinds.Plant or PropKinds.FlowerBed or PropKinds.FieldStump or PropKinds.FieldBush or PropKinds.FieldPine).Select(p => p.Kind), Is.Empty, "no street furniture or plants on the playing surface, in either season");
@@ -360,7 +361,7 @@ public sealed class ContentDraftsTests
     {
         var rink = Content.RoomList.Single(room => room.Id == "ice-rink").Layout;
         var winter = Content.OverlayList.Single(o => o.RoomId == "ice-rink" && o.Id == "winter");
-        var facing = rink.Props.Concat(winter.Adds).Where(p => p.Kind is PropKinds.Goal or PropKinds.RinkBoard).Where(p => p.Spot.DistanceTo(new Position(0, 0)) > 5).ToList();
+        var facing = rink.Props.Concat(winter.Adds).Where(p => p.Kind is PropKinds.Goal or PropKinds.HockeyNet or PropKinds.RinkBoard).Where(p => p.Spot.DistanceTo(new Position(0, 0)) > 5).ToList();
 
         Assert.That(facing, Is.Not.Empty);
         foreach (var prop in facing)
@@ -454,7 +455,7 @@ public sealed class ContentDraftsTests
         var starting = PropDesignSeeder.Starting().ToDictionary(d => d.Kind);
         var copies = Content.PropDesignList.Where(d => starting.ContainsKey(d.Kind)).ToList();
 
-        Assert.That(copies.Select(d => d.Kind), Is.SupersetOf(new[] { PropKinds.Goal, PropKinds.IcePatch, PropKinds.RinkBoard, PropKinds.YarnBall, PropKinds.SnowCat }), "the rink's kinds are in both");
+        Assert.That(copies.Select(d => d.Kind), Is.SupersetOf(new[] { PropKinds.Goal, PropKinds.HockeyNet, PropKinds.IcePatch, PropKinds.RinkBoard, PropKinds.YarnBall, PropKinds.SnowCat }), "the rink's kinds are in both");
         foreach (var design in copies)
         {
             var (_, size, parts, growth) = starting[design.Kind];

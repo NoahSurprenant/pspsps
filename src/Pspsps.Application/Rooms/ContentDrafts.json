@@ -28050,6 +28050,9 @@
           "painter": "field-rink-ice",
           "colour": "#f3fbfe",
           "accent": "#e2f1f8"
+        },
+        "ground": {
+          "colour": "#eaf2f6"
         }
       }
     ]
@@ -29496,15 +29499,6 @@
           "height": 4.4,
           "line": 0.1,
           "outline": true
-        },
-        {
-          "op": "rect",
-          "colour": "#cdb27c",
-          "x": 11.1,
-          "y": 12,
-          "width": 1.8,
-          "height": 4,
-          "shade": 0.2
         }
       ]
     },
@@ -30844,6 +30838,24 @@
           },
           "radius": 1.9,
           "facing": 0
+        },
+        {
+          "kind": "hockey-net",
+          "spot": {
+            "x": -10.6,
+            "z": 0
+          },
+          "radius": 1.3,
+          "facing": -1.5707963267948966
+        },
+        {
+          "kind": "hockey-net",
+          "spot": {
+            "x": 10.6,
+            "z": 0
+          },
+          "radius": 1.3,
+          "facing": 1.5707963267948966
         }
       ],
       "removes": [
@@ -30891,6 +30903,24 @@
           },
           "radius": 0.3,
           "facing": 0
+        },
+        {
+          "kind": "goal",
+          "spot": {
+            "x": -10.6,
+            "z": 0
+          },
+          "radius": 1.3,
+          "facing": -1.5707963267948966
+        },
+        {
+          "kind": "goal",
+          "spot": {
+            "x": 10.6,
+            "z": 0
+          },
+          "radius": 1.3,
+          "facing": 1.5707963267948966
         }
       ],
       "look": "frozen-rink"
@@ -40498,6 +40528,136 @@
           ],
           "colour": "#3b3442",
           "outlined": false
+        }
+      ]
+    },
+    {
+      "kind": "hockey-net",
+      "size": 1.3,
+      "parts": [
+        {
+          "shape": "box",
+          "width": 0.1,
+          "height": 1.2,
+          "depth": 0.1,
+          "at": [
+            -1,
+            0.6,
+            -0.4
+          ],
+          "colour": "#d9534f"
+        },
+        {
+          "shape": "box",
+          "width": 0.1,
+          "height": 1.2,
+          "depth": 0.1,
+          "at": [
+            1,
+            0.6,
+            -0.4
+          ],
+          "colour": "#d9534f"
+        },
+        {
+          "shape": "box",
+          "width": 2.1,
+          "height": 0.1,
+          "depth": 0.1,
+          "at": [
+            0,
+            1.2,
+            -0.4
+          ],
+          "colour": "#d9534f"
+        },
+        {
+          "shape": "box",
+          "width": 0.06,
+          "height": 0.7,
+          "depth": 0.06,
+          "at": [
+            -1,
+            0.35,
+            0.5
+          ],
+          "colour": "#d9534f"
+        },
+        {
+          "shape": "box",
+          "width": 0.06,
+          "height": 0.7,
+          "depth": 0.06,
+          "at": [
+            1,
+            0.35,
+            0.5
+          ],
+          "colour": "#d9534f"
+        },
+        {
+          "shape": "box",
+          "width": 2,
+          "height": 0.7,
+          "depth": 0.03,
+          "at": [
+            0,
+            0.35,
+            0.5
+          ],
+          "colour": "#f4f7f9",
+          "outlined": false
+        },
+        {
+          "shape": "box",
+          "width": 0.03,
+          "height": 0.7,
+          "depth": 0.9,
+          "at": [
+            -1,
+            0.35,
+            0.05
+          ],
+          "colour": "#f4f7f9",
+          "outlined": false
+        },
+        {
+          "shape": "box",
+          "width": 0.03,
+          "height": 0.7,
+          "depth": 0.9,
+          "at": [
+            1,
+            0.35,
+            0.05
+          ],
+          "colour": "#f4f7f9",
+          "outlined": false
+        },
+        {
+          "shape": "box",
+          "width": 2,
+          "height": 0.03,
+          "depth": 0.9,
+          "at": [
+            0,
+            0.7,
+            0.05
+          ],
+          "colour": "#f4f7f9",
+          "outlined": false
+        },
+        {
+          "shape": "box",
+          "width": 2.1,
+          "height": 0.1,
+          "depth": 0.1,
+          "at": [
+            0,
+            0.05,
+            -0.4
+          ],
+          "colour": "#d9534f"
         }
       ]
     }
