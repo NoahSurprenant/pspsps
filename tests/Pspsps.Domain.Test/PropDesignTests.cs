@@ -21,13 +21,13 @@ public sealed class PropDesignTests
     [Test]
     public void AModelPart_NeedsTheNameOfAMeshAndAScale()
     {
-        var house = new PropPart("model", [0, 0, 0], "#ffffff", Model: "town-house", Scale: 4);
+        var house = new PropPart("model", [0, 0, 0], "#ffffff", Model: "town-square-coffee", Scale: 4);
 
         Assert.Multiple(() =>
         {
-            Assert.That(PropDesign.Problems("town-house", 2, [house]), Is.Empty);
-            Assert.That(PropDesign.Problems("town-house", 2, [house with { Model = null }]), Has.Some.Contains("name of one"));
-            Assert.That(PropDesign.Problems("town-house", 2, [house with { Scale = null }]), Has.Some.Contains("needs its sizes"));
+            Assert.That(PropDesign.Problems("town-square-coffee", 2, [house]), Is.Empty);
+            Assert.That(PropDesign.Problems("town-square-coffee", 2, [house with { Model = null }]), Has.Some.Contains("name of one"));
+            Assert.That(PropDesign.Problems("town-square-coffee", 2, [house with { Scale = null }]), Has.Some.Contains("needs its sizes"));
         });
     }
 

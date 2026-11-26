@@ -20,6 +20,22 @@ describe("slabs", () => {
   });
 });
 
+describe("a round terrace", () => {
+  const oval = { ...terrace, round: true };
+
+  it("hands its shape to every slab", () => {
+    expect(slabs(oval).every((slab) => slab.round === true)).toBe(true);
+    expect(slabs(terrace).every((slab) => slab.round === undefined)).toBe(true);
+  });
+
+  it("covers the oval, not the corners of its rectangle", () => {
+    expect(groundHeight([oval], { x: 10, z: 20 })).toBeCloseTo(0.6);
+    expect(groundHeight([oval], { x: 13.5, z: 20 })).toBeCloseTo(0.6);
+    expect(groundHeight([oval], { x: 13.9, z: 22.9 })).toBe(0);
+    expect(groundHeight([terrace], { x: 13.9, z: 22.9 })).toBeCloseTo(0.6);
+  });
+});
+
 describe("groundHeight", () => {
   it("is the top on the terrace, lower on its steps, and zero past them", () => {
     expect(groundHeight([terrace], { x: 10, z: 20 })).toBeCloseTo(0.6);
@@ -31,6 +47,10 @@ describe("groundHeight", () => {
   it("is the highest of terraces that overlap, and zero with none", () => {
     expect(groundHeight([terrace, { ...terrace, height: 1 }], { x: 10, z: 20 })).toBeCloseTo(1);
     expect(groundHeight([], { x: 0, z: 0 })).toBe(0);
+  });
+
+  it("lifts a painted terrace's slabs a hair above stone of the same height, and no other", () => {
+    expect(slabs({ ...terrace, colour: "#c4262e" }).map((slab) => slab.top)).toEqual(slabs(terrace).map((slab) => expect.closeTo(slab.top + 0.01, 6)));
   });
 
   it("hands a terrace's colour to every one of its slabs, and none when it has none", () => {

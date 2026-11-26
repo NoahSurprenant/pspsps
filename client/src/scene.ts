@@ -42,10 +42,12 @@ import { catalogueStandKind } from "./catalogue";
 import { Portraits } from "./portrait";
 import { besideProp, buildParts, ink, propAt, propParts, type Part } from "./props";
 import { CatLook } from "./look";
+import { followBall, onFloor, slide, type Ball } from "./iceWalk";
 import catModelUrl from "./models/cat.glb?url";
-import type { CatView, ChunkView, DoorView, Emote, OutfitView, PropView, RoomSnapshot } from "./types";
+import type { BallView, CatView, ChunkView, DoorView, Emote, OutfitView, PropView, RoomSnapshot } from "./types";
 import { frameClock, frameLimiter } from "./frameLimit";
 
+const movingKinds = new Set(["pitch-ball", "puck"]); // drawn apart from the decor, moved by the server
 const walkSpeed = 4; // metres per second
 const climbSpeed = 8; // how fast a cat settles to the height of the ground it is on, per second
 const sky = Color4.FromHexString("#bfe3f2ff");
@@ -91,6 +93,8 @@ interface CatOnScreen {
   // Someone waiting for the cat to be drawn standing at a spot (a walk to a door), told true when it is, false if it
   // is sent elsewhere first.
   arrival?: { x: number; z: number; done: (arrived: boolean) => void };
+  // How fast it is sliding, on ice (metres a second).
+  slide?: { x: number; z: number };
 }
 
 /** Draws one room at a time and walks the cats in it. Knows nothing about the network. */
@@ -121,6 +125,11 @@ export class RoomScene {
   private activityClicked: (prop: PropView) => void = () => {};
   private props: PropView[] = [];
   private selection: Mesh | undefined;
+  // The pitch's ball (or puck): drawn apart from the still decor, moved as the server says; and the room whose floor is ice.
+  private ballMesh: Mesh | undefined;
+  private ballKind = "";
+  private ball: { told: Ball; at: number; drawn: { x: number; z: number } } | undefined;
+  private ice: { x: number; z: number; width: number; depth: number } | undefined;
   /**
    * Decorating a home: a tap goes to the furniture or the floor under it (onEditTapped), never to a cat, a door or the
    * pond, and walks no one.
@@ -340,7 +349,13 @@ export class RoomScene {
     this.activities = new RoomActivities();
     this.props = chunks.flatMap((chunk) => chunk.props);
     this.decor = undefined;
+    this.ice = chunks.find((chunk) => chunk.props.some((prop) => prop.kind === "ice-patch"));
+    this.ballMesh = undefined;
+    this.ball = undefined;
     this.drawDecor();
+    if (room.ball) {
+      this.moveBall(room.ball);
+    }
     this.scene.clearColor = skies.get(arrival.roomId) ?? sky;
 
     // A tap goes to the first thing along its ray in this order, not to the nearest: another cat, a door, the pond, the
@@ -688,11 +703,27 @@ export class RoomScene {
 
   private drawDecor(): void {
     this.decor?.dispose(false, true);
-    const parts = this.props.flatMap(prop => {
+    const parts = this.props.filter((prop) => !movingKinds.has(prop.kind)).flatMap(prop => {
       const lift = this.chunks ? worldHeight(this.chunks, prop) : 0;
       return propParts(prop, this.activities.stage(prop)).map((part) => lift === 0 ? part : { ...part, at: [part.at[0], part.at[1] + lift, part.at[2]] as [number, number, number] });
     });
     this.decor = buildParts(this.scene, "decor", [...this.walls, ...parts]);
+  }
+
+  /** The ball (or puck) was kicked or is rolling: draws it, and has it follow the server's word. */
+  moveBall(ball: BallView): void {
+    if (!this.ballMesh || this.ballKind !== ball.kind) {
+      this.ballMesh?.dispose(false, true);
+      this.ballKind = ball.kind;
+      this.ballMesh = buildParts(this.scene, "ball", propParts({ kind: ball.kind, x: 0, z: 0, radius: ball.kind === "puck" ? 0.4 : 0.5, facing: 0 }));
+      if (this.ballMesh) {
+        this.ballMesh.isPickable = false;
+        this.ballMesh.position.set(ball.x, 0, ball.z);
+      }
+      this.ball = { told: ball, at: performance.now(), drawn: { x: ball.x, z: ball.z } };
+      return;
+    }
+    this.ball = { told: ball, at: performance.now(), drawn: this.ball?.drawn ?? { x: ball.x, z: ball.z } };
   }
 
   /** Rings the piece of furniture selected while decorating, on the floor round it; none, no ring. */
@@ -916,13 +947,23 @@ export class RoomScene {
     return strip;
   }
 
+  private oval(name: string, width: number, height: number, depth: number): Mesh {
+    const oval = CreateCylinder(name, { diameter: 1, height, tessellation: 64 }, this.scene);
+    oval.scaling.set(width, 1, depth);
+    return oval;
+  }
+
   /** One step of a terrace: a block of paving on a dark edge, each step a shade apart from the next so they read as steps. */
   private drawSlab(roomId: string, slab: Slab, index: number, top: boolean): AbstractMesh {
-    const rim = CreateBox("terrace-edge", { width: slab.width + 0.08, height: slab.top - 0.005, depth: slab.depth + 0.08 }, this.scene);
+    const rim = slab.round
+      ? this.oval("terrace-edge", slab.width + 0.08, slab.top - 0.005, slab.depth + 0.08)
+      : CreateBox("terrace-edge", { width: slab.width + 0.08, height: slab.top - 0.005, depth: slab.depth + 0.08 }, this.scene);
     rim.position.set(slab.x, (slab.top - 0.005) / 2, slab.z);
     rim.material = flat(this.scene, "terrace-edge", "#8c7b5e");
     rim.isPickable = false;
-    const block = CreateBox(`terrace-${roomId}`, { width: slab.width, height: slab.top, depth: slab.depth }, this.scene);
+    const block = slab.round
+      ? this.oval(`terrace-${roomId}`, slab.width, slab.top, slab.depth)
+      : CreateBox(`terrace-${roomId}`, { width: slab.width, height: slab.top, depth: slab.depth }, this.scene);
     block.position.set(slab.x, slab.top / 2, slab.z);
     const stepColour = slab.colour ?? (index % 2 === 0 ? "#e3d8bd" : "#efe6d0");
     block.material = top ? flat(this.scene, "terrace-top", slab.colour ?? "#c9b58e") : flat(this.scene, "terrace", stepColour);
@@ -1003,14 +1044,25 @@ export class RoomScene {
 
   private step(seconds: number): void {
     const now = performance.now();
+    this.stepBall(seconds, now);
     for (const [playerId, cat] of this.cats) {
       const raised = this.chunks ? worldHeight(this.chunks, cat.root.position) : 0;
       cat.root.position.y += (raised - cat.root.position.y) * Math.min(1, seconds * climbSpeed);
       const offset = cat.target.subtract(cat.root.position);
       offset.y = 0;
       const distance = offset.length();
-      const moving = distance > 0.01;
-      if (moving) {
+      let moving = distance > 0.01;
+      if (this.ice && onFloor(cat.root.position, this.ice)) {
+        const glide = slide(cat.slide ?? { x: 0, z: 0 }, cat.root.position, cat.target, walkSpeed, seconds);
+        cat.slide = glide;
+        cat.root.position.x += glide.x * seconds;
+        cat.root.position.z += glide.z * seconds;
+        moving = Math.hypot(glide.x, glide.z) > 0.3;
+        if (moving) {
+          cat.root.rotation.y = facing(glide.x, glide.z);
+        }
+      } else if (moving) {
+        cat.slide = undefined;
         const stride = Math.min(distance, walkSpeed * seconds);
         cat.root.position.addInPlace(offset.scale(stride / distance));
         cat.root.rotation.y = facing(offset.x, offset.z);
@@ -1022,6 +1074,16 @@ export class RoomScene {
       }
       this.drawLook(playerId, cat, moving, now);
     }
+  }
+
+  private stepBall(seconds: number, now: number): void {
+    const { ball, ballMesh } = this;
+    if (!ball || !ballMesh) {
+      return;
+    }
+    ball.drawn = followBall(ball.drawn, ball.told, Math.min(0.3, (now - ball.at) / 1000), seconds);
+    const lift = this.chunks ? worldHeight(this.chunks, ball.drawn) : 0;
+    ballMesh.position.set(ball.drawn.x, lift, ball.drawn.z);
   }
 
   /** Brings the cat's animation and bubble in line with its look. */

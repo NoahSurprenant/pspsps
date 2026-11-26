@@ -42,6 +42,7 @@ public static class PropKinds
     public const string ShopCounter = "shop-counter";
     public const string Mirror = "mirror";
     public const string Goal = "goal";
+    public const string HockeyNet = "hockey-net";
     public const string IcePatch = "ice-patch";
     public const string RinkBoard = "rink-board";
     public const string YarnBall = "yarn-ball";
@@ -69,9 +70,6 @@ public static class PropKinds
     public const string VelvetRope = "velvet-rope";
     public const string Podium = "podium";
     public const string Fountain = "fountain";
-    public const string TownHouse = "town-house";
-    public const string TownHotel = "town-hotel";
-    public const string TownMall = "town-mall";
     public const string ShoreLighthouse = "shore-lighthouse";
     public const string ShoreDeckChair = "shore-deck-chair";
     public const string ShoreParasol = "shore-parasol";
@@ -106,6 +104,8 @@ public static class PropKinds
     public const string FieldLifeguardChair = "field-lifeguard-chair";
     public const string FieldCornerFlag = "field-corner-flag";
     public const string FieldBall = "field-ball";
+    public const string PitchBall = "pitch-ball";
+    public const string Puck = "puck";
     public const string FieldCone = "field-cone";
     public const string FieldSignpost = "field-signpost";
     public const string FieldBoulder = "field-boulder";
@@ -129,10 +129,10 @@ public static class PropKinds
     [
         Tree, Bench, Lamp, FlowerBed, CafeTable, Counter, Plant, CatTree, Rug, Armchair, Sofa, FloorLamp, Bookshelf, CatBed,
         MapBoard, Piano, PottingBench, RodRack, PearTree, PackingCrate,
-        Goal, IcePatch, RinkBoard, YarnBall, SnowCat,
+        Goal, HockeyNet, PitchBall, Puck, IcePatch, RinkBoard, YarnBall, SnowCat,
         CatalogueStand, HatShelf, ShopCounter, Mirror, BookStack, Globe, YarnNook, WindowSeat,
         MarketStall, PizzaTable, PizzaOven, Stage, SpeakerStack, LightRig, FishBarrel, YarnBasket, MarketCart, Chalkboard,
-        DoughTable, WoodStack, FishTank, Jukebox, DjBooth, BarStool, VelvetRope, Podium, Fountain, TownHouse, TownHotel, TownMall,
+        DoughTable, WoodStack, FishTank, Jukebox, DjBooth, BarStool, VelvetRope, Podium, Fountain,
         ShoreLighthouse, ShoreDeckChair, ShoreParasol, ShoreRocks, ShoreRowboat, ShoreSurfboards, ShorePicnicTable, ShoreTubes, ShoreBollard, ShoreLifebuoy, ShoreLiftTower, ShoreLiftHut, ShorePost, ShorePine, ShoreLodge, ShoreTourStand, ShoreSignpost,
         FieldSandcastle, FieldSandcastleSmall, FieldBucket, FieldSapling, FieldPine, FieldBush, FieldRock, FieldLog, FieldStump,
         FieldSurfShack, FieldBonfire, FieldTowel, FieldUmbrella, FieldSurfboards, FieldLifeguardChair, FieldCornerFlag, FieldBall,

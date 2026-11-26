@@ -19,3 +19,12 @@ window.addEventListener("message", (event) => {
 });
 
 window.parent.postMessage(PREVIEW_READY, window.location.origin);
+
+// ?room=<id>&overlay=<id> draws that room as the server would give it, for a picture of an overlay out of season.
+const asked = new URLSearchParams(window.location.search);
+const askedRoom = asked.get("room");
+if (askedRoom) {
+  void preview.show(askedRoom, asked.get("overlay") ?? undefined).catch((error: unknown) => {
+    console.error("The preview could not be drawn.", error);
+  });
+}

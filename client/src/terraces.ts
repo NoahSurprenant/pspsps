@@ -7,6 +7,9 @@ export const stepsReach = 1;
 
 const stepRise = 0.2;
 
+/** A painted terrace (a carpet, a planter) lies this far above the stone it covers, so their faces never share a plane. */
+const paintLift = 0.01;
+
 export interface Slab {
   x: number;
   z: number;
@@ -16,6 +19,8 @@ export interface Slab {
   top: number;
   /** What paints it instead of stone: a carpet. */
   colour?: string;
+  /** An oval inscribed in the width and depth, not a rectangle. */
+  round?: boolean;
 }
 
 /** A terrace as stacked slabs, the widest and lowest first: the steps up to its top. */
@@ -23,7 +28,7 @@ export function slabs(terrace: TerraceView): Slab[] {
   const count = Math.max(1, Math.round(terrace.height / stepRise));
   return Array.from({ length: count }, (_, index) => {
     const outward = (stepsReach * (count - 1 - index)) / count;
-    return { x: terrace.x, z: terrace.z, width: terrace.width + 2 * outward, depth: terrace.depth + 2 * outward, top: (terrace.height * (index + 1)) / count, colour: terrace.colour ?? undefined };
+    return { x: terrace.x, z: terrace.z, width: terrace.width + 2 * outward, depth: terrace.depth + 2 * outward, top: (terrace.height * (index + 1)) / count + (terrace.colour ? paintLift : 0), colour: terrace.colour ?? undefined, round: terrace.round ?? undefined };
   });
 }
 
@@ -32,10 +37,16 @@ export function groundHeight(terraces: readonly TerraceView[], spot: Spot): numb
   let height = 0;
   for (const terrace of terraces) {
     for (const slab of slabs(terrace)) {
-      if (slab.top > height && Math.abs(spot.x - slab.x) <= slab.width / 2 && Math.abs(spot.z - slab.z) <= slab.depth / 2) {
+      if (slab.top > height && covers(slab, spot)) {
         height = slab.top;
       }
     }
   }
   return height;
+}
+
+function covers(slab: Slab, spot: Spot): boolean {
+  const dx = (spot.x - slab.x) / (slab.width / 2);
+  const dz = (spot.z - slab.z) / (slab.depth / 2);
+  return slab.round ? dx * dx + dz * dz <= 1 : Math.abs(dx) <= 1 && Math.abs(dz) <= 1;
 }

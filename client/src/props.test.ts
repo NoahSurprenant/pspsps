@@ -17,7 +17,7 @@ function verticesOf(prop: PropView): { x: number; y: number; z: number }[] {
 
 describe("props", () => {
   it("draws a model part as its mesh, in its own colours and outlined", () => {
-    const mesh = buildParts(new Scene(new NullEngine()), "house", [{ shape: "model", model: "town-house", scale: 4, at: [0, 0, 0], colour: "#ffffff" }]);
+    const mesh = buildParts(new Scene(new NullEngine()), "house", [{ shape: "model", model: "town-square-coffee", scale: 4, at: [0, 0, 0], colour: "#ffffff" }]);
     const positions = mesh?.getVerticesData(VertexBuffer.PositionKind) ?? [];
     const colours = new Set<string>();
     const data = mesh?.getVerticesData(VertexBuffer.ColorKind) ?? [];
@@ -26,18 +26,18 @@ describe("props", () => {
     }
 
     // Twice the vertices: the mesh and its outline. Several colours, not the part's one.
-    expect(positions.length / 3).toBe(1468);
+    expect(positions.length / 3).toBe(2212);
     expect(colours.size).toBeGreaterThan(5);
   });
 
   it("builds a model part together with boxes and balls", () => {
     const parts: Part[] = [
       { shape: "box", width: 1, height: 1, depth: 1, at: [3, 0.5, 0], colour: "#c98f5a" },
-      { shape: "model", model: "town-house", scale: 3, at: [0, 0, 0], colour: "#ffffff" },
+      { shape: "model", model: "town-square-coffee", scale: 3, at: [0, 0, 0], colour: "#ffffff" },
       { shape: "ball", diameter: 1, at: [-3, 0.5, 0], colour: "#6fae5f" },
     ];
 
-    expect(buildParts(new Scene(new NullEngine()), "mixed", parts)?.getTotalVertices()).toBeGreaterThan(1468);
+    expect(buildParts(new Scene(new NullEngine()), "mixed", parts)?.getTotalVertices()).toBeGreaterThan(2212);
   });
 
   // The kinds the server places, read from its source (src/Pspsps.Domain/Rooms/Prop.cs, PropKinds): a kind added there
