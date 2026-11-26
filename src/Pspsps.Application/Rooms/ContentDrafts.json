@@ -205,6 +205,24 @@
             },
             "radius": 0.9,
             "facing": 0
+          },
+          {
+            "kind": "flower-bed",
+            "spot": {
+              "x": -3.4,
+              "z": -7
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "flower-bed",
+            "spot": {
+              "x": 6.4,
+              "z": -7
+            },
+            "radius": 0.9,
+            "facing": 0
           }
         ],
         "doors": [
@@ -929,7 +947,7 @@
                 4.4,
                 7.8
               ],
-              "colour": "#2f2147",
+              "colour": "#1fa89c",
               "outlined": true
             },
             {
@@ -942,7 +960,7 @@
                 4.4,
                 7.8
               ],
-              "colour": "#2f2147",
+              "colour": "#1fa89c",
               "outlined": true
             },
             {
@@ -3526,7 +3544,7 @@
                 8,
                 7.78
               ],
-              "colour": "#ffd23f",
+              "colour": "#1b1030",
               "outlined": false
             },
             {
@@ -3539,7 +3557,7 @@
                 8,
                 7.72
               ],
-              "colour": "#7a1d6a",
+              "colour": "#ffd23f",
               "outlined": false
             },
             {
@@ -3552,7 +3570,7 @@
                 8,
                 7.72
               ],
-              "colour": "#7a1d6a",
+              "colour": "#ffd23f",
               "outlined": false
             },
             {
@@ -3565,7 +3583,7 @@
                 8,
                 7.72
               ],
-              "colour": "#7a1d6a",
+              "colour": "#ffd23f",
               "outlined": false
             },
             {
@@ -3578,7 +3596,7 @@
                 8,
                 7.72
               ],
-              "colour": "#7a1d6a",
+              "colour": "#ffd23f",
               "outlined": false
             },
             {
@@ -3591,7 +3609,7 @@
                 8,
                 7.72
               ],
-              "colour": "#7a1d6a",
+              "colour": "#ffd23f",
               "outlined": false
             },
             {
@@ -3604,7 +3622,7 @@
                 8,
                 7.72
               ],
-              "colour": "#7a1d6a",
+              "colour": "#ffd23f",
               "outlined": false
             },
             {
@@ -3617,7 +3635,7 @@
                 8,
                 7.72
               ],
-              "colour": "#7a1d6a",
+              "colour": "#ffd23f",
               "outlined": false
             },
             {
@@ -3630,7 +3648,7 @@
                 8,
                 7.72
               ],
-              "colour": "#7a1d6a",
+              "colour": "#ffd23f",
               "outlined": false
             },
             {
@@ -3643,7 +3661,7 @@
                 8,
                 7.72
               ],
-              "colour": "#7a1d6a",
+              "colour": "#ffd23f",
               "outlined": false
             },
             {
@@ -3670,6 +3688,45 @@
                 7.4
               ],
               "colour": "#ffd23f",
+              "outlined": false
+            },
+            {
+              "shape": "box",
+              "width": 6.2,
+              "height": 0.14,
+              "depth": 0.12,
+              "at": [
+                0.5,
+                8.78,
+                7.74
+              ],
+              "colour": "#2fe0d0",
+              "outlined": false
+            },
+            {
+              "shape": "box",
+              "width": 6.2,
+              "height": 0.14,
+              "depth": 0.12,
+              "at": [
+                0.5,
+                7.22,
+                7.74
+              ],
+              "colour": "#2fe0d0",
+              "outlined": false
+            },
+            {
+              "shape": "box",
+              "width": 6.2,
+              "height": 0.14,
+              "depth": 0.12,
+              "at": [
+                0.5,
+                8.78,
+                7.74
+              ],
+              "colour": "#2fe0d0",
               "outlined": false
             }
           ]
