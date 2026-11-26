@@ -7,6 +7,9 @@ export const stepsReach = 1;
 
 const stepRise = 0.2;
 
+/** A painted terrace (a carpet, a planter) lies this far above the stone it covers, so their faces never share a plane. */
+const paintLift = 0.01;
+
 export interface Slab {
   x: number;
   z: number;
@@ -25,7 +28,7 @@ export function slabs(terrace: TerraceView): Slab[] {
   const count = Math.max(1, Math.round(terrace.height / stepRise));
   return Array.from({ length: count }, (_, index) => {
     const outward = (stepsReach * (count - 1 - index)) / count;
-    return { x: terrace.x, z: terrace.z, width: terrace.width + 2 * outward, depth: terrace.depth + 2 * outward, top: (terrace.height * (index + 1)) / count, colour: terrace.colour ?? undefined, round: terrace.round ?? undefined };
+    return { x: terrace.x, z: terrace.z, width: terrace.width + 2 * outward, depth: terrace.depth + 2 * outward, top: (terrace.height * (index + 1)) / count + (terrace.colour ? paintLift : 0), colour: terrace.colour ?? undefined, round: terrace.round ?? undefined };
   });
 }
 

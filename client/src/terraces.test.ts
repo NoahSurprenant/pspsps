@@ -49,6 +49,10 @@ describe("groundHeight", () => {
     expect(groundHeight([], { x: 0, z: 0 })).toBe(0);
   });
 
+  it("lifts a painted terrace's slabs a hair above stone of the same height, and no other", () => {
+    expect(slabs({ ...terrace, colour: "#c4262e" }).map((slab) => slab.top)).toEqual(slabs(terrace).map((slab) => expect.closeTo(slab.top + 0.01, 6)));
+  });
+
   it("hands a terrace's colour to every one of its slabs, and none when it has none", () => {
     expect(slabs({ ...terrace, colour: "#c4262e" }).map((slab) => slab.colour)).toEqual(["#c4262e", "#c4262e", "#c4262e"]);
     expect(slabs(terrace).every((slab) => slab.colour === undefined)).toBe(true);

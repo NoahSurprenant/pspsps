@@ -23,8 +23,8 @@
             "x": 0.5,
             "z": 4.9,
             "width": 2,
-            "depth": 6.2,
-            "height": 1,
+            "depth": 6,
+            "height": 0.8,
             "colour": "#c4262e"
           },
           {
@@ -606,45 +606,6 @@
               "colour": "#9a968c",
               "outlined": true,
               "height": 0.7200000000000001
-            },
-            {
-              "shape": "box",
-              "width": 3.2,
-              "height": 0.021,
-              "depth": 3.2,
-              "at": [
-                -6,
-                0.011,
-                6.2
-              ],
-              "colour": "#c9b88f",
-              "outlined": false
-            },
-            {
-              "shape": "box",
-              "width": 3.2,
-              "height": 0.023,
-              "depth": 3.2,
-              "at": [
-                0.5,
-                0.012,
-                6.2
-              ],
-              "colour": "#b9a8d0",
-              "outlined": false
-            },
-            {
-              "shape": "box",
-              "width": 3.2,
-              "height": 0.025,
-              "depth": 3.2,
-              "at": [
-                7,
-                0.013,
-                6.2
-              ],
-              "colour": "#cfa98a",
-              "outlined": false
             },
             {
               "shape": "box",
