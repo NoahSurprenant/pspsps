@@ -21489,6 +21489,54 @@
             },
             "radius": 0.35,
             "facing": 0
+          },
+          {
+            "kind": "shore-bollard",
+            "spot": {
+              "x": -9.9,
+              "z": -3.1
+            },
+            "radius": 0.35,
+            "facing": 0
+          },
+          {
+            "kind": "shore-bollard",
+            "spot": {
+              "x": -7.5,
+              "z": -3.1
+            },
+            "radius": 0.35,
+            "facing": 0
+          },
+          {
+            "kind": "shore-bollard",
+            "spot": {
+              "x": -9.9,
+              "z": -5.4
+            },
+            "radius": 0.35,
+            "facing": 0
+          },
+          {
+            "kind": "shore-bollard",
+            "spot": {
+              "x": -7.5,
+              "z": -5.4
+            },
+            "radius": 0.35,
+            "facing": 0
+          },
+          {
+            "spot": {
+              "x": 3,
+              "z": -6.6
+            }
+          },
+          {
+            "spot": {
+              "x": 10,
+              "z": -6.9
+            }
           }
         ],
         "doors": [],
@@ -22297,6 +22345,171 @@
                 -8.1
               ],
               "colour": "#d7f1f7"
+            },
+            {
+              "shape": "ball",
+              "diameter": 1,
+              "at": [
+                -1,
+                0.3,
+                -9.4
+              ],
+              "colour": "#7d7f86"
+            },
+            {
+              "shape": "ball",
+              "diameter": 1.3,
+              "at": [
+                0.45,
+                0.3,
+                -9.4
+              ],
+              "colour": "#8d8f94"
+            },
+            {
+              "shape": "ball",
+              "diameter": 1.6,
+              "at": [
+                1.9,
+                0.3,
+                -9.4
+              ],
+              "colour": "#9a9ca1"
+            },
+            {
+              "shape": "ball",
+              "diameter": 1.15,
+              "at": [
+                3.35,
+                0.3,
+                -9.4
+              ],
+              "colour": "#6f7178"
+            },
+            {
+              "shape": "ball",
+              "diameter": 1.45,
+              "at": [
+                4.8,
+                0.3,
+                -9.4
+              ],
+              "colour": "#7d7f86"
+            },
+            {
+              "shape": "ball",
+              "diameter": 1,
+              "at": [
+                6.25,
+                0.3,
+                -9.4
+              ],
+              "colour": "#8d8f94"
+            },
+            {
+              "shape": "ball",
+              "diameter": 1.3,
+              "at": [
+                7.7,
+                0.3,
+                -9.4
+              ],
+              "colour": "#9a9ca1"
+            },
+            {
+              "shape": "ball",
+              "diameter": 1.6,
+              "at": [
+                9.15,
+                0.3,
+                -9.4
+              ],
+              "colour": "#6f7178"
+            },
+            {
+              "shape": "ball",
+              "diameter": 1.15,
+              "at": [
+                10.6,
+                0.3,
+                -9.4
+              ],
+              "colour": "#7d7f86"
+            },
+            {
+              "shape": "ball",
+              "diameter": 1.45,
+              "at": [
+                12.05,
+                0.3,
+                -9.4
+              ],
+              "colour": "#8d8f94"
+            },
+            {
+              "shape": "ball",
+              "diameter": 1,
+              "at": [
+                13.5,
+                0.3,
+                -9.4
+              ],
+              "colour": "#9a9ca1"
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 2.6,
+              "height": 6,
+              "at": [
+                -18.5,
+                3,
+                -6
+              ],
+              "colour": "#fdf7f0"
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 2.72,
+              "height": 1.1,
+              "at": [
+                -18.5,
+                3.4,
+                -6
+              ],
+              "colour": "#cc4a3a"
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 2.72,
+              "height": 1.1,
+              "at": [
+                -18.5,
+                5.4,
+                -6
+              ],
+              "colour": "#cc4a3a"
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 1.9,
+              "height": 1,
+              "at": [
+                -18.5,
+                6.5,
+                -6
+              ],
+              "colour": "#ffe14f"
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 2.3,
+              "height": 0.4,
+              "at": [
+                -18.5,
+                7.2,
+                -6
+              ],
+              "colour": "#cc4a3a"
             }
           ]
         }
