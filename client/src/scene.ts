@@ -924,8 +924,8 @@ export class RoomScene {
     rim.isPickable = false;
     const block = CreateBox(`terrace-${roomId}`, { width: slab.width, height: slab.top, depth: slab.depth }, this.scene);
     block.position.set(slab.x, slab.top / 2, slab.z);
-    const stepColour = index % 2 === 0 ? "#e3d8bd" : "#efe6d0";
-    block.material = top ? flat(this.scene, "terrace-top", "#c9b58e") : flat(this.scene, "terrace", stepColour);
+    const stepColour = slab.colour ?? (index % 2 === 0 ? "#e3d8bd" : "#efe6d0");
+    block.material = top ? flat(this.scene, "terrace-top", slab.colour ?? "#c9b58e") : flat(this.scene, "terrace", stepColour);
     return block;
   }
 

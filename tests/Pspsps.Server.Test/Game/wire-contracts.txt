@@ -240,3 +240,4 @@ type TerraceView 1: Double Z
 type TerraceView 2: Double Width
 type TerraceView 3: Double Depth
 type TerraceView 4: Double Height
+type TerraceView 5: String Colour

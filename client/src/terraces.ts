@@ -14,6 +14,8 @@ export interface Slab {
   depth: number;
   /** How high the slab's top is above the ground. */
   top: number;
+  /** What paints it instead of stone: a carpet. */
+  colour?: string;
 }
 
 /** A terrace as stacked slabs, the widest and lowest first: the steps up to its top. */
@@ -21,7 +23,7 @@ export function slabs(terrace: TerraceView): Slab[] {
   const count = Math.max(1, Math.round(terrace.height / stepRise));
   return Array.from({ length: count }, (_, index) => {
     const outward = (stepsReach * (count - 1 - index)) / count;
-    return { x: terrace.x, z: terrace.z, width: terrace.width + 2 * outward, depth: terrace.depth + 2 * outward, top: (terrace.height * (index + 1)) / count };
+    return { x: terrace.x, z: terrace.z, width: terrace.width + 2 * outward, depth: terrace.depth + 2 * outward, top: (terrace.height * (index + 1)) / count, colour: terrace.colour ?? undefined };
   });
 }
 

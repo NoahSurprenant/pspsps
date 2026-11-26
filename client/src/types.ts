@@ -163,6 +163,7 @@ export interface TerraceView {
   width: number;
   depth: number;
   height: number;
+  colour?: string | null;
 }
 
 /** A narrow strip of floor between two rooms: its middle and size. */
