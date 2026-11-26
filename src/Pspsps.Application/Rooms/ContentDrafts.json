@@ -14,24 +14,16 @@
         "terraces": [
           {
             "x": 0,
-            "z": 5.75,
+            "z": 4.9,
             "width": 24,
-            "depth": 4.5,
+            "depth": 6.2,
             "height": 0.8
           },
           {
             "x": 0.5,
-            "z": 1.5,
-            "width": 12,
-            "depth": 5,
-            "height": 0.8,
-            "round": true
-          },
-          {
-            "x": 0.5,
-            "z": 4.5,
+            "z": 4.9,
             "width": 2,
-            "depth": 7,
+            "depth": 6.2,
             "height": 1,
             "colour": "#c4262e"
           },
@@ -41,26 +33,23 @@
             "width": 2,
             "depth": 2,
             "height": 0.2,
-            "colour": "#6fae4f",
-            "round": true
+            "colour": "#6fae4f"
           },
           {
             "x": -10.4,
-            "z": 1,
+            "z": -0.2,
             "width": 2.2,
             "depth": 2.2,
             "height": 0.2,
-            "colour": "#6fae4f",
-            "round": true
+            "colour": "#6fae4f"
           },
           {
             "x": -10.4,
-            "z": -1.3,
+            "z": -2.4,
             "width": 2.2,
             "depth": 2.2,
             "height": 0.2,
-            "colour": "#6fae4f",
-            "round": true
+            "colour": "#6fae4f"
           },
           {
             "x": -10.8,
@@ -68,8 +57,7 @@
             "width": 2.2,
             "depth": 2.2,
             "height": 0.2,
-            "colour": "#6fae4f",
-            "round": true
+            "colour": "#6fae4f"
           },
           {
             "x": 10.8,
@@ -77,8 +65,7 @@
             "width": 2.2,
             "depth": 2.2,
             "height": 0.2,
-            "colour": "#6fae4f",
-            "round": true
+            "colour": "#6fae4f"
           }
         ],
         "props": [
@@ -130,8 +117,8 @@
           {
             "kind": "market-cart",
             "spot": {
-              "x": 9.4,
-              "z": 0.4
+              "x": 8.4,
+              "z": -0.6
             },
             "radius": 1.4,
             "facing": 0
@@ -140,7 +127,7 @@
             "kind": "field-arrow-sign",
             "spot": {
               "x": 11.3,
-              "z": 1.4
+              "z": 0.4
             },
             "radius": 0.58,
             "facing": 0
@@ -212,7 +199,7 @@
             "kind": "field-bush",
             "spot": {
               "x": -10.4,
-              "z": 1
+              "z": -0.2
             },
             "radius": 0.9,
             "facing": 0
@@ -221,7 +208,7 @@
             "kind": "field-bush",
             "spot": {
               "x": -10.4,
-              "z": -1.3
+              "z": -2.4
             },
             "radius": 0.9,
             "facing": 0
