@@ -120,6 +120,19 @@ test("the open world with every draft published looks right where rooms meet", a
       skipped.push(`map ${place.id}: ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
     }
   }
+  // Overlays are out of season in this run, so the rink's winter is pictured through the editor's preview page.
+  try {
+    const { name, value } = adminCookie();
+    const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+    await context.addCookies([{ name, value, url: base }]);
+    const view = await context.newPage();
+    await view.goto(new URL("/preview.html?room=ice-rink&overlay=winter", base).toString());
+    await view.waitForTimeout(3000);
+    pictures.push({ name: "Preview of the Soccer Pitch with its winter overlay (the frozen rink)", png: await view.screenshot() });
+    await context.close();
+  } catch (error) {
+    skipped.push(`winter rink preview: ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`);
+  }
   console.log(`published-world: ${pictures.length} pictures; skipped: ${skipped.join(" | ") || "none"}`);
   test.info().annotations.push(...skipped.map((description) => ({ type: "seam not reached", description })));
   expect(pictures.length, `the arrival and at least two seams were pictured (skipped: ${skipped.join("; ")})`).toBeGreaterThanOrEqual(3);
