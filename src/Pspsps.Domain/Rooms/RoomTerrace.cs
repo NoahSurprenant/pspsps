@@ -3,9 +3,9 @@ namespace Pspsps.Domain.Rooms;
 /// <summary>
 /// A raised stretch of a room's ground, <see cref="Height"/> metres up: its middle (<see cref="X"/>, <see cref="Z"/>) in
 /// metres from the room's middle and its size. Cats walk up onto it by the steps round its edge, so it changes how the
-/// room looks and what height a cat stands at, never where it may walk.
+/// room looks (<see cref="Colour"/>, a #rrggbb, paints it instead of stone: a red carpet) and what height a cat stands at, never where it may walk.
 /// </summary>
-public sealed record RoomTerrace(double X, double Z, double Width, double Depth, double Height)
+public sealed record RoomTerrace(double X, double Z, double Width, double Depth, double Height, string? Colour = null)
 {
     public const double MaxHeight = 3;
 

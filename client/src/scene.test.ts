@@ -378,6 +378,21 @@ describe("RoomScene", () => {
     expect(steps.every((step) => step.isPickable)).toBe(true);
   });
 
+  it("colours a terrace's top apart from its steps, so the stage reads as a stage", () => {
+    const engine = new NullEngine();
+    const view = new RoomScene(engine, () => new Promise<AssetContainer>(() => {}));
+    const chunk = { roomId: "town-square", name: "Town Square", x: 0, z: 0, width: 24, depth: 16, doors: [], props: [], pond: null, look: null, terraces: [{ x: 2, z: 0, width: 8, depth: 6, height: 0.6 }] };
+
+    view.show({ ...room, roomId: "town-square", width: 24, depth: 16, chunks: [chunk] });
+
+    const colours = engine.scenes.flatMap((scene) => scene.meshes).filter((mesh) => mesh.name === "terrace-town-square")
+      .map((step) => (step.computeWorldMatrix(true), step))
+      .sort((a, b) => a.getBoundingInfo().boundingBox.maximumWorld.y - b.getBoundingInfo().boundingBox.maximumWorld.y)
+      .map((step) => (step.material as StandardMaterial).emissiveColor.toHexString());
+    expect(new Set(colours).size).toBe(3);
+    expect(colours.at(-1)).not.toBe(colours.at(-2));
+  });
+
   // The paintings are the same every time (seeded), so a room seen again reuses them rather than painting them anew.
   it("paints a room's floor, wall and street once, however often it shows", () => {
     const look = lookOf("town-square");
