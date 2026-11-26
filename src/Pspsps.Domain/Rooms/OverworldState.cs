@@ -146,7 +146,7 @@ public sealed class OverworldState(WorldSpace space, int capacity)
     }
 
     /// <summary>
-    /// Walks the cat towards <paramref name="target"/>, a world spot, at <paramref name="now"/>, stopping at the edge of the
+    /// Walks the cat towards <paramref name="target"/>, a world spot, at <paramref name="now"/>, stopping where the straight line there leaves the
     /// world's floor and where the cat's pace runs out: it may cross <see cref="MaxWalkSpeed"/> metres a second, with
     /// <see cref="WalkBurst"/> metres in hand. A cat that walks off reels its line in, with nothing on it.
     /// </summary>
@@ -160,16 +160,16 @@ public sealed class OverworldState(WorldSpace space, int capacity)
 
         var (metres, at) = _walks.GetValueOrDefault(playerId, (WalkBurst, now));
         metres = Math.Min(WalkBurst, metres + (Math.Max(0, (now - at).TotalSeconds) * MaxWalkSpeed));
-        var position = Space.Clamp(target);
-        var distance = position.DistanceTo(cat.Position);
-        if (distance > metres)
+        var reach = cat.Position.DistanceTo(target);
+        if (reach > metres)
         {
-            var fraction = metres / distance;
-            position = Space.Clamp(new Position(
-                cat.Position.X + ((position.X - cat.Position.X) * fraction), cat.Position.Z + ((position.Z - cat.Position.Z) * fraction)));
-            distance = metres;
+            var fraction = metres / reach;
+            target = new Position(
+                cat.Position.X + ((target.X - cat.Position.X) * fraction), cat.Position.Z + ((target.Z - cat.Position.Z) * fraction));
         }
 
+        var position = Space.WalkToward(cat.Position, target);
+        var distance = position.DistanceTo(cat.Position);
         _walks[playerId] = (metres - distance, now);
         Put(cat with { Position = position, Pose = CatPose.Standing });
         _lines.Remove(playerId);

@@ -243,6 +243,60 @@ public sealed class OverworldTests
         });
     }
 
+    // "east" ends at world x 40 and "far" starts at 50: ten metres of grass between them that no cat may cross.
+    private static OverworldState WithAGap() =>
+        new(new WorldSpace([West(), East(), new RoomDefinition("far", "Far", 20, 20, new Position(0, 0), 100) { Place = new WorldPlace(25, 0) }]), 300);
+
+    [Test]
+    public void ACatThatClicksAcrossTheGrassBetweenRooms_WalksToTheEdgeAndStops()
+    {
+        var (world, id) = WithCat(WithAGap(), "east");
+
+        var stopped = Walk(world, id, new Position(60, 10));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(stopped.X, Is.EqualTo(40).Within(0.01), "it stops at the east room's edge");
+            Assert.That(stopped.Z, Is.EqualTo(10).Within(0.01));
+            Assert.That(world.Space.Contains(stopped), Is.True);
+        });
+    }
+
+    [Test]
+    public void ACatThatClicksPastACorner_StopsWhereItsLineLeavesTheFloor_NotSlidAlongTheEdge()
+    {
+        var (world, id) = WithCat(WithAGap(), "east");
+        var start = world.Find(id)!.Position;
+
+        var stopped = Walk(world, id, new Position(start.X + 15, start.Z + 30));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(stopped.X, Is.EqualTo(start.X + 5).Within(0.01), "still on the line it set out along, not slid to the target's x");
+            Assert.That(stopped.Z, Is.EqualTo(20).Within(0.01), "stopped at the north edge");
+        });
+    }
+
+    [Test]
+    public void ACatThatClicksAnywhereOnTheFloor_StillWalksThereInOneGo()
+    {
+        var (world, id) = WithCat(WithAGap(), "west");
+
+        var seam = Walk(world, id, new Position(35, 3));
+
+        Assert.That(seam, Is.EqualTo(new Position(35, 3)), "across the seam between west and east");
+    }
+
+    [Test]
+    public void ACatThatClicksWithAnAbsurdTarget_IsNotHeldUpWorkingOutWhereItStops()
+    {
+        var (world, id) = WithCat(WithAGap(), "west");
+
+        var stopped = Walk(world, id, new Position(1e15, 10));
+
+        Assert.That(world.Space.Contains(stopped), Is.True);
+    }
+
     // One long room, 300 m by 20 m, with a pond a cat can fish in; the cat arrives at its middle, world x 150.
     private static OverworldState Long() =>
         new(new WorldSpace([new RoomDefinition("long", "Long", 300, 20, new Position(0, 0), 100)

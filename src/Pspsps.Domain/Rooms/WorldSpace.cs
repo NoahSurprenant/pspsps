@@ -79,6 +79,102 @@ public sealed class WorldSpace
         return best;
     }
 
+    /// <summary>
+    /// Where a cat that sets out from <paramref name="from"/> straight towards <paramref name="target"/> ends up: at the
+    /// target when the whole line is on the world's floor, else at the last spot of the floor on that line (the cat
+    /// walks up to the edge and stops, never across the grass or buildings between rooms).
+    /// </summary>
+    public Position WalkToward(Position from, Position target)
+    {
+        if (!Contains(from))
+        {
+            return Clamp(target);
+        }
+
+        var length = from.DistanceTo(target);
+        var steps = (int)Math.Ceiling(length / WalkStep);
+        var good = 0.0;
+        for (var step = 1; step <= steps; step++)
+        {
+            var t = Math.Min(1.0, step * WalkStep / length);
+            if (!Contains(Along(from, target, t)))
+            {
+                var bad = t;
+                for (var i = 0; i < 20; i++)
+                {
+                    var middle = (good + bad) / 2;
+                    if (Contains(Along(from, target, middle)))
+                    {
+                        good = middle;
+                    }
+                    else
+                    {
+                        bad = middle;
+                    }
+                }
+
+                return Along(from, target, good);
+            }
+
+            good = t;
+        }
+
+        return target;
+    }
+
+    private const double WalkStep = 0.1;
+
+    private static Position Along(Position from, Position to, double t) =>
+        new(from.X + ((to.X - from.X) * t), from.Z + ((to.Z - from.Z) * t));
+
+    /// <summary>
+    /// Where a cat that sets out from <paramref name="from"/> straight towards <paramref name="target"/> ends up: at the
+    /// target when the whole line is on the world's floor, else at the last spot of the floor on that line (the cat
+    /// walks up to the edge and stops, never across the grass or buildings between rooms).
+    /// </summary>
+    public Position WalkToward(Position from, Position target)
+    {
+        if (!Contains(from))
+        {
+            return Clamp(target);
+        }
+
+        var length = from.DistanceTo(target);
+        var steps = (int)Math.Ceiling(length / WalkStep);
+        var good = 0.0;
+        for (var step = 1; step <= steps; step++)
+        {
+            var t = Math.Min(1.0, step * WalkStep / length);
+            if (!Contains(Along(from, target, t)))
+            {
+                var bad = t;
+                for (var i = 0; i < 20; i++)
+                {
+                    var middle = (good + bad) / 2;
+                    if (Contains(Along(from, target, middle)))
+                    {
+                        good = middle;
+                    }
+                    else
+                    {
+                        bad = middle;
+                    }
+                }
+
+                return Along(from, target, good);
+            }
+
+            good = t;
+        }
+
+        return target;
+    }
+
+    private const double WalkStep = 0.1;
+
+    private static Position Along(Position from, Position to, double t) =>
+        new(from.X + ((to.X - from.X) * t), from.Z + ((to.Z - from.Z) * t));
+
     /// <summary>The door <paramref name="doorId"/> of the room <paramref name="roomId"/>, where it is in the world.</summary>
     public Position DoorSpot(string roomId, string doorId) => ToWorld(roomId, Find(roomId).GetDoor(doorId).Spot);
 
