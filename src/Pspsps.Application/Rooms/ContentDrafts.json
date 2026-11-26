@@ -21527,16 +21527,22 @@
             "facing": 0
           },
           {
+            "kind": "shore-rocks",
             "spot": {
-              "x": 3,
-              "z": -6.6
-            }
+              "x": -0.2,
+              "z": -5.8
+            },
+            "radius": 1.25,
+            "facing": 0
           },
           {
+            "kind": "shore-rocks",
             "spot": {
-              "x": 10,
-              "z": -6.9
-            }
+              "x": 9.4,
+              "z": -2.6
+            },
+            "radius": 1.25,
+            "facing": 0
           }
         ],
         "doors": [],
