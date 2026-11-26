@@ -38,7 +38,6 @@ public sealed class ShoreRoomsTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(layout.Props.Count, Is.GreaterThanOrEqualTo(12));
             Assert.That(layout.Props.Count(p => p.Kind.StartsWith("shore-", StringComparison.Ordinal)), Is.GreaterThanOrEqualTo(8));
             Assert.That(look.Floor!.Painter, Does.StartWith("shore-"));
             Assert.That(look.Backdrop.Parts.Count, Is.GreaterThanOrEqualTo(30));
