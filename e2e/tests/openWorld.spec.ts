@@ -78,8 +78,13 @@ test("cats in the open world see and hear only what is near, and walk from one r
     const east = ROOMS.reduce((sum, id) => sum + width(id), 0) - 1;
     expect(east - west, "the placed rooms are wider than the distance cats see").toBeGreaterThan(40);
     await tab.a.hub.invoke("Move", west, 8);
-    await tab.b.hub.invoke("Move", east, 8);
-    await expect.poll(() => heardByA.left).toContain(tab.b.id);
+    // Cats walk straight and stop where the floor ends, so the far cat first steps to a spot on the row (z = 8) that every room has,
+    // then walks the row, repeating the move until its walking pace has carried it across the world.
+    await tab.b.hub.invoke("Move", west, 8);
+    await expect.poll(async () => {
+      await tab.b.hub.invoke("Move", east, 8);
+      return heardByA.left;
+    }).toContain(tab.b.id);
     await expect.poll(() => heardByB.left).toContain(tab.a.id);
     await tab.b.hub.invoke("Say", "far away");
     await expect.poll(() => heardByB.heard).toContain("far away");
