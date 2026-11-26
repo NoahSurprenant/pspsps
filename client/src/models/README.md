@@ -36,3 +36,18 @@ node scripts/mesh-model.mjs "<starter kit>/models/building-small-a.glb" src/mode
 
 The "town-hotel" and "town-mall" meshes, from the same starter kit as the town house: Kenney's "building-small-c" and
 "building-garage" (CC0), made the same way with `scripts/mesh-model.mjs`.
+
+## townSquareCoffee.json
+
+The "town-square-coffee" mesh: the Town Square's coffee shop front, modelled for this game in Blender (our own work, no
+outside assets). The scene is a Python script, `client/scripts/blender/townSquareCoffee.py`, built on
+`client/scripts/blender/lib.py`, which also writes the mesh (a colour for every vertex, from each material). With
+the `bpy` module in a container:
+
+```sh
+pip install bpy   # Python 3.11
+python townSquareCoffee.py   # writes /work/out/coffee.json: copy it to src/models/townSquareCoffee.json
+```
+
+The front is -y in Blender (-z in the game, toward the camera); the shop is 6 m wide and 1.4 m deep, origin at the
+middle of its base.
