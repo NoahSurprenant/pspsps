@@ -386,7 +386,8 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             [.. versions.Select(v => new VersionSummary(v.Number, v.State, v.CreatedAt, v.PublishedAt))],
             versions.FirstOrDefault(v => v.State == RoomVersionState.Published)?.Layout,
             versions.FirstOrDefault(v => v.State == RoomVersionState.Draft)?.Layout,
-            [.. overlays.Select(o => o.ToOverlay()).OrderBy(o => o.Id, StringComparer.Ordinal)],
+            // What the room will have once its draft is published: the overlays waiting in the draft stand in for the live ones of the same ID.
+            [.. WithPending(overlays.Select(o => o.ToOverlay()), versions.FirstOrDefault(v => v.State == RoomVersionState.Draft)?.Overlays?.ToList()).OrderBy(o => o.Id, StringComparer.Ordinal)],
             versions.FirstOrDefault(v => v.State == RoomVersionState.Draft)?.Revision,
             versions.FirstOrDefault(v => v.State == RoomVersionState.Draft)?.GoLiveAt,
             versions.FirstOrDefault(v => v.State == RoomVersionState.Draft)?.Look);
