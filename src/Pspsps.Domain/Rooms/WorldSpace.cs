@@ -124,11 +124,11 @@ public sealed class WorldSpace
         return target;
     }
 
-    private static Position Along(Position from, Position to, double t) =>
-        new(from.X + ((to.X - from.X) * t), from.Z + ((to.Z - from.Z) * t));
-
     /// <summary>The door <paramref name="doorId"/> of the room <paramref name="roomId"/>, where it is in the world.</summary>
     public Position DoorSpot(string roomId, string doorId) => ToWorld(roomId, Find(roomId).GetDoor(doorId).Spot);
+
+    private static Position Along(Position from, Position to, double t) =>
+        new(from.X + ((to.X - from.X) * t), from.Z + ((to.Z - from.Z) * t));
 
     private RoomDefinition Find(string roomId) =>
         _rooms.FirstOrDefault(room => room.Id == roomId)
