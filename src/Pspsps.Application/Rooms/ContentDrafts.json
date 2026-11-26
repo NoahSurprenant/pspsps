@@ -22276,13 +22276,13 @@
             },
             {
               "shape": "box",
-              "width": 70,
+              "width": 36,
               "height": 0.04,
-              "depth": 20,
+              "depth": 22,
               "at": [
                 0,
                 0.01,
-                -18
+                -19
               ],
               "colour": "#4fb3d9"
             },
