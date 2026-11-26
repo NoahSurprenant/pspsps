@@ -88,3 +88,22 @@ def cyl(r, d, x, y, z, col, verts=24):
     o = bpy.context.active_object
     o.data.materials.append(mat(col))
     return o
+
+def star(r, d, x, y, z, col):
+    """A five-pointed star standing in the x/z plane, outer radius r, thick d, centre (x, y, z)."""
+    bm = bmesh.new()
+    pts = []
+    for k in range(10):
+        a = math.pi / 2 + k * math.pi / 5
+        rr = r if k % 2 == 0 else r * 0.42
+        pts.append((rr * math.cos(a), rr * math.sin(a)))
+    front = [bm.verts.new((px, -d / 2, pz)) for px, pz in pts]
+    back = [bm.verts.new((px, d / 2, pz)) for px, pz in pts]
+    bm.faces.new(front[::-1]); bm.faces.new(back)
+    for k in range(10):
+        bm.faces.new([front[k], front[(k + 1) % 10], back[(k + 1) % 10], back[k]])
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    me = bpy.data.meshes.new("star"); bm.to_mesh(me); bm.free()
+    o = bpy.data.objects.new("star", me); bpy.context.collection.objects.link(o)
+    o.location = (x, y, z); o.data.materials.append(mat(col))
+    return o

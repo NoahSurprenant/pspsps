@@ -5,11 +5,11 @@ ORANGE, BROWN, DARK, CREAM, GLASS, RED, GREEN = "#e3a755", "#7a4a2a", "#4a3426",
 F = -0.7  # the front wall
 box(6.3, 1.7, 0.35, 0, 0, 0, "#5a3a22")                         # plinth
 box(6.0, 1.4, 4.4, 0, 0, 0.35 - 0.35, ORANGE)                   # ground storey
-box(6.6, 1.7, 0.3, 0, 0, 4.4, BROWN)                            # band
+box(6.3, 1.6, 0.3, 0, 0, 4.4, BROWN)                            # band
 box(6.3, 1.4, 3.6, 0, 0, 4.7, ORANGE)                           # upper storey
-box(7.2, 1.9, 0.35, 0, 0, 8.3, CREAM)                           # cornice
-prism(7.0, 2.3, 1.9, 0, 0, 8.65, RED)                           # roof
-box(7.2, 0.12, 0.14, 0, -1.2, 8.62, BROWN)                      # eave trim
+box(6.7, 1.8, 0.35, 0, 0, 8.3, CREAM)                           # cornice
+prism(6.6, 2.3, 1.9, 0, 0, 8.65, RED)                           # roof
+box(6.7, 0.12, 0.14, 0, -1.2, 8.62, BROWN)                      # eave trim
 # door
 box(1.7, 0.14, 2.45, 0, F - 0.02, 0.0, BROWN)
 box(1.2, 0.08, 2.15, 0, F - 0.09, 0.05, DARK)

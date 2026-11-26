@@ -5,11 +5,11 @@ BROWN, WALL, DARK, CREAM, GLASS, GREEN, TEAL, PINK = "#8a5a3a", "#9a6542", "#4a2
 F = -0.7
 box(6.3, 1.7, 0.3, 0, 0, 0, "#3a2414")                            # plinth
 box(6.0, 1.4, 4.0, 0, 0, 0, WALL)                                 # ground storey
-box(6.6, 1.7, 0.3, 0, 0, 4.0, DARK)                               # band
+box(6.3, 1.6, 0.3, 0, 0, 4.0, DARK)                               # band
 box(6.3, 1.4, 4.0, 0, 0, 4.3, BROWN)                              # upper storey
-box(7.2, 1.9, 0.35, 0, 0, 8.3, CREAM)                             # cornice
-prism(7.0, 2.3, 1.9, 0, 0, 8.65, GREEN)                           # roof
-box(7.2, 0.12, 0.14, 0, -1.2, 8.62, CREAM)
+box(6.7, 1.8, 0.35, 0, 0, 8.3, CREAM)                             # cornice
+prism(6.6, 2.3, 1.9, 0, 0, 8.65, GREEN)                           # roof
+box(6.7, 0.12, 0.14, 0, -1.2, 8.62, CREAM)
 # door with a teal awning
 box(1.7, 0.14, 2.4, 0, F - 0.02, 0.0, DARK)
 box(1.2, 0.08, 2.1, 0, F - 0.09, 0.05, "#6b4a36")

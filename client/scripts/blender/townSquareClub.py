@@ -32,16 +32,19 @@ for s in (-1, 1):
     box(0.95, 0.5, 1.9, x, F - 0.28, 0.1, NIGHT)
     cyl(0.32, 0.1, x, F - 0.56, 1.45, "#555a66"); cyl(0.15, 0.12, x, F - 0.58, 1.45, "#222630")
     cyl(0.22, 0.1, x, F - 0.56, 0.7, "#555a66"); cyl(0.1, 0.12, x, F - 0.58, 0.7, "#222630")
-# the pink board with a bulb row
-box(5.5, 0.16, 1.5, 0, F - 0.1, 3.0, TEAL)
-box(5.3, 0.06, 1.3, 0, F - 0.2, 3.1, PINK)
-for k in range(13):
+# the sign over the door, with a bulb frame
+box(5.9, 0.2, 1.7, 0, F - 0.1, 2.95, TEAL)
+box(5.6, 0.06, 1.4, 0, F - 0.22, 3.1, NIGHT)
+text("DANCE", 0.62, -1.25, F - 0.3, 3.95, GOLD, 0.08)
+text("CLUB", 0.62, 1.5, F - 0.3, 3.95, GOLD, 0.08)
+star(0.3, 0.08, 0, F - 0.3, 3.95, PINK)
+for k in range(15):
     c = "#ffffff" if k % 2 == 0 else "#ffff65"
-    box(0.16, 0.16, 0.16, -2.4 + k * 0.4, F - 0.24, 4.4, c); box(0.16, 0.16, 0.16, -2.4 + k * 0.4, F - 0.24, 3.0, c)
-# the marquee sign up top
-box(5.8, 0.2, 1.5, 0, F - 0.12, 7.25, TEAL)
-box(5.5, 0.06, 1.2, 0, F - 0.25, 7.4, NIGHT)
-text("DANCE CLUB", 0.62, 0, F - 0.32, 7.75, GOLD, 0.07)
+    box(0.17, 0.17, 0.17, -2.8 + k * 0.4, F - 0.26, 4.5, c); box(0.17, 0.17, 0.17, -2.8 + k * 0.4, F - 0.26, 3.2, c)
+# stars above the arched windows
+for s_ in (-1, 1):
+    star(0.5, 0.1, s_ * 2.3, F - 0.18, 8.0, GOLD)
+star(0.35, 0.1, 0, F - 0.18, 9.6, PINK)
 # arched windows either side of the ball
 for s in (-1, 1):
     x = s * 2.3

@@ -916,13 +916,23 @@ export class RoomScene {
     return strip;
   }
 
+  private oval(name: string, width: number, height: number, depth: number): Mesh {
+    const oval = CreateCylinder(name, { diameter: 1, height, tessellation: 64 }, this.scene);
+    oval.scaling.set(width, 1, depth);
+    return oval;
+  }
+
   /** One step of a terrace: a block of paving on a dark edge, each step a shade apart from the next so they read as steps. */
   private drawSlab(roomId: string, slab: Slab, index: number, top: boolean): AbstractMesh {
-    const rim = CreateBox("terrace-edge", { width: slab.width + 0.08, height: slab.top - 0.005, depth: slab.depth + 0.08 }, this.scene);
+    const rim = slab.round
+      ? this.oval("terrace-edge", slab.width + 0.08, slab.top - 0.005, slab.depth + 0.08)
+      : CreateBox("terrace-edge", { width: slab.width + 0.08, height: slab.top - 0.005, depth: slab.depth + 0.08 }, this.scene);
     rim.position.set(slab.x, (slab.top - 0.005) / 2, slab.z);
     rim.material = flat(this.scene, "terrace-edge", "#8c7b5e");
     rim.isPickable = false;
-    const block = CreateBox(`terrace-${roomId}`, { width: slab.width, height: slab.top, depth: slab.depth }, this.scene);
+    const block = slab.round
+      ? this.oval(`terrace-${roomId}`, slab.width, slab.top, slab.depth)
+      : CreateBox(`terrace-${roomId}`, { width: slab.width, height: slab.top, depth: slab.depth }, this.scene);
     block.position.set(slab.x, slab.top / 2, slab.z);
     const stepColour = slab.colour ?? (index % 2 === 0 ? "#e3d8bd" : "#efe6d0");
     block.material = top ? flat(this.scene, "terrace-top", slab.colour ?? "#c9b58e") : flat(this.scene, "terrace", stepColour);
