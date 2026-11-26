@@ -668,6 +668,35 @@ public sealed class RoomEditorHttpTests
     }
 
     [Test]
+    public async Task LoadingTheContentFile_ReplacesALivePainterThatDiffers()
+    {
+        var (adminPlayer, _) = await Game.SignInGuestAsync();
+        var editor = Game.Get<IRoomEditor>();
+        var old = new DraftPainter("import-test-floor", PaintSurfaces.Floor, [new PaintStep("fill", Colour: "#808080")]);
+        var changed = old with { Steps = [new PaintStep("fill", Colour: "#112233")] };
+        try
+        {
+            await editor.ImportAsync(new ContentFile(Painters: [old]), adminPlayer.Id, CancellationToken.None);
+            var swapped = await editor.ImportAsync(new ContentFile(Painters: [changed]), adminPlayer.Id, CancellationToken.None);
+            await using var db = Db();
+            var live = await db.PainterRecipes.AsNoTracking().SingleAsync(p => p.Id == "import-test-floor");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(swapped.Problems, Is.Empty);
+                Assert.That(swapped.Applied, Has.Some.Contains("painter import-test-floor"));
+                Assert.That(live.Steps.Single().Colour, Is.EqualTo("#112233"));
+            });
+        }
+        finally
+        {
+            await using var db = Db();
+            db.PainterRecipes.RemoveRange(await db.PainterRecipes.Where(p => p.Id.StartsWith("import-test-")).ToListAsync());
+            await db.SaveChangesAsync();
+        }
+    }
+
+    [Test]
     public async Task ALookVariant_CanCarryAFloorOfItsOwn_ThatMustNameAFloorPainter()
     {
         var (adminPlayer, _) = await Game.SignInGuestAsync();

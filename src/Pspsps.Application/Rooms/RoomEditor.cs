@@ -200,7 +200,7 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             }
             else
             {
-                problems.Add($"painter {painter.Id}: differs from the live recipe; change it in the admin.");
+                await Attempt($"painter {painter.Id}", () => SavePainterAsync(painter.Id, painter.Surface, painter.Steps, adminId, cancellationToken), "replaced (the file differs)");
             }
         }
 
