@@ -135,11 +135,16 @@ public sealed class ContentDraftsTests
         Assert.That(parts.Count(part => part.Shape == shape && part.Colour == colour), Is.GreaterThanOrEqualTo(atLeast), what);
     }
 
-    [TestCase("town-square")]
-    [TestCase("plaza")]
-    public void TheTownRooms_UseTheTownGenerator_ForTheirPavingStep(string id)
+    [Test]
+    public void ThePlaza_UsesTheTownGenerator_ForItsPavingStep()
     {
-        Assert.That(Content.AllLooks.Single(look => look.Id == id).Look.Backdrop.Generator, Is.EqualTo("town"));
+        Assert.That(Content.AllLooks.Single(look => look.Id == "plaza").Look.Backdrop.Generator, Is.EqualTo("town"));
+    }
+
+    [Test]
+    public void TownSquare_HasNoGeneratedRowOfHouses_OnlyItsThreeShops()
+    {
+        Assert.That(Content.AllLooks.Single(look => look.Id == "town-square").Look.Backdrop.Generator, Is.Null);
     }
 
     [Test]
