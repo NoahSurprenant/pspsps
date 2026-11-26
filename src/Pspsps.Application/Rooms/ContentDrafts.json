@@ -29,7 +29,7 @@
           },
           {
             "x": 10.8,
-            "z": -1.9,
+            "z": -4.2,
             "width": 2,
             "depth": 2,
             "height": 0.2,
@@ -37,15 +37,7 @@
           },
           {
             "x": -10.4,
-            "z": -0.2,
-            "width": 2.2,
-            "depth": 2.2,
-            "height": 0.2,
-            "colour": "#6fae4f"
-          },
-          {
-            "x": -10.4,
-            "z": -2.4,
+            "z": -4.2,
             "width": 2.2,
             "depth": 2.2,
             "height": 0.2,
@@ -136,7 +128,7 @@
             "kind": "field-bush",
             "spot": {
               "x": 10.8,
-              "z": -1.9
+              "z": -4.2
             },
             "radius": 0.9,
             "facing": 0
@@ -199,16 +191,7 @@
             "kind": "field-bush",
             "spot": {
               "x": -10.4,
-              "z": -0.2
-            },
-            "radius": 0.9,
-            "facing": 0
-          },
-          {
-            "kind": "field-bush",
-            "spot": {
-              "x": -10.4,
-              "z": -2.4
+              "z": -4.2
             },
             "radius": 0.9,
             "facing": 0
