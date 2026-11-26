@@ -61,7 +61,8 @@ public sealed class OverworldTests
         {
             Assert.That(across, Is.EqualTo(new Position(35, 5)));
             Assert.That(past, Is.EqualTo(new Position(40, 5)));
-            Assert.That(corner, Is.EqualTo(new Position(0, 0)));
+            Assert.That(corner.X, Is.EqualTo(17.5).Within(0.01), "a click past the corner stops where the line leaves the floor, not slid into the corner");
+            Assert.That(corner.Z, Is.EqualTo(0).Within(0.01));
         });
     }
 
