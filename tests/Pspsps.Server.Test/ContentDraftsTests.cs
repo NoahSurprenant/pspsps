@@ -339,11 +339,10 @@ public sealed class ContentDraftsTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(rink.Props.Count(p => p.Kind == PropKinds.Goal), Is.EqualTo(winter ? 0 : 2), "two goals on the pitch only");
+            Assert.That(rink.Props.Count(p => p.Kind == PropKinds.Goal), Is.EqualTo(2), "a net at each end, goals on the pitch and hockey nets on the rink");
             Assert.That(rink.Props.Any(p => p.Kind == PropKinds.IcePatch), Is.EqualTo(winter), "ice only in winter");
             Assert.That(rink.Props.Any(p => p.Kind == PropKinds.RinkBoard), Is.EqualTo(winter), "boards only in winter");
-            Assert.That(rink.Props.Count(p => p.Kind == PropKinds.Bench), Is.GreaterThan(0), "benches all year");
-            Assert.That(rink.Props.Count(p => p.Kind == PropKinds.Lamp), Is.GreaterThan(0), "lamps all year");
+            Assert.That(rink.Props.Where(p => p.Kind is PropKinds.Bench or PropKinds.Lamp or PropKinds.Plant or PropKinds.FlowerBed or PropKinds.FieldStump or PropKinds.FieldBush or PropKinds.FieldPine).Select(p => p.Kind), Is.Empty, "no street furniture or plants on the playing surface, in either season");
             Assert.That(rink.Look, Is.EqualTo(winter ? "frozen-rink" : null));
         });
     }
