@@ -33,15 +33,6 @@
           {
             "kind": "bench",
             "spot": {
-              "x": -10.7,
-              "z": -6.7
-            },
-            "radius": 1,
-            "facing": -2.356194490192345
-          },
-          {
-            "kind": "bench",
-            "spot": {
               "x": 0,
               "z": -7
             },
@@ -94,21 +85,84 @@
             "facing": 0
           },
           {
-            "kind": "field-big-tree",
-            "spot": {
-              "x": 9.6,
-              "z": -5.6
-            },
-            "radius": 2.4,
-            "facing": 0
-          },
-          {
             "kind": "field-arrow-sign",
             "spot": {
               "x": 11.3,
               "z": 1.4
             },
             "radius": 0.58,
+            "facing": 0
+          },
+          {
+            "kind": "field-big-tree",
+            "spot": {
+              "x": -10.6,
+              "z": -6.2
+            },
+            "radius": 2.4,
+            "facing": 0
+          },
+          {
+            "kind": "field-bush",
+            "spot": {
+              "x": -7.9,
+              "z": -7.2
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "field-bush",
+            "spot": {
+              "x": -11.4,
+              "z": -3.2
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "field-bush",
+            "spot": {
+              "x": -9.2,
+              "z": -4.1
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "field-big-tree",
+            "spot": {
+              "x": 10.8,
+              "z": -6.2
+            },
+            "radius": 2.4,
+            "facing": 0
+          },
+          {
+            "kind": "field-bush",
+            "spot": {
+              "x": 8.2,
+              "z": -7.2
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "field-bush",
+            "spot": {
+              "x": 11.4,
+              "z": -3.4
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "field-bush",
+            "spot": {
+              "x": 9.3,
+              "z": -4.2
+            },
+            "radius": 0.9,
             "facing": 0
           }
         ],
