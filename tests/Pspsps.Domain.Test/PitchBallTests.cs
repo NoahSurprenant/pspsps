@@ -42,7 +42,7 @@ public sealed class PitchBallTests
     public void ARollingBall_SlowsToAStopOnGrass_AndLongerOnIce()
     {
         var grass = Ball();
-        var ice = Ball(onIce: true);
+        var ice = Ball(ice: true);
         grass.Kick(new Position(99, 50), new Position(99.5, 50));
         ice.Kick(new Position(99, 50), new Position(99.5, 50));
 
@@ -63,7 +63,7 @@ public sealed class PitchBallTests
     [Test]
     public void ABallHittingTheBoards_BouncesBackSlower_AndStaysOnThePitch()
     {
-        var ball = Ball(onIce: true);
+        var ball = Ball(ice: true);
         ball.Kick(new Position(99, 50), new Position(99.5, 50));
 
         for (var step = 0; step < 40; step++)

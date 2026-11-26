@@ -16882,7 +16882,7 @@
               "x": 0,
               "z": 0
             },
-            "radius": 0.4,
+            "radius": 0.5,
             "facing": 0
           }
         ],
@@ -30907,7 +30907,7 @@
             "x": 0,
             "z": 0
           },
-          "radius": 0.4,
+          "radius": 0.5,
           "facing": 0
         },
         {
@@ -40669,7 +40669,7 @@
     },
     {
       "kind": "pitch-ball",
-      "size": 0.4,
+      "size": 0.5,
       "parts": [
         {
           "shape": "ball",

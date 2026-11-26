@@ -715,7 +715,7 @@ export class RoomScene {
     if (!this.ballMesh || this.ballKind !== ball.kind) {
       this.ballMesh?.dispose(false, true);
       this.ballKind = ball.kind;
-      this.ballMesh = buildParts(this.scene, "ball", propParts({ kind: ball.kind, x: 0, z: 0, radius: 0.4, facing: 0 }));
+      this.ballMesh = buildParts(this.scene, "ball", propParts({ kind: ball.kind, x: 0, z: 0, radius: ball.kind === "puck" ? 0.4 : 0.5, facing: 0 }));
       if (this.ballMesh) {
         this.ballMesh.isPickable = false;
         this.ballMesh.position.set(ball.x, 0, ball.z);
