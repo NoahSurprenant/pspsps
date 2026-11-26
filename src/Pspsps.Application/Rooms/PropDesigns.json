@@ -732,15 +732,6 @@
   {"shape":"cylinder","diameter":0.68,"height":0.1,"at":[0,0.82,0],"colour":"#c0505a","sides":12},
   {"shape":"box","width":0.1,"height":0.4,"depth":0.04,"at":[0.2,0.62,-0.4],"colour":"#c0505a"}
  ]},
- {"kind": "town-house", "size": 2.4, "parts": [
-  {"shape":"model","model":"town-house","scale":3.3,"at":[0,0,0],"colour":"#ffffff"}
- ]},
- {"kind": "town-hotel", "size": 2.4, "parts": [
-  {"shape":"model","model":"town-hotel","scale":3.3,"at":[0,0,0],"colour":"#ffffff"}
- ]},
- {"kind": "town-mall", "size": 2, "parts": [
-  {"shape":"model","model":"town-mall","scale":2.7,"at":[0,0,0],"colour":"#ffffff"}
- ]},
  {"kind": "field-sandcastle", "size": 2.4, "parts": [
   {"shape":"box","width":3,"height":0.9,"depth":1.68,"at":[0,0.48,0],"colour":"#e0c68f"},
   {"shape":"box","width":3.1,"height":0.12,"depth":1.78,"at":[0,0.09,0],"colour":"#c9a96a"},

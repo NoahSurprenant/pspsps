@@ -20,23 +20,6 @@ colour, named `<part>.<colour>` (`coat`, `accent`, `eyes`, `pupils`, `dark`), ke
 clips, and adds `sit`, `sleep`, `wave` and `meow`. About 65 KB (12 KB gzipped); it loads on the way into the first
 room, never on the sign-in screen or the world list.
 
-## townHouse.json
-
-The "town-house" mesh (`src/meshes.ts`, drawn by a prop design's `model` part): Kenney's "building-small-a" from the
-[City Builder starter kit](https://github.com/KenneyNL/Starter-Kit-City-Builder), by Kenney (www.kenney.nl), whose
-models are Creative Commons Zero (CC0 1.0). `client/scripts/mesh-model.mjs` makes it: each vertex takes the colour of
-the colour-map texel it points at, and the game draws it flat and outlined like its other parts.
-
-```sh
-cd client
-node scripts/mesh-model.mjs "<starter kit>/models/building-small-a.glb" src/models/townHouse.json
-```
-
-## townHotel.json, townMall.json
-
-The "town-hotel" and "town-mall" meshes, from the same starter kit as the town house: Kenney's "building-small-c" and
-"building-garage" (CC0), made the same way with `scripts/mesh-model.mjs`.
-
 ## townSquareCoffee.json
 
 The "town-square-coffee" mesh: the Town Square's coffee shop front, modelled for this game in Blender (our own work, no

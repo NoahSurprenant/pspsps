@@ -97,7 +97,7 @@ describe("meshFights", () => {
 const shopFights: Record<string, number> = { "town-square-coffee": 1, "town-square-club": 3, "town-square-clothes": 1 };
 
 describe("the built-in models", () => {
-  it.each(["town-house", "town-hotel", "town-mall", ...Object.keys(shopFights)])("%s has no more z-fighting faces than before", (name) => {
+  it.each([...Object.keys(shopFights)])("%s has no more z-fighting faces than before", (name) => {
     const found = meshFights(modelData(name) ?? { positions: [], indices: [], colours: [] });
 
     expect(found.length, found.join("\n")).toBeLessThanOrEqual(shopFights[name] ?? 0);
