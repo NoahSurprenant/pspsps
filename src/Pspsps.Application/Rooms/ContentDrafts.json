@@ -3731,188 +3731,6 @@
             },
             {
               "shape": "box",
-              "width": 2,
-              "height": 2.1,
-              "depth": 0.02,
-              "at": [
-                -8.1,
-                1.6,
-                8.06
-              ],
-              "colour": "#5a321c",
-              "outlined": true
-            },
-            {
-              "shape": "box",
-              "width": 1.7,
-              "height": 1.7,
-              "depth": 0.02,
-              "at": [
-                -8.1,
-                1.6,
-                8.07
-              ],
-              "colour": "#bfe6f0",
-              "outlined": false
-            },
-            {
-              "shape": "box",
-              "width": 0.08,
-              "height": 1.7,
-              "depth": 0.02,
-              "at": [
-                -8.1,
-                1.6,
-                8.08
-              ],
-              "colour": "#5a321c",
-              "outlined": false
-            },
-            {
-              "shape": "box",
-              "width": 2,
-              "height": 2.1,
-              "depth": 0.02,
-              "at": [
-                -3.9,
-                1.6,
-                8.06
-              ],
-              "colour": "#5a321c",
-              "outlined": true
-            },
-            {
-              "shape": "box",
-              "width": 1.7,
-              "height": 1.7,
-              "depth": 0.02,
-              "at": [
-                -3.9,
-                1.6,
-                8.07
-              ],
-              "colour": "#bfe6f0",
-              "outlined": false
-            },
-            {
-              "shape": "box",
-              "width": 0.08,
-              "height": 1.7,
-              "depth": 0.02,
-              "at": [
-                -3.9,
-                1.6,
-                8.08
-              ],
-              "colour": "#5a321c",
-              "outlined": false
-            },
-            {
-              "shape": "box",
-              "width": 2,
-              "height": 2.1,
-              "depth": 0.02,
-              "at": [
-                4.9,
-                1.6,
-                8.06
-              ],
-              "colour": "#2c1a10",
-              "outlined": true
-            },
-            {
-              "shape": "box",
-              "width": 1.7,
-              "height": 1.7,
-              "depth": 0.02,
-              "at": [
-                4.9,
-                1.6,
-                8.07
-              ],
-              "colour": "#bfe6f0",
-              "outlined": false
-            },
-            {
-              "shape": "box",
-              "width": 0.08,
-              "height": 1.7,
-              "depth": 0.02,
-              "at": [
-                4.9,
-                1.6,
-                8.08
-              ],
-              "colour": "#2c1a10",
-              "outlined": false
-            },
-            {
-              "shape": "box",
-              "width": 2,
-              "height": 2.1,
-              "depth": 0.02,
-              "at": [
-                9.1,
-                1.6,
-                8.06
-              ],
-              "colour": "#2c1a10",
-              "outlined": true
-            },
-            {
-              "shape": "box",
-              "width": 1.7,
-              "height": 1.7,
-              "depth": 0.02,
-              "at": [
-                9.1,
-                1.6,
-                8.07
-              ],
-              "colour": "#bfe6f0",
-              "outlined": false
-            },
-            {
-              "shape": "box",
-              "width": 0.08,
-              "height": 1.7,
-              "depth": 0.02,
-              "at": [
-                9.1,
-                1.6,
-                8.08
-              ],
-              "colour": "#2c1a10",
-              "outlined": false
-            },
-            {
-              "shape": "box",
-              "width": 3.4,
-              "height": 0.3,
-              "depth": 0.02,
-              "at": [
-                0.5,
-                3.4,
-                8.06
-              ],
-              "colour": "#ffd23f",
-              "outlined": true
-            },
-            {
-              "shape": "box",
-              "width": 2.6,
-              "height": 2.2,
-              "depth": 0.02,
-              "at": [
-                0.5,
-                2.2,
-                8.06
-              ],
-              "colour": "#3a2552",
-              "outlined": false
-            },
-            {
-              "shape": "box",
               "width": 0.8,
               "height": 1.6,
               "depth": 0.8,
@@ -3936,6 +3754,84 @@
               ],
               "colour": "#4a2e1c",
               "outlined": true
+            },
+            {
+              "shape": "box",
+              "width": 1.9,
+              "height": 1.9,
+              "depth": 0.5,
+              "at": [
+                -8.1,
+                1.6,
+                8.25
+              ],
+              "colour": "#bfe6f0",
+              "outlined": true
+            },
+            {
+              "shape": "box",
+              "width": 1.9,
+              "height": 1.9,
+              "depth": 0.5,
+              "at": [
+                -3.9,
+                1.6,
+                8.25
+              ],
+              "colour": "#bfe6f0",
+              "outlined": true
+            },
+            {
+              "shape": "box",
+              "width": 1.9,
+              "height": 1.9,
+              "depth": 0.5,
+              "at": [
+                4.9,
+                1.6,
+                8.25
+              ],
+              "colour": "#bfe6f0",
+              "outlined": true
+            },
+            {
+              "shape": "box",
+              "width": 1.9,
+              "height": 1.9,
+              "depth": 0.5,
+              "at": [
+                9.1,
+                1.6,
+                8.25
+              ],
+              "colour": "#bfe6f0",
+              "outlined": true
+            },
+            {
+              "shape": "box",
+              "width": 3.4,
+              "height": 0.3,
+              "depth": 0.5,
+              "at": [
+                0.5,
+                3.4,
+                8.25
+              ],
+              "colour": "#ffd23f",
+              "outlined": true
+            },
+            {
+              "shape": "box",
+              "width": 2.6,
+              "height": 2.2,
+              "depth": 0.5,
+              "at": [
+                0.5,
+                2.2,
+                8.25
+              ],
+              "colour": "#3a2552",
+              "outlined": false
             }
           ]
         }
