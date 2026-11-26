@@ -616,6 +616,10 @@ namespace Pspsps.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("number");
 
+                    b.Property<string>("Overlays")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("overlays");
+
                     b.Property<DateTimeOffset?>("PublishedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("published_at");

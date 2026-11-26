@@ -31,7 +31,8 @@ public sealed class RoomLibrary(IServiceScopeFactory scopes, TimeProvider time) 
             .ToDictionaryAsync(v => v.RoomId, v => v.Layout, cancellationToken);
         var entries = await db.RoomOverlays.AsNoTracking().ToListAsync(cancellationToken);
         IReadOnlyList<RoomOverlay> overlays = [.. entries.Where(entry => layouts.ContainsKey(entry.RoomId)).Select(entry => entry.ToOverlay())];
-        _book = RoomBook.Create(layouts, overlays);
+        // An overlay saved for a room's draft waits out of the live rooms until that draft is published; the preview has it from the start.
+        _book = RoomBook.Create(layouts, RoomBook.OverlaysThatFit(layouts, overlays));
 
         var drafts = (await db.RoomVersions.AsNoTracking()
             .Where(v => v.State == RoomVersionState.Draft)
@@ -44,8 +45,13 @@ public sealed class RoomLibrary(IServiceScopeFactory scopes, TimeProvider time) 
             played[roomId] = layout;
         }
 
+        // The preview plays each draft with the overlays that go live with it.
+        var waiting = (await db.RoomVersions.AsNoTracking().Where(v => v.State == RoomVersionState.Draft && v.Overlays != null).ToListAsync(cancellationToken))
+            .GroupBy(v => v.RoomId).Select(group => group.MaxBy(v => v.Revision)!).SelectMany(v => v.Overlays!).ToList();
+        var previewOverlays = (IReadOnlyList<RoomOverlay>)[.. overlays.Where(o => !waiting.Any(w => w.RoomId == o.RoomId && w.Id == o.Id)), .. waiting.Where(w => played.ContainsKey(w.RoomId))];
+
         // Drafts that don't fit together yet (an admin part way through an edit) leave the preview playing the published rooms; they are never touched.
-        _preview = RoomBook.Problems(played, overlays).Count == 0 ? RoomBook.Create(played, overlays) : null;
+        _preview = RoomBook.Problems(played, previewOverlays).Count == 0 ? RoomBook.Create(played, previewOverlays) : null;
     }
 
     private sealed class PreviewRooms(Func<RoomBook> book, TimeProvider time) : IRoomLibrary

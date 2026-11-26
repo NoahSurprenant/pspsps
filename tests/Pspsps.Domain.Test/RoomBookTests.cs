@@ -76,6 +76,32 @@ public sealed class RoomBookTests
     }
 
     [Test]
+    public void AnOverlay_ThatTheLiveRoomCannotHold_WaitsOutOfTheLiveBook()
+    {
+        var window = new OverlayWindow(Now, Now.AddDays(7));
+        var crowded = new RoomOverlay("crowd", "shop", "Crowd", window) { Adds = [new Prop(PropKinds.Tree, new Position(-8.1, 3.3), 1)] };
+        var fits = new RoomOverlay("fits", "shop", "Fits", window);
+        var layouts = Seed();
+
+        var kept = RoomBook.OverlaysThatFit(layouts, [crowded, fits]);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(kept, Is.EqualTo(new[] { fits }));
+            Assert.That(() => RoomBook.Create(layouts, kept), Throws.Nothing);
+            Assert.That(() => RoomBook.Create(layouts, [crowded, fits]), Throws.TypeOf<DomainException>());
+        });
+    }
+
+    [Test]
+    public void AnOverlay_ThatFits_IsKeptAsItIs()
+    {
+        var fits = new RoomOverlay("fits", "shop", "Fits", new OverlayWindow(Now, Now.AddDays(7)));
+
+        Assert.That(RoomBook.OverlaysThatFit(Seed(), [fits]), Is.EqualTo(new[] { fits }));
+    }
+
+    [Test]
     public void AnOverlayOfARoomThatIsNotThere_OrOneThatBreaksTheRules_IsAProblem()
     {
         var window = new OverlayWindow(Now, Now.AddDays(7));

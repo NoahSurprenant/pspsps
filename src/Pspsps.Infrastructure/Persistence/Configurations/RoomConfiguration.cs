@@ -19,6 +19,8 @@ internal sealed class RoomVersionConfiguration : IEntityTypeConfiguration<RoomVe
             .HasConversion(RoomJson.Converter<RoomLayout>(), RoomJson.Comparer<RoomLayout>());
         builder.Property(v => v.Look).HasColumnType("jsonb")
             .HasConversion(RoomJson.NullableConverter<RoomLook>(), RoomJson.NullableComparer<RoomLook>());
+        builder.Property(v => v.Overlays).HasColumnType("jsonb")
+            .HasConversion(RoomJson.NullableConverter<IReadOnlyList<RoomOverlay>>(), RoomJson.NullableComparer<IReadOnlyList<RoomOverlay>>());
         builder.HasIndex(v => new { v.RoomId, v.Number }).IsUnique();
         builder.HasIndex(v => v.GoLiveAt).HasFilter("go_live_at is not null").HasDatabaseName("ix_room_versions_go_live_at");
         // A room has at most one published version, whichever pods publish at once.
