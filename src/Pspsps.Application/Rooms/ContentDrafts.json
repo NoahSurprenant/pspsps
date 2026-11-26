@@ -86,10 +86,10 @@
             "round": true
           },
           {
-            "x": 11.1,
+            "x": 10.8,
             "z": -1.9,
-            "width": 2.4,
-            "depth": 2.4,
+            "width": 2,
+            "depth": 2,
             "height": 0.2,
             "colour": "#6fae4f",
             "round": true
@@ -189,7 +189,7 @@
           {
             "kind": "field-bush",
             "spot": {
-              "x": 11.1,
+              "x": 10.8,
               "z": -1.9
             },
             "radius": 0.9,
