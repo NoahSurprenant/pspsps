@@ -457,7 +457,8 @@ export class RoomScene {
       floors.add(this.drawFloorStrip(chunk.roomId, { x: cx + path.x, z: cz + path.z, width: path.width, depth: path.depth }, look.floorColour));
     }
     for (const terrace of chunk.terraces ?? []) {
-      slabs(terrace).forEach((slab, index) => floors.add(this.drawSlab(chunk.roomId, slab, index)));
+      const steps = slabs(terrace);
+      steps.forEach((slab, index) => floors.add(this.drawSlab(chunk.roomId, slab, index, index === steps.length - 1)));
     }
     // The floor's dark edge: a little larger and just below it. Not renderOutline, whose pass, from far off (a narrow
     // screen backs the camera away), covered whatever lay flat on the floor, the pond.
@@ -916,14 +917,14 @@ export class RoomScene {
   }
 
   /** One step of a terrace: a block of paving on a dark edge, each step a shade apart from the next so they read as steps. */
-  private drawSlab(roomId: string, slab: Slab, index: number): AbstractMesh {
+  private drawSlab(roomId: string, slab: Slab, index: number, top: boolean): AbstractMesh {
     const rim = CreateBox("terrace-edge", { width: slab.width + 0.08, height: slab.top - 0.005, depth: slab.depth + 0.08 }, this.scene);
     rim.position.set(slab.x, (slab.top - 0.005) / 2, slab.z);
-    rim.material = flat(this.scene, "floor-edge", ink);
+    rim.material = flat(this.scene, "terrace-edge", "#8c7b5e");
     rim.isPickable = false;
     const block = CreateBox(`terrace-${roomId}`, { width: slab.width, height: slab.top, depth: slab.depth }, this.scene);
     block.position.set(slab.x, slab.top / 2, slab.z);
-    block.material = flat(this.scene, "terrace", index % 2 === 0 ? "#d9cfb6" : "#e6ddc6");
+    block.material = flat(this.scene, top ? "terrace-top" : "terrace", top ? "#c9b58e" : index % 2 === 0 ? "#e3d8bd" : "#efe6d0");
     return block;
   }
 
