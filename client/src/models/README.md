@@ -51,3 +51,9 @@ python townSquareCoffee.py   # writes /work/out/coffee.json: copy it to src/mode
 
 The front is -y in Blender (-z in the game, toward the camera); the shop is 6 m wide and 1.4 m deep, origin at the
 middle of its base.
+
+## townSquareClub.json, townSquareClothes.json
+
+The "town-square-club" and "town-square-clothes" meshes: the other two shop fronts, made the same way as the coffee shop
+from `townSquareClub.py` and `townSquareClothes.py` (they write `club.json` and `clothes.json`). The club is 6.4 m wide
+and the clothes shop 6.3 m, both 1.4 m deep.

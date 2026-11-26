@@ -81,3 +81,10 @@ def export(path):
         eo.to_mesh_clear()
     json.dump({"positions": pos, "indices": idx, "colours": cols}, open(path, "w"), separators=(",", ":"))
     print("exported", path, len(idx) // 3, "triangles")
+
+def cyl(r, d, x, y, z, col, verts=24):
+    """A disc or drum with its axis along y (a round window, a speaker cone, an arch): radius r, thick d, centre (x, y, z)."""
+    bpy.ops.mesh.primitive_cylinder_add(vertices=verts, radius=r, depth=d, location=(x, y, z), rotation=(math.pi / 2, 0, 0))
+    o = bpy.context.active_object
+    o.data.materials.append(mat(col))
+    return o

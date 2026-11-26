@@ -4,6 +4,8 @@ import townHotel from "./models/townHotel.json";
 import townHouse from "./models/townHouse.json";
 import townMall from "./models/townMall.json";
 import townSquareCoffee from "./models/townSquareCoffee.json";
+import townSquareClub from "./models/townSquareClub.json";
+import townSquareClothes from "./models/townSquareClothes.json";
 
 export interface MeshData {
   positions: number[];
@@ -17,6 +19,8 @@ const meshes = new Map<string, MeshData>([
   ["town-hotel", townHotel as MeshData],
   ["town-mall", townMall as MeshData],
   ["town-square-coffee", townSquareCoffee as MeshData],
+  ["town-square-club", townSquareClub as MeshData],
+  ["town-square-clothes", townSquareClothes as MeshData],
 ]);
 
 export function modelData(name: string): MeshData | undefined {
