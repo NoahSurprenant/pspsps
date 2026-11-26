@@ -11,13 +11,6 @@
           "z": 4
         },
         "capacity": 80,
-        "pond": {
-          "center": {
-            "x": -7,
-            "z": -3
-          },
-          "radius": 2.5
-        },
         "terraces": [
           {
             "x": 0,
