@@ -74,190 +74,10 @@
             "facing": 0
           },
           {
-            "kind": "flower-bed",
-            "spot": {
-              "x": -3.4,
-              "z": -6.7
-            },
-            "radius": 0.9,
-            "facing": 0
-          },
-          {
-            "kind": "flower-bed",
-            "spot": {
-              "x": 6,
-              "z": -6.7
-            },
-            "radius": 0.9,
-            "facing": 0
-          },
-          {
-            "kind": "field-flowers",
-            "spot": {
-              "x": 3.5,
-              "z": -3.2
-            },
-            "radius": 0.9,
-            "facing": 0
-          },
-          {
-            "kind": "field-flowers",
-            "spot": {
-              "x": -2,
-              "z": -2.6
-            },
-            "radius": 0.9,
-            "facing": 0
-          },
-          {
-            "kind": "field-flowers",
-            "spot": {
-              "x": 8.4,
-              "z": -2
-            },
-            "radius": 0.9,
-            "facing": 0
-          },
-          {
-            "kind": "plant",
-            "spot": {
-              "x": -1.6,
-              "z": -6.6
-            },
-            "radius": 0.5,
-            "facing": 0
-          },
-          {
-            "kind": "bench",
-            "spot": {
-              "x": 5.5,
-              "z": 2.6
-            },
-            "radius": 1,
-            "facing": 0
-          },
-          {
             "kind": "lamp",
             "spot": {
               "x": 3,
               "z": -6.8
-            },
-            "radius": 0.35,
-            "facing": 0
-          },
-          {
-            "kind": "field-stump",
-            "spot": {
-              "x": -5.2,
-              "z": -7.3
-            },
-            "radius": 0.6,
-            "facing": 0
-          },
-          {
-            "kind": "flower-bed",
-            "spot": {
-              "x": -4.7,
-              "z": 3.1
-            },
-            "radius": 0.9,
-            "facing": 0
-          },
-          {
-            "kind": "flower-bed",
-            "spot": {
-              "x": 3.8,
-              "z": 1.2
-            },
-            "radius": 0.9,
-            "facing": 0
-          },
-          {
-            "kind": "flower-bed",
-            "spot": {
-              "x": -10.4,
-              "z": 1.1
-            },
-            "radius": 0.9,
-            "facing": 0
-          },
-          {
-            "kind": "plant",
-            "spot": {
-              "x": -0.4,
-              "z": -0.7
-            },
-            "radius": 0.5,
-            "facing": 0
-          },
-          {
-            "kind": "plant",
-            "spot": {
-              "x": 1.4,
-              "z": -3.4
-            },
-            "radius": 0.5,
-            "facing": 0
-          },
-          {
-            "kind": "plant",
-            "spot": {
-              "x": 5.8,
-              "z": -0.4
-            },
-            "radius": 0.5,
-            "facing": 0
-          },
-          {
-            "kind": "field-flowers",
-            "spot": {
-              "x": 6,
-              "z": -4.8
-            },
-            "radius": 0.9,
-            "facing": 0
-          },
-          {
-            "kind": "field-flowers",
-            "spot": {
-              "x": 11,
-              "z": -0.6
-            },
-            "radius": 0.9,
-            "facing": 0
-          },
-          {
-            "kind": "field-sapling",
-            "spot": {
-              "x": 1.6,
-              "z": -5.9
-            },
-            "radius": 0.6,
-            "facing": 0
-          },
-          {
-            "kind": "bench",
-            "spot": {
-              "x": 3.3,
-              "z": -1.2
-            },
-            "radius": 1,
-            "facing": 0
-          },
-          {
-            "kind": "lamp",
-            "spot": {
-              "x": 5.2,
-              "z": -3.6
-            },
-            "radius": 0.35,
-            "facing": 0
-          },
-          {
-            "kind": "lamp",
-            "spot": {
-              "x": -1.6,
-              "z": -4.1
             },
             "radius": 0.35,
             "facing": 0
@@ -269,15 +89,6 @@
               "z": 0.7
             },
             "radius": 1.4,
-            "facing": 0
-          },
-          {
-            "kind": "packing-crate",
-            "spot": {
-              "x": -11.4,
-              "z": -4.6
-            },
-            "radius": 0.6,
             "facing": 0
           },
           {
@@ -358,7 +169,6 @@
           "painter": "town-square"
         },
         "backdrop": {
-          "generator": "town",
           "parts": [
             {
               "shape": "box",
@@ -2841,6 +2651,801 @@
               ],
               "colour": "#4a2e1c",
               "outlined": false
+            },
+            {
+              "shape": "box",
+              "width": 24,
+              "height": 0.25,
+              "depth": 0.5,
+              "at": [
+                0,
+                0.12,
+                -8.4
+              ],
+              "colour": "#cdbf9f"
+            },
+            {
+              "shape": "box",
+              "width": 24,
+              "height": 0.1,
+              "depth": 0.3,
+              "at": [
+                0,
+                0.3,
+                -8.45
+              ],
+              "colour": "#e6dcc3",
+              "outlined": false
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 0.74,
+              "height": 3.33,
+              "at": [
+                -23.57,
+                1.67,
+                11.81
+              ],
+              "colour": "#7a5a3a"
+            },
+            {
+              "shape": "ball",
+              "diameter": 4.59,
+              "height": 4.07,
+              "at": [
+                -23.57,
+                4.59,
+                11.81
+              ],
+              "colour": "#4f9a4a"
+            },
+            {
+              "shape": "ball",
+              "diameter": 2.96,
+              "height": 2.66,
+              "at": [
+                -22.98,
+                5.92,
+                11.61
+              ],
+              "colour": "#68b45a"
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 0.62,
+              "height": 2.78,
+              "at": [
+                -19.97,
+                1.39,
+                14.01
+              ],
+              "colour": "#7a5a3a"
+            },
+            {
+              "shape": "ball",
+              "diameter": 3.83,
+              "height": 3.4,
+              "at": [
+                -19.97,
+                3.83,
+                14.01
+              ],
+              "colour": "#4f9a4a"
+            },
+            {
+              "shape": "ball",
+              "diameter": 2.47,
+              "height": 2.22,
+              "at": [
+                -19.48,
+                4.94,
+                13.81
+              ],
+              "colour": "#68b45a"
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 0.79,
+              "height": 3.55,
+              "at": [
+                -16.75,
+                1.77,
+                11.42
+              ],
+              "colour": "#7a5a3a"
+            },
+            {
+              "shape": "ball",
+              "diameter": 4.89,
+              "height": 4.33,
+              "at": [
+                -16.75,
+                4.89,
+                11.42
+              ],
+              "colour": "#4f9a4a"
+            },
+            {
+              "shape": "ball",
+              "diameter": 3.15,
+              "height": 2.84,
+              "at": [
+                -16.12,
+                6.3,
+                11.22
+              ],
+              "colour": "#68b45a"
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 0.71,
+              "height": 3.21,
+              "at": [
+                -14.39,
+                1.61,
+                14.17
+              ],
+              "colour": "#7a5a3a"
+            },
+            {
+              "shape": "ball",
+              "diameter": 4.43,
+              "height": 3.93,
+              "at": [
+                -14.39,
+                4.43,
+                14.17
+              ],
+              "colour": "#4f9a4a"
+            },
+            {
+              "shape": "ball",
+              "diameter": 2.86,
+              "height": 2.57,
+              "at": [
+                -13.82,
+                5.71,
+                13.97
+              ],
+              "colour": "#68b45a"
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 0.76,
+              "height": 3.4,
+              "at": [
+                -9.87,
+                1.7,
+                11.38
+              ],
+              "colour": "#7a5a3a"
+            },
+            {
+              "shape": "ball",
+              "diameter": 4.69,
+              "height": 4.16,
+              "at": [
+                -9.87,
+                4.69,
+                11.38
+              ],
+              "colour": "#4f9a4a"
+            },
+            {
+              "shape": "ball",
+              "diameter": 3.02,
+              "height": 2.72,
+              "at": [
+                -9.27,
+                6.05,
+                11.18
+              ],
+              "colour": "#68b45a"
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 0.82,
+              "height": 3.69,
+              "at": [
+                12.61,
+                1.84,
+                10.54
+              ],
+              "colour": "#7a5a3a"
+            },
+            {
+              "shape": "ball",
+              "diameter": 5.08,
+              "height": 4.5,
+              "at": [
+                12.61,
+                5.08,
+                10.54
+              ],
+              "colour": "#4f9a4a"
+            },
+            {
+              "shape": "ball",
+              "diameter": 3.28,
+              "height": 2.95,
+              "at": [
+                13.27,
+                6.55,
+                10.34
+              ],
+              "colour": "#68b45a"
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 0.6,
+              "height": 2.68,
+              "at": [
+                14.48,
+                1.34,
+                11.92
+              ],
+              "colour": "#7a5a3a"
+            },
+            {
+              "shape": "ball",
+              "diameter": 3.7,
+              "height": 3.28,
+              "at": [
+                14.48,
+                3.7,
+                11.92
+              ],
+              "colour": "#4f9a4a"
+            },
+            {
+              "shape": "ball",
+              "diameter": 2.38,
+              "height": 2.15,
+              "at": [
+                14.96,
+                4.77,
+                11.72
+              ],
+              "colour": "#68b45a"
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 0.78,
+              "height": 3.52,
+              "at": [
+                18.68,
+                1.76,
+                14.56
+              ],
+              "colour": "#7a5a3a"
+            },
+            {
+              "shape": "ball",
+              "diameter": 4.85,
+              "height": 4.31,
+              "at": [
+                18.68,
+                4.85,
+                14.56
+              ],
+              "colour": "#4f9a4a"
+            },
+            {
+              "shape": "ball",
+              "diameter": 3.13,
+              "height": 2.82,
+              "at": [
+                19.31,
+                6.26,
+                14.36
+              ],
+              "colour": "#68b45a"
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 0.74,
+              "height": 3.33,
+              "at": [
+                21.74,
+                1.67,
+                15.33
+              ],
+              "colour": "#7a5a3a"
+            },
+            {
+              "shape": "ball",
+              "diameter": 4.59,
+              "height": 4.08,
+              "at": [
+                21.74,
+                4.59,
+                15.33
+              ],
+              "colour": "#4f9a4a"
+            },
+            {
+              "shape": "ball",
+              "diameter": 2.96,
+              "height": 2.67,
+              "at": [
+                22.33,
+                5.93,
+                15.13
+              ],
+              "colour": "#68b45a"
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 0.79,
+              "height": 3.54,
+              "at": [
+                24.11,
+                1.77,
+                13.45
+              ],
+              "colour": "#7a5a3a"
+            },
+            {
+              "shape": "ball",
+              "diameter": 4.88,
+              "height": 4.33,
+              "at": [
+                24.11,
+                4.88,
+                13.45
+              ],
+              "colour": "#4f9a4a"
+            },
+            {
+              "shape": "ball",
+              "diameter": 3.15,
+              "height": 2.83,
+              "at": [
+                24.74,
+                6.3,
+                13.25
+              ],
+              "colour": "#68b45a"
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 0.85,
+              "height": 3.81,
+              "at": [
+                -20.87,
+                1.91,
+                18.87
+              ],
+              "colour": "#7a5a3a"
+            },
+            {
+              "shape": "ball",
+              "diameter": 5.25,
+              "height": 4.66,
+              "at": [
+                -20.87,
+                5.25,
+                18.87
+              ],
+              "colour": "#3f8a45"
+            },
+            {
+              "shape": "ball",
+              "diameter": 3.39,
+              "height": 3.05,
+              "at": [
+                -20.19,
+                6.78,
+                18.67
+              ],
+              "colour": "#58a850"
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 0.98,
+              "height": 4.39,
+              "at": [
+                -14.91,
+                2.2,
+                19.51
+              ],
+              "colour": "#7a5a3a"
+            },
+            {
+              "shape": "ball",
+              "diameter": 6.05,
+              "height": 5.37,
+              "at": [
+                -14.91,
+                6.05,
+                19.51
+              ],
+              "colour": "#3f8a45"
+            },
+            {
+              "shape": "ball",
+              "diameter": 3.9,
+              "height": 3.51,
+              "at": [
+                -14.13,
+                7.81,
+                19.31
+              ],
+              "colour": "#58a850"
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 0.98,
+              "height": 4.39,
+              "at": [
+                -9.83,
+                2.2,
+                19.69
+              ],
+              "colour": "#7a5a3a"
+            },
+            {
+              "shape": "ball",
+              "diameter": 6.05,
+              "height": 5.37,
+              "at": [
+                -9.83,
+                6.05,
+                19.69
+              ],
+              "colour": "#3f8a45"
+            },
+            {
+              "shape": "ball",
+              "diameter": 3.9,
+              "height": 3.51,
+              "at": [
+                -9.05,
+                7.81,
+                19.49
+              ],
+              "colour": "#58a850"
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 0.97,
+              "height": 4.36,
+              "at": [
+                -5.61,
+                2.18,
+                19.65
+              ],
+              "colour": "#7a5a3a"
+            },
+            {
+              "shape": "ball",
+              "diameter": 6.01,
+              "height": 5.33,
+              "at": [
+                -5.61,
+                6.01,
+                19.65
+              ],
+              "colour": "#3f8a45"
+            },
+            {
+              "shape": "ball",
+              "diameter": 3.88,
+              "height": 3.49,
+              "at": [
+                -4.83,
+                7.75,
+                19.45
+              ],
+              "colour": "#58a850"
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 1.08,
+              "height": 4.88,
+              "at": [
+                0.06,
+                2.44,
+                20.13
+              ],
+              "colour": "#7a5a3a"
+            },
+            {
+              "shape": "ball",
+              "diameter": 6.72,
+              "height": 5.96,
+              "at": [
+                0.06,
+                6.72,
+                20.13
+              ],
+              "colour": "#3f8a45"
+            },
+            {
+              "shape": "ball",
+              "diameter": 4.34,
+              "height": 3.9,
+              "at": [
+                0.93,
+                8.67,
+                19.93
+              ],
+              "colour": "#58a850"
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 0.99,
+              "height": 4.46,
+              "at": [
+                5.73,
+                2.23,
+                20.14
+              ],
+              "colour": "#7a5a3a"
+            },
+            {
+              "shape": "ball",
+              "diameter": 6.14,
+              "height": 5.45,
+              "at": [
+                5.73,
+                6.14,
+                20.14
+              ],
+              "colour": "#3f8a45"
+            },
+            {
+              "shape": "ball",
+              "diameter": 3.96,
+              "height": 3.57,
+              "at": [
+                6.52,
+                7.93,
+                19.94
+              ],
+              "colour": "#58a850"
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 1.02,
+              "height": 4.59,
+              "at": [
+                10.56,
+                2.3,
+                18.09
+              ],
+              "colour": "#7a5a3a"
+            },
+            {
+              "shape": "ball",
+              "diameter": 6.33,
+              "height": 5.62,
+              "at": [
+                10.56,
+                6.33,
+                18.09
+              ],
+              "colour": "#3f8a45"
+            },
+            {
+              "shape": "ball",
+              "diameter": 4.08,
+              "height": 3.68,
+              "at": [
+                11.38,
+                8.17,
+                17.89
+              ],
+              "colour": "#58a850"
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 0.85,
+              "height": 3.82,
+              "at": [
+                17.7,
+                1.91,
+                19.26
+              ],
+              "colour": "#7a5a3a"
+            },
+            {
+              "shape": "ball",
+              "diameter": 5.26,
+              "height": 4.67,
+              "at": [
+                17.7,
+                5.26,
+                19.26
+              ],
+              "colour": "#3f8a45"
+            },
+            {
+              "shape": "ball",
+              "diameter": 3.4,
+              "height": 3.06,
+              "at": [
+                18.38,
+                6.79,
+                19.06
+              ],
+              "colour": "#58a850"
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 0.83,
+              "height": 3.75,
+              "at": [
+                23.16,
+                1.88,
+                20.47
+              ],
+              "colour": "#7a5a3a"
+            },
+            {
+              "shape": "ball",
+              "diameter": 5.17,
+              "height": 4.59,
+              "at": [
+                23.16,
+                5.17,
+                20.47
+              ],
+              "colour": "#3f8a45"
+            },
+            {
+              "shape": "ball",
+              "diameter": 3.34,
+              "height": 3,
+              "at": [
+                23.83,
+                6.67,
+                20.27
+              ],
+              "colour": "#58a850"
+            },
+            {
+              "shape": "ball",
+              "diameter": 30,
+              "height": 16,
+              "at": [
+                -30,
+                0,
+                38.3
+              ],
+              "colour": "#9fcf86"
+            },
+            {
+              "shape": "ball",
+              "diameter": 30,
+              "height": 16,
+              "at": [
+                -8,
+                0,
+                38.3
+              ],
+              "colour": "#8fbf6a"
+            },
+            {
+              "shape": "ball",
+              "diameter": 30,
+              "height": 16,
+              "at": [
+                16,
+                0,
+                38.3
+              ],
+              "colour": "#9fcf86"
+            },
+            {
+              "shape": "ball",
+              "diameter": 30,
+              "height": 16,
+              "at": [
+                38,
+                0,
+                38.3
+              ],
+              "colour": "#8fbf6a"
+            },
+            {
+              "shape": "ball",
+              "diameter": 4,
+              "height": 2.8,
+              "at": [
+                -18,
+                17,
+                34.3
+              ],
+              "colour": "#ffffff"
+            },
+            {
+              "shape": "ball",
+              "diameter": 3,
+              "height": 2.1,
+              "at": [
+                -15.6,
+                16.6,
+                34.3
+              ],
+              "colour": "#ffffff"
+            },
+            {
+              "shape": "ball",
+              "diameter": 2.8,
+              "height": 1.96,
+              "at": [
+                -20.3,
+                16.4,
+                34.3
+              ],
+              "colour": "#ffffff"
+            },
+            {
+              "shape": "ball",
+              "diameter": 4,
+              "height": 2.8,
+              "at": [
+                4,
+                20,
+                34.3
+              ],
+              "colour": "#ffffff"
+            },
+            {
+              "shape": "ball",
+              "diameter": 3,
+              "height": 2.1,
+              "at": [
+                6.4,
+                19.6,
+                34.3
+              ],
+              "colour": "#ffffff"
+            },
+            {
+              "shape": "ball",
+              "diameter": 2.8,
+              "height": 1.96,
+              "at": [
+                1.7000000000000002,
+                19.4,
+                34.3
+              ],
+              "colour": "#ffffff"
+            },
+            {
+              "shape": "ball",
+              "diameter": 4,
+              "height": 2.8,
+              "at": [
+                24,
+                16,
+                34.3
+              ],
+              "colour": "#ffffff"
+            },
+            {
+              "shape": "ball",
+              "diameter": 3,
+              "height": 2.1,
+              "at": [
+                26.4,
+                15.6,
+                34.3
+              ],
+              "colour": "#ffffff"
+            },
+            {
+              "shape": "ball",
+              "diameter": 2.8,
+              "height": 1.96,
+              "at": [
+                21.7,
+                15.4,
+                34.3
+              ],
+              "colour": "#ffffff"
             }
           ]
         }
