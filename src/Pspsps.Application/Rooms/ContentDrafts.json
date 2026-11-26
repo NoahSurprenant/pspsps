@@ -21347,10 +21347,73 @@
         "capacity": 50,
         "props": [
           {
+            "kind": "shore-rowboat",
+            "spot": {
+              "x": -4.2,
+              "z": -5.8
+            },
+            "radius": 1.65,
+            "facing": 0
+          },
+          {
+            "kind": "shore-bollard",
+            "spot": {
+              "x": -9.9,
+              "z": -0.9
+            },
+            "radius": 0.35,
+            "facing": 0
+          },
+          {
+            "kind": "shore-bollard",
+            "spot": {
+              "x": -7.5,
+              "z": -0.9
+            },
+            "radius": 0.35,
+            "facing": 0
+          },
+          {
+            "kind": "shore-lifebuoy",
+            "spot": {
+              "x": -11.2,
+              "z": -1.2
+            },
+            "radius": 0.55,
+            "facing": 0
+          },
+          {
+            "kind": "shore-tubes",
+            "spot": {
+              "x": 1.6,
+              "z": -4.6
+            },
+            "radius": 0.8,
+            "facing": 0
+          },
+          {
+            "kind": "shore-surfboards",
+            "spot": {
+              "x": 5.8,
+              "z": -6
+            },
+            "radius": 1.3,
+            "facing": 0
+          },
+          {
+            "kind": "shore-picnic-table",
+            "spot": {
+              "x": 8,
+              "z": 2.6
+            },
+            "radius": 1.85,
+            "facing": 0
+          },
+          {
             "kind": "bench",
             "spot": {
-              "x": -6.574,
-              "z": 6.986
+              "x": -9.5,
+              "z": 3.2
             },
             "radius": 1,
             "facing": 3.141592653589793
@@ -21365,12 +21428,48 @@
             "facing": 0
           },
           {
-            "kind": "flower-bed",
+            "kind": "tree",
             "spot": {
-              "x": 6,
-              "z": 5.6
+              "x": -11.6,
+              "z": 6.4
             },
-            "radius": 0.9,
+            "radius": 1.4,
+            "facing": 0
+          },
+          {
+            "kind": "field-arrow-sign",
+            "spot": {
+              "x": 13.3,
+              "z": 2.4
+            },
+            "radius": 0.58,
+            "facing": 0
+          },
+          {
+            "kind": "field-arrow-sign",
+            "spot": {
+              "x": 2.8,
+              "z": 6.9
+            },
+            "radius": 0.58,
+            "facing": 0
+          },
+          {
+            "kind": "shore-rocks",
+            "spot": {
+              "x": -12.5,
+              "z": -6.6
+            },
+            "radius": 1.25,
+            "facing": 0
+          },
+          {
+            "kind": "shore-rocks",
+            "spot": {
+              "x": 12,
+              "z": -6.2
+            },
+            "radius": 1.25,
             "facing": 0
           },
           {
@@ -21390,330 +21489,6 @@
             },
             "radius": 0.35,
             "facing": 0
-          },
-          {
-            "kind": "shore-rowboat",
-            "spot": {
-              "x": -6.3,
-              "z": -5.2
-            },
-            "radius": 1.65,
-            "facing": 0
-          },
-          {
-            "kind": "shore-bollard",
-            "spot": {
-              "x": -0.7,
-              "z": -2.3
-            },
-            "radius": 0.35,
-            "facing": 0
-          },
-          {
-            "kind": "shore-bollard",
-            "spot": {
-              "x": 2.7,
-              "z": -2.3
-            },
-            "radius": 0.35,
-            "facing": 0
-          },
-          {
-            "kind": "shore-lifebuoy",
-            "spot": {
-              "x": 2.7,
-              "z": -4.6
-            },
-            "radius": 0.55,
-            "facing": 0
-          },
-          {
-            "kind": "shore-bollard",
-            "spot": {
-              "x": -0.7,
-              "z": -7
-            },
-            "radius": 0.35,
-            "facing": 0
-          },
-          {
-            "kind": "shore-picnic-table",
-            "spot": {
-              "x": 8.4,
-              "z": -4.4
-            },
-            "radius": 1.85,
-            "facing": 0
-          },
-          {
-            "kind": "shore-surfboards",
-            "spot": {
-              "x": 11.8,
-              "z": -6.4
-            },
-            "radius": 1.3,
-            "facing": 0
-          },
-          {
-            "kind": "shore-rocks",
-            "spot": {
-              "x": -11.6,
-              "z": -4.6
-            },
-            "radius": 1.25,
-            "facing": 0
-          },
-          {
-            "kind": "packing-crate",
-            "spot": {
-              "x": 5.8,
-              "z": -6.3
-            },
-            "radius": 0.9,
-            "facing": 0
-          },
-          {
-            "kind": "packing-crate",
-            "spot": {
-              "x": 6.823,
-              "z": -2.023
-            },
-            "radius": 0.9,
-            "facing": 0
-          },
-          {
-            "kind": "plant",
-            "spot": {
-              "x": 12.75,
-              "z": 3.6
-            },
-            "radius": 0.5,
-            "facing": 0
-          },
-          {
-            "kind": "tree",
-            "spot": {
-              "x": -11.6,
-              "z": 6.4
-            },
-            "radius": 1.4,
-            "facing": 0
-          },
-          {
-            "kind": "shore-tubes",
-            "spot": {
-              "x": 4.8,
-              "z": -4.2
-            },
-            "radius": 0.8,
-            "facing": 0
-          },
-          {
-            "kind": "shore-signpost",
-            "spot": {
-              "x": 4,
-              "z": 6.25
-            },
-            "radius": 0.6,
-            "facing": 0
-          },
-          {
-            "kind": "shore-signpost",
-            "spot": {
-              "x": -5.157,
-              "z": -0.41
-            },
-            "radius": 0.6,
-            "facing": 0
-          },
-          {
-            "kind": "field-hedge",
-            "spot": {
-              "x": -3.6,
-              "z": 6.5
-            },
-            "radius": 1.38,
-            "facing": 0
-          },
-          {
-            "kind": "field-flowers",
-            "spot": {
-              "x": 9.2,
-              "z": 2
-            },
-            "radius": 0.9,
-            "facing": 0
-          },
-          {
-            "kind": "field-boulder",
-            "spot": {
-              "x": 12.1,
-              "z": -3.1
-            },
-            "radius": 1.7,
-            "facing": 0
-          },
-          {
-            "kind": "field-hay-bale",
-            "spot": {
-              "x": 9.6,
-              "z": -0.4
-            },
-            "radius": 0.8,
-            "facing": 0.2
-          },
-          {
-            "kind": "packing-crate",
-            "spot": {
-              "x": -9,
-              "z": 6.6
-            },
-            "radius": 0.6,
-            "facing": 0
-          },
-          {
-            "kind": "packing-crate",
-            "spot": {
-              "x": -8.2,
-              "z": 5.4
-            },
-            "radius": 0.6,
-            "facing": 0
-          },
-          {
-            "kind": "packing-crate",
-            "spot": {
-              "x": 6.5,
-              "z": 7.1
-            },
-            "radius": 0.6,
-            "facing": 0
-          },
-          {
-            "kind": "fish-barrel",
-            "spot": {
-              "x": 10,
-              "z": 6.8
-            },
-            "radius": 0.6,
-            "facing": 0
-          },
-          {
-            "kind": "fish-barrel",
-            "spot": {
-              "x": -10.1,
-              "z": 4.7
-            },
-            "radius": 0.6,
-            "facing": 0
-          },
-          {
-            "kind": "shore-bollard",
-            "spot": {
-              "x": -6.5,
-              "z": 5.4
-            },
-            "radius": 0.35,
-            "facing": 0
-          },
-          {
-            "kind": "shore-bollard",
-            "spot": {
-              "x": 2,
-              "z": 7.6
-            },
-            "radius": 0.35,
-            "facing": 0
-          },
-          {
-            "kind": "shore-lifebuoy",
-            "spot": {
-              "x": -1.5,
-              "z": 6.9
-            },
-            "radius": 0.55,
-            "facing": 0
-          },
-          {
-            "kind": "wood-stack",
-            "spot": {
-              "x": 10.2,
-              "z": 3.2
-            },
-            "radius": 0.6,
-            "facing": 0
-          },
-          {
-            "kind": "field-log",
-            "spot": {
-              "x": -12.5,
-              "z": -6.8
-            },
-            "radius": 1,
-            "facing": 0
-          },
-          {
-            "kind": "field-rock",
-            "spot": {
-              "x": -3.5,
-              "z": -6.8
-            },
-            "radius": 1.2,
-            "facing": 0
-          },
-          {
-            "kind": "field-signpost",
-            "spot": {
-              "x": 3.7,
-              "z": -5.3
-            },
-            "radius": 0.6,
-            "facing": 0
-          },
-          {
-            "kind": "field-stump",
-            "spot": {
-              "x": 8.8,
-              "z": -7.1
-            },
-            "radius": 0.6,
-            "facing": 0
-          },
-          {
-            "kind": "plant",
-            "spot": {
-              "x": -6.4,
-              "z": -7.5
-            },
-            "radius": 0.5,
-            "facing": 0
-          },
-          {
-            "kind": "field-big-rock",
-            "spot": {
-              "x": -11.6,
-              "z": 2.2
-            },
-            "radius": 2.2,
-            "facing": 0
-          },
-          {
-            "kind": "field-arrow-sign",
-            "spot": {
-              "x": 13.3,
-              "z": 2.4
-            },
-            "radius": 0.58,
-            "facing": 0
-          },
-          {
-            "kind": "field-arrow-sign",
-            "spot": {
-              "x": 2.8,
-              "z": 6.9
-            },
-            "radius": 0.58,
-            "facing": -1.5707963267948966
           }
         ],
         "doors": [],
@@ -21733,6 +21508,16 @@
             "offset": 0,
             "width": 3,
             "length": 6
+          }
+        ],
+        "terraces": [
+          {
+            "x": -8.7,
+            "z": -3.25,
+            "width": 2.4,
+            "depth": 5.5,
+            "height": 0.12,
+            "colour": "#a77c4f"
           }
         ]
       },
@@ -28401,409 +28186,209 @@
           "op": "rect",
           "colour": "#d7f1f7",
           "x": 0,
-          "y": 10.532,
+          "y": 10.054,
           "width": 1,
-          "height": 5.468
+          "height": 5.946
         },
         {
           "op": "rect",
           "colour": "#d7f1f7",
           "x": 1,
-          "y": 10.987,
+          "y": 10.087,
           "width": 1,
-          "height": 5.013
+          "height": 5.913
         },
         {
           "op": "rect",
           "colour": "#d7f1f7",
           "x": 2,
+          "y": 10.153,
+          "width": 1,
+          "height": 5.847
+        },
+        {
+          "op": "rect",
+          "colour": "#d7f1f7",
+          "x": 3,
+          "y": 10.253,
+          "width": 1,
+          "height": 5.747
+        },
+        {
+          "op": "rect",
+          "colour": "#d7f1f7",
+          "x": 4,
+          "y": 10.39,
+          "width": 1,
+          "height": 5.61
+        },
+        {
+          "op": "rect",
+          "colour": "#d7f1f7",
+          "x": 5,
+          "y": 10.566,
+          "width": 1,
+          "height": 5.434
+        },
+        {
+          "op": "rect",
+          "colour": "#d7f1f7",
+          "x": 6,
+          "y": 10.787,
+          "width": 1,
+          "height": 5.213
+        },
+        {
+          "op": "rect",
+          "colour": "#d7f1f7",
+          "x": 7,
+          "y": 11.058,
+          "width": 1,
+          "height": 4.942
+        },
+        {
+          "op": "rect",
+          "colour": "#d7f1f7",
+          "x": 8,
+          "y": 11.389,
+          "width": 1,
+          "height": 4.611
+        },
+        {
+          "op": "rect",
+          "colour": "#d7f1f7",
+          "x": 9,
+          "y": 11.796,
+          "width": 1,
+          "height": 4.204
+        },
+        {
+          "op": "rect",
+          "colour": "#d7f1f7",
+          "x": 10,
+          "y": 12.307,
+          "width": 1,
+          "height": 3.693
+        },
+        {
+          "op": "rect",
+          "colour": "#d7f1f7",
+          "x": 11,
+          "y": 12.985,
+          "width": 1,
+          "height": 3.015
+        },
+        {
+          "op": "rect",
+          "colour": "#d7f1f7",
+          "x": 12,
+          "y": 14.039,
+          "width": 1,
+          "height": 1.961
+        },
+        {
+          "op": "rect",
+          "colour": "#4fb3d9",
+          "x": 0,
+          "y": 10.504,
+          "width": 1,
+          "height": 5.496
+        },
+        {
+          "op": "rect",
+          "colour": "#4fb3d9",
+          "x": 1,
+          "y": 10.537,
+          "width": 1,
+          "height": 5.463
+        },
+        {
+          "op": "rect",
+          "colour": "#4fb3d9",
+          "x": 2,
+          "y": 10.603,
+          "width": 1,
+          "height": 5.397
+        },
+        {
+          "op": "rect",
+          "colour": "#4fb3d9",
+          "x": 3,
+          "y": 10.703,
+          "width": 1,
+          "height": 5.297
+        },
+        {
+          "op": "rect",
+          "colour": "#4fb3d9",
+          "x": 4,
+          "y": 10.84,
+          "width": 1,
+          "height": 5.16
+        },
+        {
+          "op": "rect",
+          "colour": "#4fb3d9",
+          "x": 5,
+          "y": 11.016,
+          "width": 1,
+          "height": 4.984
+        },
+        {
+          "op": "rect",
+          "colour": "#4fb3d9",
+          "x": 6,
           "y": 11.237,
           "width": 1,
           "height": 4.763
         },
         {
           "op": "rect",
-          "colour": "#d7f1f7",
-          "x": 3,
-          "y": 11.163,
-          "width": 1,
-          "height": 4.837
-        },
-        {
-          "op": "rect",
-          "colour": "#d7f1f7",
-          "x": 4,
-          "y": 10.801,
-          "width": 1,
-          "height": 5.199
-        },
-        {
-          "op": "rect",
-          "colour": "#d7f1f7",
-          "x": 5,
-          "y": 10.321,
-          "width": 1,
-          "height": 5.679
-        },
-        {
-          "op": "rect",
-          "colour": "#d7f1f7",
-          "x": 6,
-          "y": 9.949,
-          "width": 1,
-          "height": 6.051
-        },
-        {
-          "op": "rect",
-          "colour": "#d7f1f7",
-          "x": 7,
-          "y": 9.859,
-          "width": 1,
-          "height": 6.141
-        },
-        {
-          "op": "rect",
-          "colour": "#d7f1f7",
-          "x": 8,
-          "y": 10.095,
-          "width": 1,
-          "height": 5.905
-        },
-        {
-          "op": "rect",
-          "colour": "#d7f1f7",
-          "x": 9,
-          "y": 10.544,
-          "width": 1,
-          "height": 5.456
-        },
-        {
-          "op": "rect",
-          "colour": "#d7f1f7",
-          "x": 10,
-          "y": 10.996,
-          "width": 1,
-          "height": 5.004
-        },
-        {
-          "op": "rect",
-          "colour": "#d7f1f7",
-          "x": 11,
-          "y": 11.239,
-          "width": 1,
-          "height": 4.761
-        },
-        {
-          "op": "rect",
-          "colour": "#d7f1f7",
-          "x": 12,
-          "y": 11.157,
-          "width": 1,
-          "height": 4.843
-        },
-        {
-          "op": "rect",
-          "colour": "#d7f1f7",
-          "x": 13,
-          "y": 10.79,
-          "width": 1,
-          "height": 5.21
-        },
-        {
-          "op": "rect",
-          "colour": "#d7f1f7",
-          "x": 14,
-          "y": 10.31,
-          "width": 1,
-          "height": 5.69
-        },
-        {
-          "op": "rect",
-          "colour": "#d7f1f7",
-          "x": 15,
-          "y": 9.943,
-          "width": 1,
-          "height": 6.057
-        },
-        {
-          "op": "rect",
-          "colour": "#d7f1f7",
-          "x": 16,
-          "y": 10.036,
-          "width": 1,
-          "height": 5.964
-        },
-        {
-          "op": "rect",
-          "colour": "#d7f1f7",
-          "x": 17,
-          "y": 10.629,
-          "width": 1,
-          "height": 5.371
-        },
-        {
-          "op": "rect",
-          "colour": "#d7f1f7",
-          "x": 18,
-          "y": 11.431,
-          "width": 1,
-          "height": 4.569
-        },
-        {
-          "op": "rect",
-          "colour": "#4fb3d9",
-          "x": 0,
-          "y": 10.882,
-          "width": 1,
-          "height": 5.118
-        },
-        {
-          "op": "rect",
-          "colour": "#4fb3d9",
-          "x": 1,
-          "y": 11.337,
-          "width": 1,
-          "height": 4.663
-        },
-        {
-          "op": "rect",
-          "colour": "#4fb3d9",
-          "x": 2,
-          "y": 11.587,
-          "width": 1,
-          "height": 4.413
-        },
-        {
-          "op": "rect",
-          "colour": "#4fb3d9",
-          "x": 3,
-          "y": 11.513,
-          "width": 1,
-          "height": 4.487
-        },
-        {
-          "op": "rect",
-          "colour": "#4fb3d9",
-          "x": 4,
-          "y": 11.151,
-          "width": 1,
-          "height": 4.849
-        },
-        {
-          "op": "rect",
-          "colour": "#4fb3d9",
-          "x": 5,
-          "y": 10.671,
-          "width": 1,
-          "height": 5.329
-        },
-        {
-          "op": "rect",
-          "colour": "#4fb3d9",
-          "x": 6,
-          "y": 10.299,
-          "width": 1,
-          "height": 5.701
-        },
-        {
-          "op": "rect",
           "colour": "#4fb3d9",
           "x": 7,
-          "y": 10.209,
+          "y": 11.508,
           "width": 1,
-          "height": 5.791
+          "height": 4.492
         },
         {
           "op": "rect",
           "colour": "#4fb3d9",
           "x": 8,
-          "y": 10.445,
+          "y": 11.839,
           "width": 1,
-          "height": 5.555
+          "height": 4.161
         },
         {
           "op": "rect",
           "colour": "#4fb3d9",
           "x": 9,
-          "y": 10.894,
+          "y": 12.246,
           "width": 1,
-          "height": 5.106
+          "height": 3.754
         },
         {
           "op": "rect",
           "colour": "#4fb3d9",
           "x": 10,
-          "y": 11.346,
+          "y": 12.757,
           "width": 1,
-          "height": 4.654
+          "height": 3.243
         },
         {
           "op": "rect",
           "colour": "#4fb3d9",
           "x": 11,
-          "y": 11.589,
+          "y": 13.435,
           "width": 1,
-          "height": 4.411
+          "height": 2.565
         },
         {
           "op": "rect",
           "colour": "#4fb3d9",
           "x": 12,
-          "y": 11.507,
+          "y": 14.489,
           "width": 1,
-          "height": 4.493
-        },
-        {
-          "op": "rect",
-          "colour": "#4fb3d9",
-          "x": 13,
-          "y": 11.14,
-          "width": 1,
-          "height": 4.86
-        },
-        {
-          "op": "rect",
-          "colour": "#4fb3d9",
-          "x": 14,
-          "y": 10.66,
-          "width": 1,
-          "height": 5.34
-        },
-        {
-          "op": "rect",
-          "colour": "#4fb3d9",
-          "x": 15,
-          "y": 10.293,
-          "width": 1,
-          "height": 5.707
-        },
-        {
-          "op": "rect",
-          "colour": "#4fb3d9",
-          "x": 16,
-          "y": 10.386,
-          "width": 1,
-          "height": 5.614
-        },
-        {
-          "op": "rect",
-          "colour": "#4fb3d9",
-          "x": 17,
-          "y": 10.979,
-          "width": 1,
-          "height": 5.021
-        },
-        {
-          "op": "rect",
-          "colour": "#4fb3d9",
-          "x": 18,
-          "y": 11.781,
-          "width": 1,
-          "height": 4.219
-        },
-        {
-          "op": "rect",
-          "colour": "#b98c5e",
-          "x": 13,
-          "y": 9.9,
-          "width": 4,
-          "height": 5.5
-        },
-        {
-          "op": "rect",
-          "colour": "#8f6a43",
-          "x": 13,
-          "y": 14.79,
-          "width": 4,
-          "height": 0.06
-        },
-        {
-          "op": "rect",
-          "colour": "#8f6a43",
-          "x": 13,
-          "y": 14.24,
-          "width": 4,
-          "height": 0.06
-        },
-        {
-          "op": "rect",
-          "colour": "#8f6a43",
-          "x": 13,
-          "y": 13.69,
-          "width": 4,
-          "height": 0.06
-        },
-        {
-          "op": "rect",
-          "colour": "#8f6a43",
-          "x": 13,
-          "y": 13.14,
-          "width": 4,
-          "height": 0.06
-        },
-        {
-          "op": "rect",
-          "colour": "#8f6a43",
-          "x": 13,
-          "y": 12.59,
-          "width": 4,
-          "height": 0.06
-        },
-        {
-          "op": "rect",
-          "colour": "#8f6a43",
-          "x": 13,
-          "y": 12.04,
-          "width": 4,
-          "height": 0.06
-        },
-        {
-          "op": "rect",
-          "colour": "#8f6a43",
-          "x": 13,
-          "y": 11.49,
-          "width": 4,
-          "height": 0.06
-        },
-        {
-          "op": "rect",
-          "colour": "#8f6a43",
-          "x": 13,
-          "y": 10.94,
-          "width": 4,
-          "height": 0.06
-        },
-        {
-          "op": "rect",
-          "colour": "#8f6a43",
-          "x": 13,
-          "y": 10.39,
-          "width": 4,
-          "height": 0.06
-        },
-        {
-          "op": "rect",
-          "colour": "#8f6a43",
-          "x": 13,
-          "y": 9.84,
-          "width": 4,
-          "height": 0.06
-        },
-        {
-          "op": "rect",
-          "colour": "#8f6a43",
-          "x": 12.88,
-          "y": 9.9,
-          "width": 0.12,
-          "height": 5.5
-        },
-        {
-          "op": "rect",
-          "colour": "#8f6a43",
-          "x": 17,
-          "y": 9.9,
-          "width": 0.12,
-          "height": 5.5
+          "height": 1.511
         },
         {
           "op": "rect",
