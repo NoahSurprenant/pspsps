@@ -7410,15 +7410,12 @@
       "look": {
         "sky": "#f3dcc0",
         "floorColour": "#d6c7a8",
-        "wallColour": "#cfc2a8",
+        "wallColour": "#a9cf8a",
         "ground": {
           "colour": "#8fbf6a"
         },
         "floor": {
           "painter": "cobbles"
-        },
-        "wall": {
-          "painter": "town-square"
         },
         "backdrop": {
           "parts": [

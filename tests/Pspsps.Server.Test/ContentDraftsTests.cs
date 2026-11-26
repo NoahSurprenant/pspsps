@@ -142,6 +142,12 @@ public sealed class ContentDraftsTests
     }
 
     [Test]
+    public void ThePlaza_PaintsNoHousesOnItsWall()
+    {
+        Assert.That(Content.AllLooks.Single(look => look.Id == "plaza").Look.Wall, Is.Null);
+    }
+
+    [Test]
     public void TownSquare_HasNoGeneratedRowOfHouses_OnlyItsThreeShops()
     {
         Assert.That(Content.AllLooks.Single(look => look.Id == "town-square").Look.Backdrop.Generator, Is.Null);
