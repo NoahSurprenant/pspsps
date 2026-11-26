@@ -45,6 +45,12 @@ public sealed class RoomVersion
     /// </summary>
     public RoomLook? Look { get; private set; }
 
+    /// <summary>
+    /// The overlays this version brings (each replaces the room's live overlay of the same ID, or adds one) once it is published, or null for
+    /// a version that brings none. Like the look, they are drafted, scheduled and published with the layout, never before it.
+    /// </summary>
+    public IReadOnlyList<RoomOverlay>? Overlays { get; private set; }
+
     public Guid? CreatedBy { get; private set; }
 
     public DateTimeOffset CreatedAt { get; private set; }
@@ -102,6 +108,41 @@ public sealed class RoomVersion
         Revision++;
         GoLiveAt = null;
         ScheduledBy = null;
+    }
+
+    /// <summary>Keeps an overlay with the draft (replacing the draft's overlay of the same ID); like any edit it takes a schedule off.</summary>
+    public void SetOverlay(RoomOverlay overlay)
+    {
+        ArgumentNullException.ThrowIfNull(overlay);
+        if (State != RoomVersionState.Draft)
+        {
+            throw new DomainException("Only a draft can be edited: make a new draft from this version.");
+        }
+
+        if (overlay.RoomId != RoomId)
+        {
+            throw new DomainException($"An overlay of {overlay.RoomId} cannot go with a draft of {RoomId}.");
+        }
+
+        Overlays = [.. (Overlays ?? []).Where(o => o.Id != overlay.Id), overlay];
+        Revision++;
+        GoLiveAt = null;
+        ScheduledBy = null;
+    }
+
+    /// <summary>Takes the draft's overlay of that ID away; false when it had none.</summary>
+    public bool DropOverlay(string overlayId)
+    {
+        if (State != RoomVersionState.Draft || Overlays is null || Overlays.All(o => o.Id != overlayId))
+        {
+            return false;
+        }
+
+        Overlays = Overlays.Where(o => o.Id != overlayId).ToList() is { Count: > 0 } rest ? rest : null;
+        Revision++;
+        GoLiveAt = null;
+        ScheduledBy = null;
+        return true;
     }
 
     /// <summary>Takes the draft's own look away, so it goes live with the look the room has now; like any edit it takes a schedule off.</summary>

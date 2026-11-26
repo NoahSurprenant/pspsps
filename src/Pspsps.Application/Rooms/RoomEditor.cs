@@ -96,8 +96,11 @@ public interface IRoomEditor
     /// <summary>Makes a draft of an earlier version, and publishes it.</summary>
     Task RollbackAsync(string roomId, int number, Guid adminId, CancellationToken cancellationToken);
 
-    /// <summary>Saves an overlay; checkAgainstLive false (the import, for a room it is also loading) leaves its props to be checked against the room's draft.</summary>
-    Task SaveOverlayAsync(RoomOverlay overlay, Guid adminId, CancellationToken cancellationToken, bool checkAgainstLive = true);
+    /// <summary>
+    /// Saves an overlay. A room that has a draft takes it in the draft, so it goes live, is scheduled and rolls back with the layout it was
+    /// written for; a room with no draft has it live at once, checked against the live room.
+    /// </summary>
+    Task SaveOverlayAsync(RoomOverlay overlay, Guid adminId, CancellationToken cancellationToken);
 
     Task DeleteOverlayAsync(string roomId, string overlayId, Guid adminId, CancellationToken cancellationToken);
 
@@ -295,28 +298,32 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
         }
 
         var overlays = (await db.RoomOverlays.AsNoTracking().ToListAsync(cancellationToken)).Select(o => o.ToOverlay()).ToDictionary(o => (o.RoomId, o.Id));
+        var pending = (await db.RoomVersions.AsNoTracking().Where(v => v.State == RoomVersionState.Draft && v.Overlays != null).ToListAsync(cancellationToken))
+            .SelectMany(v => v.Overlays!).ToDictionary(o => (o.RoomId, o.Id));
         // After the rooms, so a draft this file just saved counts: what an overlay waits for is read from the rooms' real state.
         var states = (await db.RoomVersions.AsNoTracking().Where(v => v.State == RoomVersionState.Published || v.State == RoomVersionState.Draft).Select(v => new { v.RoomId, v.State }).ToListAsync(cancellationToken))
             .GroupBy(v => v.RoomId).ToDictionary(g => g.Key, g => g.Select(v => v.State).ToHashSet());
         foreach (var overlay in file.OverlayList)
         {
-            if (!overlays.TryGetValue((overlay.RoomId, overlay.Id), out var existing))
+            if (!states.ContainsKey(overlay.RoomId))
             {
-                if (!states.ContainsKey(overlay.RoomId))
-                {
-                    problems.Add($"overlay {overlay.RoomId}/{overlay.Id}: there is no published or draft room {overlay.RoomId}");
-                    continue;
-                }
-
-                await Attempt($"overlay {overlay.RoomId}/{overlay.Id}", () => SaveOverlayAsync(overlay, adminId, cancellationToken, checkAgainstLive: !HasDraft(overlay.RoomId)));
+                problems.Add($"overlay {overlay.RoomId}/{overlay.Id}: there is no published or draft room {overlay.RoomId}");
+                continue;
             }
-            else if (Same(existing, overlay))
+
+            // What the overlay will be once the room's draft is published: the draft's own when it has one, else the live one.
+            var current = pending.TryGetValue((overlay.RoomId, overlay.Id), out var waiting) ? waiting : overlays.GetValueOrDefault((overlay.RoomId, overlay.Id));
+            if (current is null)
+            {
+                await Attempt($"overlay {overlay.RoomId}/{overlay.Id}", () => SaveOverlayAsync(overlay, adminId, cancellationToken));
+            }
+            else if (Same(current, overlay))
             {
                 unchanged.Add($"overlay {overlay.RoomId}/{overlay.Id}");
             }
             else
             {
-                await Attempt($"overlay {overlay.RoomId}/{overlay.Id}", () => SaveOverlayAsync(overlay, adminId, cancellationToken, checkAgainstLive: !HasDraft(overlay.RoomId)), "replaced (the file differs)");
+                await Attempt($"overlay {overlay.RoomId}/{overlay.Id}", () => SaveOverlayAsync(overlay, adminId, cancellationToken), "replaced (the file differs)");
             }
         }
 
@@ -326,12 +333,11 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             problems.AddRange(await ProblemsWithAsync(
                 file.RoomList.ToDictionary(r => r.Id, r => r.Layout),
                 file.RoomList.Where(r => r.Look is not null).ToDictionary(r => r.Id, r => r.Look!),
-                cancellationToken));
+                cancellationToken,
+                pending: [.. file.OverlayList.Where(o => file.RoomList.Any(r => r.Id == o.RoomId))]));
         }
 
         return new ImportReport(applied, unchanged, problems);
-
-        bool HasDraft(string roomId) => states.TryGetValue(roomId, out var of) && of.Contains(RoomVersionState.Draft);
 
         async Task Attempt(string what, Func<Task> save, string done = "saved")
         {
@@ -414,7 +420,7 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
         await SaveAsync(cancellationToken);
         // The admins' preview world plays drafts: this pod has it at once, the others within a few seconds.
         await library.RefreshAsync(cancellationToken);
-        return await ProblemsWithAsync(roomId, layout, look ?? draft?.Look, cancellationToken);
+        return await ProblemsWithAsync(roomId, layout, look ?? draft?.Look, cancellationToken, draft?.Overlays);
     }
 
     public async Task DiscardDraftAsync(string roomId, Guid adminId, CancellationToken cancellationToken)
@@ -447,7 +453,7 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
     public async Task ScheduleAsync(string roomId, IReadOnlyList<string> together, DateTimeOffset at, Guid adminId, CancellationToken cancellationToken)
     {
         var drafts = await DraftsOfAsync(roomId, together, cancellationToken);
-        ThrowIfProblems(await ProblemsWithAsync(drafts.ToDictionary(d => d.RoomId, d => d.Layout), LooksOf(drafts), cancellationToken));
+        ThrowIfProblems(await ProblemsWithAsync(drafts.ToDictionary(d => d.RoomId, d => d.Layout), LooksOf(drafts), cancellationToken, pending: PendingOf(drafts)));
         var now = time.GetUtcNow();
         foreach (var draft in drafts)
         {
@@ -476,7 +482,7 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             return 0;
         }
 
-        var problems = await ProblemsWithAsync(due.ToDictionary(d => d.RoomId, d => d.Layout), LooksOf(due), cancellationToken);
+        var problems = await ProblemsWithAsync(due.ToDictionary(d => d.RoomId, d => d.Layout), LooksOf(due), cancellationToken, pending: PendingOf(due));
         if (problems.Count > 0)
         {
             foreach (var draft in due)
@@ -535,70 +541,79 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
         await PublishAsync([back], adminId, "rolled-back", _ => $" (a copy of version {number})", cancellationToken);
     }
 
-    public async Task SaveOverlayAsync(RoomOverlay overlay, Guid adminId, CancellationToken cancellationToken, bool checkAgainstLive = true)
+    public async Task SaveOverlayAsync(RoomOverlay overlay, Guid adminId, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(overlay);
         var published = await PublishedLayoutsAsync(cancellationToken);
-        if (checkAgainstLive && published.ContainsKey(overlay.RoomId))
+        var draft = await db.RoomVersions.FirstOrDefaultAsync(v => v.RoomId == overlay.RoomId && v.State == RoomVersionState.Draft, cancellationToken);
+        if (draft is null)
         {
+            if (!published.ContainsKey(overlay.RoomId))
+            {
+                throw new DomainException($"There is no published or draft room {overlay.RoomId}.");
+            }
+
             var overlays = OverlaysOfRooms(published, (await db.RoomOverlays.AsNoTracking().ToListAsync(cancellationToken))
                 .Select(entry => entry.ToOverlay())
                 .Where(o => o.RoomId != overlay.RoomId || o.Id != overlay.Id)
                 .Append(overlay));
             ThrowIfProblems([.. RoomBook.Problems(published, overlays), .. await LookProblemsAsync(published, overlays, new Dictionary<string, RoomLook>(), cancellationToken)]);
-        }
-        else
-        {
-            // A room that is only a draft: no player sees it yet, so the overlay is kept as it is; its props are checked against the room when the room is saved or published.
-            if (!await db.RoomVersions.AsNoTracking().AnyAsync(v => v.RoomId == overlay.RoomId && v.State == RoomVersionState.Draft, cancellationToken))
+            var entry = await db.RoomOverlays.FirstOrDefaultAsync(o => o.RoomId == overlay.RoomId && o.Id == overlay.Id, cancellationToken);
+            if (entry is null)
             {
-                throw new DomainException($"There is no published or draft room {overlay.RoomId}.");
+                db.RoomOverlays.Add(RoomOverlayEntry.Of(overlay));
+            }
+            else
+            {
+                entry.Replace(overlay);
             }
 
-            var variants = await db.LookVariants.AsNoTracking().Select(v => v.Id).ToListAsync(cancellationToken);
-            var problems = new List<string>();
-            if (string.IsNullOrWhiteSpace(overlay.Id) || string.IsNullOrWhiteSpace(overlay.Name))
-            {
-                problems.Add($"{overlay.RoomId}/{overlay.Id}: has no ID or no name");
-            }
-
-            if (overlay.Window.Problem is { } window)
-            {
-                problems.Add($"{overlay.RoomId}/{overlay.Id}: {window}");
-            }
-
-            if (overlay.Look is not null && !variants.Contains(overlay.Look))
-            {
-                problems.Add($"{overlay.RoomId}/{overlay.Id}: its look '{overlay.Look}' is not one of ({string.Join(", ", variants)}).");
-            }
-
-            ThrowIfProblems(problems);
-        }
-
-        var entry = await db.RoomOverlays.FirstOrDefaultAsync(o => o.RoomId == overlay.RoomId && o.Id == overlay.Id, cancellationToken);
-        if (entry is null)
-        {
-            db.RoomOverlays.Add(RoomOverlayEntry.Of(overlay));
-        }
-        else
-        {
-            entry.Replace(overlay);
-        }
-
-        Audit(adminId, "overlay-saved", $"{overlay.RoomId}/{overlay.Id}", overlay.Name);
-        await SaveAsync(cancellationToken);
-        if (checkAgainstLive)
-        {
-            // Skipped for an overlay checked against a draft: the live rooms would reject it until that draft is published, which refreshes them.
+            Audit(adminId, "overlay-saved", $"{overlay.RoomId}/{overlay.Id}", overlay.Name);
+            await SaveAsync(cancellationToken);
             await library.RefreshAsync(cancellationToken);
+            return;
         }
+
+        // The room has a draft: the overlay waits with it, and is checked against the draft's layout, so it can only go live together with that layout.
+        var variants = await db.LookVariants.AsNoTracking().Select(v => v.Id).ToListAsync(cancellationToken);
+        var problems = new List<string>();
+        if (string.IsNullOrWhiteSpace(overlay.Id) || string.IsNullOrWhiteSpace(overlay.Name))
+        {
+            problems.Add($"{overlay.RoomId}/{overlay.Id}: has no ID or no name");
+        }
+
+        if (overlay.Window.Problem is { } window)
+        {
+            problems.Add($"{overlay.RoomId}/{overlay.Id}: {window}");
+        }
+
+        if (overlay.Look is not null && !variants.Contains(overlay.Look))
+        {
+            problems.Add($"{overlay.RoomId}/{overlay.Id}: its look '{overlay.Look}' is not one of ({string.Join(", ", variants)}).");
+        }
+
+        ThrowIfProblems(problems);
+        draft.SetOverlay(overlay);
+        Audit(adminId, "overlay-saved", $"{overlay.RoomId}/{overlay.Id}", $"{overlay.Name} (with the draft, version {draft.Number})");
+        await SaveAsync(cancellationToken);
+        await library.RefreshAsync(cancellationToken);
     }
 
     public async Task DeleteOverlayAsync(string roomId, string overlayId, Guid adminId, CancellationToken cancellationToken)
     {
-        var entry = await db.RoomOverlays.FirstOrDefaultAsync(o => o.RoomId == roomId && o.Id == overlayId, cancellationToken)
-            ?? throw new DomainException($"{roomId} has no overlay {overlayId}.");
-        db.RoomOverlays.Remove(entry);
+        var draft = await db.RoomVersions.FirstOrDefaultAsync(v => v.RoomId == roomId && v.State == RoomVersionState.Draft, cancellationToken);
+        var waiting = draft?.DropOverlay(overlayId) ?? false;
+        var entry = await db.RoomOverlays.FirstOrDefaultAsync(o => o.RoomId == roomId && o.Id == overlayId, cancellationToken);
+        if (entry is null && !waiting)
+        {
+            throw new DomainException($"{roomId} has no overlay {overlayId}.");
+        }
+
+        if (entry is not null)
+        {
+            db.RoomOverlays.Remove(entry);
+        }
+
         Audit(adminId, "overlay-deleted", $"{roomId}/{overlayId}", string.Empty);
         await SaveAsync(cancellationToken);
         await library.RefreshAsync(cancellationToken);
@@ -810,7 +825,7 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             throw new DomainException($"{string.Join(", ", notLive)} is not live, so it cannot be retired.");
         }
 
-        ThrowIfProblems(await ProblemsWithAsync(drafts.ToDictionary(d => d.RoomId, d => d.Layout), LooksOf(drafts), cancellationToken, retired));
+        ThrowIfProblems(await ProblemsWithAsync(drafts.ToDictionary(d => d.RoomId, d => d.Layout), LooksOf(drafts), cancellationToken, retired, PendingOf(drafts)));
         try
         {
             await db.InTransactionAsync(async ct =>
@@ -841,6 +856,7 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
                 var now = time.GetUtcNow();
                 var names = await LookNamesAsync(ct);
                 var liveLooks = await db.RoomLooks.Where(l => roomIds.Contains(l.Id)).ToDictionaryAsync(l => l.Id, ct);
+                var liveOverlays = await db.RoomOverlays.Where(o => roomIds.Contains(o.RoomId)).ToListAsync(ct);
                 foreach (var draft in await db.RoomVersions.Where(v => draftIds.Contains(v.Id)).ToListAsync(ct))
                 {
                     var extra = note(draft);
@@ -857,6 +873,21 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
 
                     draft.Publish(now);
                     Audit(adminId, action, draft.RoomId, $"version {draft.Number}{extra}");
+                    foreach (var overlay in draft.Overlays ?? [])
+                    {
+                        var liveOverlay = liveOverlays.FirstOrDefault(o => o.RoomId == overlay.RoomId && o.Id == overlay.Id);
+                        if (liveOverlay is null)
+                        {
+                            db.RoomOverlays.Add(RoomOverlayEntry.Of(overlay));
+                        }
+                        else
+                        {
+                            liveOverlay.Replace(overlay);
+                        }
+
+                        Audit(adminId, "overlay-saved", $"{overlay.RoomId}/{overlay.Id}", $"{overlay.Name} (published with version {draft.Number})");
+                    }
+
                     if (draft.Look is { } look && (entry is null || !SameLook(entry.Look, look)))
                     {
                         if (entry is not null)
@@ -904,14 +935,15 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             .Where(v => v.State == RoomVersionState.Published)
             .ToDictionaryAsync(v => v.RoomId, v => v.Layout, cancellationToken);
 
-    private Task<IReadOnlyList<string>> ProblemsWithAsync(string roomId, RoomLayout layout, RoomLook? look, CancellationToken cancellationToken) =>
+    private Task<IReadOnlyList<string>> ProblemsWithAsync(string roomId, RoomLayout layout, RoomLook? look, CancellationToken cancellationToken, IReadOnlyCollection<RoomOverlay>? pending = null) =>
         ProblemsWithAsync(
             new Dictionary<string, RoomLayout> { [roomId] = layout },
             look is null ? new Dictionary<string, RoomLook>() : new Dictionary<string, RoomLook> { [roomId] = look },
-            cancellationToken);
+            cancellationToken,
+            pending: pending);
 
     private async Task<IReadOnlyList<string>> ProblemsWithAsync(
-        IReadOnlyDictionary<string, RoomLayout> replaced, IReadOnlyDictionary<string, RoomLook> looksOf, CancellationToken cancellationToken, IReadOnlyCollection<string>? retired = null)
+        IReadOnlyDictionary<string, RoomLayout> replaced, IReadOnlyDictionary<string, RoomLook> looksOf, CancellationToken cancellationToken, IReadOnlyCollection<string>? retired = null, IReadOnlyCollection<RoomOverlay>? pending = null)
     {
         var layouts = await PublishedLayoutsAsync(cancellationToken);
         foreach (var id in retired ?? [])
@@ -924,7 +956,8 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             layouts[id] = layout;
         }
 
-        var overlays = OverlaysOfRooms(layouts, (await db.RoomOverlays.AsNoTracking().ToListAsync(cancellationToken)).Select(entry => entry.ToOverlay()));
+        // The overlays the drafts bring replace the live ones of the same ID: that is how the rooms stand once they are all published.
+        var overlays = OverlaysOfRooms(layouts, WithPending((await db.RoomOverlays.AsNoTracking().ToListAsync(cancellationToken)).Select(entry => entry.ToOverlay()), pending));
         return [.. RoomBook.Problems(layouts, overlays), .. await LookProblemsAsync(layouts, overlays, looksOf, cancellationToken)];
     }
 
@@ -943,6 +976,11 @@ public sealed class RoomEditor(IApplicationDbContext db, IRoomLibrary library, T
             .. overlays.Where(o => o.Look is not null && !variants.Contains(o.Look)).Select(o => $"{o.RoomId}/{o.Id}: its look '{o.Look}' is not one of ({string.Join(", ", variants)})."),
         ];
     }
+
+    private static IEnumerable<RoomOverlay> WithPending(IEnumerable<RoomOverlay> live, IReadOnlyCollection<RoomOverlay>? pending) =>
+        pending is null or { Count: 0 } ? live : live.Where(o => !pending.Any(p => p.RoomId == o.RoomId && p.Id == o.Id)).Concat(pending);
+
+    private static List<RoomOverlay> PendingOf(IEnumerable<RoomVersion> drafts) => [.. drafts.SelectMany(d => d.Overlays ?? [])];
 
     /// <summary>Only the overlays of rooms in the book: one of a room that is still a draft is not checked until that room is.</summary>
     private static List<RoomOverlay> OverlaysOfRooms(Dictionary<string, RoomLayout> layouts, IEnumerable<RoomOverlay> overlays) =>

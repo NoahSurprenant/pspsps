@@ -9,6 +9,32 @@ public sealed class RoomVersionTests
     private static readonly RoomLayout Layout = RoomLayout.Of(RoomCatalog.Find("shop")!);
 
     [Test]
+    public void ADraft_KeepsItsOverlays_ReplacingOneOfTheSameId_AndOnlyWhileItIsADraft()
+    {
+        var window = new OverlayWindow(Now, Now.AddDays(1));
+        var draft = RoomVersion.Draft("shop", 2, Layout, Guid.NewGuid(), Now);
+
+        draft.SetOverlay(new RoomOverlay("a", "shop", "First", window));
+        draft.SetOverlay(new RoomOverlay("a", "shop", "Second", window));
+        draft.SetOverlay(new RoomOverlay("b", "shop", "Other", window));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(draft.Overlays!.Select(o => o.Name), Is.EquivalentTo(new[] { "Second", "Other" }));
+            Assert.That(() => draft.SetOverlay(new RoomOverlay("c", "cafe", "Elsewhere", window)), Throws.TypeOf<DomainException>());
+            Assert.That(draft.DropOverlay("a"), Is.True);
+            Assert.That(draft.DropOverlay("a"), Is.False);
+            Assert.That(draft.DropOverlay("b"), Is.True);
+            Assert.That(draft.Overlays, Is.Null);
+        });
+
+        draft.SetOverlay(new RoomOverlay("a", "shop", "First", window));
+        draft.Publish(Now);
+
+        Assert.That(() => draft.SetOverlay(new RoomOverlay("z", "shop", "Late", window)), Throws.TypeOf<DomainException>());
+    }
+
+    [Test]
     public void ADraft_CanBeEditedAndThenPublished_AndThenOnlyReplaced()
     {
         var draft = RoomVersion.Draft("shop", 2, Layout, Guid.NewGuid(), Now);

@@ -668,6 +668,71 @@ public sealed class RoomEditorHttpTests
     }
 
     [Test]
+    public async Task AnOverlay_SavedWhileTheRoomHasADraft_GoesLiveInTheSamePublish_AsTheLayout()
+    {
+        var (adminPlayer, _) = await Game.SignInGuestAsync();
+        Game.Admins.Add(adminPlayer.Id);
+        var editor = Game.Get<IRoomEditor>();
+        var before = await editor.GetAsync("pizza-parlor", CancellationToken.None);
+        var overlay = new RoomOverlay("import-test-pending", "pizza-parlor", "Pending", new OverlayWindow(new DateTimeOffset(2090, 1, 1, 0, 0, 0, TimeSpan.Zero), new DateTimeOffset(2090, 1, 2, 0, 0, 0, TimeSpan.Zero)));
+        try
+        {
+            await editor.SaveDraftAsync("pizza-parlor", before!.Published!, adminPlayer.Id, null, CancellationToken.None);
+            await editor.SaveOverlayAsync(overlay, adminPlayer.Id, CancellationToken.None);
+            var waiting = await Db().RoomOverlays.AsNoTracking().AnyAsync(o => o.Id == "import-test-pending");
+            var again = await editor.ImportAsync(new ContentFile(Overlays: [overlay]), adminPlayer.Id, CancellationToken.None);
+
+            await editor.PublishAsync("pizza-parlor", [], adminPlayer.Id, CancellationToken.None);
+            var live = await Db().RoomOverlays.AsNoTracking().AnyAsync(o => o.Id == "import-test-pending");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(waiting, Is.False, "it is not live while the layout is a draft");
+                Assert.That(again.Unchanged, Has.Some.Contains("overlay pizza-parlor/import-test-pending"), "an import sees the one waiting in the draft");
+                Assert.That(live, Is.True, "publishing the layout puts it live");
+            });
+        }
+        finally
+        {
+            await using var db = Db();
+            db.RoomOverlays.RemoveRange(await db.RoomOverlays.Where(o => o.Id.StartsWith("import-test-")).ToListAsync());
+            await db.SaveChangesAsync();
+            if ((await editor.GetAsync("pizza-parlor", CancellationToken.None))?.Draft is not null)
+            {
+                await editor.DiscardDraftAsync("pizza-parlor", adminPlayer.Id, CancellationToken.None);
+            }
+        }
+    }
+
+    [Test]
+    public async Task AnOverlay_ThatTheDraftsLayoutCannotHold_StopsThePublish_AndNothingGoesLive()
+    {
+        var (adminPlayer, _) = await Game.SignInGuestAsync();
+        Game.Admins.Add(adminPlayer.Id);
+        var editor = Game.Get<IRoomEditor>();
+        var before = await editor.GetAsync("pizza-parlor", CancellationToken.None);
+        var overlay = new RoomOverlay("import-test-misfit", "pizza-parlor", "Misfit", new OverlayWindow(new DateTimeOffset(2090, 1, 1, 0, 0, 0, TimeSpan.Zero), new DateTimeOffset(2090, 1, 2, 0, 0, 0, TimeSpan.Zero)))
+        {
+            Removes = [new Prop(PropKinds.Tree, new Position(0.1, 0.1), 1)],
+        };
+        try
+        {
+            await editor.SaveDraftAsync("pizza-parlor", before!.Published!, adminPlayer.Id, null, CancellationToken.None);
+            await editor.SaveOverlayAsync(overlay, adminPlayer.Id, CancellationToken.None);
+
+            Assert.That(async () => await editor.PublishAsync("pizza-parlor", [], adminPlayer.Id, CancellationToken.None), Throws.TypeOf<Pspsps.Domain.DomainException>());
+            Assert.That(await Db().RoomOverlays.AsNoTracking().AnyAsync(o => o.Id == "import-test-misfit"), Is.False);
+        }
+        finally
+        {
+            if ((await editor.GetAsync("pizza-parlor", CancellationToken.None))?.Draft is not null)
+            {
+                await editor.DiscardDraftAsync("pizza-parlor", adminPlayer.Id, CancellationToken.None);
+            }
+        }
+    }
+
+    [Test]
     public async Task LoadingTheContentFile_ReplacesALivePainterThatDiffers()
     {
         var (adminPlayer, _) = await Game.SignInGuestAsync();
