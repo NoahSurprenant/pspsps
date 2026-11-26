@@ -44,6 +44,19 @@ public sealed class RoomBook
         return new RoomBook(rooms, overlays);
     }
 
+    /// <summary>The overlays that sit right on these rooms; one that does not (it was saved for a draft its room has not published yet) is left out.</summary>
+    public static IReadOnlyList<RoomOverlay> OverlaysThatFit(IReadOnlyDictionary<string, RoomLayout> layouts, IReadOnlyList<RoomOverlay> overlays)
+    {
+        ArgumentNullException.ThrowIfNull(overlays);
+        if (Problems(layouts, overlays).Count == 0)
+        {
+            return overlays;
+        }
+
+        var already = Problems(layouts, []).Count;
+        return [.. overlays.Where(overlay => Problems(layouts, [overlay]).Count == already)];
+    }
+
     /// <summary>What is wrong with the rooms and overlays as a set, one line per problem; empty when they are fine.</summary>
     public static IReadOnlyList<string> Problems(IReadOnlyDictionary<string, RoomLayout> layouts, IReadOnlyList<RoomOverlay> overlays) =>
         Problems(layouts, overlays, out _);

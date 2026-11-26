@@ -31,7 +31,8 @@ public sealed class RoomLibrary(IServiceScopeFactory scopes, TimeProvider time) 
             .ToDictionaryAsync(v => v.RoomId, v => v.Layout, cancellationToken);
         var entries = await db.RoomOverlays.AsNoTracking().ToListAsync(cancellationToken);
         IReadOnlyList<RoomOverlay> overlays = [.. entries.Where(entry => layouts.ContainsKey(entry.RoomId)).Select(entry => entry.ToOverlay())];
-        _book = RoomBook.Create(layouts, overlays);
+        // An overlay saved for a room's draft waits out of the live rooms until that draft is published; the preview has it from the start.
+        _book = RoomBook.Create(layouts, RoomBook.OverlaysThatFit(layouts, overlays));
 
         var drafts = (await db.RoomVersions.AsNoTracking()
             .Where(v => v.State == RoomVersionState.Draft)
