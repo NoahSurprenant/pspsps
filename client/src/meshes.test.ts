@@ -4,11 +4,11 @@ import { modelData } from "./meshes";
 describe("the built-in meshes", () => {
   it.each(["town-house", "town-hotel", "town-mall", "town-square-coffee"])("%s is whole: triangles over real vertices, a colour for each", (name) => {
     const mesh = modelData(name);
-    expect(mesh).toBeDefined();
-    const vertices = mesh!.positions.length / 3;
-    expect(mesh!.indices.length % 3).toBe(0);
-    expect(mesh!.colours).toHaveLength(vertices);
-    expect(Math.max(...mesh!.indices)).toBeLessThan(vertices);
-    expect(mesh!.colours.every((colour) => /^#[0-9a-f]{6}$/.test(colour))).toBe(true);
+    if (!mesh) throw new Error(`no mesh named ${name}`);
+    const vertices = mesh.positions.length / 3;
+    expect(mesh.indices.length % 3).toBe(0);
+    expect(mesh.colours).toHaveLength(vertices);
+    expect(Math.max(...mesh.indices)).toBeLessThan(vertices);
+    expect(mesh.colours.every((colour) => /^#[0-9a-f]{6}$/.test(colour))).toBe(true);
   });
 });
