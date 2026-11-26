@@ -136,9 +136,9 @@ public sealed class ContentDraftsTests
     }
 
     [Test]
-    public void ThePlaza_UsesTheTownGenerator_ForItsPavingStep()
+    public void ThePlaza_HasNoGeneratedRowOfHouses_OnlyItsFourBuildings()
     {
-        Assert.That(Content.AllLooks.Single(look => look.Id == "plaza").Look.Backdrop.Generator, Is.EqualTo("town"));
+        Assert.That(Content.AllLooks.Single(look => look.Id == "plaza").Look.Backdrop.Generator, Is.Null);
     }
 
     [Test]
