@@ -7,7 +7,7 @@ import type { ModerationRequest, Sanction, Warning } from "./moderation";
 import type { ReportRequest } from "./safety";
 import type { ShopAction } from "./shop";
 import type {
-  CatchView, CatView, ChatView, Emote, EmoteView, Friend, HomeView, HomeVisitors, MutedView, OutfitView, Player, PlayerCard,
+  BallView, CatchView, CatView, ChatView, Emote, EmoteView, Friend, HomeView, HomeVisitors, MutedView, OutfitView, Player, PlayerCard,
   ReelView, RenameView, ReportReceipt, RoomSnapshot, Shop, WorldSummary,
 } from "./types";
 
@@ -15,6 +15,8 @@ export interface GameEvents {
   catJoined(cat: CatView): void;
   catLeft(playerId: string): void;
   catMoved(playerId: string, x: number, z: number): void;
+  /** The pitch's ball was kicked or is rolling. */
+  ballMoved(ball: BallView): void;
   chatSaid(line: ChatView): void;
   catEmoted(emote: EmoteView): void;
   /** A cat in the room put on or took off a hat or collar, or changed its fur. */
@@ -180,6 +182,7 @@ export class GameConnection {
       : appLog.warn("The hub connection closed", error));
     hub.on("CatJoined", (cat: CatView) => events.catJoined(cat));
     hub.on("CatLeft", (playerId: string) => events.catLeft(playerId));
+    hub.on("BallMoved", (ball: BallView) => events.ballMoved(ball));
     hub.on("CatMoved", (playerId: string, x: number, z: number) => events.catMoved(playerId, x, z));
     hub.on("ChatSaid", (line: ChatView) => events.chatSaid(line));
     hub.on("CatEmoted", (emote: EmoteView) => events.catEmoted(emote));

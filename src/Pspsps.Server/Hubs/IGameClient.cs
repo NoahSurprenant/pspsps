@@ -11,6 +11,8 @@ public interface IGameClient
 
     Task CatMoved(Guid playerId, double x, double z);
 
+    Task BallMoved(BallView ball);
+
     Task ChatSaid(ChatView line);
 
     /// <summary>

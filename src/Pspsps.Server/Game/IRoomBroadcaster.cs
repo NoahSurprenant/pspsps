@@ -56,4 +56,7 @@ public interface IRoomBroadcaster
     Task CatDressed(IReadOnlyList<string> sessions, OutfitView outfit);
 
     Task CatRenamed(IReadOnlyList<string> sessions, RenameView rename);
+
+    /// <summary>The pitch's ball was kicked or is rolling: where it is and how fast it goes.</summary>
+    Task BallMoved(IReadOnlyList<string> sessions, BallView ball);
 }

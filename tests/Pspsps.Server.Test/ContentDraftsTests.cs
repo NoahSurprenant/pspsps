@@ -342,6 +342,8 @@ public sealed class ContentDraftsTests
             Assert.That(rink.Props.Count(p => p.Kind == (winter ? PropKinds.HockeyNet : PropKinds.Goal)), Is.EqualTo(2), "a net at each end: soccer goals on the pitch, hockey nets on the rink");
             Assert.That(rink.Props.Any(p => p.Kind == (winter ? PropKinds.Goal : PropKinds.HockeyNet)), Is.False, "never both kinds of net");
             Assert.That(rink.Props.Any(p => p.Kind == PropKinds.IcePatch), Is.EqualTo(winter), "ice only in winter");
+            Assert.That(rink.Props.Any(p => p.Kind == PropKinds.Puck), Is.EqualTo(winter), "a puck on the ice");
+            Assert.That(rink.Props.Any(p => p.Kind == PropKinds.PitchBall), Is.EqualTo(!winter), "a ball on the grass");
             Assert.That(rink.Props.Any(p => p.Kind == PropKinds.RinkBoard), Is.EqualTo(winter), "boards only in winter");
             Assert.That(rink.Props.Where(p => p.Kind is PropKinds.Bench or PropKinds.Lamp or PropKinds.Plant or PropKinds.FlowerBed or PropKinds.FieldStump or PropKinds.FieldBush or PropKinds.FieldPine).Select(p => p.Kind), Is.Empty, "no street furniture or plants on the playing surface, in either season");
             Assert.That(rink.Look, Is.EqualTo(winter ? "frozen-rink" : null));
@@ -455,7 +457,7 @@ public sealed class ContentDraftsTests
         var starting = PropDesignSeeder.Starting().ToDictionary(d => d.Kind);
         var copies = Content.PropDesignList.Where(d => starting.ContainsKey(d.Kind)).ToList();
 
-        Assert.That(copies.Select(d => d.Kind), Is.SupersetOf(new[] { PropKinds.Goal, PropKinds.HockeyNet, PropKinds.IcePatch, PropKinds.RinkBoard, PropKinds.YarnBall, PropKinds.SnowCat }), "the rink's kinds are in both");
+        Assert.That(copies.Select(d => d.Kind), Is.SupersetOf(new[] { PropKinds.Goal, PropKinds.HockeyNet, PropKinds.PitchBall, PropKinds.Puck, PropKinds.IcePatch, PropKinds.RinkBoard, PropKinds.YarnBall, PropKinds.SnowCat }), "the rink's kinds are in both");
         foreach (var design in copies)
         {
             var (_, size, parts, growth) = starting[design.Kind];

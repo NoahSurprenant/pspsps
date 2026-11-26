@@ -13,6 +13,13 @@ internal sealed partial class RoomGrain
     private OverworldState? _world;
     private IReadOnlyList<ChunkView> _chunks = [];
 
+    // The pitch's ball (a puck on the ice), when the world has one, and when it last moved.
+    private PitchBall? _ball;
+    private string _ballKind = "";
+    private string _ballRoom = "";
+    private DateTimeOffset _ballAt;
+    private static readonly TimeSpan BallTick = TimeSpan.FromMilliseconds(100);
+
     // The cats each player's tab has been told about (and the reverse), so it is told what comes into view and what leaves it.
     private readonly ViewLedger _views = new();
 
@@ -27,6 +34,61 @@ internal sealed partial class RoomGrain
             static (grain, _) => grain.RemoveExpired(),
             this,
             new GrainTimerCreationOptions { DueTime = SessionLease.RenewEvery, Period = SessionLease.RenewEvery });
+        ActivateBall();
+    }
+
+    private void ActivateBall()
+    {
+        var space = _world!.Space;
+        foreach (var room in space.Rooms)
+        {
+            var prop = room.Props.FirstOrDefault(p => p.Kind is PropKinds.PitchBall or PropKinds.Puck);
+            if (prop is null)
+            {
+                continue;
+            }
+
+            var centre = space.ToWorld(room.Id, new Position(0, 0));
+            _ball = new PitchBall(
+                centre, (room.Width / 2) - BallMargin, (room.Depth / 2) - BallMargin,
+                room.Props.Any(p => p.Kind == PropKinds.IcePatch), space.ToWorld(room.Id, prop.Spot));
+            _ballKind = prop.Kind;
+            _ballRoom = room.Id;
+            _ballAt = time.GetUtcNow();
+            this.RegisterGrainTimer(
+                static (grain, _) => grain.StepBall(),
+                this,
+                new GrainTimerCreationOptions { DueTime = BallTick, Period = BallTick });
+            return;
+        }
+    }
+
+    // How far inside the pitch's edge the ball stops: the deck and boards round it.
+    private const double BallMargin = 1.2;
+
+    private async Task StepBall()
+    {
+        var ball = _ball;
+        if (ball is null || !ball.Moving)
+        {
+            return;
+        }
+
+        var now = time.GetUtcNow();
+        ball.Step(Math.Clamp((now - _ballAt).TotalSeconds, 0, 0.25));
+        _ballAt = now;
+        await BroadcastBall();
+    }
+
+    private async Task BroadcastBall()
+    {
+        var world = _world!;
+        var here = world.Cats.Where(cat => world.Space.RoomAt(cat.Position)?.Id == _ballRoom).Select(cat => cat.PlayerId);
+        var sessions = SessionsOf(here);
+        if (sessions.Count > 0)
+        {
+            await broadcaster.BallMoved(sessions, BallView.From(_ballKind, _ball!));
+        }
     }
 
     private async Task<RoomSnapshot> JoinOverworld(PlayerCard player, string session, string? arrival)
@@ -75,7 +137,8 @@ internal sealed partial class RoomGrain
             null,
             WorldMap: _worldMap,
             Look: here.Look,
-            Chunks: _chunks);
+            Chunks: _chunks,
+            Ball: _ball is null ? null : BallView.From(_ballKind, _ball));
     }
 
     private async Task LeaveOverworld(Guid playerId, string session)
@@ -102,10 +165,16 @@ internal sealed partial class RoomGrain
     private async Task MoveInOverworld(Guid playerId, double x, double z)
     {
         var world = _world!;
+        var from = world.Find(playerId)?.Position;
         var position = Rule(() => world.Move(playerId, new Position(x, z), time.GetUtcNow()));
         var cat = world.Find(playerId)!;
         await SyncNear(cat);
         await broadcaster.CatMoved(WatchersOf(playerId), playerId, position.X, position.Z);
+        if (from is { } before && _ball is { } ball && ball.Kick(before, position))
+        {
+            _ballAt = time.GetUtcNow();
+            await BroadcastBall();
+        }
     }
 
     private async Task SayInOverworld(Guid playerId, string text)

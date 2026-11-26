@@ -108,7 +108,8 @@ public sealed record RoomSnapshot(
     [property: Id(12)] string? Notice = null,
     [property: Id(13)] WorldMapView? WorldMap = null,
     [property: Id(14)] string? Look = null,
-    [property: Id(15)] IReadOnlyList<ChunkView>? Chunks = null);
+    [property: Id(15)] IReadOnlyList<ChunkView>? Chunks = null,
+    [property: Id(16)] BallView? Ball = null);
 
 /// <summary>
 /// One outdoor room of the open world, for drawing it in place: its middle in world metres (X, Z), its floor, and its
@@ -217,6 +218,22 @@ public sealed record PropView(
     {
         ArgumentNullException.ThrowIfNull(prop);
         return new PropView(prop.Kind, prop.Spot.X, prop.Spot.Z, prop.Radius, prop.Facing);
+    }
+}
+
+/// <summary>The pitch's ball (or puck: Kind) in world metres (X, Z), and how fast it is rolling (VelocityX, VelocityZ, metres a second).</summary>
+[GenerateSerializer, Immutable]
+public sealed record BallView(
+    [property: Id(0)] string Kind,
+    [property: Id(1)] double X,
+    [property: Id(2)] double Z,
+    [property: Id(3)] double VelocityX,
+    [property: Id(4)] double VelocityZ)
+{
+    public static BallView From(string kind, PitchBall ball)
+    {
+        ArgumentNullException.ThrowIfNull(ball);
+        return new BallView(kind, ball.Position.X, ball.Position.Z, ball.VelocityX, ball.VelocityZ);
     }
 }
 

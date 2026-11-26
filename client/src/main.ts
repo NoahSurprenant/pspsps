@@ -215,6 +215,7 @@ const connection = new GameConnection({
     here.leave(playerId);
     scene?.remove(playerId);
   }),
+  ballMoved: (ball) => onRoom(() => scene?.moveBall(ball)),
   catMoved: (playerId, x, z) => onRoom((here) => {
     if (here.move(playerId, x, z)) {
       scene?.walk(playerId, x, z);

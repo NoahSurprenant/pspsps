@@ -242,3 +242,11 @@ type TerraceView 3: Double Depth
 type TerraceView 4: Double Height
 type TerraceView 5: String Colour
 type TerraceView 6: Boolean Round
+
+type RoomSnapshot 16: BallView Ball
+
+type BallView 0: String Kind
+type BallView 1: Double X
+type BallView 2: Double Z
+type BallView 3: Double VelocityX
+type BallView 4: Double VelocityZ

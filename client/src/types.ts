@@ -136,6 +136,17 @@ export interface RoomSnapshot {
    * (east, south), not metres from this room's middle, and the room named above is the one the cat is in now.
    */
   chunks?: ChunkView[] | null;
+  /** The pitch's ball (a puck on the ice) and where it is rolling, in world metres; missing when the world has none. */
+  ball?: BallView | null;
+}
+
+/** The ball (or puck) the cats kick about (Contracts.cs, BallView): world metres, and metres a second. */
+export interface BallView {
+  kind: string;
+  x: number;
+  z: number;
+  velocityX: number;
+  velocityZ: number;
 }
 
 /** One outdoor room of the open world (Contracts.cs, ChunkView): its middle in world metres, and the rest in metres from it. */

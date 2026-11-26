@@ -33,6 +33,8 @@ internal sealed class HubRoomBroadcaster(IHubContext<GameHub, IGameClient> hub, 
     public Task CatMoved(IReadOnlyList<string> sessions, Guid playerId, double x, double z) =>
         hub.Clients.Clients(sessions).CatMoved(playerId, x, z);
 
+    public Task BallMoved(IReadOnlyList<string> sessions, BallView ball) => hub.Clients.Clients(sessions).BallMoved(ball);
+
     public Task ChatSaid(IReadOnlyList<string> sessions, ChatView line) => hub.Clients.Clients(sessions).ChatSaid(line);
 
     public Task CatEmoted(IReadOnlyList<string> sessions, EmoteView emote) => hub.Clients.Clients(sessions).CatEmoted(emote);

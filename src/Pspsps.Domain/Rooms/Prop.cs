@@ -104,6 +104,8 @@ public static class PropKinds
     public const string FieldLifeguardChair = "field-lifeguard-chair";
     public const string FieldCornerFlag = "field-corner-flag";
     public const string FieldBall = "field-ball";
+    public const string PitchBall = "pitch-ball";
+    public const string Puck = "puck";
     public const string FieldCone = "field-cone";
     public const string FieldSignpost = "field-signpost";
     public const string FieldBoulder = "field-boulder";
@@ -127,7 +129,7 @@ public static class PropKinds
     [
         Tree, Bench, Lamp, FlowerBed, CafeTable, Counter, Plant, CatTree, Rug, Armchair, Sofa, FloorLamp, Bookshelf, CatBed,
         MapBoard, Piano, PottingBench, RodRack, PearTree, PackingCrate,
-        Goal, HockeyNet, IcePatch, RinkBoard, YarnBall, SnowCat,
+        Goal, HockeyNet, PitchBall, Puck, IcePatch, RinkBoard, YarnBall, SnowCat,
         CatalogueStand, HatShelf, ShopCounter, Mirror, BookStack, Globe, YarnNook, WindowSeat,
         MarketStall, PizzaTable, PizzaOven, Stage, SpeakerStack, LightRig, FishBarrel, YarnBasket, MarketCart, Chalkboard,
         DoughTable, WoodStack, FishTank, Jukebox, DjBooth, BarStool, VelvetRope, Podium, Fountain,
