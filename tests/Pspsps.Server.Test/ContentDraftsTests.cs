@@ -68,7 +68,7 @@ public sealed class ContentDraftsTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(water.Select(g => g.Id), Is.SupersetOf(new[] { "dock", "beach", "cove" }), "the sea rooms have a water ground");
+            Assert.That(water.Select(g => g.Id), Is.SupersetOf(new[] { "beach", "cove" }), "the sea rooms have a water ground");
             Assert.That(water.Select(g => g.Ground).Distinct().Count(), Is.EqualTo(1), string.Join(", ", water.Select(g => $"{g.Id}={g.Ground!.Colour}")));
             Assert.That(water.Select(g => g.Ground!.Painter), Has.All.Null);
         });

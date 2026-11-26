@@ -21526,7 +21526,7 @@
         "floorColour": "#e9d9a8",
         "wallColour": "#cfe6ea",
         "ground": {
-          "colour": "#79c4de"
+          "colour": "#8fbf6a"
         },
         "floor": {
           "painter": "shore-dock",
@@ -22275,160 +22275,28 @@
               "sides": 8
             },
             {
-              "shape": "cylinder",
-              "diameter": 4.539,
-              "height": 0.01,
+              "shape": "box",
+              "width": 70,
+              "height": 0.04,
+              "depth": 20,
               "at": [
-                -13.5,
-                -0.0285,
-                -8.498
+                0,
+                0.01,
+                -18
               ],
-              "colour": "#a8dcee",
-              "sides": 20,
-              "outlined": false
+              "colour": "#4fb3d9"
             },
             {
-              "shape": "cylinder",
-              "diameter": 3.867,
-              "height": 0.01,
+              "shape": "box",
+              "width": 15,
+              "height": 0.05,
+              "depth": 0.35,
               "at": [
-                -10.346,
-                -0.0233,
-                -8.99
+                6.5,
+                0.02,
+                -8.1
               ],
-              "colour": "#a8dcee",
-              "sides": 20,
-              "outlined": false
-            },
-            {
-              "shape": "cylinder",
-              "diameter": 4.576,
-              "height": 0.01,
-              "at": [
-                -7.163,
-                -0.0181,
-                -8.27
-              ],
-              "colour": "#a8dcee",
-              "sides": 20,
-              "outlined": false
-            },
-            {
-              "shape": "cylinder",
-              "diameter": 5.991,
-              "height": 0.01,
-              "at": [
-                -4.779,
-                -0.0129,
-                -8.27
-              ],
-              "colour": "#a8dcee",
-              "sides": 20,
-              "outlined": false
-            },
-            {
-              "shape": "cylinder",
-              "diameter": 3.946,
-              "height": 0.01,
-              "at": [
-                -2.315,
-                -0.0077,
-                -8.769
-              ],
-              "colour": "#a8dcee",
-              "sides": 20,
-              "outlined": false
-            },
-            {
-              "shape": "cylinder",
-              "diameter": 0.938,
-              "height": 0.01,
-              "at": [
-                -12.5,
-                -0.0181,
-                -9.43
-              ],
-              "colour": "#d7f1f7",
-              "sides": 20,
-              "outlined": false
-            },
-            {
-              "shape": "cylinder",
-              "diameter": 1.691,
-              "height": 0.01,
-              "at": [
-                -9.425,
-                -0.0129,
-                -9.838
-              ],
-              "colour": "#d7f1f7",
-              "sides": 20,
-              "outlined": false
-            },
-            {
-              "shape": "cylinder",
-              "diameter": 1.561,
-              "height": 0.01,
-              "at": [
-                -6.409,
-                -0.0077,
-                -9.871
-              ],
-              "colour": "#d7f1f7",
-              "sides": 20,
-              "outlined": false
-            },
-            {
-              "shape": "cylinder",
-              "diameter": 6.988,
-              "height": 0.01,
-              "at": [
-                -14.827,
-                -0.0181,
-                -4
-              ],
-              "colour": "#a8dcee",
-              "sides": 20,
-              "outlined": false
-            },
-            {
-              "shape": "cylinder",
-              "diameter": 7.01,
-              "height": 0.01,
-              "at": [
-                -14.636,
-                -0.0129,
-                -1.318
-              ],
-              "colour": "#a8dcee",
-              "sides": 20,
-              "outlined": false
-            },
-            {
-              "shape": "cylinder",
-              "diameter": 5.405,
-              "height": 0.01,
-              "at": [
-                -14.475,
-                -0.0077,
-                1.224
-              ],
-              "colour": "#a8dcee",
-              "sides": 20,
-              "outlined": false
-            },
-            {
-              "shape": "cylinder",
-              "diameter": 4.788,
-              "height": 0.01,
-              "at": [
-                -14.327,
-                -0.0077,
-                -4
-              ],
-              "colour": "#efdfae",
-              "sides": 20,
-              "outlined": false
+              "colour": "#d7f1f7"
             }
           ]
         }
@@ -28172,15 +28040,131 @@
       "steps": [
         {
           "op": "fill",
-          "colour": "#efdfae"
+          "colour": "#86c162"
         },
         {
           "op": "rect",
-          "colour": "#e3cf94",
-          "x": 19,
-          "y": 14.6,
-          "width": 9,
-          "height": 1.4
+          "colour": "#7fba5c",
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 16,
+          "repeat": {
+            "dx": 2,
+            "dy": 0
+          }
+        },
+        {
+          "op": "rect",
+          "colour": "#efdfae",
+          "x": 0,
+          "y": 9.204,
+          "width": 1,
+          "height": 6.796
+        },
+        {
+          "op": "rect",
+          "colour": "#efdfae",
+          "x": 1,
+          "y": 9.237,
+          "width": 1,
+          "height": 6.763
+        },
+        {
+          "op": "rect",
+          "colour": "#efdfae",
+          "x": 2,
+          "y": 9.303,
+          "width": 1,
+          "height": 6.697
+        },
+        {
+          "op": "rect",
+          "colour": "#efdfae",
+          "x": 3,
+          "y": 9.403,
+          "width": 1,
+          "height": 6.597
+        },
+        {
+          "op": "rect",
+          "colour": "#efdfae",
+          "x": 4,
+          "y": 9.54,
+          "width": 1,
+          "height": 6.46
+        },
+        {
+          "op": "rect",
+          "colour": "#efdfae",
+          "x": 5,
+          "y": 9.716,
+          "width": 1,
+          "height": 6.284
+        },
+        {
+          "op": "rect",
+          "colour": "#efdfae",
+          "x": 6,
+          "y": 9.937,
+          "width": 1,
+          "height": 6.063
+        },
+        {
+          "op": "rect",
+          "colour": "#efdfae",
+          "x": 7,
+          "y": 10.208,
+          "width": 1,
+          "height": 5.792
+        },
+        {
+          "op": "rect",
+          "colour": "#efdfae",
+          "x": 8,
+          "y": 10.539,
+          "width": 1,
+          "height": 5.461
+        },
+        {
+          "op": "rect",
+          "colour": "#efdfae",
+          "x": 9,
+          "y": 10.946,
+          "width": 1,
+          "height": 5.054
+        },
+        {
+          "op": "rect",
+          "colour": "#efdfae",
+          "x": 10,
+          "y": 11.457,
+          "width": 1,
+          "height": 4.543
+        },
+        {
+          "op": "rect",
+          "colour": "#efdfae",
+          "x": 11,
+          "y": 12.135,
+          "width": 1,
+          "height": 3.865
+        },
+        {
+          "op": "rect",
+          "colour": "#efdfae",
+          "x": 12,
+          "y": 13.189,
+          "width": 1,
+          "height": 2.811
+        },
+        {
+          "op": "rect",
+          "colour": "#efdfae",
+          "x": 13,
+          "y": 14.8,
+          "width": 15,
+          "height": 1.2
         },
         {
           "op": "rect",
