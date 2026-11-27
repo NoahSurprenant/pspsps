@@ -22861,6 +22861,17 @@
             "width": 3,
             "length": 6
           }
+        ],
+        "terraces": [
+          {
+            "x": 0,
+            "z": 5,
+            "width": 28,
+            "depth": 6,
+            "height": 3,
+            "colour": "#93c46f",
+            "slope": "north"
+          }
         ]
       },
       "look": {
@@ -26239,7 +26250,8 @@
             "depth": 22,
             "height": 12,
             "colour": "#93c46f",
-            "slope": "north"
+            "slope": "north",
+            "base": 3
           }
         ]
       },
