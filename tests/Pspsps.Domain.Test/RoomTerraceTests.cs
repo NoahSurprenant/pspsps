@@ -62,8 +62,8 @@ public sealed class RoomTerraceTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(RoomTerrace.Problems(flat), Has.Count.EqualTo(1));
-            Assert.That(RoomTerrace.Problems(over), Has.Count.EqualTo(1));
+            Assert.That(RoomTerrace.Problems(flat).Count(), Is.EqualTo(1));
+            Assert.That(RoomTerrace.Problems(over).Count(), Is.EqualTo(1));
         });
     }
 
