@@ -1002,13 +1002,14 @@ export class RoomScene {
     if (!marked) {
       return;
     }
-    // On top of the floors, inside the room's bounds: a floor that touches this one can't cover it.
+    // On top of the floors, inside the room's bounds: a floor that touches this one can't cover it. Drawn over everything, since a raised terrace (a hill) would hide the strip.
     const pink = flat(this.scene, "room-outline", "#ff3b8b");
     for (const strip of outlineStrips(chunk, outlineWidth)) {
       const bar = CreateBox("room-outline", { width: strip.width, height: 0.04, depth: strip.depth }, this.scene);
       bar.position.set(strip.x, 0.03, strip.z);
       bar.material = pink;
       bar.isPickable = false;
+      bar.renderingGroupId = 1;
     }
     this.nameRoom(chunk);
   }
