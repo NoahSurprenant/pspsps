@@ -36,7 +36,7 @@ import { lazily } from "./lazy";
 import { appLog } from "./telemetry";
 import { lookOf } from "./looks";
 import {
-  floorPixelsPerMetre, powerOfTwo, streetTile, textureSize, wallPixelsPerMetre, type Brush, type Floorplan,
+  floorPixelsPerMetre, paintTurf, powerOfTwo, seeded, streetTile, textureSize, wallPixelsPerMetre, type Brush, type Floorplan,
 } from "./paint";
 import { activityName, RoomActivities } from "./roomActivities";
 import { catalogueStandKind } from "./catalogue";
@@ -50,6 +50,8 @@ import { frameClock, frameLimiter } from "./frameLimit";
 
 const movingKinds = new Set(["pitch-ball", "puck"]); // drawn apart from the decor, moved by the server
 const walkSpeed = 4; // metres per second
+const turfTile = 8; // metres of slope one painted tile of turf covers
+const turfPixelsPerMetre = 40;
 const climbSpeed = 8; // how fast a cat settles to the height of the ground it is on, per second
 const sky = Color4.FromHexString("#bfe3f2ff");
 // Where the name and bubbles hang: just over the tips of the ears.
@@ -961,18 +963,25 @@ export class RoomScene {
   /** A ramp: its sloping top, painted like the ground it climbs from, and its darker sides. Both tappable as floor. */
   private drawRamp(roomId: string, terrace: TerraceView): Mesh[] {
     const { positions, topIndices, sideIndices } = rampMesh(terrace);
-    const part = (indices: number[], colour: string): Mesh => {
+    const colourOf = terrace.colour ?? "#a6d27c";
+    const part = (indices: number[], colour: string, turf = false): Mesh => {
       const mesh = new Mesh(`terrace-${roomId}`, this.scene);
       const data = new VertexData();
       data.positions = positions;
       data.indices = indices;
+      if (turf) {
+        data.uvs = positions.flatMap((value, at) => (at % 3 === 1 ? [] : [value / turfTile]));
+      }
       data.applyToMesh(mesh);
-      const material = flat(this.scene, "terrace-ramp", colour);
+      const material = turf
+        ? painted(this.scene, "terrace-ramp", `turf${colour}`, textureSize(turfTile, turfTile, turfPixelsPerMetre),
+          (brush, scale) => paintTurf(brush, turfTile, scale, colour, seeded(colour.length * 977 + parseInt(colour.slice(1), 16))), { u: 1, v: 1 })
+        : flat(this.scene, "terrace-ramp", colour);
       material.backFaceCulling = false;
       mesh.material = material;
       return mesh;
     };
-    return [part(topIndices, terrace.colour ?? "#a6d27c"), part(sideIndices, "#7da35c")];
+    return [part(topIndices, colourOf, true), part(sideIndices, "#7da35c")];
   }
 
   /** One step of a terrace: a block of paving on a dark edge, each step a shade apart from the next so they read as steps. */

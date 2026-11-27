@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  floorPixel, largestTexture, paintCafeFloor, paintCafeWall, paintHomeFloor, paintHomeWall, paints, paintShopFloor, paintShopWall, paintStreet, paintTownSquareFloor, paintTownSquareWall,
-  seeded, textureSize, type Brush, type Floorplan,
+  floorPixel, isGreen, largestTexture, paintCafeFloor, paintCafeWall, paintHomeFloor, paintHomeWall, paints, paintShopFloor, paintShopWall, paintStreet, paintTownSquareFloor, paintTownSquareWall, paintTurf,
+  seeded, shaded, textureSize, type Brush, type Floorplan,
 } from "./paint";
 import { palette, topOf } from "./props";
 import { lookOf } from "./looks";
@@ -217,5 +217,36 @@ describe("the painters", () => {
         expect(distance(colour, kept), `${colour} is near ${name}`).toBeGreaterThanOrEqual(60);
       }
     }
+  });
+});
+
+describe("paintTurf", () => {
+  it("paints the same turf every time, in several greens, with blades and flowers, and tiles it", () => {
+    const first = recordingBrush();
+    const again = recordingBrush();
+    paintTurf(first.brush, 8, 20, "#93c46f", seeded(7));
+    paintTurf(again.brush, 8, 20, "#93c46f", seeded(7));
+
+    expect(first.calls).toEqual(again.calls);
+    expect(first.colours.size).toBeGreaterThan(6);
+    expect([...first.colours].filter((colour) => isGreen(colour)).length).toBeGreaterThan(4);
+    // Each tuft is drawn on the nine tiles round it, so an edge matches the one it meets.
+    const strokes = first.calls.filter((call) => call.name === "stroke").length;
+    expect(strokes).toBeGreaterThan(8 * 8 * 14 * 9 - 1);
+  });
+
+  it("gives a colour that is not green grain, not blades", () => {
+    const sand = recordingBrush();
+    const grass = recordingBrush();
+    paintTurf(sand.brush, 8, 20, "#efe0b0", seeded(7));
+    paintTurf(grass.brush, 8, 20, "#93c46f", seeded(7));
+
+    expect(sand.calls.filter((call) => call.name === "stroke").length).toBeLessThan(grass.calls.filter((call) => call.name === "stroke").length);
+  });
+
+  it("shades a colour and knows a green", () => {
+    expect(shaded("#808080", 0.5)).toBe("#404040");
+    expect(shaded("#f0f0f0", 2)).toBe("#ffffff");
+    expect([isGreen("#93c46f"), isGreen("#efe0b0"), isGreen("#cc4a3a")]).toEqual([true, false, false]);
   });
 });
