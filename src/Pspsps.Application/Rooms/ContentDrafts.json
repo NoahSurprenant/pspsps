@@ -22452,61 +22452,6 @@
                 -9.4
               ],
               "colour": "#9a9ca1"
-            },
-            {
-              "shape": "cylinder",
-              "diameter": 2.6,
-              "height": 6,
-              "at": [
-                -18.5,
-                3,
-                -6
-              ],
-              "colour": "#fdf7f0"
-            },
-            {
-              "shape": "cylinder",
-              "diameter": 2.72,
-              "height": 1.1,
-              "at": [
-                -18.5,
-                3.4,
-                -6
-              ],
-              "colour": "#cc4a3a"
-            },
-            {
-              "shape": "cylinder",
-              "diameter": 2.72,
-              "height": 1.1,
-              "at": [
-                -18.5,
-                5.4,
-                -6
-              ],
-              "colour": "#cc4a3a"
-            },
-            {
-              "shape": "cylinder",
-              "diameter": 1.9,
-              "height": 1,
-              "at": [
-                -18.5,
-                6.5,
-                -6
-              ],
-              "colour": "#ffe14f"
-            },
-            {
-              "shape": "cylinder",
-              "diameter": 2.3,
-              "height": 0.4,
-              "at": [
-                -18.5,
-                7.2,
-                -6
-              ],
-              "colour": "#cc4a3a"
             }
           ]
         }
@@ -22852,20 +22797,35 @@
         "doors": [],
         "place": {
           "x": 0,
-          "z": 0
+          "z": -3
         },
         "paths": [
           {
             "edge": "East",
-            "offset": 1,
+            "offset": 6,
             "width": 3,
             "length": 6
+          }
+        ],
+        "terraces": [
+          {
+            "x": 0,
+            "z": 6,
+            "width": 28,
+            "depth": 4,
+            "height": 2,
+            "colour": "#93c46f",
+            "slope": "north"
           },
           {
-            "edge": "North",
-            "offset": 0,
-            "width": 3,
-            "length": 6
+            "x": 0,
+            "z": 5,
+            "width": 28,
+            "depth": 2,
+            "height": 1.06,
+            "base": 0.06,
+            "colour": "#efe0b0",
+            "slope": "north"
           }
         ]
       },
@@ -24020,37 +23980,10 @@
           {
             "kind": "shore-tour-stand",
             "spot": {
-              "x": -9.2,
-              "z": -2.6
+              "x": -4.4,
+              "z": -3.2
             },
             "radius": 1.6,
-            "facing": 0
-          },
-          {
-            "kind": "shore-lift-tower",
-            "spot": {
-              "x": -9.6,
-              "z": 5.3
-            },
-            "radius": 1.3,
-            "facing": 0
-          },
-          {
-            "kind": "shore-tubes",
-            "spot": {
-              "x": -12,
-              "z": 2.2
-            },
-            "radius": 0.8,
-            "facing": 0
-          },
-          {
-            "kind": "shore-tubes",
-            "spot": {
-              "x": -10.65,
-              "z": 3.1
-            },
-            "radius": 0.8,
             "facing": 0
           },
           {
@@ -24074,15 +24007,6 @@
           {
             "kind": "shore-pine",
             "spot": {
-              "x": -12.4,
-              "z": -5.6
-            },
-            "radius": 1.25,
-            "facing": 0
-          },
-          {
-            "kind": "shore-pine",
-            "spot": {
               "x": 12.4,
               "z": -5.5
             },
@@ -24101,8 +24025,8 @@
           {
             "kind": "bench",
             "spot": {
-              "x": -5.5,
-              "z": 5.6
+              "x": -3.4,
+              "z": 6
             },
             "radius": 1,
             "facing": 3.141592653589793
@@ -24153,33 +24077,6 @@
             "facing": 0
           },
           {
-            "kind": "flower-bed",
-            "spot": {
-              "x": -6,
-              "z": -5.6
-            },
-            "radius": 0.9,
-            "facing": 0
-          },
-          {
-            "kind": "plant",
-            "spot": {
-              "x": -12.6,
-              "z": 6
-            },
-            "radius": 0.5,
-            "facing": 0
-          },
-          {
-            "kind": "plant",
-            "spot": {
-              "x": 12.75,
-              "z": 6.3
-            },
-            "radius": 0.5,
-            "facing": 0
-          },
-          {
             "kind": "market-stall",
             "spot": {
               "x": 3.4,
@@ -24191,47 +24088,11 @@
           {
             "kind": "field-tent",
             "spot": {
-              "x": -3.4,
-              "z": -0.6
+              "x": -3.6,
+              "z": 0.6
             },
             "radius": 2,
             "facing": 0.3
-          },
-          {
-            "kind": "field-hay-bale",
-            "spot": {
-              "x": 1.4,
-              "z": -1.3
-            },
-            "radius": 0.8,
-            "facing": 0.5
-          },
-          {
-            "kind": "field-stone-wall",
-            "spot": {
-              "x": 0,
-              "z": 6.3
-            },
-            "radius": 1.44,
-            "facing": 0
-          },
-          {
-            "kind": "field-stone-wall",
-            "spot": {
-              "x": 3.4,
-              "z": 6.3
-            },
-            "radius": 1.44,
-            "facing": 0
-          },
-          {
-            "kind": "field-hedge",
-            "spot": {
-              "x": -8.8,
-              "z": -5.9
-            },
-            "radius": 1.38,
-            "facing": 0
           },
           {
             "kind": "field-flowers",
@@ -24245,172 +24106,37 @@
           {
             "kind": "field-flowers",
             "spot": {
-              "x": -1.4,
-              "z": 2.2
+              "x": -0.4,
+              "z": 3.4
             },
             "radius": 0.9,
             "facing": 0
           },
           {
-            "kind": "field-mushrooms",
+            "kind": "shore-tubes",
             "spot": {
-              "x": 4.9,
-              "z": -3.8
+              "x": -1.2,
+              "z": -7.2
             },
-            "radius": 0.6,
+            "radius": 0.8,
             "facing": 0
           },
           {
-            "kind": "field-hay-bale",
+            "kind": "shore-tubes",
             "spot": {
-              "x": -4.5,
-              "z": -4.1
+              "x": -3.2,
+              "z": -7.1
             },
-            "radius": 1,
+            "radius": 0.8,
             "facing": 0
           },
           {
-            "kind": "field-hay-bale",
+            "kind": "shore-pine",
             "spot": {
-              "x": 7.6,
-              "z": -7
+              "x": 12.6,
+              "z": 3.4
             },
-            "radius": 1,
-            "facing": 0
-          },
-          {
-            "kind": "field-fence",
-            "spot": {
-              "x": 9.9,
-              "z": -4.6
-            },
-            "radius": 1.3,
-            "facing": 0
-          },
-          {
-            "kind": "field-flowers",
-            "spot": {
-              "x": -3.6,
-              "z": 2.9
-            },
-            "radius": 0.9,
-            "facing": 0
-          },
-          {
-            "kind": "field-flowers",
-            "spot": {
-              "x": 2.9,
-              "z": 2.5
-            },
-            "radius": 0.9,
-            "facing": 0
-          },
-          {
-            "kind": "field-sapling",
-            "spot": {
-              "x": -7.1,
-              "z": 4.5
-            },
-            "radius": 0.6,
-            "facing": 0
-          },
-          {
-            "kind": "field-sapling",
-            "spot": {
-              "x": 6.2,
-              "z": -3.4
-            },
-            "radius": 0.6,
-            "facing": 0
-          },
-          {
-            "kind": "field-log",
-            "spot": {
-              "x": -1.3,
-              "z": -6.5
-            },
-            "radius": 1,
-            "facing": 0
-          },
-          {
-            "kind": "field-stump",
-            "spot": {
-              "x": 3.6,
-              "z": -6.4
-            },
-            "radius": 0.6,
-            "facing": 0
-          },
-          {
-            "kind": "field-rock",
-            "spot": {
-              "x": 10.2,
-              "z": -1.6
-            },
-            "radius": 1.2,
-            "facing": 0
-          },
-          {
-            "kind": "packing-crate",
-            "spot": {
-              "x": -2.1,
-              "z": -3.7
-            },
-            "radius": 0.6,
-            "facing": 0
-          },
-          {
-            "kind": "packing-crate",
-            "spot": {
-              "x": -3.4,
-              "z": -6.4
-            },
-            "radius": 0.6,
-            "facing": 0
-          },
-          {
-            "kind": "lamp",
-            "spot": {
-              "x": -4.9,
-              "z": 1.3
-            },
-            "radius": 0.35,
-            "facing": 0
-          },
-          {
-            "kind": "lamp",
-            "spot": {
-              "x": 4.6,
-              "z": -0.7
-            },
-            "radius": 0.35,
-            "facing": 0
-          },
-          {
-            "kind": "field-mushrooms",
-            "spot": {
-              "x": -8.1,
-              "z": 6.5
-            },
-            "radius": 0.6,
-            "facing": 0
-          },
-          {
-            "kind": "field-mushrooms",
-            "spot": {
-              "x": 9.4,
-              "z": -6.8
-            },
-            "radius": 0.6,
-            "facing": 0
-          },
-          {
-            "kind": "field-big-rock",
-            "spot": {
-              "x": -8,
-              "z": 1.6
-            },
-            "radius": 2.2,
+            "radius": 1.25,
             "facing": 0
           }
         ],
@@ -24418,7 +24144,17 @@
         "place": {
           "x": 17,
           "z": 12
-        }
+        },
+        "terraces": [
+          {
+            "x": -9.5,
+            "z": 0,
+            "width": 9,
+            "depth": 16,
+            "height": 3,
+            "slope": "west"
+          }
+        ]
       },
       "look": {
         "sky": "#bfe0f2",
@@ -24456,7 +24192,7 @@
               "at": [
                 -8,
                 4.5,
-                15
+                27
               ],
               "colour": "#8fb89b",
               "top": 3.9200000000000004,
@@ -24469,7 +24205,7 @@
               "at": [
                 -8,
                 11.025,
-                15
+                27
               ],
               "colour": "#a9b3b5",
               "top": 0.7000000000000001,
@@ -24482,7 +24218,7 @@
               "at": [
                 -8,
                 13.68,
-                15
+                27
               ],
               "colour": "#fdf7f0",
               "top": 0,
@@ -24534,7 +24270,7 @@
               "at": [
                 -18,
                 3,
-                14
+                25
               ],
               "colour": "#8fb89b",
               "top": 2.8000000000000003,
@@ -24547,7 +24283,7 @@
               "at": [
                 -18,
                 7.35,
-                14
+                25
               ],
               "colour": "#a9b3b5",
               "top": 0.5,
@@ -24560,7 +24296,7 @@
               "at": [
                 -18,
                 9.12,
-                14
+                25
               ],
               "colour": "#fdf7f0",
               "top": 0,
@@ -24568,79 +24304,79 @@
             },
             {
               "shape": "box",
-              "width": 0.01,
-              "height": 0.01,
-              "depth": 0.707,
+              "width": 15.5,
+              "height": 0.5,
+              "depth": 12,
               "at": [
-                -9.15,
-                6.15,
-                8.8
+                -9.25,
+                3.157,
+                13.665
+              ],
+              "colour": "#8cc572",
+              "turn": [
+                -0.5,
+                0,
+                0
+              ]
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 0.34,
+              "height": 2.8,
+              "at": [
+                -7.3,
+                2.77,
+                10.083
+              ],
+              "colour": "#8a9399",
+              "top": 0.26,
+              "sides": 8
+            },
+            {
+              "shape": "box",
+              "width": 0.9,
+              "height": 0.25,
+              "depth": 0.9,
+              "at": [
+                -7.3,
+                1.49,
+                10.083
+              ],
+              "colour": "#5d6469"
+            },
+            {
+              "shape": "box",
+              "width": 2,
+              "height": 0.14,
+              "depth": 0.22,
+              "at": [
+                -7.3,
+                4.17,
+                10.083
               ],
               "colour": "#3b3442",
               "turn": [
-                0.142,
+                0,
+                -0.876,
+                0
+              ]
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 0.5,
+              "height": 0.14,
+              "at": [
+                -7.3,
+                4.29,
+                10.083
+              ],
+              "colour": "#d8423a",
+              "sides": 12,
+              "turn": [
                 1.571,
-                0
-              ],
-              "outlined": false
-            },
-            {
-              "shape": "box",
-              "width": 0.07,
-              "height": 0.07,
-              "depth": 11,
-              "at": [
-                -4,
-                8,
-                10.25
-              ],
-              "colour": "#3b3442",
-              "turn": [
-                -0.22,
-                0.484,
-                0
+                0,
+                -0.876
               ]
-            },
-            {
-              "shape": "box",
-              "width": 0.05,
-              "height": 0.05,
-              "depth": 11.023,
-              "at": [
-                -4.2,
-                6.65,
-                10.25
-              ],
-              "colour": "#3b3442",
-              "turn": [
-                -0.229,
-                0.484,
-                0
-              ]
-            },
-            {
-              "shape": "box",
-              "width": 0.5,
-              "height": 0.2,
-              "depth": 0.5,
-              "at": [
-                -5.5,
-                7.05,
-                8
-              ],
-              "colour": "#d8423a"
-            },
-            {
-              "shape": "box",
-              "width": 0.5,
-              "height": 0.2,
-              "depth": 0.5,
-              "at": [
-                -4.2,
-                7.55,
-                10.5
-              ],
-              "colour": "#d8423a"
             },
             {
               "shape": "box",
@@ -25053,7 +24789,7 @@
               "at": [
                 3.5,
                 0.45,
-                11.6
+                9.8
               ],
               "colour": "#ffffff"
             },
@@ -25064,9 +24800,1191 @@
               "at": [
                 11.8,
                 0.45,
-                11.4
+                9.6
               ],
               "colour": "#ffffff"
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 0.34,
+              "height": 2.8,
+              "at": [
+                -8.6,
+                3.361,
+                11.167
+              ],
+              "colour": "#8a9399",
+              "top": 0.26,
+              "sides": 8
+            },
+            {
+              "shape": "box",
+              "width": 0.9,
+              "height": 0.25,
+              "depth": 0.9,
+              "at": [
+                -8.6,
+                2.081,
+                11.167
+              ],
+              "colour": "#5d6469"
+            },
+            {
+              "shape": "box",
+              "width": 2,
+              "height": 0.14,
+              "depth": 0.22,
+              "at": [
+                -8.6,
+                4.761,
+                11.167
+              ],
+              "colour": "#3b3442",
+              "turn": [
+                0,
+                -0.876,
+                0
+              ]
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 0.5,
+              "height": 0.14,
+              "at": [
+                -8.6,
+                4.881,
+                11.167
+              ],
+              "colour": "#d8423a",
+              "sides": 12,
+              "turn": [
+                1.571,
+                0,
+                -0.876
+              ]
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 0.34,
+              "height": 2.8,
+              "at": [
+                -9.9,
+                3.953,
+                12.25
+              ],
+              "colour": "#8a9399",
+              "top": 0.26,
+              "sides": 8
+            },
+            {
+              "shape": "box",
+              "width": 0.9,
+              "height": 0.25,
+              "depth": 0.9,
+              "at": [
+                -9.9,
+                2.673,
+                12.25
+              ],
+              "colour": "#5d6469"
+            },
+            {
+              "shape": "box",
+              "width": 2,
+              "height": 0.14,
+              "depth": 0.22,
+              "at": [
+                -9.9,
+                5.353,
+                12.25
+              ],
+              "colour": "#3b3442",
+              "turn": [
+                0,
+                -0.876,
+                0
+              ]
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 0.5,
+              "height": 0.14,
+              "at": [
+                -9.9,
+                5.473,
+                12.25
+              ],
+              "colour": "#d8423a",
+              "sides": 12,
+              "turn": [
+                1.571,
+                0,
+                -0.876
+              ]
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 0.34,
+              "height": 2.8,
+              "at": [
+                -11.2,
+                4.545,
+                13.333
+              ],
+              "colour": "#8a9399",
+              "top": 0.26,
+              "sides": 8
+            },
+            {
+              "shape": "box",
+              "width": 0.9,
+              "height": 0.25,
+              "depth": 0.9,
+              "at": [
+                -11.2,
+                3.265,
+                13.333
+              ],
+              "colour": "#5d6469"
+            },
+            {
+              "shape": "box",
+              "width": 2,
+              "height": 0.14,
+              "depth": 0.22,
+              "at": [
+                -11.2,
+                5.945,
+                13.333
+              ],
+              "colour": "#3b3442",
+              "turn": [
+                0,
+                -0.876,
+                0
+              ]
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 0.5,
+              "height": 0.14,
+              "at": [
+                -11.2,
+                6.065,
+                13.333
+              ],
+              "colour": "#d8423a",
+              "sides": 12,
+              "turn": [
+                1.571,
+                0,
+                -0.876
+              ]
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 0.34,
+              "height": 2.8,
+              "at": [
+                -12.5,
+                5.137,
+                14.417
+              ],
+              "colour": "#8a9399",
+              "top": 0.26,
+              "sides": 8
+            },
+            {
+              "shape": "box",
+              "width": 0.9,
+              "height": 0.25,
+              "depth": 0.9,
+              "at": [
+                -12.5,
+                3.857,
+                14.417
+              ],
+              "colour": "#5d6469"
+            },
+            {
+              "shape": "box",
+              "width": 2,
+              "height": 0.14,
+              "depth": 0.22,
+              "at": [
+                -12.5,
+                6.537,
+                14.417
+              ],
+              "colour": "#3b3442",
+              "turn": [
+                0,
+                -0.876,
+                0
+              ]
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 0.5,
+              "height": 0.14,
+              "at": [
+                -12.5,
+                6.657,
+                14.417
+              ],
+              "colour": "#d8423a",
+              "sides": 12,
+              "turn": [
+                1.571,
+                0,
+                -0.876
+              ]
+            },
+            {
+              "shape": "box",
+              "width": 2.4,
+              "height": 1.7,
+              "depth": 2.2,
+              "at": [
+                -6,
+                1.628,
+                9.2
+              ],
+              "colour": "#c9553f",
+              "turn": [
+                0,
+                -0.876,
+                0
+              ]
+            },
+            {
+              "shape": "box",
+              "width": 2.9,
+              "height": 0.16,
+              "depth": 2.6,
+              "at": [
+                -6,
+                2.558,
+                9.2
+              ],
+              "colour": "#7a3b2e",
+              "turn": [
+                0,
+                -0.876,
+                0
+              ]
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 1.7,
+              "height": 0.3,
+              "at": [
+                -6,
+                3,
+                8.85
+              ],
+              "colour": "#3b3442",
+              "sides": 16,
+              "turn": [
+                1.571,
+                0,
+                0
+              ]
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 0.5,
+              "height": 0.34,
+              "at": [
+                -6,
+                3,
+                8.83
+              ],
+              "colour": "#d8423a",
+              "sides": 10,
+              "turn": [
+                1.571,
+                0,
+                0
+              ]
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 0.3,
+              "height": 0.522,
+              "at": [
+                -6,
+                2.739,
+                8.85
+              ],
+              "colour": "#8a9399",
+              "sides": 8
+            },
+            {
+              "shape": "box",
+              "width": 2.4,
+              "height": 1.7,
+              "depth": 2.2,
+              "at": [
+                -13.8,
+                5.179,
+                15.7
+              ],
+              "colour": "#c9553f",
+              "turn": [
+                0,
+                -0.876,
+                0
+              ]
+            },
+            {
+              "shape": "box",
+              "width": 2.9,
+              "height": 0.16,
+              "depth": 2.6,
+              "at": [
+                -13.8,
+                6.109,
+                15.7
+              ],
+              "colour": "#7a3b2e",
+              "turn": [
+                0,
+                -0.876,
+                0
+              ]
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 1.7,
+              "height": 0.3,
+              "at": [
+                -13.8,
+                6.529,
+                15.35
+              ],
+              "colour": "#3b3442",
+              "sides": 16,
+              "turn": [
+                1.571,
+                0,
+                0
+              ]
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 0.5,
+              "height": 0.34,
+              "at": [
+                -13.8,
+                6.529,
+                15.33
+              ],
+              "colour": "#d8423a",
+              "sides": 10,
+              "turn": [
+                1.571,
+                0,
+                0
+              ]
+            },
+            {
+              "shape": "cylinder",
+              "diameter": 0.3,
+              "height": 0.5,
+              "at": [
+                -13.8,
+                6.279,
+                15.35
+              ],
+              "colour": "#8a9399",
+              "sides": 8
+            },
+            {
+              "shape": "box",
+              "width": 0.06,
+              "height": 0.06,
+              "depth": 2.057,
+              "at": [
+                -6.298,
+                3.585,
+                9.964
+              ],
+              "colour": "#2f2a36",
+              "turn": [
+                -0.605,
+                -0.876,
+                0
+              ]
+            },
+            {
+              "shape": "box",
+              "width": 0.06,
+              "height": 0.06,
+              "depth": 1.793,
+              "at": [
+                -7.598,
+                4.466,
+                11.048
+              ],
+              "colour": "#2f2a36",
+              "turn": [
+                -0.336,
+                -0.876,
+                0
+              ]
+            },
+            {
+              "shape": "box",
+              "width": 0.06,
+              "height": 0.06,
+              "depth": 1.793,
+              "at": [
+                -8.898,
+                5.057,
+                12.131
+              ],
+              "colour": "#2f2a36",
+              "turn": [
+                -0.336,
+                -0.876,
+                0
+              ]
+            },
+            {
+              "shape": "box",
+              "width": 0.06,
+              "height": 0.06,
+              "depth": 1.793,
+              "at": [
+                -10.198,
+                5.649,
+                13.214
+              ],
+              "colour": "#2f2a36",
+              "turn": [
+                -0.336,
+                -0.876,
+                0
+              ]
+            },
+            {
+              "shape": "box",
+              "width": 0.06,
+              "height": 0.06,
+              "depth": 1.793,
+              "at": [
+                -11.498,
+                6.241,
+                14.298
+              ],
+              "colour": "#2f2a36",
+              "turn": [
+                -0.336,
+                -0.876,
+                0
+              ]
+            },
+            {
+              "shape": "box",
+              "width": 0.06,
+              "height": 0.06,
+              "depth": 1.692,
+              "at": [
+                -12.798,
+                6.533,
+                15.381
+              ],
+              "colour": "#2f2a36",
+              "turn": [
+                0.005,
+                -0.876,
+                0
+              ]
+            },
+            {
+              "shape": "box",
+              "width": 0.06,
+              "height": 0.06,
+              "depth": 2.057,
+              "at": [
+                -7.002,
+                3.585,
+                9.119
+              ],
+              "colour": "#2f2a36",
+              "turn": [
+                -0.605,
+                -0.876,
+                0
+              ]
+            },
+            {
+              "shape": "box",
+              "width": 0.06,
+              "height": 0.06,
+              "depth": 1.793,
+              "at": [
+                -8.302,
+                4.466,
+                10.202
+              ],
+              "colour": "#2f2a36",
+              "turn": [
+                -0.336,
+                -0.876,
+                0
+              ]
+            },
+            {
+              "shape": "box",
+              "width": 0.06,
+              "height": 0.06,
+              "depth": 1.793,
+              "at": [
+                -9.602,
+                5.057,
+                11.286
+              ],
+              "colour": "#2f2a36",
+              "turn": [
+                -0.336,
+                -0.876,
+                0
+              ]
+            },
+            {
+              "shape": "box",
+              "width": 0.06,
+              "height": 0.06,
+              "depth": 1.793,
+              "at": [
+                -10.902,
+                5.649,
+                12.369
+              ],
+              "colour": "#2f2a36",
+              "turn": [
+                -0.336,
+                -0.876,
+                0
+              ]
+            },
+            {
+              "shape": "box",
+              "width": 0.06,
+              "height": 0.06,
+              "depth": 1.793,
+              "at": [
+                -12.202,
+                6.241,
+                13.452
+              ],
+              "colour": "#2f2a36",
+              "turn": [
+                -0.336,
+                -0.876,
+                0
+              ]
+            },
+            {
+              "shape": "box",
+              "width": 0.06,
+              "height": 0.06,
+              "depth": 1.692,
+              "at": [
+                -13.502,
+                6.533,
+                14.536
+              ],
+              "colour": "#2f2a36",
+              "turn": [
+                0.005,
+                -0.876,
+                0
+              ]
+            },
+            {
+              "shape": "box",
+              "width": 0.05,
+              "height": 0.8,
+              "depth": 0.05,
+              "at": [
+                -6.584,
+                3.442,
+                10.203
+              ],
+              "colour": "#3b3442"
+            },
+            {
+              "shape": "box",
+              "width": 1,
+              "height": 0.12,
+              "depth": 0.5,
+              "at": [
+                -6.584,
+                3.022,
+                10.203
+              ],
+              "colour": "#d8423a",
+              "turn": [
+                0,
+                -0.876,
+                0
+              ]
+            },
+            {
+              "shape": "box",
+              "width": 1,
+              "height": 0.5,
+              "depth": 0.08,
+              "at": [
+                -6.584,
+                3.292,
+                10.203
+              ],
+              "colour": "#c9382f",
+              "turn": [
+                0,
+                -0.876,
+                0
+              ]
+            },
+            {
+              "shape": "box",
+              "width": 0.05,
+              "height": 0.8,
+              "depth": 0.05,
+              "at": [
+                -7.988,
+                4.243,
+                11.373
+              ],
+              "colour": "#3b3442"
+            },
+            {
+              "shape": "box",
+              "width": 1,
+              "height": 0.12,
+              "depth": 0.5,
+              "at": [
+                -7.988,
+                3.823,
+                11.373
+              ],
+              "colour": "#d8423a",
+              "turn": [
+                0,
+                -0.876,
+                0
+              ]
+            },
+            {
+              "shape": "box",
+              "width": 1,
+              "height": 0.5,
+              "depth": 0.08,
+              "at": [
+                -7.988,
+                4.093,
+                11.373
+              ],
+              "colour": "#c9382f",
+              "turn": [
+                0,
+                -0.876,
+                0
+              ]
+            },
+            {
+              "shape": "box",
+              "width": 0.05,
+              "height": 0.8,
+              "depth": 0.05,
+              "at": [
+                -9.548,
+                4.953,
+                12.673
+              ],
+              "colour": "#3b3442"
+            },
+            {
+              "shape": "box",
+              "width": 1,
+              "height": 0.12,
+              "depth": 0.5,
+              "at": [
+                -9.548,
+                4.533,
+                12.673
+              ],
+              "colour": "#d8423a",
+              "turn": [
+                0,
+                -0.876,
+                0
+              ]
+            },
+            {
+              "shape": "box",
+              "width": 1,
+              "height": 0.5,
+              "depth": 0.08,
+              "at": [
+                -9.548,
+                4.803,
+                12.673
+              ],
+              "colour": "#c9382f",
+              "turn": [
+                0,
+                -0.876,
+                0
+              ]
+            },
+            {
+              "shape": "box",
+              "width": 0.05,
+              "height": 0.8,
+              "depth": 0.05,
+              "at": [
+                -11.264,
+                5.734,
+                14.103
+              ],
+              "colour": "#3b3442"
+            },
+            {
+              "shape": "box",
+              "width": 1,
+              "height": 0.12,
+              "depth": 0.5,
+              "at": [
+                -11.264,
+                5.314,
+                14.103
+              ],
+              "colour": "#d8423a",
+              "turn": [
+                0,
+                -0.876,
+                0
+              ]
+            },
+            {
+              "shape": "box",
+              "width": 1,
+              "height": 0.5,
+              "depth": 0.08,
+              "at": [
+                -11.264,
+                5.584,
+                14.103
+              ],
+              "colour": "#c9382f",
+              "turn": [
+                0,
+                -0.876,
+                0
+              ]
+            },
+            {
+              "shape": "box",
+              "width": 0.05,
+              "height": 0.8,
+              "depth": 0.05,
+              "at": [
+                -12.668,
+                6.134,
+                15.273
+              ],
+              "colour": "#3b3442"
+            },
+            {
+              "shape": "box",
+              "width": 1,
+              "height": 0.12,
+              "depth": 0.5,
+              "at": [
+                -12.668,
+                5.714,
+                15.273
+              ],
+              "colour": "#d8423a",
+              "turn": [
+                0,
+                -0.876,
+                0
+              ]
+            },
+            {
+              "shape": "box",
+              "width": 1,
+              "height": 0.5,
+              "depth": 0.08,
+              "at": [
+                -12.668,
+                5.984,
+                15.273
+              ],
+              "colour": "#c9382f",
+              "turn": [
+                0,
+                -0.876,
+                0
+              ]
+            },
+            {
+              "shape": "box",
+              "width": 0.05,
+              "height": 0.8,
+              "depth": 0.05,
+              "at": [
+                -7.912,
+                3.888,
+                9.877
+              ],
+              "colour": "#3b3442"
+            },
+            {
+              "shape": "box",
+              "width": 1,
+              "height": 0.12,
+              "depth": 0.5,
+              "at": [
+                -7.912,
+                3.468,
+                9.877
+              ],
+              "colour": "#d8423a",
+              "turn": [
+                0,
+                -0.876,
+                0
+              ]
+            },
+            {
+              "shape": "box",
+              "width": 1,
+              "height": 0.5,
+              "depth": 0.08,
+              "at": [
+                -7.912,
+                3.738,
+                9.877
+              ],
+              "colour": "#c9382f",
+              "turn": [
+                0,
+                -0.876,
+                0
+              ]
+            },
+            {
+              "shape": "box",
+              "width": 0.05,
+              "height": 0.8,
+              "depth": 0.05,
+              "at": [
+                -9.628,
+                4.669,
+                11.307
+              ],
+              "colour": "#3b3442"
+            },
+            {
+              "shape": "box",
+              "width": 1,
+              "height": 0.12,
+              "depth": 0.5,
+              "at": [
+                -9.628,
+                4.249,
+                11.307
+              ],
+              "colour": "#d8423a",
+              "turn": [
+                0,
+                -0.876,
+                0
+              ]
+            },
+            {
+              "shape": "box",
+              "width": 1,
+              "height": 0.5,
+              "depth": 0.08,
+              "at": [
+                -9.628,
+                4.519,
+                11.307
+              ],
+              "colour": "#c9382f",
+              "turn": [
+                0,
+                -0.876,
+                0
+              ]
+            },
+            {
+              "shape": "box",
+              "width": 0.05,
+              "height": 0.8,
+              "depth": 0.05,
+              "at": [
+                -11.188,
+                5.379,
+                12.607
+              ],
+              "colour": "#3b3442"
+            },
+            {
+              "shape": "box",
+              "width": 1,
+              "height": 0.12,
+              "depth": 0.5,
+              "at": [
+                -11.188,
+                4.959,
+                12.607
+              ],
+              "colour": "#d8423a",
+              "turn": [
+                0,
+                -0.876,
+                0
+              ]
+            },
+            {
+              "shape": "box",
+              "width": 1,
+              "height": 0.5,
+              "depth": 0.08,
+              "at": [
+                -11.188,
+                5.229,
+                12.607
+              ],
+              "colour": "#c9382f",
+              "turn": [
+                0,
+                -0.876,
+                0
+              ]
+            },
+            {
+              "shape": "box",
+              "width": 0.05,
+              "height": 0.8,
+              "depth": 0.05,
+              "at": [
+                -12.748,
+                6.09,
+                13.907
+              ],
+              "colour": "#3b3442"
+            },
+            {
+              "shape": "box",
+              "width": 1,
+              "height": 0.12,
+              "depth": 0.5,
+              "at": [
+                -12.748,
+                5.67,
+                13.907
+              ],
+              "colour": "#d8423a",
+              "turn": [
+                0,
+                -0.876,
+                0
+              ]
+            },
+            {
+              "shape": "box",
+              "width": 1,
+              "height": 0.5,
+              "depth": 0.08,
+              "at": [
+                -12.748,
+                5.94,
+                13.907
+              ],
+              "colour": "#c9382f",
+              "turn": [
+                0,
+                -0.876,
+                0
+              ]
+            },
+            {
+              "shape": "box",
+              "width": 0.14,
+              "height": 0.8,
+              "depth": 0.14,
+              "at": [
+                -1,
+                0.8,
+                8.5
+              ],
+              "colour": "#8a5a3a"
+            },
+            {
+              "shape": "box",
+              "width": 0.14,
+              "height": 0.8,
+              "depth": 0.14,
+              "at": [
+                0.5,
+                0.8,
+                8.5
+              ],
+              "colour": "#8a5a3a"
+            },
+            {
+              "shape": "box",
+              "width": 0.14,
+              "height": 0.8,
+              "depth": 0.14,
+              "at": [
+                2,
+                0.8,
+                8.5
+              ],
+              "colour": "#8a5a3a"
+            },
+            {
+              "shape": "box",
+              "width": 0.14,
+              "height": 0.8,
+              "depth": 0.14,
+              "at": [
+                3.5,
+                0.8,
+                8.5
+              ],
+              "colour": "#8a5a3a"
+            },
+            {
+              "shape": "box",
+              "width": 0.14,
+              "height": 0.8,
+              "depth": 0.14,
+              "at": [
+                5,
+                0.8,
+                8.5
+              ],
+              "colour": "#8a5a3a"
+            },
+            {
+              "shape": "box",
+              "width": 0.14,
+              "height": 0.8,
+              "depth": 0.14,
+              "at": [
+                6.5,
+                0.8,
+                8.5
+              ],
+              "colour": "#8a5a3a"
+            },
+            {
+              "shape": "box",
+              "width": 0.14,
+              "height": 0.8,
+              "depth": 0.14,
+              "at": [
+                8,
+                0.8,
+                8.5
+              ],
+              "colour": "#8a5a3a"
+            },
+            {
+              "shape": "box",
+              "width": 0.14,
+              "height": 0.8,
+              "depth": 0.14,
+              "at": [
+                9.5,
+                0.8,
+                8.5
+              ],
+              "colour": "#8a5a3a"
+            },
+            {
+              "shape": "box",
+              "width": 0.14,
+              "height": 0.8,
+              "depth": 0.14,
+              "at": [
+                11,
+                0.8,
+                8.5
+              ],
+              "colour": "#8a5a3a"
+            },
+            {
+              "shape": "box",
+              "width": 0.14,
+              "height": 0.8,
+              "depth": 0.14,
+              "at": [
+                12.5,
+                0.8,
+                8.5
+              ],
+              "colour": "#8a5a3a"
+            },
+            {
+              "shape": "box",
+              "width": 0.14,
+              "height": 0.8,
+              "depth": 0.14,
+              "at": [
+                14,
+                0.8,
+                8.5
+              ],
+              "colour": "#8a5a3a"
+            },
+            {
+              "shape": "box",
+              "width": 0.14,
+              "height": 0.8,
+              "depth": 0.14,
+              "at": [
+                15.5,
+                0.8,
+                8.5
+              ],
+              "colour": "#8a5a3a"
+            },
+            {
+              "shape": "box",
+              "width": 17,
+              "height": 0.08,
+              "depth": 0.1,
+              "at": [
+                7.5,
+                1,
+                8.5
+              ],
+              "colour": "#a9744a"
+            },
+            {
+              "shape": "box",
+              "width": 17,
+              "height": 0.08,
+              "depth": 0.1,
+              "at": [
+                7.5,
+                0.65,
+                8.5
+              ],
+              "colour": "#a9744a"
             }
           ]
         }
@@ -25076,46 +25994,19 @@
       "id": "scratching-peaks",
       "layout": {
         "name": "Scratching Peaks",
-        "width": 28,
-        "depth": 16,
+        "width": 34,
+        "depth": 28,
         "spawn": {
-          "x": 0,
-          "z": 1
+          "x": -3,
+          "z": 7
         },
         "capacity": 60,
         "props": [
           {
-            "kind": "shore-lift-tower",
+            "kind": "shore-post",
             "spot": {
-              "x": -9.4,
-              "z": 3.5
-            },
-            "radius": 1.3,
-            "facing": 0
-          },
-          {
-            "kind": "shore-lift-hut",
-            "spot": {
-              "x": 8.4,
-              "z": 3.9
-            },
-            "radius": 2.3,
-            "facing": 0
-          },
-          {
-            "kind": "shore-tubes",
-            "spot": {
-              "x": -11.4,
-              "z": 5.6
-            },
-            "radius": 0.8,
-            "facing": 0
-          },
-          {
-            "kind": "shore-tubes",
-            "spot": {
-              "x": -9.7,
-              "z": 6.1
+              "x": -6.83,
+              "z": 4.53
             },
             "radius": 0.8,
             "facing": 0
@@ -25123,8 +26014,8 @@
           {
             "kind": "shore-post",
             "spot": {
-              "x": -3.83,
-              "z": -1.47
+              "x": -3.6,
+              "z": 3
             },
             "radius": 0.8,
             "facing": 0
@@ -25132,8 +26023,8 @@
           {
             "kind": "shore-post",
             "spot": {
-              "x": -0.6,
-              "z": -3
+              "x": 0.817,
+              "z": 4.67
             },
             "radius": 0.8,
             "facing": 0
@@ -25141,8 +26032,8 @@
           {
             "kind": "shore-post",
             "spot": {
-              "x": 3.817,
-              "z": -1.33
+              "x": 5.2,
+              "z": 4
             },
             "radius": 0.8,
             "facing": 0
@@ -25150,17 +26041,8 @@
           {
             "kind": "shore-post",
             "spot": {
-              "x": 8.2,
-              "z": -2
-            },
-            "radius": 0.8,
-            "facing": 0
-          },
-          {
-            "kind": "shore-post",
-            "spot": {
-              "x": -8,
-              "z": -2
+              "x": -11,
+              "z": 4
             },
             "radius": 0.8,
             "facing": 0
@@ -25168,8 +26050,8 @@
           {
             "kind": "shore-signpost",
             "spot": {
-              "x": -8,
-              "z": -6
+              "x": -11,
+              "z": 0
             },
             "radius": 0.6,
             "facing": 0
@@ -25177,8 +26059,8 @@
           {
             "kind": "shore-signpost",
             "spot": {
-              "x": 8,
-              "z": -6
+              "x": 5,
+              "z": 0
             },
             "radius": 0.6,
             "facing": 0
@@ -25186,8 +26068,8 @@
           {
             "kind": "shore-pine",
             "spot": {
-              "x": -12,
-              "z": -4
+              "x": -15,
+              "z": 2
             },
             "radius": 1.25,
             "facing": 0
@@ -25195,8 +26077,8 @@
           {
             "kind": "shore-pine",
             "spot": {
-              "x": 12,
-              "z": -4.6
+              "x": 9,
+              "z": 1.4
             },
             "radius": 1.25,
             "facing": 0
@@ -25204,8 +26086,8 @@
           {
             "kind": "shore-pine",
             "spot": {
-              "x": 12.3,
-              "z": 0.2
+              "x": 9.3,
+              "z": 6.2
             },
             "radius": 1.25,
             "facing": 0
@@ -25213,53 +26095,26 @@
           {
             "kind": "shore-rocks",
             "spot": {
-              "x": -12,
-              "z": 0.6
+              "x": -15,
+              "z": 6.6
             },
             "radius": 1.25,
             "facing": 0
           },
           {
-            "kind": "bench",
-            "spot": {
-              "x": 3,
-              "z": 5.9
-            },
-            "radius": 1,
-            "facing": 3.141592653589793
-          },
-          {
             "kind": "lamp",
             "spot": {
-              "x": -11,
-              "z": -1
+              "x": -14,
+              "z": 5
             },
             "radius": 0.35,
-            "facing": 0
-          },
-          {
-            "kind": "lamp",
-            "spot": {
-              "x": 11,
-              "z": 5.8
-            },
-            "radius": 0.35,
-            "facing": 0
-          },
-          {
-            "kind": "plant",
-            "spot": {
-              "x": 6.2,
-              "z": 5.9
-            },
-            "radius": 0.5,
             "facing": 0
           },
           {
             "kind": "field-bonfire",
             "spot": {
-              "x": 0,
-              "z": -5.8
+              "x": -3,
+              "z": 0.2
             },
             "radius": 1,
             "facing": 0
@@ -25267,8 +26122,8 @@
           {
             "kind": "field-tent",
             "spot": {
-              "x": -3.4,
-              "z": -5.6
+              "x": -6.4,
+              "z": 0.4
             },
             "radius": 2.01,
             "facing": 0.3
@@ -25276,107 +26131,26 @@
           {
             "kind": "field-tent-blue",
             "spot": {
-              "x": 3.6,
-              "z": -5.5
+              "x": 0.6,
+              "z": 0.5
             },
             "radius": 2.01,
             "facing": -0.3
           },
           {
-            "kind": "field-log",
-            "spot": {
-              "x": 1.7,
-              "z": -2.9
-            },
-            "radius": 1.1,
-            "facing": -0.4
-          },
-          {
             "kind": "field-flowers",
             "spot": {
-              "x": -9.4,
-              "z": -5.2
-            },
-            "radius": 0.9,
-            "facing": 0
-          },
-          {
-            "kind": "field-flowers",
-            "spot": {
-              "x": 9.6,
-              "z": -5.1
-            },
-            "radius": 0.9,
-            "facing": 0
-          },
-          {
-            "kind": "field-fence",
-            "spot": {
-              "x": -12.5,
-              "z": -6.6
-            },
-            "radius": 1.35,
-            "facing": 0
-          },
-          {
-            "kind": "field-pine",
-            "spot": {
-              "x": 12.4,
-              "z": 6.6
-            },
-            "radius": 1.2,
-            "facing": 0
-          },
-          {
-            "kind": "field-pine",
-            "spot": {
-              "x": 0.1,
-              "z": 6.7
-            },
-            "radius": 1.2,
-            "facing": 0
-          },
-          {
-            "kind": "field-mushrooms",
-            "spot": {
-              "x": -6.8,
-              "z": 0.4
-            },
-            "radius": 0.6,
-            "facing": 0
-          },
-          {
-            "kind": "field-mushrooms",
-            "spot": {
-              "x": 6.6,
+              "x": -12.4,
               "z": 0.8
             },
-            "radius": 0.6,
-            "facing": 0
-          },
-          {
-            "kind": "field-flowers",
-            "spot": {
-              "x": -5,
-              "z": 2.4
-            },
             "radius": 0.9,
             "facing": 0
           },
           {
             "kind": "field-flowers",
             "spot": {
-              "x": 5.2,
-              "z": 2.6
-            },
-            "radius": 0.9,
-            "facing": 0
-          },
-          {
-            "kind": "field-flowers",
-            "spot": {
-              "x": 0.2,
-              "z": 4.5
+              "x": 6.6,
+              "z": 0.9
             },
             "radius": 0.9,
             "facing": 0
@@ -25384,107 +26158,26 @@
           {
             "kind": "field-bush",
             "spot": {
-              "x": -8,
-              "z": -4
-            },
-            "radius": 0.9,
-            "facing": 0
-          },
-          {
-            "kind": "field-bush",
-            "spot": {
-              "x": 8.2,
-              "z": -3.8
-            },
-            "radius": 0.9,
-            "facing": 0
-          },
-          {
-            "kind": "field-sapling",
-            "spot": {
-              "x": -2.6,
-              "z": 4.3
-            },
-            "radius": 0.6,
-            "facing": 0
-          },
-          {
-            "kind": "field-sapling",
-            "spot": {
-              "x": 1.9,
-              "z": 4.5
-            },
-            "radius": 0.6,
-            "facing": 0
-          },
-          {
-            "kind": "field-stump",
-            "spot": {
-              "x": -6.4,
-              "z": -3.6
-            },
-            "radius": 0.6,
-            "facing": 0
-          },
-          {
-            "kind": "field-stump",
-            "spot": {
-              "x": 6.8,
-              "z": -5.2
-            },
-            "radius": 0.6,
-            "facing": 0
-          },
-          {
-            "kind": "field-log",
-            "spot": {
-              "x": -7.2,
+              "x": -11,
               "z": 2
             },
-            "radius": 1,
+            "radius": 0.9,
             "facing": 0
           },
           {
-            "kind": "field-log",
+            "kind": "field-bush",
             "spot": {
-              "x": 8.2,
-              "z": 0
+              "x": 5.2,
+              "z": 2.2
             },
-            "radius": 1,
-            "facing": 0
-          },
-          {
-            "kind": "field-mushrooms",
-            "spot": {
-              "x": -5.8,
-              "z": -7
-            },
-            "radius": 0.6,
-            "facing": 0
-          },
-          {
-            "kind": "field-mushrooms",
-            "spot": {
-              "x": 4.8,
-              "z": -2.9
-            },
-            "radius": 0.6,
-            "facing": 0
-          },
-          {
-            "kind": "field-rock",
-            "spot": {
-              "x": -9.5,
-              "z": 0.4
-            },
-            "radius": 1.2,
+            "radius": 0.9,
             "facing": 0
           },
           {
             "kind": "lamp",
             "spot": {
-              "x": -2.4,
-              "z": -2.8
+              "x": -5.4,
+              "z": 3.2
             },
             "radius": 0.35,
             "facing": 0
@@ -25492,8 +26185,8 @@
           {
             "kind": "lamp",
             "spot": {
-              "x": 1.4,
-              "z": -4.4
+              "x": -1.6,
+              "z": 1.6
             },
             "radius": 0.35,
             "facing": 0
@@ -25501,33 +26194,343 @@
           {
             "kind": "field-big-rock",
             "spot": {
-              "x": -6.6,
-              "z": 5.8
+              "x": 13.07,
+              "z": -9.08
             },
             "radius": 2.2,
-            "facing": 0
+            "facing": 2.45
           },
           {
-            "kind": "field-arrow-sign",
+            "kind": "field-big-rock",
             "spot": {
-              "x": 13.3,
-              "z": 3
+              "x": -10.91,
+              "z": 11.44
             },
-            "radius": 0.58,
-            "facing": 0
+            "radius": 2.2,
+            "facing": 1.91
+          },
+          {
+            "kind": "field-big-rock",
+            "spot": {
+              "x": -14.65,
+              "z": -2.11
+            },
+            "radius": 2.2,
+            "facing": 0.45
+          },
+          {
+            "kind": "field-boulder",
+            "spot": {
+              "x": 7.9,
+              "z": -8.63
+            },
+            "radius": 1.7,
+            "facing": 5.18
+          },
+          {
+            "kind": "field-boulder",
+            "spot": {
+              "x": -12.89,
+              "z": -11.43
+            },
+            "radius": 1.7,
+            "facing": 2.7
+          },
+          {
+            "kind": "field-boulder",
+            "spot": {
+              "x": 3.45,
+              "z": -10.45
+            },
+            "radius": 1.7,
+            "facing": 1.92
+          },
+          {
+            "kind": "field-rock",
+            "spot": {
+              "x": -9.77,
+              "z": -1.87
+            },
+            "radius": 1.1,
+            "facing": 1.73
+          },
+          {
+            "kind": "field-rock",
+            "spot": {
+              "x": 15.74,
+              "z": -6.4
+            },
+            "radius": 1.1,
+            "facing": 3.33
+          },
+          {
+            "kind": "field-rock",
+            "spot": {
+              "x": 14.79,
+              "z": -1.29
+            },
+            "radius": 1.1,
+            "facing": 2.02
+          },
+          {
+            "kind": "field-rock",
+            "spot": {
+              "x": 15.75,
+              "z": 2.54
+            },
+            "radius": 1.1,
+            "facing": 3.43
+          },
+          {
+            "kind": "field-rock",
+            "spot": {
+              "x": -6.68,
+              "z": 8.19
+            },
+            "radius": 1.1,
+            "facing": 4.22
+          },
+          {
+            "kind": "field-rock",
+            "spot": {
+              "x": 11.4,
+              "z": 12.69
+            },
+            "radius": 1.1,
+            "facing": 5.42
+          },
+          {
+            "kind": "field-pine",
+            "spot": {
+              "x": 14.24,
+              "z": 10.97
+            },
+            "radius": 1.2,
+            "facing": 1.21
+          },
+          {
+            "kind": "field-pine",
+            "spot": {
+              "x": 14.84,
+              "z": 6.81
+            },
+            "radius": 1.2,
+            "facing": 4.35
+          },
+          {
+            "kind": "field-pine",
+            "spot": {
+              "x": -9.17,
+              "z": -12.22
+            },
+            "radius": 1.2,
+            "facing": 1.31
+          },
+          {
+            "kind": "field-pine",
+            "spot": {
+              "x": 6.03,
+              "z": 11.87
+            },
+            "radius": 1.2,
+            "facing": 1.56
+          },
+          {
+            "kind": "field-pine",
+            "spot": {
+              "x": -14.83,
+              "z": 11.44
+            },
+            "radius": 1.2,
+            "facing": 5.19
+          },
+          {
+            "kind": "field-pine",
+            "spot": {
+              "x": -4.79,
+              "z": 12.59
+            },
+            "radius": 1.2,
+            "facing": 3.37
+          },
+          {
+            "kind": "field-pine",
+            "spot": {
+              "x": 3.39,
+              "z": 6.19
+            },
+            "radius": 1.2,
+            "facing": 5.89
+          },
+          {
+            "kind": "field-pine",
+            "spot": {
+              "x": -14.89,
+              "z": -8.07
+            },
+            "radius": 1.2,
+            "facing": 3.69
+          },
+          {
+            "kind": "field-pine",
+            "spot": {
+              "x": 6.32,
+              "z": -12.28
+            },
+            "radius": 1.2,
+            "facing": 4.62
+          },
+          {
+            "kind": "field-pine",
+            "spot": {
+              "x": 3.42,
+              "z": -2.33
+            },
+            "radius": 1.2,
+            "facing": 0.46
+          },
+          {
+            "kind": "field-pine",
+            "spot": {
+              "x": 8.4,
+              "z": -2.39
+            },
+            "radius": 1.2,
+            "facing": 3.31
+          },
+          {
+            "kind": "field-pine",
+            "spot": {
+              "x": -10.28,
+              "z": 7.49
+            },
+            "radius": 1.2,
+            "facing": 0.05
+          },
+          {
+            "kind": "field-stump",
+            "spot": {
+              "x": 8.54,
+              "z": 12.81
+            },
+            "radius": 0.6,
+            "facing": 4.45
+          },
+          {
+            "kind": "field-stump",
+            "spot": {
+              "x": -12.07,
+              "z": -7.69
+            },
+            "radius": 0.6,
+            "facing": 4.37
+          },
+          {
+            "kind": "field-stump",
+            "spot": {
+              "x": 7.91,
+              "z": 4.18
+            },
+            "radius": 0.6,
+            "facing": 0.33
+          },
+          {
+            "kind": "field-log",
+            "spot": {
+              "x": -2.07,
+              "z": -2.51
+            },
+            "radius": 1.05,
+            "facing": 5.4
+          },
+          {
+            "kind": "field-log",
+            "spot": {
+              "x": 10.82,
+              "z": -12.04
+            },
+            "radius": 1.05,
+            "facing": 2.57
+          },
+          {
+            "kind": "field-log",
+            "spot": {
+              "x": -2.73,
+              "z": -12.63
+            },
+            "radius": 1.05,
+            "facing": 2.19
+          },
+          {
+            "kind": "field-bush",
+            "spot": {
+              "x": -12.53,
+              "z": -4.93
+            },
+            "radius": 0.9,
+            "facing": 2.67
+          },
+          {
+            "kind": "field-bush",
+            "spot": {
+              "x": -7.18,
+              "z": 10.64
+            },
+            "radius": 0.9,
+            "facing": 4.47
+          },
+          {
+            "kind": "field-bush",
+            "spot": {
+              "x": -6.54,
+              "z": -11.74
+            },
+            "radius": 0.9,
+            "facing": 5.78
+          },
+          {
+            "kind": "field-bush",
+            "spot": {
+              "x": 3.94,
+              "z": -7.46
+            },
+            "radius": 0.9,
+            "facing": 2.93
+          },
+          {
+            "kind": "field-bush",
+            "spot": {
+              "x": 6.12,
+              "z": 6.18
+            },
+            "radius": 0.9,
+            "facing": 6.1
+          },
+          {
+            "kind": "field-bush",
+            "spot": {
+              "x": 13.54,
+              "z": -12.91
+            },
+            "radius": 0.9,
+            "facing": 2.99
           }
         ],
         "doors": [],
         "place": {
           "x": 0,
-          "z": 11
+          "z": 5
         },
-        "paths": [
+        "terraces": [
           {
-            "edge": "East",
-            "offset": 1,
-            "width": 3,
-            "length": 6
+            "x": 0,
+            "z": 0,
+            "width": 34,
+            "depth": 28,
+            "height": 12,
+            "base": 2,
+            "colour": "#93c46f",
+            "slope": "north"
           }
         ]
       },
@@ -25553,9 +26556,9 @@
               "diameter": 15.8,
               "height": 0.02,
               "at": [
-                0,
+                -3,
                 0.01,
-                0.2
+                6.2
               ],
               "colour": "#b3a78c",
               "sides": 48,
@@ -25566,9 +26569,9 @@
               "diameter": 15.1,
               "height": 0.02,
               "at": [
-                0,
+                -3,
                 0.02,
-                0.2
+                6.2
               ],
               "colour": "#86bb62",
               "sides": 48,
@@ -25579,9 +26582,9 @@
               "diameter": 12.4,
               "height": 0.02,
               "at": [
-                0,
+                -3,
                 0.03,
-                0.2
+                6.2
               ],
               "colour": "#a6d27c",
               "sides": 48,
@@ -25592,9 +26595,9 @@
               "diameter": 8.4,
               "height": 0.02,
               "at": [
-                0,
+                -3,
                 0.04,
-                0.2
+                6.2
               ],
               "colour": "#b9de8e",
               "sides": 48,
@@ -25606,9 +26609,9 @@
               "height": 0.4,
               "depth": 3,
               "at": [
-                -17.5,
+                -21.1,
                 0.2,
-                2
+                8
               ],
               "colour": "#4fb3d9",
               "outlined": false
@@ -25617,9 +26620,9 @@
               "shape": "ball",
               "diameter": 4.8,
               "at": [
-                -9,
+                -12,
                 11,
-                20
+                26
               ],
               "colour": "#fdf7f0",
               "height": 2.88,
@@ -25629,9 +26632,9 @@
               "shape": "ball",
               "diameter": 3.6,
               "at": [
-                -6.12,
+                -9.12,
                 10.52,
-                20
+                26
               ],
               "colour": "#fdf7f0",
               "height": 2.1599999999999997,
@@ -25641,9 +26644,9 @@
               "shape": "ball",
               "diameter": 3.36,
               "at": [
-                -11.76,
+                -14.76,
                 10.28,
-                20
+                26
               ],
               "colour": "#fdf7f0",
               "height": 2.016,
@@ -25653,9 +26656,9 @@
               "shape": "ball",
               "diameter": 4.8,
               "at": [
-                10,
+                7,
                 12.5,
-                22
+                28
               ],
               "colour": "#fdf7f0",
               "height": 2.88,
@@ -25665,9 +26668,9 @@
               "shape": "ball",
               "diameter": 3.6,
               "at": [
-                12.88,
+                9.88,
                 12.02,
-                22
+                28
               ],
               "colour": "#fdf7f0",
               "height": 2.1599999999999997,
@@ -25677,9 +26680,9 @@
               "shape": "ball",
               "diameter": 3.36,
               "at": [
-                7.24,
+                4.24,
                 11.78,
-                22
+                28
               ],
               "colour": "#fdf7f0",
               "height": 2.016,
@@ -25689,9 +26692,9 @@
               "shape": "ball",
               "diameter": 4,
               "at": [
-                -16,
+                -19,
                 7,
-                24
+                30
               ],
               "colour": "#fdf7f0",
               "height": 2.4,
@@ -25701,9 +26704,9 @@
               "shape": "ball",
               "diameter": 3,
               "at": [
-                -13.6,
+                -16.6,
                 6.6,
-                24
+                30
               ],
               "colour": "#fdf7f0",
               "height": 1.7999999999999998,
@@ -25713,9 +26716,9 @@
               "shape": "ball",
               "diameter": 2.8,
               "at": [
-                -18.3,
+                -21.3,
                 6.4,
-                24
+                30
               ],
               "colour": "#fdf7f0",
               "height": 1.68,
@@ -25726,9 +26729,9 @@
               "diameter": 12,
               "height": 7,
               "at": [
-                -12,
+                -15,
                 3.5,
-                17
+                23
               ],
               "colour": "#8fb89b",
               "top": 3.3600000000000003,
@@ -25739,9 +26742,9 @@
               "diameter": 3.6,
               "height": 3.15,
               "at": [
-                -12,
+                -15,
                 8.575,
-                17
+                23
               ],
               "colour": "#a9b3b5",
               "top": 0.6000000000000001,
@@ -25752,9 +26755,9 @@
               "diameter": 1.2,
               "height": 0.98,
               "at": [
-                -12,
+                -15,
                 10.64,
-                17
+                23
               ],
               "colour": "#fdf7f0",
               "top": 0,
@@ -25765,9 +26768,9 @@
               "diameter": 13,
               "height": 8,
               "at": [
-                12,
+                9,
                 4,
-                18
+                24
               ],
               "colour": "#8fb89b",
               "top": 3.6400000000000006,
@@ -25778,9 +26781,9 @@
               "diameter": 3.9,
               "height": 3.6,
               "at": [
-                12,
+                9,
                 9.8,
-                18
+                24
               ],
               "colour": "#a9b3b5",
               "top": 0.65,
@@ -25791,9 +26794,9 @@
               "diameter": 1.3,
               "height": 1.12,
               "at": [
-                12,
+                9,
                 12.16,
-                18
+                24
               ],
               "colour": "#fdf7f0",
               "top": 0,
@@ -25804,9 +26807,9 @@
               "diameter": 16,
               "height": 9,
               "at": [
-                0,
+                -3,
                 4.5,
-                22
+                28
               ],
               "colour": "#8fb89b",
               "top": 4.48,
@@ -25817,9 +26820,9 @@
               "diameter": 4.8,
               "height": 4.05,
               "at": [
-                0,
+                -3,
                 11.025,
-                22
+                28
               ],
               "colour": "#a9b3b5",
               "top": 0.8,
@@ -25830,9 +26833,9 @@
               "diameter": 1.6,
               "height": 1.26,
               "at": [
-                0,
+                -3,
                 13.68,
-                22
+                28
               ],
               "colour": "#fdf7f0",
               "top": 0,
@@ -25843,9 +26846,9 @@
               "diameter": 0.36,
               "height": 1.2,
               "at": [
-                -14.8,
+                -17.8,
                 0.6,
-                6.5
+                12.5
               ],
               "colour": "#7a5a44",
               "sides": 8
@@ -25855,9 +26858,9 @@
               "diameter": 2.88,
               "height": 1.92,
               "at": [
-                -14.8,
+                -18.54,
                 1.92,
-                6.5
+                12.5
               ],
               "colour": "#2f7d4a",
               "top": 0,
@@ -25868,9 +26871,9 @@
               "diameter": 2.28,
               "height": 1.8,
               "at": [
-                -14.8,
+                -18.54,
                 3.12,
-                6.5
+                12.5
               ],
               "colour": "#3a9156",
               "top": 0,
@@ -25881,9 +26884,9 @@
               "diameter": 1.68,
               "height": 1.68,
               "at": [
-                -14.8,
+                -18.54,
                 4.32,
-                6.5
+                12.5
               ],
               "colour": "#4aa86a",
               "top": 0,
@@ -25894,9 +26897,9 @@
               "diameter": 0.36,
               "height": 1.2,
               "at": [
-                -15.5,
+                -18.5,
                 0.6,
-                -3
+                3
               ],
               "colour": "#7a5a44",
               "sides": 8
@@ -25906,9 +26909,9 @@
               "diameter": 2.88,
               "height": 1.92,
               "at": [
-                -15.5,
+                -18.5,
                 1.92,
-                -3
+                3
               ],
               "colour": "#2f7d4a",
               "top": 0,
@@ -25919,9 +26922,9 @@
               "diameter": 2.28,
               "height": 1.8,
               "at": [
-                -15.5,
+                -18.5,
                 3.12,
-                -3
+                3
               ],
               "colour": "#3a9156",
               "top": 0,
@@ -25932,9 +26935,9 @@
               "diameter": 1.68,
               "height": 1.68,
               "at": [
-                -15.5,
+                -18.5,
                 4.32,
-                -3
+                3
               ],
               "colour": "#4aa86a",
               "top": 0,
@@ -25945,9 +26948,9 @@
               "diameter": 0.36,
               "height": 1.2,
               "at": [
-                14.8,
+                11.8,
                 0.6,
-                5
+                14.98
               ],
               "colour": "#7a5a44",
               "sides": 8
@@ -25957,9 +26960,9 @@
               "diameter": 2.88,
               "height": 1.92,
               "at": [
-                14.8,
+                11.8,
                 1.92,
-                5
+                16.24
               ],
               "colour": "#2f7d4a",
               "top": 0,
@@ -25970,9 +26973,9 @@
               "diameter": 2.28,
               "height": 1.8,
               "at": [
-                14.8,
+                11.8,
                 3.12,
-                5
+                20.22
               ],
               "colour": "#3a9156",
               "top": 0,
@@ -25983,9 +26986,9 @@
               "diameter": 1.68,
               "height": 1.68,
               "at": [
-                14.8,
+                11.8,
                 4.32,
-                5
+                20.22
               ],
               "colour": "#4aa86a",
               "top": 0,
@@ -25996,9 +26999,9 @@
               "diameter": 0.3,
               "height": 1,
               "at": [
-                15.5,
+                12.5,
                 0.5,
-                -5
+                14.95
               ],
               "colour": "#7a5a44",
               "sides": 8
@@ -26008,9 +27011,9 @@
               "diameter": 2.4,
               "height": 1.6,
               "at": [
-                15.5,
+                12.5,
                 1.6,
-                -5
+                16
               ],
               "colour": "#2f7d4a",
               "top": 0,
@@ -26021,9 +27024,9 @@
               "diameter": 1.9,
               "height": 1.5,
               "at": [
-                15.5,
+                12.5,
                 2.6,
-                -5
+                15.75
               ],
               "colour": "#3a9156",
               "top": 0,
@@ -26034,9 +27037,9 @@
               "diameter": 1.4,
               "height": 1.4,
               "at": [
-                15.5,
+                12.5,
                 3.6,
-                -5
+                44.7
               ],
               "colour": "#4aa86a",
               "top": 0,
@@ -26047,9 +27050,9 @@
               "diameter": 0.3,
               "height": 1,
               "at": [
-                -13,
+                -16,
                 0.5,
-                9.4
+                15.4
               ],
               "colour": "#7a5a44",
               "sides": 8
@@ -26059,9 +27062,9 @@
               "diameter": 2.4,
               "height": 1.6,
               "at": [
-                -13,
+                -16,
                 1.6,
-                9.4
+                15.4
               ],
               "colour": "#2f7d4a",
               "top": 0,
@@ -26072,9 +27075,9 @@
               "diameter": 1.9,
               "height": 1.5,
               "at": [
-                -13,
+                -16,
                 2.6,
-                9.4
+                15.4
               ],
               "colour": "#3a9156",
               "top": 0,
@@ -26085,9 +27088,9 @@
               "diameter": 1.4,
               "height": 1.4,
               "at": [
-                -13,
+                -16,
                 3.6,
-                9.4
+                15.4
               ],
               "colour": "#4aa86a",
               "top": 0,
@@ -26098,9 +27101,9 @@
               "diameter": 0.33,
               "height": 1.1,
               "at": [
-                -2.5,
+                -5.5,
                 0.55,
-                9.6
+                15.6
               ],
               "colour": "#7a5a44",
               "sides": 8
@@ -26110,9 +27113,9 @@
               "diameter": 2.64,
               "height": 1.76,
               "at": [
-                -2.5,
+                -5.5,
                 1.76,
-                9.6
+                15.6
               ],
               "colour": "#2f7d4a",
               "top": 0,
@@ -26123,9 +27126,9 @@
               "diameter": 2.09,
               "height": 1.65,
               "at": [
-                -2.5,
+                -5.5,
                 2.86,
-                9.6
+                15.6
               ],
               "colour": "#3a9156",
               "top": 0,
@@ -26136,9 +27139,9 @@
               "diameter": 1.54,
               "height": 1.54,
               "at": [
-                -2.5,
+                -5.5,
                 3.96,
-                9.6
+                15.6
               ],
               "colour": "#4aa86a",
               "top": 0,
@@ -26149,9 +27152,9 @@
               "diameter": 0.3,
               "height": 1,
               "at": [
-                3.5,
                 0.5,
-                9.8
+                0.5,
+                15.8
               ],
               "colour": "#7a5a44",
               "sides": 8
@@ -26161,9 +27164,9 @@
               "diameter": 2.4,
               "height": 1.6,
               "at": [
-                3.5,
+                0.5,
                 1.6,
-                9.8
+                15.8
               ],
               "colour": "#2f7d4a",
               "top": 0,
@@ -26174,9 +27177,9 @@
               "diameter": 1.9,
               "height": 1.5,
               "at": [
-                3.5,
+                0.5,
                 2.6,
-                9.8
+                15.8
               ],
               "colour": "#3a9156",
               "top": 0,
@@ -26187,9 +27190,9 @@
               "diameter": 1.4,
               "height": 1.4,
               "at": [
-                3.5,
+                0.5,
                 3.6,
-                9.8
+                15.8
               ],
               "colour": "#4aa86a",
               "top": 0,
@@ -26200,9 +27203,9 @@
               "diameter": 0.33,
               "height": 1.1,
               "at": [
-                13,
+                10,
                 0.55,
-                9.2
+                15.2
               ],
               "colour": "#7a5a44",
               "sides": 8
@@ -26212,9 +27215,9 @@
               "diameter": 2.64,
               "height": 1.76,
               "at": [
-                13,
+                10,
                 1.76,
-                9.2
+                16.12
               ],
               "colour": "#2f7d4a",
               "top": 0,
@@ -26225,9 +27228,9 @@
               "diameter": 2.09,
               "height": 1.65,
               "at": [
-                13,
+                10,
                 2.86,
-                9.2
+                16.12
               ],
               "colour": "#3a9156",
               "top": 0,
@@ -26238,9 +27241,9 @@
               "diameter": 1.54,
               "height": 1.54,
               "at": [
-                13,
+                10,
                 3.96,
-                9.2
+                16.12
               ],
               "colour": "#4aa86a",
               "top": 0,
@@ -26250,9 +27253,9 @@
               "shape": "ball",
               "diameter": 0.9,
               "at": [
-                -9,
+                -12,
                 0.27,
-                8.3
+                15.25
               ],
               "colour": "#a7a9ad",
               "height": 0.5850000000000001
@@ -26261,9 +27264,9 @@
               "shape": "ball",
               "diameter": 1.3,
               "at": [
-                -6.5,
+                -9.5,
                 0.39,
-                8.4
+                15.45
               ],
               "colour": "#8d8f94",
               "height": 0.8450000000000001
@@ -26272,9 +27275,9 @@
               "shape": "ball",
               "diameter": 1.7,
               "at": [
-                -3,
+                -6,
                 0.51,
-                8.5
+                15.65
               ],
               "colour": "#a7a9ad",
               "height": 1.1050000000000002
@@ -26283,9 +27286,9 @@
               "shape": "ball",
               "diameter": 0.9,
               "at": [
-                3,
+                0,
                 0.27,
-                8.5
+                14.5
               ],
               "colour": "#8d8f94",
               "height": 0.5850000000000001
@@ -26294,9 +27297,9 @@
               "shape": "ball",
               "diameter": 1.3,
               "at": [
-                6.5,
+                3.5,
                 0.39,
-                8.4
+                15.45
               ],
               "colour": "#a7a9ad",
               "height": 0.8450000000000001
@@ -26305,9 +27308,9 @@
               "shape": "ball",
               "diameter": 1.7,
               "at": [
-                9,
+                6,
                 0.51,
-                8.3
+                15.65
               ],
               "colour": "#8d8f94",
               "height": 1.1050000000000002
@@ -26316,9 +27319,9 @@
               "shape": "ball",
               "diameter": 0.9,
               "at": [
-                -14.5,
+                -17.5,
                 0.27,
-                5
+                11
               ],
               "colour": "#a7a9ad",
               "height": 0.5850000000000001
@@ -26327,9 +27330,9 @@
               "shape": "ball",
               "diameter": 1.3,
               "at": [
-                14.5,
+                11.5,
                 0.39,
-                5
+                15.45
               ],
               "colour": "#8d8f94",
               "height": 0.8450000000000001
@@ -26338,9 +27341,9 @@
               "shape": "ball",
               "diameter": 1.7,
               "at": [
-                -14.6,
+                -17.95,
                 0.51,
-                -3
+                3
               ],
               "colour": "#a7a9ad",
               "height": 1.1050000000000002
@@ -26349,9 +27352,9 @@
               "shape": "ball",
               "diameter": 0.9,
               "at": [
-                14.6,
+                11.6,
                 0.27,
-                -2.5
+                15.25
               ],
               "colour": "#8d8f94",
               "height": 0.5850000000000001

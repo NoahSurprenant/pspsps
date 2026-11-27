@@ -13,7 +13,8 @@ import { CreateCylinder } from "@babylonjs/core/Meshes/Builders/cylinderBuilder"
 import { CreateGround } from "@babylonjs/core/Meshes/Builders/groundBuilder";
 import { CreatePlane } from "@babylonjs/core/Meshes/Builders/planeBuilder";
 import { CreateTorus } from "@babylonjs/core/Meshes/Builders/torusBuilder";
-import type { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Node as BabylonNode } from "@babylonjs/core/node";
 import type { PickingInfo } from "@babylonjs/core/Collisions/pickingInfo";
@@ -30,12 +31,12 @@ import { animationFor, Cat, facing, loadCatModel, MeowClip, type CatAnimation, t
 import { hasDoorway, openLandscape, pathEdge } from "./doors";
 import { onAnotherRoom, sceneryFor } from "./scenery";
 import { chunkAt, clampToWorld, place, worldBounds, worldHeight, type PlacedChunk } from "./overworld";
-import { slabs, type Slab } from "./terraces";
+import { rampMesh, slabs, type Slab } from "./terraces";
 import { lazily } from "./lazy";
 import { appLog } from "./telemetry";
 import { lookOf } from "./looks";
 import {
-  floorPixelsPerMetre, powerOfTwo, streetTile, textureSize, wallPixelsPerMetre, type Brush, type Floorplan,
+  floorPixelsPerMetre, paintTurf, powerOfTwo, seeded, streetTile, textureSize, wallPixelsPerMetre, type Brush, type Floorplan,
 } from "./paint";
 import { activityName, RoomActivities } from "./roomActivities";
 import { catalogueStandKind } from "./catalogue";
@@ -44,11 +45,13 @@ import { besideProp, buildParts, ink, propAt, propParts, type Part } from "./pro
 import { CatLook } from "./look";
 import { followBall, onFloor, slide, type Ball } from "./iceWalk";
 import catModelUrl from "./models/cat.glb?url";
-import type { BallView, CatView, ChunkView, DoorView, Emote, OutfitView, PropView, RoomSnapshot } from "./types";
+import type { BallView, CatView, ChunkView, DoorView, Emote, OutfitView, PropView, RoomSnapshot, TerraceView } from "./types";
 import { frameClock, frameLimiter } from "./frameLimit";
 
 const movingKinds = new Set(["pitch-ball", "puck"]); // drawn apart from the decor, moved by the server
 const walkSpeed = 4; // metres per second
+const turfTile = 8; // metres of slope one painted tile of turf covers
+const turfPixelsPerMetre = 40;
 const climbSpeed = 8; // how fast a cat settles to the height of the ground it is on, per second
 const sky = Color4.FromHexString("#bfe3f2ff");
 // Where the name and bubbles hang: just over the tips of the ears.
@@ -472,6 +475,10 @@ export class RoomScene {
       floors.add(this.drawFloorStrip(chunk.roomId, { x: cx + path.x, z: cz + path.z, width: path.width, depth: path.depth }, look.floorColour));
     }
     for (const terrace of chunk.terraces ?? []) {
+      if (terrace.slope) {
+        this.drawRamp(chunk.roomId, terrace).forEach((part) => floors.add(part));
+        continue;
+      }
       const steps = slabs(terrace);
       steps.forEach((slab, index) => floors.add(this.drawSlab(chunk.roomId, slab, index, index === steps.length - 1)));
     }
@@ -953,6 +960,30 @@ export class RoomScene {
     return oval;
   }
 
+  /** A ramp: its sloping top, painted like the ground it climbs from, and its darker sides. Both tappable as floor. */
+  private drawRamp(roomId: string, terrace: TerraceView): Mesh[] {
+    const { positions, topIndices, sideIndices } = rampMesh(terrace);
+    const colourOf = terrace.colour ?? "#a6d27c";
+    const part = (indices: number[], colour: string, turf = false): Mesh => {
+      const mesh = new Mesh(`terrace-${roomId}`, this.scene);
+      const data = new VertexData();
+      data.positions = positions;
+      data.indices = indices;
+      if (turf) {
+        data.uvs = positions.flatMap((value, at) => (at % 3 === 1 ? [] : [value / turfTile]));
+      }
+      data.applyToMesh(mesh);
+      const material = turf
+        ? painted(this.scene, "terrace-ramp", `turf${colour}`, textureSize(turfTile, turfTile, turfPixelsPerMetre),
+          (brush, scale) => paintTurf(brush, turfTile, scale, colour, seeded(colour.length * 977 + parseInt(colour.slice(1), 16))), { u: 1, v: 1 })
+        : flat(this.scene, "terrace-ramp", colour);
+      material.backFaceCulling = false;
+      mesh.material = material;
+      return mesh;
+    };
+    return [part(topIndices, colourOf, true), part(sideIndices, "#7da35c")];
+  }
+
   /** One step of a terrace: a block of paving on a dark edge, each step a shade apart from the next so they read as steps. */
   private drawSlab(roomId: string, slab: Slab, index: number, top: boolean): AbstractMesh {
     const rim = slab.round
@@ -980,13 +1011,14 @@ export class RoomScene {
     if (!marked) {
       return;
     }
-    // On top of the floors, inside the room's bounds: a floor that touches this one can't cover it.
+    // On top of the floors, inside the room's bounds: a floor that touches this one can't cover it. Drawn over everything, since a raised terrace (a hill) would hide the strip.
     const pink = flat(this.scene, "room-outline", "#ff3b8b");
     for (const strip of outlineStrips(chunk, outlineWidth)) {
       const bar = CreateBox("room-outline", { width: strip.width, height: 0.04, depth: strip.depth }, this.scene);
       bar.position.set(strip.x, 0.03, strip.z);
       bar.material = pink;
       bar.isPickable = false;
+      bar.renderingGroupId = 1;
     }
     this.nameRoom(chunk);
   }

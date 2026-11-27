@@ -29,6 +29,49 @@ public sealed class RoomTerraceTests
         Assert.That(RoomTerrace.Problems(Room(new RoomTerrace(x, z, width, depth, height))), Is.EqualTo(new[] { $"r/terrace 1: {problem}." }));
 
     [Test]
+    public void ASlopedTerrace_IsFineAndKeepsItsSlopeThroughTheLayout()
+    {
+        var room = Room(new RoomTerrace(-6, 0, 8, 6, 1.5, Slope: "west"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(RoomTerrace.Problems(room), Is.Empty);
+            Assert.That(RoomLayout.Of(room).ToDefinition("r").Terraces[0].Slope, Is.EqualTo("west"));
+        });
+    }
+
+    [Test]
+    public void AMountainsideRamp_MayClimbFromABaseToTwelveMetres_ButStepsStayUnderThree()
+    {
+        var steps = Room(new RoomTerrace(0, 0, 8, 6, 5));
+        var ramp = Room(new RoomTerrace(0, 0, 8, 6, 9, Slope: "west", Base: 3));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(RoomTerrace.Problems(ramp), Is.Empty);
+            Assert.That(RoomLayout.Of(ramp).ToDefinition("r").Terraces[0].Base, Is.EqualTo(3));
+            Assert.That(RoomTerrace.Problems(steps), Is.EqualTo(new[] { "r/terrace 1: is not between 0 and 3 m high." }));
+        });
+    }
+
+    [Test]
+    public void ABase_NeedsARampThatClimbsFromBelowItsHeight()
+    {
+        var flat = Room(new RoomTerrace(0, 0, 8, 6, 2, Base: 1));
+        var over = Room(new RoomTerrace(0, 0, 8, 6, 2, Slope: "west", Base: 2));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(RoomTerrace.Problems(flat).Count(), Is.EqualTo(1));
+            Assert.That(RoomTerrace.Problems(over).Count(), Is.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public void ASlopeToNowhere_IsNamedAsAProblem() =>
+        Assert.That(RoomTerrace.Problems(Room(new RoomTerrace(0, 0, 8, 6, 0.5, Slope: "up"))), Is.EqualTo(new[] { "r/terrace 1: slopes toward up, which is not west, east, north or south." }));
+
+    [Test]
     public void ARoomOffTheWorldMap_CannotHaveATerrace() =>
         Assert.That(RoomTerrace.Problems(Room(new RoomTerrace(0, 0, 8, 6, 0.5)) with { Place = null }), Is.EqualTo(new[] { "r/terrace 1: is in a room with no place on the world map." }));
 

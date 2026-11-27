@@ -5,9 +5,15 @@ namespace Pspsps.Domain.Rooms;
 /// metres from the room's middle and its size. Cats walk up onto it by the steps round its edge, so it changes how the
 /// room looks (<see cref="Colour"/>, a #rrggbb, paints it instead of stone: a red carpet; <see cref="Round"/> makes it an oval, with the steps round it) and what height a cat stands at, never where it may walk.
 /// </summary>
-public sealed record RoomTerrace(double X, double Z, double Width, double Depth, double Height, string? Colour = null, bool Round = false)
+public sealed record RoomTerrace(double X, double Z, double Width, double Depth, double Height, string? Colour = null, bool Round = false, string? Slope = null, double Base = 0)
 {
+    /// <summary>The sides a sloped terrace may rise toward: it climbs evenly from the ground at the far edge to <see cref="Height"/> at this one, with no steps.</summary>
+    public static readonly IReadOnlyList<string> Slopes = ["west", "east", "north", "south"];
+
     public const double MaxHeight = 3;
+
+    /// <summary>A ramp may climb higher than steps do: a mountainside, from <see cref="Base"/> up to <see cref="Height"/>.</summary>
+    public const double MaxRampHeight = 12;
 
     public const double MinSize = 2;
 
@@ -19,17 +25,25 @@ public sealed record RoomTerrace(double X, double Z, double Width, double Depth,
         {
             var terrace = room.Terraces[index];
             var name = $"{room.Id}/terrace {index + 1}";
-            if (new[] { terrace.X, terrace.Z, terrace.Width, terrace.Depth, terrace.Height }.Any(value => !double.IsFinite(value)))
+            if (new[] { terrace.X, terrace.Z, terrace.Width, terrace.Depth, terrace.Height, terrace.Base }.Any(value => !double.IsFinite(value)))
             {
                 yield return $"{name}: has no size.";
+            }
+            else if (terrace.Slope is not null && !Slopes.Contains(terrace.Slope))
+            {
+                yield return $"{name}: slopes toward {terrace.Slope}, which is not west, east, north or south.";
             }
             else if (terrace.Width < MinSize || terrace.Depth < MinSize)
             {
                 yield return $"{name}: is under {MinSize} m across.";
             }
-            else if (terrace.Height <= 0 || terrace.Height > MaxHeight)
+            else if (terrace.Height <= 0 || terrace.Height > (terrace.Slope is null ? MaxHeight : MaxRampHeight))
             {
-                yield return $"{name}: is not between 0 and {MaxHeight} m high.";
+                yield return $"{name}: is not between 0 and {(terrace.Slope is null ? MaxHeight : MaxRampHeight)} m high.";
+            }
+            else if (terrace.Base < 0 || (terrace.Base > 0 && (terrace.Slope is null || terrace.Base >= terrace.Height)))
+            {
+                yield return $"{name}: starts at {terrace.Base} m, which is not a ramp climbing from below its height.";
             }
             else if (Math.Abs(terrace.X) + (terrace.Width / 2) > (room.Width / 2) + 1e-6 || Math.Abs(terrace.Z) + (terrace.Depth / 2) > (room.Depth / 2) + 1e-6)
             {

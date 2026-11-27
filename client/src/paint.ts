@@ -942,3 +942,91 @@ export function paintShopWall(brush: Brush, width: number, height: number, scale
   brush.fillStyle = palette.darkWood;
   brush.fillRect(0, 0, width * scale, 0.1 * scale);
 }
+
+/** The same colour a shade lighter (<by> above 1) or darker (below 1), per channel. */
+export function shaded(hex: string, by: number): string {
+  const channel = (at: number) => Math.max(0, Math.min(255, Math.round(parseInt(hex.slice(at, at + 2), 16) * by)));
+  return `#${[1, 3, 5].map((at) => channel(at).toString(16).padStart(2, "0")).join("")}`;
+}
+
+/** Whether a colour is a green (the turf gets blades; any other colour only grain). */
+export function isGreen(hex: string): boolean {
+  const [r = 0, g = 0, b = 0] = [1, 3, 5].map((at) => parseInt(hex.slice(at, at + 2), 16));
+  return g > r && g > b;
+}
+
+/**
+ * Ground for a slope, in the game's drawn style: <colour> with big rounded lobes a shade lighter and darker, the
+ * lighter ones edged in ink, a few tufts of grass and flowers (grain on a colour that is not green). Seamless when
+ * tiled: everything near an edge is drawn again on the opposite one.
+ */
+export function paintTurf(brush: Brush, tile: number, scale: number, colour: string, random: () => number): void {
+  const size = tile * scale;
+  brush.fillStyle = colour;
+  brush.fillRect(0, 0, size, size);
+  const wrapped = (draw: (dx: number, dy: number) => void): void => {
+    for (const dx of [-size, 0, size]) {
+      for (const dy of [-size, 0, size]) {
+        draw(dx, dy);
+      }
+    }
+  };
+  type Point = readonly [number, number];
+  const shapeOf = (x: number, y: number, radius: number): Point[] => Array.from({ length: 12 }, (_, i) => {
+    const angle = (i / 12) * Math.PI * 2;
+    const reach = radius * (0.7 + random() * 0.5);
+    return [x + Math.cos(angle) * reach, y + Math.sin(angle) * reach * 0.62] as const;
+  });
+  const trace = (points: Point[], dx: number, dy: number): void => {
+    const at = (i: number): Point => points[(i + points.length) % points.length] ?? [0, 0];
+    const halfway = (i: number): Point => [(at(i)[0] + at(i + 1)[0]) / 2 + dx, (at(i)[1] + at(i + 1)[1]) / 2 + dy];
+    brush.beginPath();
+    brush.moveTo(...halfway(-1));
+    for (let i = 0; i < points.length; i++) {
+      brush.quadraticCurveTo(at(i)[0] + dx, at(i)[1] + dy, ...halfway(i));
+    }
+    brush.closePath();
+  };
+  const green = isGreen(colour);
+  brush.lineJoin = "round";
+  brush.lineCap = "round";
+  const lobes = Math.round(tile * tile * 0.16);
+  for (let i = 0; i < lobes; i++) {
+    const shape = shapeOf(random() * size, random() * size, scale * (0.9 + random() * 1.6));
+    const light = random() < 0.55;
+    brush.fillStyle = shaded(colour, light ? 1.12 : 0.9);
+    brush.strokeStyle = shaded(colour, 0.62);
+    brush.lineWidth = Math.max(1.5, scale * 0.06);
+    wrapped((dx, dy) => {
+      trace(shape, dx, dy);
+      brush.fill();
+      if (light) {
+        brush.stroke();
+      }
+    });
+  }
+  brush.lineWidth = Math.max(1.5, scale * 0.07);
+  const tones = [shaded(colour, 0.7), shaded(colour, 0.8)];
+  const tufts = Math.round(tile * tile * (green ? 2.4 : 1.5));
+  for (let i = 0; i < tufts; i++) {
+    const [x, y] = [random() * size, random() * size];
+    const length = scale * (green ? 0.22 + random() * 0.16 : 0.05 + random() * 0.05);
+    brush.strokeStyle = tones[Math.floor(random() * tones.length)] ?? colour;
+    wrapped((dx, dy) => {
+      brush.beginPath();
+      brush.moveTo(x + dx - length * 0.5, y + dy);
+      brush.lineTo(x + dx, y + dy - length);
+      brush.lineTo(x + dx + length * 0.5, y + dy - length * 0.2);
+      brush.stroke();
+    });
+  }
+  for (let i = 0; i < tile * tile * (green ? 0.35 : 1); i++) {
+    const [x, y] = [random() * size, random() * size];
+    brush.fillStyle = green ? (["#fdf7f0", "#ffe14f", "#f4a6c1"][Math.floor(random() * 3)] ?? "#fdf7f0") : shaded(colour, 0.7);
+    wrapped((dx, dy) => {
+      brush.beginPath();
+      brush.arc(x + dx, y + dy, scale * (green ? 0.06 : 0.03), 0, Math.PI * 2);
+      brush.fill();
+    });
+  }
+}

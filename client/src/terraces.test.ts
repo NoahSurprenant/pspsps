@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groundHeight, slabs, stepsReach } from "./terraces";
+import { groundHeight, rampHeight, rampMesh, slabs, stepsReach } from "./terraces";
 
 const terrace = { x: 10, z: 20, width: 8, depth: 6, height: 0.6 };
 
@@ -56,5 +56,55 @@ describe("groundHeight", () => {
   it("hands a terrace's colour to every one of its slabs, and none when it has none", () => {
     expect(slabs({ ...terrace, colour: "#c4262e" }).map((slab) => slab.colour)).toEqual(["#c4262e", "#c4262e", "#c4262e"]);
     expect(slabs(terrace).every((slab) => slab.colour === undefined)).toBe(true);
+  });
+});
+
+describe("a ramp with a base", () => {
+  const mountainside = { x: 0, z: 0, width: 28, depth: 16, height: 9, base: 3, slope: "west" as const };
+
+  it("starts at its base on the low side and climbs to its height on the high side", () => {
+    expect(rampHeight(mountainside, { x: 14, z: 0 })).toBeCloseTo(3, 6);
+    expect(rampHeight(mountainside, { x: 0, z: 0 })).toBeCloseTo(6, 6);
+    expect(rampHeight(mountainside, { x: -14, z: 0 })).toBeCloseTo(9, 6);
+    expect(groundHeight([mountainside], { x: 7, z: 2 })).toBeCloseTo(4.5, 6);
+  });
+});
+
+describe("a ramp", () => {
+  const ramp = { x: -10, z: 0, width: 8, depth: 6, height: 2, slope: "west" as const };
+
+  it("has no steps", () => {
+    expect(slabs(ramp)).toEqual([]);
+  });
+
+  it("climbs evenly from the ground at its far side to its height at the side it rises toward", () => {
+    expect(rampHeight(ramp, { x: -14, z: 0 })).toBeCloseTo(2, 6);
+    expect(rampHeight(ramp, { x: -10, z: 2 })).toBeCloseTo(1, 6);
+    expect(rampHeight(ramp, { x: -6, z: -3 })).toBeCloseTo(0, 6);
+    expect(rampHeight(ramp, { x: -4, z: 0 })).toBe(0);
+    expect(rampHeight(ramp, { x: -10, z: 3.5 })).toBe(0);
+  });
+
+  it.each([
+    ["east", { x: -6, z: 0 }, { x: -14, z: 0 }],
+    ["north", { x: -10, z: 3 }, { x: -10, z: -3 }],
+    ["south", { x: -10, z: -3 }, { x: -10, z: 3 }],
+  ] as const)("rises toward the %s", (slope, high, low) => {
+    expect(rampHeight({ ...ramp, slope }, high)).toBeCloseTo(2, 6);
+    expect(rampHeight({ ...ramp, slope }, low)).toBeCloseTo(0, 6);
+  });
+
+  it("sets the height a cat stands at, beside a stepped terrace", () => {
+    expect(groundHeight([ramp, { x: 0, z: 0, width: 4, depth: 4, height: 0.4 }], { x: -12, z: 0 })).toBeCloseTo(1.5, 6);
+    expect(groundHeight([ramp, { x: 0, z: 0, width: 4, depth: 4, height: 0.4 }], { x: 0, z: 0 })).toBeCloseTo(0.4, 6);
+  });
+
+  it("is a top and four sides, the top meeting the ground on its low side", () => {
+    const { positions, topIndices, sideIndices } = rampMesh(ramp);
+    const top = [...new Set(topIndices)].map((i) => positions.slice(i * 3, i * 3 + 3));
+
+    expect(topIndices).toHaveLength(6);
+    expect(sideIndices).toHaveLength(24);
+    expect(top.map(([x, y]) => [x, y])).toEqual(expect.arrayContaining([[-14, 2], [-6, 0]]));
   });
 });
