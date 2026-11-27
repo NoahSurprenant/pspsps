@@ -41,6 +41,33 @@ public sealed class RoomTerraceTests
     }
 
     [Test]
+    public void AMountainsideRamp_MayClimbFromABaseToTwelveMetres_ButStepsStayUnderThree()
+    {
+        var steps = Room(new RoomTerrace(0, 0, 8, 6, 5));
+        var ramp = Room(new RoomTerrace(0, 0, 8, 6, 9, Slope: "west", Base: 3));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(RoomTerrace.Problems(ramp), Is.Empty);
+            Assert.That(RoomLayout.Of(ramp).ToDefinition("r").Terraces[0].Base, Is.EqualTo(3));
+            Assert.That(RoomTerrace.Problems(steps), Is.EqualTo(new[] { "r/terrace 1: is not between 0 and 3 m high." }));
+        });
+    }
+
+    [Test]
+    public void ABase_NeedsARampThatClimbsFromBelowItsHeight()
+    {
+        var flat = Room(new RoomTerrace(0, 0, 8, 6, 2, Base: 1));
+        var over = Room(new RoomTerrace(0, 0, 8, 6, 2, Slope: "west", Base: 2));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(RoomTerrace.Problems(flat), Has.Count.EqualTo(1));
+            Assert.That(RoomTerrace.Problems(over), Has.Count.EqualTo(1));
+        });
+    }
+
+    [Test]
     public void ASlopeToNowhere_IsNamedAsAProblem() =>
         Assert.That(RoomTerrace.Problems(Room(new RoomTerrace(0, 0, 8, 6, 0.5, Slope: "up"))), Is.EqualTo(new[] { "r/terrace 1: slopes toward up, which is not west, east, north or south." }));
 

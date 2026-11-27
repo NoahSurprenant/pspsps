@@ -243,6 +243,7 @@ type TerraceView 4: Double Height
 type TerraceView 5: String Colour
 type TerraceView 6: Boolean Round
 type TerraceView 7: String Slope
+type TerraceView 8: Double Base
 
 type RoomSnapshot 16: BallView Ball
 

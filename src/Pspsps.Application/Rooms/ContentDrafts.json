@@ -26248,12 +26248,13 @@
         "terraces": [
           {
             "x": 0,
-            "z": 4.25,
+            "z": 0,
             "width": 28,
-            "depth": 7.5,
-            "height": 3,
+            "depth": 16,
+            "height": 8,
+            "base": 3,
             "colour": "#93c46f",
-            "slope": "north"
+            "slope": "west"
           }
         ]
       },

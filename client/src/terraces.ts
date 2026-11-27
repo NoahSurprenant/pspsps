@@ -66,7 +66,8 @@ export function rampHeight(terrace: TerraceView, spot: Spot): number {
     return 0;
   }
   const along = { west: (terrace.width / 2 - dx) / terrace.width, east: (dx + terrace.width / 2) / terrace.width, north: (dz + terrace.depth / 2) / terrace.depth, south: (terrace.depth / 2 - dz) / terrace.depth }[terrace.slope];
-  return terrace.height * along;
+  const base = terrace.base ?? 0;
+  return base + (terrace.height - base) * along;
 }
 
 /** A ramp's top and its four sides as flat-shaded triangles (each face its own vertices): positions and indices, the top first. */

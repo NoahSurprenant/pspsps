@@ -59,6 +59,17 @@ describe("groundHeight", () => {
   });
 });
 
+describe("a ramp with a base", () => {
+  const mountainside = { x: 0, z: 0, width: 28, depth: 16, height: 9, base: 3, slope: "west" as const };
+
+  it("starts at its base on the low side and climbs to its height on the high side", () => {
+    expect(rampHeight(mountainside, { x: 14, z: 0 })).toBeCloseTo(3, 6);
+    expect(rampHeight(mountainside, { x: 0, z: 0 })).toBeCloseTo(6, 6);
+    expect(rampHeight(mountainside, { x: -14, z: 0 })).toBeCloseTo(9, 6);
+    expect(groundHeight([mountainside], { x: 7, z: 2 })).toBeCloseTo(4.5, 6);
+  });
+});
+
 describe("a ramp", () => {
   const ramp = { x: -10, z: 0, width: 8, depth: 6, height: 2, slope: "west" as const };
 

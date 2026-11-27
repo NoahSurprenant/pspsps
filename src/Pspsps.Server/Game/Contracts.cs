@@ -140,7 +140,8 @@ public sealed record TerraceView(
     [property: Id(4)] double Height,
     [property: Id(5)] string? Colour = null,
     [property: Id(6)] bool Round = false,
-    [property: Id(7)] string? Slope = null);
+    [property: Id(7)] string? Slope = null,
+    [property: Id(8)] double Base = 0);
 
 /// <summary>A narrow strip of floor out of a room's edge: its middle (X, Z) in metres from the room's middle, and its size.</summary>
 [GenerateSerializer, Immutable]
