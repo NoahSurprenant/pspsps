@@ -24169,6 +24169,24 @@
             },
             "radius": 0.9,
             "facing": 0
+          },
+          {
+            "kind": "shore-tubes",
+            "spot": {
+              "x": -11.6,
+              "z": -3.6
+            },
+            "radius": 0.8,
+            "facing": 0
+          },
+          {
+            "kind": "shore-tubes",
+            "spot": {
+              "x": -8.2,
+              "z": -7
+            },
+            "radius": 0.8,
+            "facing": 0
           }
         ],
         "doors": [],
@@ -24178,25 +24196,11 @@
         },
         "terraces": [
           {
-            "x": -11.5,
+            "x": -11.75,
             "z": 0.5,
-            "width": 5,
-            "depth": 5,
-            "height": 0.4
-          },
-          {
-            "x": -12.25,
-            "z": 0.5,
-            "width": 3.5,
+            "width": 4.5,
             "depth": 4,
-            "height": 0.8
-          },
-          {
-            "x": -12.9,
-            "z": 0.5,
-            "width": 2.2,
-            "depth": 3,
-            "height": 1.2
+            "height": 1
           }
         ]
       },
