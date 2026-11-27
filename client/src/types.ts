@@ -176,6 +176,8 @@ export interface TerraceView {
   height: number;
   colour?: string | null;
   round?: boolean;
+  /** The side it rises toward, evenly from the ground at the other side: a ramp, with no steps. */
+  slope?: "west" | "east" | "north" | "south" | null;
 }
 
 /** A narrow strip of floor between two rooms: its middle and size. */

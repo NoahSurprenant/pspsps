@@ -24173,8 +24173,8 @@
           {
             "kind": "shore-tubes",
             "spot": {
-              "x": -11.6,
-              "z": -3.6
+              "x": -5.2,
+              "z": -7.2
             },
             "radius": 0.8,
             "facing": 0
@@ -24193,7 +24193,17 @@
         "place": {
           "x": 17,
           "z": 12
-        }
+        },
+        "terraces": [
+          {
+            "x": -10.25,
+            "z": 0.25,
+            "width": 7.5,
+            "depth": 6.5,
+            "height": 1.5,
+            "slope": "west"
+          }
+        ]
       },
       "look": {
         "sky": "#bfe0f2",

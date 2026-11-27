@@ -44,7 +44,7 @@ function stoneColour(index: number, count: number): string {
 /** The rectangular terraces' slabs, as the client stacks them. */
 export function blocksOfTerraces(terraces: readonly TerraceView[]): Block[] {
   return terraces.flatMap((terrace, t) => {
-    if (terrace.round) {
+    if (terrace.round || terrace.slope) {
       return [];
     }
     return slabs(terrace).map((slab, index, all) => ({

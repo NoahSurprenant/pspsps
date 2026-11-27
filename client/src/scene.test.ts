@@ -378,6 +378,19 @@ describe("RoomScene", () => {
     expect(steps.every((step) => step.isPickable)).toBe(true);
   });
 
+  it("draws a sloped terrace as a ramp, not steps, its top reaching the terrace's height", () => {
+    const engine = new NullEngine();
+    const view = new RoomScene(engine, () => new Promise<AssetContainer>(() => {}));
+    const chunk = { roomId: "town-square", name: "Town Square", x: 0, z: 0, width: 24, depth: 16, doors: [], props: [], pond: null, look: null, terraces: [{ x: -8, z: 0, width: 6, depth: 6, height: 1.5, slope: "west" as const }] };
+
+    view.show({ ...room, roomId: "town-square", width: 24, depth: 16, chunks: [chunk] });
+
+    const parts = engine.scenes.flatMap((scene) => scene.meshes).filter((mesh) => mesh.name === "terrace-town-square");
+    expect(parts).toHaveLength(2);
+    expect(Math.max(...parts.map((part) => part.computeWorldMatrix(true) && part.getBoundingInfo().boundingBox.maximumWorld.y))).toBeCloseTo(1.5, 3);
+    expect(parts.every((part) => part.isPickable)).toBe(true);
+  });
+
   it("colours a terrace's top apart from its steps, so the stage reads as a stage", () => {
     const engine = new NullEngine();
     const view = new RoomScene(engine, () => new Promise<AssetContainer>(() => {}));
