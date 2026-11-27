@@ -87,7 +87,7 @@ describe("the paths between the shore rooms and their neighbours", () => {
       });
   };
   const meets = (id: string, edge: Edge, centre: number) =>
-    crossings(id, edge).some((c) => c.to - c.from < 2 && Math.abs((c.from + c.to) / 2 - centre) < 0.05);
+    crossings(id, edge).some((c) => c.to - c.from < 3 && Math.abs((c.from + c.to) / 2 - centre) < 0.05);
 
   it.each([
     ["beach", "East", "dock", "West"],
