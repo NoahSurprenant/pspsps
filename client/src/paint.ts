@@ -951,7 +951,7 @@ export function shaded(hex: string, by: number): string {
 
 /** Whether a colour is a green (the turf gets blades; any other colour only grain). */
 export function isGreen(hex: string): boolean {
-  const [r, g, b] = [1, 3, 5].map((at) => parseInt(hex.slice(at, at + 2), 16));
+  const [r = 0, g = 0, b = 0] = [1, 3, 5].map((at) => parseInt(hex.slice(at, at + 2), 16));
   return g > r && g > b;
 }
 
@@ -991,7 +991,7 @@ export function paintTurf(brush: Brush, tile: number, scale: number, colour: str
   for (let i = 0; i < tufts; i++) {
     const [x, y] = [random() * size, random() * size];
     const length = scale * (green ? 0.16 + random() * 0.18 : 0.04 + random() * 0.05);
-    brush.strokeStyle = tones[Math.floor(random() * tones.length)];
+    brush.strokeStyle = tones[Math.floor(random() * tones.length)] ?? colour;
     wrapped((dx, dy) => {
       brush.beginPath();
       brush.moveTo(x + dx - length * 0.5, y + dy);
@@ -1002,7 +1002,7 @@ export function paintTurf(brush: Brush, tile: number, scale: number, colour: str
   }
   for (let i = 0; i < tile * tile * (green ? 0.6 : 1.5); i++) {
     const [x, y] = [random() * size, random() * size];
-    brush.fillStyle = green ? ["#fdf7f0", "#ffe14f", "#f4a6c1"][Math.floor(random() * 3)] : shaded(colour, 0.7);
+    brush.fillStyle = green ? (["#fdf7f0", "#ffe14f", "#f4a6c1"][Math.floor(random() * 3)] ?? "#fdf7f0") : shaded(colour, 0.7);
     wrapped((dx, dy) => {
       brush.beginPath();
       brush.arc(x + dx, y + dy, scale * (green ? 0.045 : 0.03), 0, Math.PI * 2);
