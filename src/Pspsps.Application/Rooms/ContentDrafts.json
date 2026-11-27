@@ -24020,8 +24020,8 @@
           {
             "kind": "shore-tour-stand",
             "spot": {
-              "x": -3.6,
-              "z": -4.8
+              "x": -4.4,
+              "z": -3.2
             },
             "radius": 1.6,
             "facing": 0
@@ -24128,8 +24128,8 @@
           {
             "kind": "field-tent",
             "spot": {
-              "x": -2.2,
-              "z": -0.6
+              "x": -3.6,
+              "z": 0.6
             },
             "radius": 2,
             "facing": 0.3
@@ -24165,7 +24165,7 @@
             "kind": "shore-tubes",
             "spot": {
               "x": -3.2,
-              "z": -7.4
+              "z": -7.1
             },
             "radius": 0.8,
             "facing": 0
