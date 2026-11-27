@@ -26043,42 +26043,6 @@
         "capacity": 60,
         "props": [
           {
-            "kind": "shore-lift-tower",
-            "spot": {
-              "x": -9.4,
-              "z": 3.5
-            },
-            "radius": 1.3,
-            "facing": 0
-          },
-          {
-            "kind": "shore-lift-hut",
-            "spot": {
-              "x": 8.4,
-              "z": 3.9
-            },
-            "radius": 2.3,
-            "facing": 0
-          },
-          {
-            "kind": "shore-tubes",
-            "spot": {
-              "x": -11.4,
-              "z": 5.6
-            },
-            "radius": 0.8,
-            "facing": 0
-          },
-          {
-            "kind": "shore-tubes",
-            "spot": {
-              "x": -9.7,
-              "z": 6.1
-            },
-            "radius": 0.8,
-            "facing": 0
-          },
-          {
             "kind": "shore-post",
             "spot": {
               "x": -3.83,
@@ -26178,39 +26142,12 @@
             "facing": 0
           },
           {
-            "kind": "bench",
-            "spot": {
-              "x": 3,
-              "z": 5.9
-            },
-            "radius": 1,
-            "facing": 3.141592653589793
-          },
-          {
             "kind": "lamp",
             "spot": {
               "x": -11,
               "z": -1
             },
             "radius": 0.35,
-            "facing": 0
-          },
-          {
-            "kind": "lamp",
-            "spot": {
-              "x": 11,
-              "z": 5.8
-            },
-            "radius": 0.35,
-            "facing": 0
-          },
-          {
-            "kind": "plant",
-            "spot": {
-              "x": 6.2,
-              "z": 5.9
-            },
-            "radius": 0.5,
             "facing": 0
           },
           {
@@ -26241,15 +26178,6 @@
             "facing": -0.3
           },
           {
-            "kind": "field-log",
-            "spot": {
-              "x": 1.7,
-              "z": -2.9
-            },
-            "radius": 1.1,
-            "facing": -0.4
-          },
-          {
             "kind": "field-flowers",
             "spot": {
               "x": -9.4,
@@ -26263,78 +26191,6 @@
             "spot": {
               "x": 9.6,
               "z": -5.1
-            },
-            "radius": 0.9,
-            "facing": 0
-          },
-          {
-            "kind": "field-fence",
-            "spot": {
-              "x": -12.5,
-              "z": -6.6
-            },
-            "radius": 1.35,
-            "facing": 0
-          },
-          {
-            "kind": "field-pine",
-            "spot": {
-              "x": 12.4,
-              "z": 6.6
-            },
-            "radius": 1.2,
-            "facing": 0
-          },
-          {
-            "kind": "field-pine",
-            "spot": {
-              "x": 0.1,
-              "z": 6.7
-            },
-            "radius": 1.2,
-            "facing": 0
-          },
-          {
-            "kind": "field-mushrooms",
-            "spot": {
-              "x": -6.8,
-              "z": 0.4
-            },
-            "radius": 0.6,
-            "facing": 0
-          },
-          {
-            "kind": "field-mushrooms",
-            "spot": {
-              "x": 6.6,
-              "z": 0.8
-            },
-            "radius": 0.6,
-            "facing": 0
-          },
-          {
-            "kind": "field-flowers",
-            "spot": {
-              "x": -5,
-              "z": 2.4
-            },
-            "radius": 0.9,
-            "facing": 0
-          },
-          {
-            "kind": "field-flowers",
-            "spot": {
-              "x": 5.2,
-              "z": 2.6
-            },
-            "radius": 0.9,
-            "facing": 0
-          },
-          {
-            "kind": "field-flowers",
-            "spot": {
-              "x": 0.2,
-              "z": 4.5
             },
             "radius": 0.9,
             "facing": 0
@@ -26358,87 +26214,6 @@
             "facing": 0
           },
           {
-            "kind": "field-sapling",
-            "spot": {
-              "x": -2.6,
-              "z": 4.3
-            },
-            "radius": 0.6,
-            "facing": 0
-          },
-          {
-            "kind": "field-sapling",
-            "spot": {
-              "x": 1.9,
-              "z": 4.5
-            },
-            "radius": 0.6,
-            "facing": 0
-          },
-          {
-            "kind": "field-stump",
-            "spot": {
-              "x": -6.4,
-              "z": -3.6
-            },
-            "radius": 0.6,
-            "facing": 0
-          },
-          {
-            "kind": "field-stump",
-            "spot": {
-              "x": 6.8,
-              "z": -5.2
-            },
-            "radius": 0.6,
-            "facing": 0
-          },
-          {
-            "kind": "field-log",
-            "spot": {
-              "x": -7.2,
-              "z": 2
-            },
-            "radius": 1,
-            "facing": 0
-          },
-          {
-            "kind": "field-log",
-            "spot": {
-              "x": 8.2,
-              "z": 0
-            },
-            "radius": 1,
-            "facing": 0
-          },
-          {
-            "kind": "field-mushrooms",
-            "spot": {
-              "x": -5.8,
-              "z": -7
-            },
-            "radius": 0.6,
-            "facing": 0
-          },
-          {
-            "kind": "field-mushrooms",
-            "spot": {
-              "x": 4.8,
-              "z": -2.9
-            },
-            "radius": 0.6,
-            "facing": 0
-          },
-          {
-            "kind": "field-rock",
-            "spot": {
-              "x": -9.5,
-              "z": 0.4
-            },
-            "radius": 1.2,
-            "facing": 0
-          },
-          {
             "kind": "lamp",
             "spot": {
               "x": -2.4,
@@ -26455,24 +26230,6 @@
             },
             "radius": 0.35,
             "facing": 0
-          },
-          {
-            "kind": "field-big-rock",
-            "spot": {
-              "x": -6.6,
-              "z": 5.8
-            },
-            "radius": 2.2,
-            "facing": 0
-          },
-          {
-            "kind": "field-arrow-sign",
-            "spot": {
-              "x": 13.3,
-              "z": 3
-            },
-            "radius": 0.58,
-            "facing": 0
           }
         ],
         "doors": [],
@@ -26486,6 +26243,16 @@
             "offset": 1,
             "width": 3,
             "length": 6
+          }
+        ],
+        "terraces": [
+          {
+            "x": 0,
+            "z": 4.75,
+            "width": 28,
+            "depth": 6.5,
+            "height": 3,
+            "slope": "north"
           }
         ]
       },
