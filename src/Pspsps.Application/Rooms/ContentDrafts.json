@@ -24018,15 +24018,6 @@
         "capacity": 60,
         "props": [
           {
-            "kind": "shore-lodge",
-            "spot": {
-              "x": 8.6,
-              "z": 3.75
-            },
-            "radius": 4.25,
-            "facing": 0
-          },
-          {
             "kind": "shore-tour-stand",
             "spot": {
               "x": -9.2,
@@ -24799,108 +24790,6 @@
               "diameter": 0.36,
               "height": 1.2,
               "at": [
-                4,
-                0.6,
-                9.4
-              ],
-              "colour": "#7a5a44",
-              "sides": 8
-            },
-            {
-              "shape": "cylinder",
-              "diameter": 2.88,
-              "height": 1.92,
-              "at": [
-                4,
-                1.92,
-                9.4
-              ],
-              "colour": "#2f7d4a",
-              "top": 0,
-              "sides": 8
-            },
-            {
-              "shape": "cylinder",
-              "diameter": 2.28,
-              "height": 1.8,
-              "at": [
-                4,
-                3.12,
-                9.4
-              ],
-              "colour": "#3a9156",
-              "top": 0,
-              "sides": 8
-            },
-            {
-              "shape": "cylinder",
-              "diameter": 1.68,
-              "height": 1.68,
-              "at": [
-                4,
-                4.32,
-                9.4
-              ],
-              "colour": "#4aa86a",
-              "top": 0,
-              "sides": 8
-            },
-            {
-              "shape": "cylinder",
-              "diameter": 0.33,
-              "height": 1.1,
-              "at": [
-                13,
-                0.55,
-                9.2
-              ],
-              "colour": "#7a5a44",
-              "sides": 8
-            },
-            {
-              "shape": "cylinder",
-              "diameter": 2.64,
-              "height": 1.76,
-              "at": [
-                13,
-                1.76,
-                9.2
-              ],
-              "colour": "#2f7d4a",
-              "top": 0,
-              "sides": 8
-            },
-            {
-              "shape": "cylinder",
-              "diameter": 2.09,
-              "height": 1.65,
-              "at": [
-                13,
-                2.86,
-                9.2
-              ],
-              "colour": "#3a9156",
-              "top": 0,
-              "sides": 8
-            },
-            {
-              "shape": "cylinder",
-              "diameter": 1.54,
-              "height": 1.54,
-              "at": [
-                13,
-                3.96,
-                9.2
-              ],
-              "colour": "#4aa86a",
-              "top": 0,
-              "sides": 8
-            },
-            {
-              "shape": "cylinder",
-              "diameter": 0.36,
-              "height": 1.2,
-              "at": [
                 -14.8,
                 0.6,
                 -6
@@ -25156,6 +25045,28 @@
               "colour": "#fdf7f0",
               "height": 1.68,
               "outlined": false
+            },
+            {
+              "shape": "model",
+              "model": "ski-lodge",
+              "scale": 1,
+              "at": [
+                3.5,
+                0.45,
+                11.6
+              ],
+              "colour": "#ffffff"
+            },
+            {
+              "shape": "model",
+              "model": "ski-phones",
+              "scale": 1,
+              "at": [
+                11.8,
+                0.45,
+                11.4
+              ],
+              "colour": "#ffffff"
             }
           ]
         }
