@@ -26252,9 +26252,8 @@
             "width": 28,
             "depth": 16,
             "height": 8,
-            "base": 3,
             "colour": "#93c46f",
-            "slope": "west"
+            "slope": "north"
           }
         ]
       },
