@@ -24020,8 +24020,8 @@
           {
             "kind": "shore-tour-stand",
             "spot": {
-              "x": -9.2,
-              "z": -4.4
+              "x": -3.6,
+              "z": -4.8
             },
             "radius": 1.6,
             "facing": 0
@@ -24047,15 +24047,6 @@
           {
             "kind": "shore-pine",
             "spot": {
-              "x": -12.4,
-              "z": -5.6
-            },
-            "radius": 1.25,
-            "facing": 0
-          },
-          {
-            "kind": "shore-pine",
-            "spot": {
               "x": 12.4,
               "z": -5.5
             },
@@ -24074,8 +24065,8 @@
           {
             "kind": "bench",
             "spot": {
-              "x": -5.5,
-              "z": 5.6
+              "x": -3.4,
+              "z": 6
             },
             "radius": 1,
             "facing": 3.141592653589793
@@ -24126,15 +24117,6 @@
             "facing": 0
           },
           {
-            "kind": "flower-bed",
-            "spot": {
-              "x": -6,
-              "z": -5.6
-            },
-            "radius": 0.9,
-            "facing": 0
-          },
-          {
             "kind": "market-stall",
             "spot": {
               "x": 3.4,
@@ -24146,7 +24128,7 @@
           {
             "kind": "field-tent",
             "spot": {
-              "x": -3.4,
+              "x": -2.2,
               "z": -0.6
             },
             "radius": 2,
@@ -24173,7 +24155,7 @@
           {
             "kind": "shore-tubes",
             "spot": {
-              "x": -5.2,
+              "x": -1.2,
               "z": -7.2
             },
             "radius": 0.8,
@@ -24182,10 +24164,19 @@
           {
             "kind": "shore-tubes",
             "spot": {
-              "x": -8.2,
-              "z": -7
+              "x": -3.2,
+              "z": -7.4
             },
             "radius": 0.8,
+            "facing": 0
+          },
+          {
+            "kind": "shore-pine",
+            "spot": {
+              "x": 12.6,
+              "z": 3.4
+            },
+            "radius": 1.25,
             "facing": 0
           }
         ],
@@ -24196,11 +24187,11 @@
         },
         "terraces": [
           {
-            "x": -10.25,
-            "z": 0.25,
-            "width": 7.5,
-            "depth": 6.5,
-            "height": 1.5,
+            "x": -9.5,
+            "z": 0,
+            "width": 9,
+            "depth": 16,
+            "height": 3,
             "slope": "west"
           }
         ]
