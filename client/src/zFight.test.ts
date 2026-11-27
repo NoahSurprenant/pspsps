@@ -94,7 +94,7 @@ describe("meshFights", () => {
 });
 
 // The Town Square shops are built in Blender with each box a hair larger than the last; what is left is counted here.
-const shopFights: Record<string, number> = { "town-square-coffee": 1, "town-square-club": 3, "town-square-clothes": 1, "plaza-pet-shop": 4, "plaza-hotel": 4, "plaza-mall": 3, "plaza-pizza": 0 };
+const shopFights: Record<string, number> = { "town-square-coffee": 1, "town-square-club": 3, "town-square-clothes": 1, "plaza-pet-shop": 4, "plaza-hotel": 4, "plaza-mall": 3, "plaza-pizza": 0, "ski-lodge": 0, "ski-phones": 0 };
 
 describe("the built-in models", () => {
   it.each([...Object.keys(shopFights)])("%s has no more z-fighting faces than before", (name) => {

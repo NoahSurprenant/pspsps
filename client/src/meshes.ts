@@ -7,6 +7,8 @@ import plazaPetShop from "./models/plazaPetShop.json";
 import plazaHotel from "./models/plazaHotel.json";
 import plazaMall from "./models/plazaMall.json";
 import plazaPizza from "./models/plazaPizza.json";
+import skiLodge from "./models/skiLodge.json";
+import skiPhones from "./models/skiPhones.json";
 
 export interface MeshData {
   positions: number[];
@@ -23,6 +25,8 @@ const meshes = new Map<string, MeshData>([
   ["plaza-hotel", plazaHotel as MeshData],
   ["plaza-mall", plazaMall as MeshData],
   ["plaza-pizza", plazaPizza as MeshData],
+  ["ski-lodge", skiLodge as MeshData],
+  ["ski-phones", skiPhones as MeshData],
 ]);
 
 export function modelData(name: string): MeshData | undefined {
