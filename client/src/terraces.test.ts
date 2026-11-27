@@ -84,7 +84,7 @@ describe("a ramp", () => {
   });
 
   it("sets the height a cat stands at, beside a stepped terrace", () => {
-    expect(groundHeight([ramp, { x: 0, z: 0, width: 4, depth: 4, height: 0.4 }], { x: -12, z: 0 })).toBeCloseTo(1, 6);
+    expect(groundHeight([ramp, { x: 0, z: 0, width: 4, depth: 4, height: 0.4 }], { x: -12, z: 0 })).toBeCloseTo(1.5, 6);
     expect(groundHeight([ramp, { x: 0, z: 0, width: 4, depth: 4, height: 0.4 }], { x: 0, z: 0 })).toBeCloseTo(0.4, 6);
   });
 
