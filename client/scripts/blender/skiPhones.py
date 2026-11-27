@@ -16,10 +16,10 @@ box(3.2, 0.5, 0.4, 0, -0.1, 7.75, RED)
 box(0.9, 0.9, 0.5, -2.2, -0.1, 6.95, GREY); box(0.9, 0.9, 0.5, 2.2, -0.1, 6.95, GREY)
 # big round speaker dishes on the front corners
 for s in (-1, 1):
-    cyl(0.95, 0.22, s * 2.35, F - 0.12, 3.0, SILVER)
-    cyl(0.78, 0.26, s * 2.35, F - 0.14, 3.0, GREY)
-    cyl(0.4, 0.3, s * 2.35, F - 0.16, 3.0, SILVER)
-    cyl(0.12, 0.34, s * 2.35, F - 0.18, 3.0, DARK)
+    cyl(0.95, 0.5, s * 2.35, -0.45 - 0.25, 3.0, SILVER)
+    cyl(0.78, 0.52, s * 2.35, -0.47 - 0.26, 3.0, GREY)
+    cyl(0.4, 0.56, s * 2.35, -0.49 - 0.28, 3.0, SILVER)
+    cyl(0.12, 0.6, s * 2.35, -0.51 - 0.3, 3.0, DARK)
 # glass doors with a push bar and a blue frame
 box(2.2, 0.16, 2.9, 0, F - 0.03, 0.35, BLUE)
 box(1.0, 0.08, 2.6, -0.5, F - 0.1, 0.5, GLASS); box(1.0, 0.08, 2.6, 0.5, F - 0.1, 0.5, GLASS)

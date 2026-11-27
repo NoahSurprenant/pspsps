@@ -54,16 +54,16 @@ cyl(0.3, 0.06, 0.6, F - 0.2, 2.1, GREEN)
 for x in (-1.1, 2.7):
     box(1.3, 0.12, 1.4, x, F - 0.03, 1.2, CREAM)
     box(1.05, 0.06, 1.15, x, F - 0.1, 1.32, GLASS)
-    box(0.06, 0.07, 1.15, x, F - 0.14, 1.32, CREAM); box(1.05, 0.07, 0.06, x, F - 0.14, 1.85, CREAM)
+    box(0.06, 0.07, 1.08, x, F - 0.14, 1.36, CREAM); box(0.98, 0.07, 0.06, x, F - 0.14, 1.85, CREAM)
     for s in (-1, 1):
         box(0.35, 0.1, 1.3, x + s * 0.85, F - 0.04, 1.25, GREEN)
 for x in (-1.1, 0.6, 2.3, 3.4):
     box(1.0, 0.12, 1.3, x, F - 0.03, 4.9, CREAM)
     box(0.8, 0.06, 1.1, x, F - 0.1, 5.0, GLASS)
-    box(0.06, 0.07, 1.1, x, F - 0.14, 5.0, CREAM)
-    box(1.1, 0.3, 0.22, x, F - 0.2, 4.7, GREEN)
-    for j, c in enumerate(("#ff7ab8", "#ffd23f", "#ffffff")):
-        box(0.16, 0.16, 0.16, x - 0.3 + j * 0.3, F - 0.22, 5.0 + 0.0, c)
+    box(0.06, 0.07, 1.04, x, F - 0.14, 5.03, CREAM)
+    box(1.3, 0.3, 0.22, x, F - 0.2, 4.7, GREEN)
+    for dx, c in ((-0.45, "#ff7ab8"), (-0.2, "#ffd23f"), (0.2, "#ffffff"), (0.45, "#ff7ab8")):
+        box(0.14, 0.14, 0.14, x + dx, F - 0.22, 4.92, c)
 # a balcony rail across the upper storey
 box(7.4, 0.9, 0.1, 0, F - 0.5, 4.4, TRIM)
 for k in range(15):
