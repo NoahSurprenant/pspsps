@@ -221,7 +221,7 @@ describe("the painters", () => {
 });
 
 describe("paintTurf", () => {
-  it("paints the same turf every time, in several greens, with blades and flowers, and tiles it", () => {
+  it("paints the same turf every time, in several greens, with outlined lobes, tufts and flowers, and tiles it", () => {
     const first = recordingBrush();
     const again = recordingBrush();
     paintTurf(first.brush, 8, 20, "#93c46f", seeded(7));
@@ -230,9 +230,9 @@ describe("paintTurf", () => {
     expect(first.calls).toEqual(again.calls);
     expect(first.colours.size).toBeGreaterThan(6);
     expect([...first.colours].filter((colour) => isGreen(colour)).length).toBeGreaterThan(4);
-    // Each tuft is drawn on the nine tiles round it, so an edge matches the one it meets.
-    const strokes = first.calls.filter((call) => call.name === "stroke").length;
-    expect(strokes).toBeGreaterThan(8 * 8 * 14 * 9 - 1);
+    // Each tuft and lobe is drawn on the nine tiles round it, so an edge matches the one it meets.
+    expect(first.calls.filter((call) => call.name === "stroke").length).toBeGreaterThan(8 * 8 * 2.4 * 9 - 1);
+    expect(first.calls.filter((call) => call.name === "quadraticCurveTo").length).toBeGreaterThan(0);
   });
 
   it("gives a colour that is not green grain, not blades", () => {

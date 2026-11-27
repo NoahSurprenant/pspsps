@@ -956,9 +956,9 @@ export function isGreen(hex: string): boolean {
 }
 
 /**
- * Ground for a slope: <colour> broken up by soft blotches a shade lighter and darker, tufts and blades of grass in
- * several greens (grain and pebbles on a colour that is not green), a few flowers. Seamless when tiled: everything
- * near an edge is drawn again on the opposite one.
+ * Ground for a slope, in the game's drawn style: <colour> with big rounded lobes a shade lighter and darker, the
+ * lighter ones edged in ink, a few tufts of grass and flowers (grain on a colour that is not green). Seamless when
+ * tiled: everything near an edge is drawn again on the opposite one.
  */
 export function paintTurf(brush: Brush, tile: number, scale: number, colour: string, random: () => number): void {
   const size = tile * scale;
@@ -971,26 +971,46 @@ export function paintTurf(brush: Brush, tile: number, scale: number, colour: str
       }
     }
   };
-  const blotches = Math.round(tile * tile * 0.5);
-  for (let i = 0; i < blotches; i++) {
-    const [x, y, radius] = [random() * size, random() * size, scale * (0.8 + random() * 1.8)];
-    brush.fillStyle = shaded(colour, random() < 0.5 ? 0.92 : 1.07);
-    brush.globalAlpha = 0.55;
+  type Point = readonly [number, number];
+  const shapeOf = (x: number, y: number, radius: number): Point[] => Array.from({ length: 12 }, (_, i) => {
+    const angle = (i / 12) * Math.PI * 2;
+    const reach = radius * (0.7 + random() * 0.5);
+    return [x + Math.cos(angle) * reach, y + Math.sin(angle) * reach * 0.62] as const;
+  });
+  const trace = (points: Point[], dx: number, dy: number): void => {
+    const at = (i: number): Point => points[(i + points.length) % points.length] ?? [0, 0];
+    const halfway = (i: number): Point => [(at(i)[0] + at(i + 1)[0]) / 2 + dx, (at(i)[1] + at(i + 1)[1]) / 2 + dy];
+    brush.beginPath();
+    brush.moveTo(...halfway(-1));
+    for (let i = 0; i < points.length; i++) {
+      brush.quadraticCurveTo(at(i)[0] + dx, at(i)[1] + dy, ...halfway(i));
+    }
+    brush.closePath();
+  };
+  const green = isGreen(colour);
+  brush.lineJoin = "round";
+  brush.lineCap = "round";
+  const lobes = Math.round(tile * tile * 0.16);
+  for (let i = 0; i < lobes; i++) {
+    const shape = shapeOf(random() * size, random() * size, scale * (0.9 + random() * 1.6));
+    const light = random() < 0.55;
+    brush.fillStyle = shaded(colour, light ? 1.12 : 0.9);
+    brush.strokeStyle = shaded(colour, 0.62);
+    brush.lineWidth = Math.max(1.5, scale * 0.06);
     wrapped((dx, dy) => {
-      brush.beginPath();
-      brush.ellipse(x + dx, y + dy, radius, radius * 0.6, random() * Math.PI, 0, Math.PI * 2);
+      trace(shape, dx, dy);
       brush.fill();
+      if (light) {
+        brush.stroke();
+      }
     });
   }
-  brush.globalAlpha = 1;
-  const green = isGreen(colour);
-  const tones = green ? [shaded(colour, 0.78), shaded(colour, 0.88), shaded(colour, 1.14), shaded(colour, 1.24)] : [shaded(colour, 0.85), shaded(colour, 1.1)];
-  brush.lineCap = "round";
   brush.lineWidth = Math.max(1.5, scale * 0.07);
-  const tufts = Math.round(tile * tile * (green ? 14 : 8));
+  const tones = [shaded(colour, 0.7), shaded(colour, 0.8)];
+  const tufts = Math.round(tile * tile * (green ? 2.4 : 1.5));
   for (let i = 0; i < tufts; i++) {
     const [x, y] = [random() * size, random() * size];
-    const length = scale * (green ? 0.16 + random() * 0.18 : 0.04 + random() * 0.05);
+    const length = scale * (green ? 0.22 + random() * 0.16 : 0.05 + random() * 0.05);
     brush.strokeStyle = tones[Math.floor(random() * tones.length)] ?? colour;
     wrapped((dx, dy) => {
       brush.beginPath();
@@ -1000,12 +1020,12 @@ export function paintTurf(brush: Brush, tile: number, scale: number, colour: str
       brush.stroke();
     });
   }
-  for (let i = 0; i < tile * tile * (green ? 0.6 : 1.5); i++) {
+  for (let i = 0; i < tile * tile * (green ? 0.35 : 1); i++) {
     const [x, y] = [random() * size, random() * size];
     brush.fillStyle = green ? (["#fdf7f0", "#ffe14f", "#f4a6c1"][Math.floor(random() * 3)] ?? "#fdf7f0") : shaded(colour, 0.7);
     wrapped((dx, dy) => {
       brush.beginPath();
-      brush.arc(x + dx, y + dy, scale * (green ? 0.045 : 0.03), 0, Math.PI * 2);
+      brush.arc(x + dx, y + dy, scale * (green ? 0.06 : 0.03), 0, Math.PI * 2);
       brush.fill();
     });
   }
