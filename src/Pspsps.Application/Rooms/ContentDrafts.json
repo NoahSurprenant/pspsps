@@ -2751,33 +2751,6 @@
             "facing": 0
           },
           {
-            "kind": "shore-bollard",
-            "spot": {
-              "x": 8.4,
-              "z": -1.95
-            },
-            "radius": 0.35,
-            "facing": 0
-          },
-          {
-            "kind": "shore-bollard",
-            "spot": {
-              "x": 8.4,
-              "z": -3.05
-            },
-            "radius": 0.35,
-            "facing": 0
-          },
-          {
-            "kind": "shore-rowboat",
-            "spot": {
-              "x": 4.5,
-              "z": -5.2
-            },
-            "radius": 1.65,
-            "facing": 0
-          },
-          {
             "kind": "shore-tubes",
             "spot": {
               "x": 3.3,
@@ -31335,38 +31308,6 @@
             "shift": 1.1,
             "cycle": 2
           }
-        },
-        {
-          "op": "rect",
-          "colour": "#8f6a43",
-          "x": 12.2,
-          "y": 8.6,
-          "width": 7.4,
-          "height": 1.8
-        },
-        {
-          "op": "rect",
-          "colour": "#b98c5e",
-          "x": 12.3,
-          "y": 8.7,
-          "width": 7.2,
-          "height": 1.6
-        },
-        {
-          "op": "rect",
-          "colour": "#a67a50",
-          "x": 12.3,
-          "y": 8.7,
-          "width": 7.2,
-          "height": 0.1
-        },
-        {
-          "op": "rect",
-          "colour": "#8f6a43",
-          "x": 12.3,
-          "y": 9.47,
-          "width": 7.2,
-          "height": 0.06
         }
       ]
     },
