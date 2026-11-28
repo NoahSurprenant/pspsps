@@ -7366,15 +7366,6 @@
             "facing": 0
           },
           {
-            "kind": "bench",
-            "spot": {
-              "x": 0,
-              "z": -8.8
-            },
-            "radius": 1,
-            "facing": 0
-          },
-          {
             "kind": "market-stall",
             "spot": {
               "x": -9.4,
@@ -7395,8 +7386,8 @@
           {
             "kind": "flower-bed",
             "spot": {
-              "x": -10.2,
-              "z": -8.4
+              "x": -9.2,
+              "z": -9.2
             },
             "radius": 0.9,
             "facing": 0
@@ -7404,8 +7395,8 @@
           {
             "kind": "flower-bed",
             "spot": {
-              "x": 10.2,
-              "z": -8.4
+              "x": 9.2,
+              "z": -9.2
             },
             "radius": 0.9,
             "facing": 0
@@ -7413,8 +7404,8 @@
           {
             "kind": "field-bush",
             "spot": {
-              "x": -12.6,
-              "z": -3.6
+              "x": -11.8,
+              "z": -3.1
             },
             "radius": 0.9,
             "facing": 0
@@ -7422,8 +7413,8 @@
           {
             "kind": "field-bush",
             "spot": {
-              "x": 12.6,
-              "z": -3.6
+              "x": 11.8,
+              "z": -3.1
             },
             "radius": 0.9,
             "facing": 0
