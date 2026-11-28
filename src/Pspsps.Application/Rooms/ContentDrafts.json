@@ -2749,6 +2749,87 @@
             },
             "radius": 2.2,
             "facing": 0
+          },
+          {
+            "kind": "shore-bollard",
+            "spot": {
+              "x": 8.4,
+              "z": -1.95
+            },
+            "radius": 0.35,
+            "facing": 0
+          },
+          {
+            "kind": "shore-bollard",
+            "spot": {
+              "x": 8.4,
+              "z": -3.05
+            },
+            "radius": 0.35,
+            "facing": 0
+          },
+          {
+            "kind": "shore-rowboat",
+            "spot": {
+              "x": 4.5,
+              "z": -5.2
+            },
+            "radius": 1.65,
+            "facing": 0
+          },
+          {
+            "kind": "shore-tubes",
+            "spot": {
+              "x": 3.3,
+              "z": -0.9
+            },
+            "radius": 0.8,
+            "facing": 0
+          },
+          {
+            "kind": "shore-deck-chair",
+            "spot": {
+              "x": -2.9,
+              "z": -1.4
+            },
+            "radius": 0.85,
+            "facing": 4.2
+          },
+          {
+            "kind": "shore-deck-chair",
+            "spot": {
+              "x": -0.9,
+              "z": -0.8
+            },
+            "radius": 0.85,
+            "facing": 4.2
+          },
+          {
+            "kind": "shore-parasol",
+            "spot": {
+              "x": 5.9,
+              "z": -0.6
+            },
+            "radius": 1.15,
+            "facing": 0
+          },
+          {
+            "kind": "field-sandcastle-small",
+            "spot": {
+              "x": 0.4,
+              "z": -3.2
+            },
+            "radius": 1.5,
+            "facing": 0
+          },
+          {
+            "kind": "field-ball",
+            "spot": {
+              "x": 2.6,
+              "z": -2.6
+            },
+            "radius": 0.3,
+            "facing": 0
           }
         ],
         "doors": [
@@ -31254,6 +31335,118 @@
             "shift": 1.1,
             "cycle": 2
           }
+        },
+        {
+          "op": "rect",
+          "colour": "#8f6a43",
+          "x": 12.2,
+          "y": 8.6,
+          "width": 7.4,
+          "height": 1.8
+        },
+        {
+          "op": "rect",
+          "colour": "#b98c5e",
+          "x": 12.3,
+          "y": 8.7,
+          "width": 7.2,
+          "height": 1.6
+        },
+        {
+          "op": "rect",
+          "colour": "#8f6a43",
+          "x": 12.9,
+          "y": 8.7,
+          "width": 0.06,
+          "height": 1.6
+        },
+        {
+          "op": "rect",
+          "colour": "#8f6a43",
+          "x": 13.5,
+          "y": 8.7,
+          "width": 0.06,
+          "height": 1.6
+        },
+        {
+          "op": "rect",
+          "colour": "#8f6a43",
+          "x": 14.1,
+          "y": 8.7,
+          "width": 0.06,
+          "height": 1.6
+        },
+        {
+          "op": "rect",
+          "colour": "#8f6a43",
+          "x": 14.7,
+          "y": 8.7,
+          "width": 0.06,
+          "height": 1.6
+        },
+        {
+          "op": "rect",
+          "colour": "#8f6a43",
+          "x": 15.3,
+          "y": 8.7,
+          "width": 0.06,
+          "height": 1.6
+        },
+        {
+          "op": "rect",
+          "colour": "#8f6a43",
+          "x": 15.9,
+          "y": 8.7,
+          "width": 0.06,
+          "height": 1.6
+        },
+        {
+          "op": "rect",
+          "colour": "#8f6a43",
+          "x": 16.5,
+          "y": 8.7,
+          "width": 0.06,
+          "height": 1.6
+        },
+        {
+          "op": "rect",
+          "colour": "#8f6a43",
+          "x": 17.1,
+          "y": 8.7,
+          "width": 0.06,
+          "height": 1.6
+        },
+        {
+          "op": "rect",
+          "colour": "#8f6a43",
+          "x": 17.7,
+          "y": 8.7,
+          "width": 0.06,
+          "height": 1.6
+        },
+        {
+          "op": "rect",
+          "colour": "#8f6a43",
+          "x": 18.3,
+          "y": 8.7,
+          "width": 0.06,
+          "height": 1.6
+        },
+        {
+          "op": "rect",
+          "colour": "#8f6a43",
+          "x": 18.9,
+          "y": 8.7,
+          "width": 0.06,
+          "height": 1.6
+        },
+        {
+          "op": "rect",
+          "colour": "#a67a50",
+          "x": 12.3,
+          "y": 8.7,
+          "width": 7.2,
+          "height": 0.1
         }
       ]
     },
