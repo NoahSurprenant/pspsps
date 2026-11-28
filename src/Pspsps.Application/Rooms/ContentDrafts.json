@@ -7243,19 +7243,19 @@
             "kind": "bench",
             "spot": {
               "x": -6,
-              "z": -3
+              "z": -4
             },
             "radius": 1,
-            "facing": 3.141592653589793
+            "facing": 1.5707963267948966
           },
           {
             "kind": "bench",
             "spot": {
               "x": 6,
-              "z": -3
+              "z": -4
             },
             "radius": 1,
-            "facing": 3.141592653589793
+            "facing": -1.5707963267948966
           },
           {
             "kind": "field-arrow-sign",
@@ -7280,6 +7280,168 @@
             "spot": {
               "x": 8,
               "z": -6
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "fountain",
+            "spot": {
+              "x": 0,
+              "z": -4
+            },
+            "radius": 1.35,
+            "facing": 0
+          },
+          {
+            "kind": "flower-bed",
+            "spot": {
+              "x": -4.6,
+              "z": -1.4
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "flower-bed",
+            "spot": {
+              "x": 4.6,
+              "z": -1.4
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "flower-bed",
+            "spot": {
+              "x": -4.6,
+              "z": -6.6
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "flower-bed",
+            "spot": {
+              "x": 4.6,
+              "z": -6.6
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "lamp",
+            "spot": {
+              "x": -2.4,
+              "z": 0.6
+            },
+            "radius": 0.35,
+            "facing": 0
+          },
+          {
+            "kind": "lamp",
+            "spot": {
+              "x": 2.4,
+              "z": 0.6
+            },
+            "radius": 0.35,
+            "facing": 0
+          },
+          {
+            "kind": "lamp",
+            "spot": {
+              "x": -2.9,
+              "z": -8.6
+            },
+            "radius": 0.35,
+            "facing": 0
+          },
+          {
+            "kind": "lamp",
+            "spot": {
+              "x": 2.9,
+              "z": -8.6
+            },
+            "radius": 0.35,
+            "facing": 0
+          },
+          {
+            "kind": "bench",
+            "spot": {
+              "x": 0,
+              "z": -8.8
+            },
+            "radius": 1,
+            "facing": 0
+          },
+          {
+            "kind": "market-stall",
+            "spot": {
+              "x": -9.4,
+              "z": -1.8
+            },
+            "radius": 1.4,
+            "facing": 0
+          },
+          {
+            "kind": "market-stall",
+            "spot": {
+              "x": 9.4,
+              "z": -1.8
+            },
+            "radius": 1.4,
+            "facing": 0
+          },
+          {
+            "kind": "flower-bed",
+            "spot": {
+              "x": -10.2,
+              "z": -8.4
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "flower-bed",
+            "spot": {
+              "x": 10.2,
+              "z": -8.4
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "field-bush",
+            "spot": {
+              "x": -12.6,
+              "z": -3.6
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "field-bush",
+            "spot": {
+              "x": 12.6,
+              "z": -3.6
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "field-bush",
+            "spot": {
+              "x": -12.6,
+              "z": -9.6
+            },
+            "radius": 0.9,
+            "facing": 0
+          },
+          {
+            "kind": "field-bush",
+            "spot": {
+              "x": 12.6,
+              "z": -9.6
             },
             "radius": 0.9,
             "facing": 0
@@ -31588,6 +31750,70 @@
           "y": 4.8,
           "width": 3,
           "height": 2.4
+        },
+        {
+          "op": "rect",
+          "colour": "#cdbf9f",
+          "x": 12.6,
+          "y": 9.4,
+          "width": 2.8,
+          "height": 2.6
+        },
+        {
+          "op": "rect",
+          "colour": "#cdbf9f",
+          "x": 10.2,
+          "y": 12,
+          "width": 7.6,
+          "height": 6.4
+        },
+        {
+          "op": "rect",
+          "colour": "#dccfb1",
+          "x": 10.6,
+          "y": 12.4,
+          "width": 6.8,
+          "height": 5.6
+        },
+        {
+          "op": "rect",
+          "colour": "#cdbf9f",
+          "x": 11.6,
+          "y": 13.4,
+          "width": 4.8,
+          "height": 3.6
+        },
+        {
+          "op": "rect",
+          "colour": "#b8a886",
+          "x": 10.2,
+          "y": 12,
+          "width": 7.6,
+          "height": 0.18
+        },
+        {
+          "op": "rect",
+          "colour": "#b8a886",
+          "x": 10.2,
+          "y": 18.22,
+          "width": 7.6,
+          "height": 0.18
+        },
+        {
+          "op": "rect",
+          "colour": "#b8a886",
+          "x": 10.2,
+          "y": 12,
+          "width": 0.18,
+          "height": 6.4
+        },
+        {
+          "op": "rect",
+          "colour": "#b8a886",
+          "x": 17.62,
+          "y": 12,
+          "width": 0.18,
+          "height": 6.4
         }
       ]
     }
